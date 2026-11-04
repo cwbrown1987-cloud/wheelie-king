@@ -73,3 +73,5 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 - Placed stickers are stored per device in localStorage `wk-decals` (not in the build save / not synced).
 - Deploy: `CLOUDFLARE_ACCOUNT_ID=7f9b89a42182a51327a119efb6cf949e WRANGLER_CACHE_DIR=/tmp/wcache npx wrangler pages deploy . --project-name wheelie-king --branch main --commit-dirty=true` from `/workspace/wheelie-king-app`.
 - `/workspace/wheelie-king-app` is NOT a git checkout; v5–v10 changes are not on GitHub yet.
+- v11 (4 Nov 2026, live, cache `wk-v11`): infinite money behind `window.DEV_INFINITE_MONEY = true` in `index.html` (money shows ∞, purchases free, nothing locked by price). Set it to `false` to turn it off.
+- v12 (not deployed): motor types (rear hubs 1500/3000/5000/8000W, pedal mid, no-pedal moto mids with footpegs). Work-in-progress bundle at `/tmp/app.v12-wip.js`, not yet tested. It's built on v10, so the v11 money patches must be re-applied on top.

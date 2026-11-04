@@ -1,4 +1,4 @@
-const CACHE = "wk-v10";
+const CACHE = "wk-v11";
 const SHELL = ["./", "./index.html", "./chat-history.html", "./app.js", "./stickers-dd.js", "./vendor/DecalGeometry.js", "./manifest.webmanifest", "./vendor/three.module.js", "./vendor/OrbitControls.js", "./vendor/RoomEnvironment.js", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon-180.png", "./stickers/wombat-scooter.png", "./stickers/wombat-emoto.png", "./stickers/wombat-footpath.png", "./stickers/holo-badge.png", "./stickers/eshay.png", "./stickers/baked-wombat.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });

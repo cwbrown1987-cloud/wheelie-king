@@ -33,3 +33,11 @@ Every version bumps `CACHE` in `sw.js` (currently `wk-v10`).
 - `app.js` sticker screen: "SHOW ALL" button (`data-wk="showall"`) after "+ UPLOAD" → `globalThis.__WK_STK_ALL__()` opens the full picker tray. PLACE/SIZE/SIDE preset rows replaced by hint text (REMOVE kept). Panel no longer dimmed.
 - `stickers-dd.js`: separate 🏷️ Stickers button removed; exports `__WK_STK_PICK__`, `__WK_STK_ALL__`, `__WK_STK__` (test hooks). Any placed sticker can be grabbed any time: capture-phase `pointerdown` raycasts placed decals; hit → select + drag (OrbitControls gets nothing for that gesture); miss → normal orbit. Drop uses the last move position (fixes touchend at 0,0). iOS `gesturestart/change/end` prevented.
 - `app.js` camera/controls: `PerspectiveCamera near .05→.005`, `minDistance .9→.12`, `enablePan=true`, `screenSpacePanning=true`, `touches={ONE:ROTATE,TWO:DOLLY_PAN}` (two-finger pinch zoom + pan; desktop right-drag or ctrl/shift-drag pans). Canvas already `touch-action:none`.
+
+## v11 — infinite money (dev flag)
+- `index.html`: `window.DEV_INFINITE_MONEY = true;` (first inline script). Set to `false` to restore normal money.
+- `app.js` purchase function (the one returning `hn("NEED MORE COINS",!1)`): skips the price check and the `t(e-g.price)` deduction when the flag is on.
+- `app.js` part sheet button (`e<O.price?"🔒 LOCKED"`) and sticker/part card `ci` (`P=!g&&e<p.price`): never show locked/dimmed when the flag is on.
+- `app.js` money displays (garage header `e.toLocaleString()` and the `["$ ",e.toLocaleString()]` summary) show `∞` when the flag is on. Coin balance itself is unchanged in storage.
+- `sw.js`: cache `wk-v11`.
+- Motor types (rear hub vs mid-drive, no-pedal moto mids) are work in progress for v12; WIP bundle kept off-deploy at `/tmp/app.v12-wip.js`.
