@@ -10,16 +10,19 @@ const save = () => localStorage.setItem(KEY, JSON.stringify(saved.map(({ mesh, .
 const texCache = {}, loader = new T.TextureLoader();
 const tex = (url) => texCache[url] || (texCache[url] = loader.load(url, (t) => { t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; }));
 const bikeRoot = (v) => { let g = null; v.scene.traverse((o) => { if (!g && o.name === "wk:frame") g = o.parent; }); return g; };
-const targets = (root) => { const out = []; root.traverse((o) => { if (o.isMesh && !o.userData.wkDecal && o.visible) { let p = o, ok = true; while (p && p !== root) { if (SKIP.has(p.name)) ok = false; p = p.parent; } ok && out.push(o); } }); return out; };
+const targets = (root) => { const out = []; root.traverse((o) => { if (o.isMesh && !o.userData.wkDecal && o.visible) { let p = o, ok = true; while (p && p !== root) { if (SKIP.has(p.name) || !p.visible) ok = false; p = p.parent; } ok && out.push(o); } }); return out; };
 const ray = new T.Raycaster(), ndc = new T.Vector2();
 function screenRay(v, x, y) { const r = v.renderer.domElement.getBoundingClientRect(); if (x < r.left || x > r.right || y < r.top || y > r.bottom) return false;
   ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, v.camera); return true; }
 const pickList = (v, x, y, list) => (screenRay(v, x, y) ? ray.intersectObjects(list, false)[0] || null : null);
 // tube frame at a hit: world normal, world axis (along tube), radius
-function surf(hit) { const m = hit.object, g = m.geometry, mw = m.matrixWorld, nm = new T.Matrix3().getNormalMatrix(mw);
+const tubePaths = new WeakMap();
+export function surf(hit) { const m = hit.object, g = m.geometry, mw = m.matrixWorld, nm = new T.Matrix3().getNormalMatrix(mw);
   const n = hit.face.normal.clone().applyMatrix3(nm).normalize(); const sc = new T.Vector3().setFromMatrixScale(mw); let axis, r;
   if (g.type === "CylinderGeometry") { axis = new T.Vector3(0, 1, 0).transformDirection(mw); r = Math.max(g.parameters.radiusTop, g.parameters.radiusBottom) * sc.x; }
   else if (g.type === "TubeGeometry" && hit.uv) { axis = g.parameters.path.getTangentAt(Math.min(1, Math.max(0, hit.uv.x))).transformDirection(mw); r = g.parameters.radius * sc.x; }
+  else if (g.userData.wkTube && hit.uv) { let path = tubePaths.get(g); if (!path) { path = new T.CatmullRomCurve3(g.userData.wkTube.points.map(p => new T.Vector3(...p))); tubePaths.set(g, path); }
+    axis = path.getTangentAt(Math.min(1, Math.max(0, hit.uv.x))).transformDirection(mw); r = g.userData.wkTube.radius * sc.x; }
   else { g.boundingBox || g.computeBoundingBox(); const s = g.boundingBox.getSize(new T.Vector3()).multiply(sc), dims = [["x", s.x], ["y", s.y], ["z", s.z]].sort((a, b) => b[1] - a[1]);
     axis = new T.Vector3()[`set${dims[0][0].toUpperCase()}`](1).transformDirection(mw); r = Math.min(0.06, Math.max(0.012, dims[1][1] / 2)); }
   axis.addScaledVector(n, -axis.dot(n)); if (axis.lengthSq() < 1e-6) axis.set(1, 0, 0).addScaledVector(n, -n.x); axis.normalize();

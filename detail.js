@@ -29,8 +29,7 @@ export function detailPass(root, A, b, three, find, slotGroup, g) {
   T = three; const isMoto = ["moto", "emoto"].includes(b.frame || "bmx"), em = b.frame === "emoto", R = A.wheelR;
   const fr = g("frame");
   // ---- frame welds (hi LOD bead rings) + fasteners ----
-  if (fr) { const weldMat = fr.children.find((c) => c.name?.startsWith("frame:"))?.material; fr.children.filter((c) => c.name?.startsWith("frame:weld")).forEach((w) => { const r = w.geometry.parameters.radius;
-      const bead = new T.Mesh(new T.TorusGeometry(r * 0.92, r * 0.18, 6, 20), weldMat); bead.name = "frame:weldBead"; bead.position.copy(w.position); bead.rotation.y = Math.PI / 2; bead.userData.lod = "hi"; fr.add(bead); });
+  if (fr) {
     hexBolts(fr, "frame:bolts", [[A.bb[0], A.bb[1], 0.048], [A.bb[0], A.bb[1], -0.048], [A.rearAxle[0], A.rearAxle[1], 0.068], [A.rearAxle[0], A.rearAxle[1], -0.068], [A.headTop[0], A.headTop[1] + 0.02, 0.03]], 0.006, 0.008); }
   // ---- brakes: real rotors with holes + bevelled calipers with pistons ----
   const br = g("brakes"); if (br) { br.children.slice().forEach((o) => {
@@ -48,8 +47,7 @@ export function detailPass(root, A, b, three, find, slotGroup, g) {
   for (const grp of [g("tyres"), g("motor")]) grp?.traverse((o) => { if (o.isInstancedMesh && o.count === 64 && !o.userData.wkKnobs) { o.userData.wkKnobs = 1; const tor = o.parent.children.find((c) => c.geometry?.type === "TorusGeometry"); if (!tor) return; const Rt = tor.geometry.parameters.radius + tor.geometry.parameters.tube;
       const im = new T.InstancedMesh(new T.BoxGeometry(0.012, 0.008, 0.01), o.material, 96), ob = new T.Object3D(); for (let i = 0; i < 96; i++) { const a = (i + 0.5) / 96 * Math.PI * 2, z = (i % 3 - 1) * 0.022; ob.position.set(Math.cos(a) * (Rt - 0.004), Math.sin(a) * (Rt - 0.004), z); ob.rotation.set(0, 0, a); ob.updateMatrix(); im.setMatrixAt(i, ob.matrix); }
       im.name = "tyre:knobsHi"; im.userData.lod = "hi"; im.castShadow = true; o.parent.add(im); } });
-  // spoke nipples count as hi detail
-  root.traverse((o) => { if (o.name === "wheel:nipples") o.userData.lod = "hi"; });
+  // Nipples remain visible at both LODs: they are the physical spoke-to-rim connections.
   // ---- fenders (extruded profiles) + REAR WING slot ----
   const ffp = find(b.fender_f), frp = find(b.fender_r), wg = find(b.wing);
   const old = (slot) => root.children.find((c) => c.name === "wk:part:" + slot);
@@ -68,21 +66,45 @@ export function detailPass(root, A, b, three, find, slotGroup, g) {
 }
 function emoto(root, A, b, g, fr) {
   const G = new T.Group(); G.name = "wk:emoto"; root.add(G); const { headTop: ht, headBottom: hb, bb, seatTop: st, rearAxle: ra, frontAxle: fa } = A;
-  // big bevelled battery / side-panel enclosure filling the frame triangle
-  const prof = new T.Shape(); const P = [[hb[0] - 0.05, hb[1] + 0.07], [ht[0] - 0.12, ht[1] - 0.04], [st[0] + 0.1, st[1] - 0.06], [bb[0] + 0.02, bb[1] + 0.06], [bb[0] + 0.14, bb[1] + 0.03]];
-  prof.moveTo(...P[0]); P.slice(1).forEach((p) => prof.lineTo(...p)); prof.closePath();
-  const body = mk(G, "emoto:enclosure", new T.ExtrudeGeometry(prof, { depth: 0.13, bevelEnabled: true, bevelSize: 0.012, bevelThickness: 0.014, bevelSegments: 3 }), phys("emoto:enclosure", "#15171a", { roughness: 0.42, clearcoat: 0.6 })); body.geometry.translate(0, 0, -0.065);
-  for (const s of [-1, 1]) { const seam = new T.Mesh(new T.ExtrudeGeometry(prof, { depth: 0.001, bevelEnabled: false }), std("emoto:seam", "#050505", { roughness: 0.9 })); seam.scale.set(0.985, 0.985, 1); seam.position.set(P[0][0] * 0.015, P[0][1] * 0.015, s * 0.08); seam.name = "emoto:panelSeam"; seam.userData.lod = "hi"; G.add(seam); }
-  const lid = mk(G, "emoto:batteryLid", bbox(0.26, 0.05, 0.12, 0.012, 0.006), phys("emoto:batteryLid", "#101214")); lid.position.set(ht[0] - 0.3, ht[1] - 0.02, 0); lid.rotation.z = -0.05;
+  // A cast perimeter chassis around a tall, removable battery, rather than a
+  // slab inside the bicycle triangle. The fork/headset and drivetrain stay modular.
+  for (const name of ['seatTube','topTube','downTube','cradleL','cradleR']) {
+    const assembly = fr?.getObjectByName('frame:' + name + ':assembly'); if (assembly) assembly.visible = false;
+  }
+  fr?.children.filter(c => /frame:(seatCollar|collarEar|collarBolt)/.test(c.name)).forEach(c => c.visible = false);
+  const P = [[bb[0]+.045,ht[1]-.055],[ht[0]-.14,ht[1]-.005],[hb[0]-.13,hb[1]-.065],[bb[0]+.22,bb[1]+.035],[bb[0]+.015,bb[1]+.065]];
+  const center = P.reduce((a,p)=>[a[0]+p[0]/P.length,a[1]+p[1]/P.length],[0,0]);
+  const profile = (scale=1, hole=false) => {
+    const s = hole ? new T.Path() : new T.Shape();
+    const pts=P.map(p=>[center[0]+(p[0]-center[0])*scale,center[1]+(p[1]-center[1])*scale]);
+    s.moveTo(...pts[0]);pts.slice(1).forEach(p=>s.lineTo(...p));s.closePath();return s;
+  };
+  const prof=profile(.82);
+  const body = mk(G, "emoto:enclosure", new T.ExtrudeGeometry(prof, { depth: .155, bevelEnabled: true, bevelSize: .009, bevelThickness: .009, bevelSegments: 3 }), phys("emoto:enclosure", "#171b20", { roughness: .42, clearcoat: .45 })); body.geometry.translate(0, 0, -.0775);
+  for (const side of [-1,1]) {
+    const rail=profile();rail.holes.push(profile(.84,true));
+    const chassis=mk(G,'emoto:castRail'+(side<0?'L':'R'),new T.ExtrudeGeometry(rail,{depth:.025,bevelEnabled:true,bevelSize:.007,bevelThickness:.005,bevelSegments:3}),std('emoto:chassis','#42484e',{metalness:.8,roughness:.32}));
+    chassis.position.z=side*.092-.0125;
+    const panel=mk(G,'emoto:sidePanel'+(side<0?'L':'R'),new T.ExtrudeGeometry(profile(.77),{depth:.003,bevelEnabled:true,bevelSize:.004,bevelThickness:.001,bevelSegments:2}),phys('emoto:sidePanel','#252a30',{roughness:.4,metalness:.25,clearcoat:.5}));
+    panel.position.z=side*.089-.0015;
+    const ribs = new T.CatmullRomCurve3([new T.Vector3(P[0][0],P[0][1],side*.108),new T.Vector3(st[0]-.02,st[1]-.045,side*.07),new T.Vector3(bb[0]+.04,bb[1]+.12,side*.09)]);
+    mk(G,'emoto:seatSubframe'+(side<0?'L':'R'),new T.TubeGeometry(ribs,24,.012,10),std('emoto:subframe','#3d4348',{metalness:.8,roughness:.35}));
+    hexBolts(G,'emoto:panelBolts'+side,P.map(p=>[center[0]+(p[0]-center[0])*.91,center[1]+(p[1]-center[1])*.91,side*.115]),.0045,.006);
+    const mount=mk(G,'emoto:headMount'+side,bbox(.19,.085,.04,.013,.005),std('emoto:headMount','#42484e',{metalness:.8,roughness:.32}));
+    mount.position.set(ht[0]-.09,ht[1]-.07,side*.045);mount.rotation.z=-.15;
+  }
+  const topA=P[0],topB=P[1];
+  const lid = mk(G, "emoto:batteryLid", bbox(Math.hypot(topB[0]-topA[0],topB[1]-topA[1])*.95, .045, .18, .012, .006), phys("emoto:batteryLid", "#101418")); lid.position.set((topA[0]+topB[0])/2,(topA[1]+topB[1])/2+.015,0);lid.rotation.z=Math.atan2(topB[1]-topA[1],topB[0]-topA[0]);
   // controller with vent fins on the left side, cable run to the motor
-  const ctl = new T.Group(); ctl.name = "emoto:controller"; ctl.position.set(hb[0] - 0.1, hb[1] - 0.07, -0.09); G.add(ctl);
-  mk(ctl, "controller:case", bbox(0.16, 0.11, 0.03, 0.008, 0.003), std("controller:case", "#2a2d31", { metalness: 0.75, roughness: 0.3 }));
-  const fins = new T.InstancedMesh(new T.BoxGeometry(0.15, 0.005, 0.012), std("controller:fins", "#3a3e44", { metalness: 0.85, roughness: 0.3 }), 9), o = new T.Object3D();
-  for (let i = 0; i < 9; i++) { o.position.set(0, -0.045 + i * 0.011, -0.02); o.updateMatrix(); fins.setMatrixAt(i, o.matrix); } fins.name = "controller:fins"; ctl.add(fins);
-  hexBolts(ctl, "controller:bolts", [[-0.07, 0.048, -0.017], [0.07, 0.048, -0.017], [-0.07, -0.048, -0.017], [0.07, -0.048, -0.017]], 0.004, 0.005);
+  const ctl = new T.Group(); ctl.name = "emoto:controller"; ctl.position.set(hb[0] - .16, hb[1] - .105, -.108); G.add(ctl);
+  mk(ctl, "controller:case", bbox(.11, .20, .03, .008, .003), std("controller:case", "#858c92", { metalness: .85, roughness: .3 }));
+  const fins = new T.InstancedMesh(new T.BoxGeometry(.10, .005, .014), std("controller:fins", "#b2b8be", { metalness: .9, roughness: .28 }), 14), o = new T.Object3D();
+  for (let i = 0; i < 14; i++) { o.position.set(0, -.085 + i * .013, -.021); o.updateMatrix(); fins.setMatrixAt(i, o.matrix); } fins.name = "controller:fins"; ctl.add(fins);
+  hexBolts(ctl, "controller:bolts", [[-.044,.089,-.018],[.044,.089,-.018],[-.044,-.089,-.018],[.044,-.089,-.018]], .004, .005);
   const cab = new T.CatmullRomCurve3([new T.Vector3(hb[0] - 0.05, hb[1] - 0.1, -0.09), new T.Vector3(bb[0] + 0.05, bb[1] + 0.02, -0.08), new T.Vector3(ra[0] + 0.2, ra[1] + 0.06, -0.07), new T.Vector3(ra[0] + 0.03, ra[1] + 0.02, -0.07)]);
   mk(G, "emoto:motorCable", new T.TubeGeometry(cab, 40, 0.006, 8), std("emoto:cable", "#0b0b0b", { roughness: 0.8, metalness: 0 }));
   // box-section swingarm replaces the round stock arms
+  fr?.traverse(c => { if (c.isMesh && /^frame:swingarm[LR]$/.test(c.name)) c.visible = false; });
   fr?.children.filter((c) => c.geometry?.type === "CylinderGeometry" && [0.024, 0.025].includes(c.geometry.parameters.radiusTop)).forEach((c) => (c.visible = false));
   fr?.children.filter((c) => c.geometry?.type === "BoxGeometry" && Math.abs(c.geometry.parameters.width - 0.06) < 1e-4).forEach((c) => (c.visible = false));
   const piv = [bb[0] + 0.04, bb[1] + 0.12]; for (const s of [-1, 1]) { const dx = ra[0] - piv[0], dy = ra[1] - piv[1], L = Math.hypot(dx, dy); const arm = mk(G, "swingarm:" + (s < 0 ? "L" : "R"), bbox(L + 0.05, 0.055, 0.03, 0.012, 0.005), std("swingarm", "#1c1e21", { metalness: 0.7, roughness: 0.35 }));

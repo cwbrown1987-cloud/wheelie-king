@@ -1,0 +1,1755 @@
+{
+  "report": [
+    {
+      "frame": "bmx",
+      "anchors": {
+        "frontAxle": [
+          0.63,
+          0.255
+        ],
+        "rearAxle": [
+          -0.37,
+          0.255
+        ],
+        "bb": [
+          0,
+          0.29000000000000004
+        ],
+        "headTop": [
+          0.5,
+          0.74
+        ],
+        "headBottom": [
+          0.545,
+          0.58
+        ],
+        "seatTop": [
+          -0.1,
+          0.7
+        ],
+        "wheelR": 0.255,
+        "stem": [
+          0.51,
+          0.8
+        ],
+        "shockFrame": [
+          -0.07,
+          0.577
+        ],
+        "shockArm": [
+          -0.185,
+          0.3025
+        ],
+        "underBB": [
+          0,
+          0.22000000000000003
+        ],
+        "headlight": [
+          0.5700000000000001,
+          0.76
+        ],
+        "tail": [
+          -0.22,
+          0.6799999999999999
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5225,
+            0.6599999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5498734203845291,
+            0.5626722830772297,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.4951265796154709,
+            0.7573277169227701,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.09775,
+            0.6907749999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1187,
+            0.691,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1187,
+            0.691,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1187,
+            0.691,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            -0.064
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            0.057999999999999996
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "rbmx",
+      "anchors": {
+        "frontAxle": [
+          0.63,
+          0.255
+        ],
+        "rearAxle": [
+          -0.37,
+          0.255
+        ],
+        "bb": [
+          0,
+          0.29000000000000004
+        ],
+        "headTop": [
+          0.5,
+          0.74
+        ],
+        "headBottom": [
+          0.545,
+          0.58
+        ],
+        "seatTop": [
+          -0.1,
+          0.7
+        ],
+        "wheelR": 0.255,
+        "stem": [
+          0.51,
+          0.8
+        ],
+        "shockFrame": [
+          -0.07,
+          0.577
+        ],
+        "shockArm": [
+          -0.185,
+          0.3025
+        ],
+        "underBB": [
+          0,
+          0.22000000000000003
+        ],
+        "headlight": [
+          0.5700000000000001,
+          0.76
+        ],
+        "tail": [
+          -0.22,
+          0.6799999999999999
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5225,
+            0.6599999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5498734203845291,
+            0.5626722830772297,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.4951265796154709,
+            0.7573277169227701,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.09775,
+            0.6907749999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1242,
+            0.691,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1242,
+            0.691,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1242,
+            0.691,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            -0.064
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            0.057999999999999996
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "mtb_rigid",
+      "anchors": {
+        "frontAxle": [
+          0.74,
+          0.355
+        ],
+        "rearAxle": [
+          -0.43,
+          0.355
+        ],
+        "bb": [
+          0,
+          0.31
+        ],
+        "headTop": [
+          0.58,
+          0.84
+        ],
+        "headBottom": [
+          0.62,
+          0.66
+        ],
+        "seatTop": [
+          -0.15,
+          0.86
+        ],
+        "wheelR": 0.355,
+        "stem": [
+          0.59,
+          0.8999999999999999
+        ],
+        "shockFrame": [
+          -0.105,
+          0.695
+        ],
+        "shockArm": [
+          -0.215,
+          0.36250000000000004
+        ],
+        "underBB": [
+          0,
+          0.24
+        ],
+        "headlight": [
+          0.6499999999999999,
+          0.86
+        ],
+        "tail": [
+          -0.27,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6,
+            0.75,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6239047482407358,
+            0.6424286329166888,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5760952517592641,
+            0.8575713670833112,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.31,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.146625,
+            0.847625,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1687,
+            0.851,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1687,
+            0.851,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1687,
+            0.851,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.43,
+            0.355,
+            -0.064
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.43,
+            0.355,
+            0.057999999999999996
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "mtb_ht",
+      "anchors": {
+        "frontAxle": [
+          0.77,
+          0.375
+        ],
+        "rearAxle": [
+          -0.44,
+          0.375
+        ],
+        "bb": [
+          0,
+          0.32
+        ],
+        "headTop": [
+          0.6,
+          0.87
+        ],
+        "headBottom": [
+          0.64,
+          0.68
+        ],
+        "seatTop": [
+          -0.15,
+          0.88
+        ],
+        "wheelR": 0.375,
+        "stem": [
+          0.61,
+          0.9299999999999999
+        ],
+        "shockFrame": [
+          -0.105,
+          0.712
+        ],
+        "shockArm": [
+          -0.22,
+          0.37750000000000006
+        ],
+        "underBB": [
+          0,
+          0.25
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.89
+        ],
+        "tail": [
+          -0.27,
+          0.86
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.62,
+            0.775,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6437081886588971,
+            0.6623861038702386,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5962918113411029,
+            0.8876138961297615,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.146625,
+            0.8674,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1731,
+            0.871,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1731,
+            0.871,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1731,
+            0.871,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.375,
+            -0.064
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.375,
+            0.057999999999999996
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "mtb_fs",
+      "anchors": {
+        "frontAxle": [
+          0.77,
+          0.355
+        ],
+        "rearAxle": [
+          -0.44,
+          0.355
+        ],
+        "bb": [
+          0,
+          0.33
+        ],
+        "headTop": [
+          0.6,
+          0.85
+        ],
+        "headBottom": [
+          0.64,
+          0.67
+        ],
+        "seatTop": [
+          -0.16,
+          0.86
+        ],
+        "wheelR": 0.355,
+        "stem": [
+          0.61,
+          0.9099999999999999
+        ],
+        "shockFrame": [
+          -0.112,
+          0.701
+        ],
+        "shockArm": [
+          -0.22,
+          0.37250000000000005
+        ],
+        "underBB": [
+          0,
+          0.26
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.87
+        ],
+        "tail": [
+          -0.28,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.62,
+            0.76,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6439047482407358,
+            0.6524286329166888,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5960952517592641,
+            0.8675713670833112,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.33,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.15639999999999998,
+            0.8480749999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1842,
+            0.851,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1842,
+            0.851,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1842,
+            0.851,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.355,
+            -0.064
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.355,
+            0.057999999999999996
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "fat",
+      "anchors": {
+        "frontAxle": [
+          0.77,
+          0.37
+        ],
+        "rearAxle": [
+          -0.45,
+          0.37
+        ],
+        "bb": [
+          0,
+          0.32
+        ],
+        "headTop": [
+          0.6,
+          0.85
+        ],
+        "headBottom": [
+          0.64,
+          0.68
+        ],
+        "seatTop": [
+          -0.15,
+          0.86
+        ],
+        "wheelR": 0.37,
+        "stem": [
+          0.61,
+          0.9099999999999999
+        ],
+        "shockFrame": [
+          -0.105,
+          0.698
+        ],
+        "shockArm": [
+          -0.225,
+          0.375
+        ],
+        "underBB": [
+          0,
+          0.25
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.87
+        ],
+        "tail": [
+          -0.27,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.62,
+            0.765,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.64412270800706,
+            0.6624784909699957,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.59587729199294,
+            0.8675215090300044,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.146625,
+            0.84785,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1742,
+            0.851,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.1742,
+            0.851,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1742,
+            0.851,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:chainstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.45,
+            0.37,
+            -0.107
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.45,
+            0.37,
+            0.10099999999999999
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "moto",
+      "anchors": {
+        "frontAxle": [
+          0.82,
+          0.33
+        ],
+        "rearAxle": [
+          -0.52,
+          0.33
+        ],
+        "bb": [
+          0,
+          0.36
+        ],
+        "headTop": [
+          0.6,
+          0.93
+        ],
+        "headBottom": [
+          0.66,
+          0.7
+        ],
+        "seatTop": [
+          -0.14,
+          0.86
+        ],
+        "wheelR": 0.33,
+        "stem": [
+          0.61,
+          0.99
+        ],
+        "shockFrame": [
+          -0.098,
+          0.71
+        ],
+        "shockArm": [
+          -0.26,
+          0.375
+        ],
+        "underBB": [
+          0,
+          0.29
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.9500000000000001
+        ],
+        "tail": [
+          -0.26,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.63,
+            0.815,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.664543594148646,
+            0.6825828890968568,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.595456405851354,
+            0.9474171109031433,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.13685000000000003,
+            0.84875,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.17300000000000001,
+            0.851,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.17300000000000001,
+            0.851,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.17300000000000001,
+            0.851,
+            0
+          ]
+        },
+        {
+          "name": "frame:swingPivot",
+          "type": "CylinderGeometry",
+          "position": [
+            0.04,
+            0.45999999999999996,
+            0
+          ]
+        },
+        {
+          "name": "frame:swingarmL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:cradleL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:swingarmR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:cradleR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:stockShock",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.127,
+            0.56225,
+            0
+          ]
+        },
+        {
+          "name": "frame:stockShock",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            -0.078
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            0.072
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "emoto",
+      "anchors": {
+        "frontAxle": [
+          0.82,
+          0.33
+        ],
+        "rearAxle": [
+          -0.52,
+          0.33
+        ],
+        "bb": [
+          0,
+          0.36
+        ],
+        "headTop": [
+          0.6,
+          0.93
+        ],
+        "headBottom": [
+          0.66,
+          0.7
+        ],
+        "seatTop": [
+          -0.14,
+          0.86
+        ],
+        "wheelR": 0.33,
+        "stem": [
+          0.61,
+          0.99
+        ],
+        "shockFrame": [
+          -0.098,
+          0.71
+        ],
+        "shockArm": [
+          -0.26,
+          0.375
+        ],
+        "underBB": [
+          0,
+          0.29
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.9500000000000001
+        ],
+        "tail": [
+          -0.26,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.63,
+            0.815,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.664543594148646,
+            0.6825828890968568,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.595456405851354,
+            0.9474171109031433,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.13685000000000003,
+            0.84875,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.17300000000000001,
+            0.851,
+            -0.012
+          ]
+        },
+        {
+          "name": "frame:collarEar",
+          "type": "BoxGeometry",
+          "position": [
+            -0.17300000000000001,
+            0.851,
+            0.012
+          ]
+        },
+        {
+          "name": "frame:collarBolt",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.17300000000000001,
+            0.851,
+            0
+          ]
+        },
+        {
+          "name": "frame:swingPivot",
+          "type": "CylinderGeometry",
+          "position": [
+            0.04,
+            0.45999999999999996,
+            0
+          ]
+        },
+        {
+          "name": "frame:swingarmL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:cradleL:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:swingarmR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:cradleR:assembly",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:stockShock",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.127,
+            0.56225,
+            0
+          ]
+        },
+        {
+          "name": "frame:stockShock",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            -0.078
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            0.072
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,2765 @@
+{
+  "report": [
+    {
+      "frame": "bmx",
+      "anchors": {
+        "frontAxle": [
+          0.63,
+          0.255
+        ],
+        "rearAxle": [
+          -0.37,
+          0.255
+        ],
+        "bb": [
+          0,
+          0.29000000000000004
+        ],
+        "headTop": [
+          0.5,
+          0.74
+        ],
+        "headBottom": [
+          0.545,
+          0.58
+        ],
+        "seatTop": [
+          -0.1,
+          0.7
+        ],
+        "wheelR": 0.255,
+        "stem": [
+          0.51,
+          0.8
+        ],
+        "shockFrame": [
+          -0.07,
+          0.577
+        ],
+        "shockArm": [
+          -0.185,
+          0.3025
+        ],
+        "underBB": [
+          0,
+          0.22000000000000003
+        ],
+        "headlight": [
+          0.5700000000000001,
+          0.76
+        ],
+        "tail": [
+          -0.22,
+          0.6799999999999999
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5225,
+            0.6599999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5493319292306926,
+            0.5645975849575375,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.4956680707693074,
+            0.7554024150424623,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.098,
+            0.6918,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.5081,
+            0.7111999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.536,
+            0.612,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.093,
+            0.6713,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.545,
+            0.58,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:chainstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            -0.061000000000000006
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:chainstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            0.055
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bridge",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.21960000000000002,
+            0.50132,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.5081,
+            0.7111999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.536,
+            0.612,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.093,
+            0.6713,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "rbmx",
+      "anchors": {
+        "frontAxle": [
+          0.63,
+          0.255
+        ],
+        "rearAxle": [
+          -0.37,
+          0.255
+        ],
+        "bb": [
+          0,
+          0.29000000000000004
+        ],
+        "headTop": [
+          0.5,
+          0.74
+        ],
+        "headBottom": [
+          0.545,
+          0.58
+        ],
+        "seatTop": [
+          -0.1,
+          0.7
+        ],
+        "wheelR": 0.255,
+        "stem": [
+          0.51,
+          0.8
+        ],
+        "shockFrame": [
+          -0.07,
+          0.577
+        ],
+        "shockArm": [
+          -0.185,
+          0.3025
+        ],
+        "underBB": [
+          0,
+          0.22000000000000003
+        ],
+        "headlight": [
+          0.5700000000000001,
+          0.76
+        ],
+        "tail": [
+          -0.22,
+          0.6799999999999999
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            0.4538,
+            0.6402,
+            0
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            0.017,
+            0.47275,
+            0
+          ]
+        },
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5225,
+            0.6599999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5493319292306926,
+            0.5645975849575375,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.4956680707693074,
+            0.7554024150424623,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.098,
+            0.6918,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.5081,
+            0.7111999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.536,
+            0.612,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.093,
+            0.6713,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.545,
+            0.58,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:chainstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            -0.061000000000000006
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:chainstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.37,
+            0.255,
+            0.055
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bridge",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.21960000000000002,
+            0.50132,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.5081,
+            0.7111999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.536,
+            0.612,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.093,
+            0.6713,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.29000000000000004,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.102,
+            0.6589999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.29000000000000004,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "mtb_rigid",
+      "anchors": {
+        "frontAxle": [
+          0.74,
+          0.355
+        ],
+        "rearAxle": [
+          -0.43,
+          0.355
+        ],
+        "bb": [
+          0,
+          0.31
+        ],
+        "headTop": [
+          0.58,
+          0.84
+        ],
+        "headBottom": [
+          0.62,
+          0.66
+        ],
+        "seatTop": [
+          -0.15,
+          0.86
+        ],
+        "wheelR": 0.355,
+        "stem": [
+          0.59,
+          0.8999999999999999
+        ],
+        "shockFrame": [
+          -0.105,
+          0.695
+        ],
+        "shockArm": [
+          -0.215,
+          0.36250000000000004
+        ],
+        "underBB": [
+          0,
+          0.24
+        ],
+        "headlight": [
+          0.6499999999999999,
+          0.86
+        ],
+        "tail": [
+          -0.27,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6,
+            0.75,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6234708873250985,
+            0.6443810070370568,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5765291126749015,
+            0.8556189929629432,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.147,
+            0.849,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.31,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.5871999999999999,
+            0.8076,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.612,
+            0.6960000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.13949999999999999,
+            0.8215,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.31,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.62,
+            0.66,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:chainstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.43,
+            0.355,
+            -0.061000000000000006
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8049999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.31,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:chainstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.43,
+            0.355,
+            0.055
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8049999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.31,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bridge",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.27090000000000003,
+            0.628,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.5871999999999999,
+            0.8076,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.612,
+            0.6960000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.13949999999999999,
+            0.8215,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.31,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8049999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.31,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8049999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.31,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "mtb_ht",
+      "anchors": {
+        "frontAxle": [
+          0.77,
+          0.375
+        ],
+        "rearAxle": [
+          -0.44,
+          0.375
+        ],
+        "bb": [
+          0,
+          0.32
+        ],
+        "headTop": [
+          0.6,
+          0.87
+        ],
+        "headBottom": [
+          0.64,
+          0.68
+        ],
+        "seatTop": [
+          -0.15,
+          0.88
+        ],
+        "wheelR": 0.375,
+        "stem": [
+          0.61,
+          0.9299999999999999
+        ],
+        "shockFrame": [
+          -0.105,
+          0.712
+        ],
+        "shockArm": [
+          -0.22,
+          0.37750000000000006
+        ],
+        "underBB": [
+          0,
+          0.25
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.89
+        ],
+        "tail": [
+          -0.27,
+          0.86
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.62,
+            0.775,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6432961676967974,
+            0.664343203440212,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5967038323032026,
+            0.885656796559788,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.147,
+            0.8688,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.6072,
+            0.8358,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.632,
+            0.7180000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.13949999999999999,
+            0.8408,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.64,
+            0.68,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:chainstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.375,
+            -0.061000000000000006
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.824,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:chainstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.375,
+            0.055
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.824,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bridge",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.2751,
+            0.64742,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.6072,
+            0.8358,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.632,
+            0.7180000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.13949999999999999,
+            0.8408,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.824,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.824,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "mtb_fs",
+      "anchors": {
+        "frontAxle": [
+          0.77,
+          0.355
+        ],
+        "rearAxle": [
+          -0.44,
+          0.355
+        ],
+        "bb": [
+          0,
+          0.33
+        ],
+        "headTop": [
+          0.6,
+          0.85
+        ],
+        "headBottom": [
+          0.64,
+          0.67
+        ],
+        "seatTop": [
+          -0.16,
+          0.86
+        ],
+        "wheelR": 0.355,
+        "stem": [
+          0.61,
+          0.9099999999999999
+        ],
+        "shockFrame": [
+          -0.112,
+          0.701
+        ],
+        "shockArm": [
+          -0.22,
+          0.37250000000000005
+        ],
+        "underBB": [
+          0,
+          0.26
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.87
+        ],
+        "tail": [
+          -0.28,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.62,
+            0.76,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6434708873250985,
+            0.6543810070370568,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5965291126749015,
+            0.8656189929629432,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.1568,
+            0.8493999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.33,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.6072,
+            0.8176,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.632,
+            0.7060000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.1488,
+            0.8229,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.33,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.64,
+            0.67,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:chainstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.355,
+            -0.061000000000000006
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.15600000000000003,
+            0.8069999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.33,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:chainstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.44,
+            0.355,
+            0.055
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.15600000000000003,
+            0.8069999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.33,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bridge",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.28032,
+            0.6291599999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.6072,
+            0.8176,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.632,
+            0.7060000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.1488,
+            0.8229,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.33,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.15600000000000003,
+            0.8069999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.33,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.15600000000000003,
+            0.8069999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.33,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "fat",
+      "anchors": {
+        "frontAxle": [
+          0.77,
+          0.37
+        ],
+        "rearAxle": [
+          -0.45,
+          0.37
+        ],
+        "bb": [
+          0,
+          0.32
+        ],
+        "headTop": [
+          0.6,
+          0.85
+        ],
+        "headBottom": [
+          0.64,
+          0.68
+        ],
+        "seatTop": [
+          -0.15,
+          0.86
+        ],
+        "wheelR": 0.37,
+        "stem": [
+          0.61,
+          0.9099999999999999
+        ],
+        "shockFrame": [
+          -0.105,
+          0.698
+        ],
+        "shockArm": [
+          -0.225,
+          0.375
+        ],
+        "underBB": [
+          0,
+          0.25
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.87
+        ],
+        "tail": [
+          -0.27,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.62,
+            0.765,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6436646293396088,
+            0.6644253253066628,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5963353706603912,
+            0.8655746746933373,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.147,
+            0.8492,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.6072,
+            0.8194,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.632,
+            0.7140000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.13949999999999999,
+            0.8221999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.64,
+            0.68,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:chainstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayL",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutL",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.45,
+            0.37,
+            -0.061000000000000006
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8059999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:chainstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatstayR",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:dropoutR",
+          "type": "ExtrudeGeometry",
+          "position": [
+            -0.45,
+            0.37,
+            0.055
+          ]
+        },
+        {
+          "name": "frame:weldSeatstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8059999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldChainstay",
+          "type": "SphereGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bridge",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.2793,
+            0.63488,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.6072,
+            0.8194,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.632,
+            0.7140000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.13949999999999999,
+            0.8221999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.32,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8059999999999999,
+            -0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            -0.03
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.14700000000000002,
+            0.8059999999999999,
+            0.02
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.02,
+            0.32,
+            0.03
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "moto",
+      "anchors": {
+        "frontAxle": [
+          0.82,
+          0.33
+        ],
+        "rearAxle": [
+          -0.52,
+          0.33
+        ],
+        "bb": [
+          0,
+          0.36
+        ],
+        "headTop": [
+          0.6,
+          0.93
+        ],
+        "headBottom": [
+          0.66,
+          0.7
+        ],
+        "seatTop": [
+          -0.14,
+          0.86
+        ],
+        "wheelR": 0.33,
+        "stem": [
+          0.61,
+          0.99
+        ],
+        "shockFrame": [
+          -0.098,
+          0.71
+        ],
+        "shockArm": [
+          -0.26,
+          0.375
+        ],
+        "underBB": [
+          0,
+          0.29
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.9500000000000001
+        ],
+        "tail": [
+          -0.26,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.24000000000000002,
+            0.395,
+            -0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "BoxGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            -0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.24000000000000002,
+            0.395,
+            0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "BoxGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            0.04,
+            0.46,
+            0
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.127,
+            0.56225,
+            0
+          ]
+        },
+        {
+          "name": "",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.63,
+            0.815,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6640387503543521,
+            0.6845181236416504,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5959612496456479,
+            0.9454818763583496,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.13720000000000002,
+            0.85,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.6108,
+            0.8886000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.648,
+            0.746,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.1302,
+            0.825,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.66,
+            0.7,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:cradle",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldCradle",
+          "type": "SphereGeometry",
+          "position": [
+            0.5940000000000001,
+            0.6659999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.6108,
+            0.8886000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.648,
+            0.746,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.1302,
+            0.825,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.5940000000000001,
+            0.6659999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    },
+    {
+      "frame": "emoto",
+      "anchors": {
+        "frontAxle": [
+          0.82,
+          0.33
+        ],
+        "rearAxle": [
+          -0.52,
+          0.33
+        ],
+        "bb": [
+          0,
+          0.36
+        ],
+        "headTop": [
+          0.6,
+          0.93
+        ],
+        "headBottom": [
+          0.66,
+          0.7
+        ],
+        "seatTop": [
+          -0.14,
+          0.86
+        ],
+        "wheelR": 0.33,
+        "stem": [
+          0.61,
+          0.99
+        ],
+        "shockFrame": [
+          -0.098,
+          0.71
+        ],
+        "shockArm": [
+          -0.26,
+          0.375
+        ],
+        "underBB": [
+          0,
+          0.29
+        ],
+        "headlight": [
+          0.6699999999999999,
+          0.9500000000000001
+        ],
+        "tail": [
+          -0.26,
+          0.84
+        ]
+      },
+      "frameChildren": [
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.24000000000000002,
+            0.395,
+            -0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "BoxGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            -0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.24000000000000002,
+            0.395,
+            0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "BoxGeometry",
+          "position": [
+            -0.52,
+            0.33,
+            0.07
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            0.04,
+            0.46,
+            0
+          ]
+        },
+        {
+          "name": "",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.127,
+            0.56225,
+            0
+          ]
+        },
+        {
+          "name": "",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:headTube",
+          "type": "CylinderGeometry",
+          "position": [
+            0.63,
+            0.815,
+            0
+          ]
+        },
+        {
+          "name": "frame:lowerCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.6640387503543521,
+            0.6845181236416504,
+            0
+          ]
+        },
+        {
+          "name": "frame:upperCup",
+          "type": "CylinderGeometry",
+          "position": [
+            0.5959612496456479,
+            0.9454818763583496,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:seatCollar",
+          "type": "CylinderGeometry",
+          "position": [
+            -0.13720000000000002,
+            0.85,
+            0
+          ]
+        },
+        {
+          "name": "frame:topTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:downTube",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:bbShell",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadTop",
+          "type": "SphereGeometry",
+          "position": [
+            0.6108,
+            0.8886000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldHeadDown",
+          "type": "SphereGeometry",
+          "position": [
+            0.648,
+            0.746,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldSeatTop",
+          "type": "SphereGeometry",
+          "position": [
+            -0.1302,
+            0.825,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBB",
+          "type": "SphereGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:gusset",
+          "type": "ExtrudeGeometry",
+          "position": [
+            0.66,
+            0.7,
+            -0.004
+          ]
+        },
+        {
+          "name": "frame:cradle",
+          "type": "TubeGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldCradle",
+          "type": "SphereGeometry",
+          "position": [
+            0.5940000000000001,
+            0.6659999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.6108,
+            0.8886000000000001,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.648,
+            0.746,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            -0.1302,
+            0.825,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0,
+            0.36,
+            0
+          ]
+        },
+        {
+          "name": "frame:weldBead",
+          "type": "TorusGeometry",
+          "position": [
+            0.5940000000000001,
+            0.6659999999999999,
+            0
+          ]
+        },
+        {
+          "name": "frame:bolts",
+          "type": "CylinderGeometry",
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "environment": true
+    }
+  ],
+  "errors": []
+}

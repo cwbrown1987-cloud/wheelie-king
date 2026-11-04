@@ -1,8 +1,10 @@
 import { chromium } from "playwright";
-const URL_ = process.argv[2] || "http://localhost:8931/", OUT = "/workspace/wk-shots/v13" + (process.argv[3]||"") + "-";
-const b = await chromium.launch({ args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
-const ctx = await b.newContext({ viewport: { width: 900, height: 420 }, deviceScaleFactor: 1.5, hasTouch: true });
-const p = await ctx.newPage(); p.setDefaultTimeout(30000); const errs = []; p.on("pageerror", (e) => errs.push(e.message)); p.on("console", m => /wk hook/.test(m.text()) && errs.push(m.text()));
+import { mkdirSync } from "node:fs";
+const URL_ = process.argv[2] || "http://localhost:8931/", OUT = "test-results/slots" + (process.argv[3]||"") + "-";
+mkdirSync("test-results", { recursive: true });
+const b = await chromium.launch({ channel: process.env.WK_BROWSER || "chrome", args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
+const ctx = await b.newContext({ viewport: { width: 900, height: 420 }, deviceScaleFactor: 1.5, hasTouch: true, serviceWorkers: "block" });
+const p = await ctx.newPage(); p.setDefaultTimeout(30000); const errs = []; p.on("pageerror", (e) => errs.push(e.message)); p.on("console", m => /wk (hook|frame|spokes|detail|cond)/.test(m.text()) && errs.push(m.text()));
 await p.goto(URL_ + "?v=" + Date.now()); await p.waitForFunction(() => globalThis.__WK_VIEW__, null, { timeout: 40000 });
 await p.evaluate(() => { __WK_VIEW__.controls.autoRotate = false; });
 // open a category so the card renderer runs and exposes the equip fn
@@ -37,3 +39,4 @@ await view([0.15, 0.45, 0], [0.5, 0.75, 2.0]); await p.waitForTimeout(800); awai
 await p.click('[data-cat="fender_r"]', { force: true }); await p.waitForTimeout(600); await p.screenshot({ path: OUT + "4-fender-category.png" });
 console.log("money", (await p.evaluate(() => document.body.innerText)).includes("∞"));
 await b.close();
+if (fails || errs.length) process.exitCode = 1;

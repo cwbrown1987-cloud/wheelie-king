@@ -33,13 +33,26 @@ export function chainAlong(points, std = "bicycle", color = "#4a4a4a", z = 0, na
   G.userData.links = n; return G;
 }
 export function chainSegment(std = "bicycle", color = "#4a4a4a", links = 16) { const len = links * PITCH; return chainAlong([[-len / 2, 0], [len / 2, 0], [len / 2, -0.0001], [-len / 2, -0.0001]], std, color, 0, "chain"); }
+export function hubFlange(radius, holeRadius, side, color = '#9aa0a6') {
+  const profile = new T.Shape(); profile.absarc(0, 0, radius, 0, Math.PI * 2, false);
+  const center = new T.Path(); center.absarc(0, 0, Math.max(.008, holeRadius - .011), 0, Math.PI * 2, true); profile.holes.push(center);
+  for (let k = 0; k < 18; k++) {
+    const a = (k + (side > 0 ? .5 : 0)) / 18 * Math.PI * 2;
+    const hole = new T.Path(); hole.absarc(Math.cos(a) * holeRadius, Math.sin(a) * holeRadius, .002, 0, Math.PI * 2, true); profile.holes.push(hole);
+  }
+  const geo = new T.ExtrudeGeometry(profile, {depth:.004,bevelEnabled:false,curveSegments:8}); geo.translate(0,0,-.002);
+  const flange = new T.Mesh(geo, M('hub:flange', color, {metalness:.9,roughness:.25}));
+  flange.name = 'hub:flange' + (side > 0 ? 'R' : 'L'); flange.castShadow = flange.receiveShadow = true;
+  flange.userData.spokeBores = { radius:holeRadius, count:18, phase:side > 0 ? .5 : 0 };
+  return flange;
+}
 export function hubMotor(p, opts = {}) {
   const G = new T.Group(); G.name = "hub"; const w = p.w || 1000, r = opts.r || 0.05 + Math.min(0.06, w / 140000), wd = opts.wd || 0.05 + Math.min(0.04, w / 200000), front = p.kind === "front";
   mesh(G, "hub:shell", zCyl(r, r, wd, 48), M("hub:shell", opts.color || "#2b2d30", { metalness: 0.7, roughness: 0.35 }));
-  for (const s of [-1, 1]) { const f = mesh(G, "hub:flange" + (s > 0 ? "R" : "L"), zCyl(r + 0.014, r + 0.014, 0.004, 48), M("hub:flange", "#9aa0a6", { metalness: 0.9, roughness: 0.25 })); f.position.z = s * (wd / 2 - 0.004);
+  for (const s of [-1, 1]) { const f = hubFlange(r + .014, r + .009, s); G.add(f); f.position.z = s * (wd / 2 - 0.004);
     const c = mesh(G, "hub:cover" + (s > 0 ? "R" : "L"), zCyl(r * 0.7, r * 0.75, 0.008, 32), M("hub:cover", "#1c1d1f", { metalness: 0.6 })); c.position.z = s * (wd / 2 + 0.003);
     inst(G, "hub:bolts" + (s > 0 ? "R" : "L"), zCyl(0.0035, 0.0035, 0.004, 6), M("hub:bolts", "#d0d0d0", { metalness: 1 }), 8, (o, i) => { const a = i / 8 * Math.PI * 2; o.position.set(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, s * (wd / 2 + 0.008)); });
-    inst(G, "hub:spokeHoles" + (s > 0 ? "R" : "L"), zCyl(0.002, 0.002, 0.006, 6), M("hub:holes", "#111"), 18, (o, i) => { const a = (i + (s > 0 ? 0.5 : 0)) / 18 * Math.PI * 2; o.position.set(Math.cos(a) * (r + 0.009), Math.sin(a) * (r + 0.009), s * (wd / 2 - 0.004)); }); }
+  }
   inst(G, "hub:fins", new T.BoxGeometry(0.006, 0.01, wd * 0.6), M("hub:fins", "#3a3c40", { metalness: 0.7 }), 24, (o, i) => { const a = i / 24 * Math.PI * 2; o.position.set(Math.cos(a) * r, Math.sin(a) * r, 0); o.rotation.z = a; });
   const ax = (front ? 0.1 : 0.14) + 0.02; mesh(G, "hub:axle", zCyl(0.006, 0.006, ax + 0.04, 12), M("hub:axle", "#b8b8b8", { metalness: 1, roughness: 0.2 }));
   for (const s of [-1, 1]) { const n = mesh(G, "hub:axleNut" + (s > 0 ? "R" : "L"), zCyl(0.011, 0.011, 0.008, 6), M("hub:nut", "#cfcfcf", { metalness: 1 })); n.position.z = s * (ax / 2 + 0.008); }

@@ -3,6 +3,8 @@
 _Written 4 Nov 2026, 6:30 PM AEDT (Australia/Sydney), when Chris paused the previous agent mid-v18. This file is documentation only. No game code was changed and nothing was deployed when it was written._
 
 ## TL;DR
+- **Latest continuation checkpoint (4 Nov, Codex):** v18 remains **WIP, not deployed** on `wip/v18-detail`. `frame-geometry.js` replaces blob welds with saddle-cut tube joints and matching weld seams; wheels have perforated flanges, evenly spaced rim sockets and spoke-aligned nipples. The e-moto has new cast perimeter rails and inset panels. See the v18 WIP entry in `CHANGELOG.md` for exact patches and validation. `wk-shots/before/` and `wk-shots/after/` contain eight-frame full/joint comparisons. The original section 6 below describes the inherited snapshot; this checkpoint supersedes its frame/spoke/weld details.
+- **Current checkout:** `C:\Users\cbrow\Documents\ChatGPT\Wheelie king` is a real Git checkout of `wip/v18-detail`. No `/workspace` or `/tmp` paths from the old agent exist on this Windows host.
 - **What it is:** a private PWA garage and wheelie game for Chris and his son Jaxon. You build a BMX/MTB/moto into an e-bike or e-moto out of modular 3D parts (three.js), add wrapped stickers, then ride a side-on 3D course.
 - **LIVE:** v17 at https://wheelie-king.pages.dev (service worker cache `wk-v17`).
 - **GitHub:** https://github.com/cwbrown1987-cloud/wheelie-king, branch `main`. `main` = live v17 at `cf56f41` (tag `v17`). Unfinished v18 is on branch `wip/v18-detail` at `4a90c95`. Merge it to main and deploy only once it's finished and has a CHANGELOG entry.
@@ -22,6 +24,20 @@ _Written 4 Nov 2026, 6:30 PM AEDT (Australia/Sydney), when Chris paused the prev
 | Full Chris ↔ bot transcript | `/workspace/wheelie-king-CHAT-HISTORY.md` (repo doc only, PIN redacted). It's built by `/workspace/build.py` from session logs. |
 
 ## 2. Run locally and test
+Current Windows checkout (Node 24, Python 3.11, installed Google Chrome):
+```powershell
+npm ci
+python -m http.server 8931 --bind 127.0.0.1
+# In a second terminal:
+npm run test:geometry
+npm run test:slots
+npm run test:wheels
+npm run test:stickers
+npm run showcase -- after
+```
+`test-results/` and `node_modules/` are ignored and must never be deployed. Browser test contexts use fresh storage with service workers blocked. `WK_BROWSER` can select another installed Playwright channel. Captures are desktop Chrome/SwiftShader evidence, **not** Android/iPad touch or performance validation. The slot test now returns a failing exit code for errors; its output path is no longer hardcoded to `/workspace`.
+
+Original agent's Linux commands (historical):
 ```bash
 cd /workspace/wheelie-king-app && python3 -m http.server 8931     # open http://localhost:8931/
 # Playwright lives at /tmp/pw/node_modules (box). Run the test from there:
@@ -52,7 +68,8 @@ cd /tmp/pw && cp /workspace/wheelie-king-app/tests/one-part-per-slot.mjs t.mjs &
 |---|---|
 | `index.html` | Import map (`three` → `vendor/three.module.js`), `window.DEV_INFINITE_MONEY = true`, `__WK_STANDALONE__`, `__WK_URLS__`, the install bar and SW registration. Load order: three → `parts3d.js` → `fitment.js` → `thumbs.js` → OrbitControls/RoomEnvironment → `app.js` → `stickers-dd.js`. |
 | `app.js` | The UI: garage, shop, builds, challenges, settings and PIN. Holds the catalog array `li`, the equip function `Zr()`, the stats and warnings `Kr()`, the bike rebuild `Wn()` (rebuilt from scratch on every change), the part SVG art `uc()`, the part sheet `qm`, the ride mount `Vm` and the ride result `Gn`. |
-| `parts3d.js` | `__WK_BUILD_HOOK__(root,{x,R,b},THREE)` runs at the end of each rebuild. It provides `anchors(x,R)` (frontAxle, rearAxle, bb, headTop/headBottom, seatTop, stem, shockFrame, shockArm, underBB, headlight, tail), added-slot groups `wk:part:<slot>`, in-place restyles, `realParts()` (swaps in the partmodels), `smoothFrame()` (v16 swept frame), `respoke()` (v16 spokes), `applyCondition` (dirt and wear), `__WK_GEAR__` and `__WK_BARSPEC__`. In v18 it also calls `detail.js` `detailPass()` and `startLOD()`. |
+| `parts3d.js` | `__WK_BUILD_HOOK__(root,{x,R,b},THREE)` runs at the end of each rebuild. Provides anchors, per-slot groups, `realParts()`, `respoke()`, condition and gear hooks. `smoothFrame` is now imported/re-exported from `frame-geometry.js`. Calls `detailPass()` and `startLOD()`. |
+| `frame-geometry.js` | v18 continuation: clean frame rebuild, saddle-cut swept tubes, cylinder-intersection weld seams with hi-LOD ripples, individual materials, cups/clamps/shells/dropouts and moto cradle/swingarm geometry. |
 | `partmodels.js` | Realistic part builders that return Groups of NAMED sub-meshes, each with its own material: `hubMotor`, `midDrive`, `motoMid`, `sprocket`, `chainAlong`, `battery`, `fork`, `shock`, `bars`. |
 | `detail.js` | **v18 WIP.** PBR detail pass and LOD. See section 6. |
 | `fitment.js` | `FRAME_STD` (bb/drop/head/seat/brake/shock/batt/wheel/alloy per frame) and `fit(build,id)` → ok/adapter/no. Also `__WK_FIT__`, `__WK_FIT_WARN__`, `__WK_FIT_PROMPT__` (the "+ ADD ADAPTER" banner), `__WK_FRAMEGEO__` and `__WK_WHEELR__`. |
@@ -125,7 +142,7 @@ The app's own save state (builds, coins, owned parts) is persisted by the bundle
 | v15 | Realistic named-sub-mesh part models (`partmodels.js`), 3D shop previews (`thumbs.js`), sprocket slots and gearing. Pushed (`e9e13c7`). |
 | v16 | `smoothFrame()` swept frames and welds, `respoke()` flange-to-nipple spokes, adapter banner moved. Live and pushed. |
 | v17 | New three.js ride (`ride.js` + `ride-physics.js`), money from score, dirt and damage, WASH/REPAIR. Chat log removed. Live and on `main` (`cf56f41`, tag v17). |
-| v18 | WIP, local only. See below. |
+| v18 | WIP on `wip/v18-detail`; see the latest checkpoint and CHANGELOG. |
 
 ## 6. Exact current state (v18 WIP)
 I compared local files against live (`curl` of wheelie-king.pages.dev):
@@ -166,22 +183,20 @@ I compared local files against live (`curl` of wheelie-king.pages.dev):
 
 **Not done / not good enough yet:**
 - **Not reference quality.** `v18-1-emoto-full.png` vs `docs/reference/quality-reference-emoto.png`: the emoto still reads as a BMX-style tube frame with a black slab in the triangle.
-- **Frame:** no real pressed or cast e-moto chassis. The frame-flow complaints (item 1) aren't re-verified against `frame-joints.png` or `hub-spokes.png`.
-- **Rendering setup:** no contact shadows, and no explicit RoomEnvironment/PMREM in the detail pass. app.js already loads RoomEnvironment; confirm it's used as `scene.environment`.
+- **Frame (inherited snapshot):** superseded by the saddle-cut frame builder and cast e-moto perimeter rails in the Codex checkpoint. Broader visual/real-device review is still required.
+- **Rendering setup:** PMREM environment and floor shadows are confirmed in `app.js`; improve their visual quality as needed.
 - **Not yet in the detail pass:** motors and wheels; the "start with frames, fenders, motors, wheels" step is only partly done.
 - **Fenders and covers:**
   - Fender styles (MTB clip-on, full, full-wrap rear) aren't per frame yet, and the covers slots don't exist.
   - No colour swatches.
   - The wing has no fitment rule (it's allowed on any frame) and doesn't take damage.
-- **Weld beads:** `detailPass` adds bead rings with `rotation.y=π/2` regardless of tube direction. Check that they line up with each joint.
+- **Weld beads:** replaced in the Codex checkpoint by welds following the actual cylinder-intersection seam.
 - **LOD:** it keys off camera-to-target distance (<1.5 m), not the true distance to the part. Tune this on a phone.
-- **Not tested on a phone. No CHANGELOG entry. Not deployed. TRACE (item 4) not started.**
+- **Not tested on a phone. A v18 WIP CHANGELOG entry now exists. Not deployed. TRACE (item 4) not started.**
 
-**Is it safe to push as-is?** Not to `main` and not to Cloudflare. It is runtime-stable (0 test failures, `detailPass` wrapped in try/catch), but it's visually unfinished and undocumented, and `main` also has to receive v16 and v17 first. Recommended order:
-1. Commit the **live v17 files** to `main` (`/tmp/app.v17.js` = live app.js; live parts3d/fitment/sw can be re-downloaded from wheelie-king.pages.dev). Tag it `v17`.
-2. Commit the local v18 folder to a `wip/v18-detail` branch.
-3. Merge it to `main` and deploy only after it's finished and has a CHANGELOG v18 entry.
-- GitHub Pages serves `main`, so WIP on `main` would go public.
+**Release boundary:** `main` already contains v17 (`cf56f41`, tag `v17`; handoff correction `e21aa01`). The inherited v18 is on `wip/v18-detail` (`4a90c95`, handoff correction `53b8a40`), followed by the Codex continuation checkpoint. Keep WIP commits on that branch. Merge to `main` and deploy to Cloudflare together only once the intended release is finished, tested and documented. GitHub Pages serves `main`.
+
+**Verified rendering setup:** `app.js` already creates `scene.environment` from `PMREMGenerator.fromScene(new RoomEnvironment(), .04)`, a shadow receiver and a radial floor shadow. Do not add a second environment or claim these are missing. Contact quality still needs visual tuning against the reference.
 
 ## 7. Pending queue (Chris's order), with acceptance criteria
 1. **Finish the frame/spoke fix.** References: `docs/reference/frame-joints.png`, `docs/reference/hub-spokes.png`.
