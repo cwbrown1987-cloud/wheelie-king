@@ -29,6 +29,16 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 3. Gameplay, part 1: a 2.5D side-view ride in a basic untextured 3D world. The physics covers pitch, gravity and centre of gravity, and looping a wheelie too far throws you off.
 4. Gameplay, later: a full 3D street with side, first-person and chase cameras, a speed gauge, scrape damage, and part wear and breakage with repair or replace.
 
+
+### v15 — realistic part models + 3D shop previews (done)
+- `partmodels.js` builds every realistic part as a Group of NAMED sub-meshes with their OWN materials (`hub:shell`, `mid:gearHousing`, `fork:stanchionL`, `shock:spring`, `chain:rollers`…). See CHANGELOG v15 for the full list.
+- `parts3d.js` `realParts()` swaps them onto the bike. Same REPLACE rule as before: the stock mesh is removed and exactly one `wk:model:*` is added per part.
+- `thumbs.js` is the single shared renderer for shop thumbnails (`__WK_THUMB__`) and the part-sheet rotatable preview (`__WK_PREVIEW__`).
+- Gearing: slots `sprocket_f`/`sprocket_r` carry `teeth` and `std` (bicycle/420/428); chains have a `std`. `__WK_GEAR__` changes top speed and wheelie and warns on chain/sprocket mismatch.
+- FUTURE (not built): **Detail workshop.** Tap a part to inspect it, then modify or paint individual sub-meshes.
+  - The model groups already expose named sub-meshes with unique materials, so painting = `obj.getObjectByName("hub:coverL").material.color.set(...)`.
+  - Save per-part paint as `build.paint[partId][subMeshName]` and re-apply it in `realParts()` after building.
+
 ## Full design brief (everything agreed with Chris)
 ### Bike and garage
 - The bike is the main focus, and detail is key. It should be highly detailed, rotatable and zoomable in the 3D garage.
@@ -77,3 +87,6 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 - v12 (not deployed): motor types (rear hubs 1500/3000/5000/8000W, pedal mid, no-pedal moto mids with footpegs). Work-in-progress bundle at `/tmp/app.v12-wip.js`, not yet tested. It's built on v10, so the v11 money patches must be re-applied on top.
 - v12 (live, cache `wk-v12`): rear hub motors (1.5/3/5/8kW), a pedal mid (keeps cranks), and moto mids (6/8/12kW, no pedals, footpegs, need a throttle). Also 60V/72V moto batteries. See CHANGELOG.
 - Existing ride mode = React component `Vm` in app.js (canvas 2D side-on physics: wheelie, manual, flips, HEAD PLANT, BOTTOMED OUT, finish at x=220; keys arrows/WASD, n/m tricks). The v13 rebuild (side-on MotoX-Mayhem style with the real 3D bike, touch controls, suspension, particles, dirt, damage) and the sticker TRACE mode are not started.
+- v13 (live, cache `wk-v13`): modular bike. New slots: shock, bars, grips, seat, rims, cranks, chain, fender F/R, bash guard, lights. SUSP is now FORKS. 3D swaps are in `parts3d.js`.
+- RULE (modular parts): equipping a part REPLACES whatever is in that slot. Never stack meshes. The bike root is rebuilt from scratch each change; added visuals live in exactly one group `wk:part:<slot>`; restyle-type slots modify the stock mesh. Every part mounts at a named anchor from `parts3d.js anchors()`: forks head tube→front axle, bars on the stem, seat on the seat post, shock shockFrame→shockArm, wheels on the axles, cranks/pegs at the BB, fenders over the wheels, bash under the BB, battery in the triangle, lights on the bars/fork. Run `tests/one-part-per-slot.mjs` (Playwright, local server) after any parts change; it must report 0 failures.
+- v14 (live, cache `wk-v14`): fitment-standards model in `fitment.js`. Frames declare BB/dropout/head/seat/brake/shock/battery/wheel standards; parts are checked by `fit()` and come back as ok, needs an adapter (with a one-tap ADD), or won't fit (with a reason). New push-bike frames (rigid MTB, hardtail 29, full-sus 27.5, fat 26x4) plus conversion KITS (rear/front hub, BBSHD-style mid, battery kits). A frame swap auto-removes parts that don't fit.
