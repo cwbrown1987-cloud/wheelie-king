@@ -21,6 +21,18 @@ export function applyCondition(root, cond) {
 export const condLabel = (w) => (w >= 1 ? "BROKEN" : w >= 0.4 ? "CRACKED" : w > 0.05 ? "WORN" : "OK");
 globalThis.__WK_COND__ = { load: loadCond, save: saveCond, apply: applyCondition, label: condLabel };
 
+export function cloneForRide(src) {
+  const bike=src.clone(true);
+  bike.traverse(o=>{
+    if(!o.isMesh||!o.userData.wkFlashBase)return;
+    const base=o.userData.wkFlashBase;
+    const restore=m=>{const out=m.clone();if(out.emissive){out.emissive.setHex(base.color);out.emissiveIntensity=base.intensity;}return out;};
+    o.material=Array.isArray(o.material)?o.material.map(restore):restore(o.material);
+    delete o.userData.cl;delete o.userData.wkFlashBase;
+  });
+  return bike;
+}
+
 export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const W = () => el.clientWidth || 900, H = () => el.clientHeight || 420;
   const R = new T.WebGLRenderer({ antialias: true }); R.setPixelRatio(Math.min(2, devicePixelRatio)); R.shadowMap.enabled = true; R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping;
@@ -53,7 +65,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   // the real garage bike, cloned
   const src = (() => { let r = null; globalThis.__WK_VIEW__?.scene.traverse((o) => { if (!r && o.getObjectByName?.("wk:frame") && o.children.some((c) => c.name === "wk:frame")) r = o; }); return r; })();
   const pivot = new T.Group(), body = new T.Group(); pivot.add(body); scene.add(pivot);
-  let bike = src ? src.clone(true) : null, A = src?.userData.wkAnchors;
+  let bike = src ? cloneForRide(src) : null, A = src?.userData.wkAnchors;
   if (!bike) { bike = new T.Group(); A = { rearAxle: [-0.5, 0.33], frontAxle: [0.5, 0.33], wheelR: 0.33, bb: [0, 0.3], seatTop: [-0.2, 0.75], headTop: [0.4, 0.8] }; }
   bike.position.set(0, 0, 0); bike.rotation.set(0, 0, 0); bike.scale.set(1, 1, 1); bike.traverse((o) => { o.castShadow = true; if (o.name === "wk:stand" || o.name?.includes("platform")) o.visible = false; });
   bike.children.filter((c) => c.name === "wk:stand").forEach((c) => (c.visible = false));

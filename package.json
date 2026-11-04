@@ -7,6 +7,7 @@
     "test:slots": "node tests/one-part-per-slot.mjs",
     "test:wheels": "node tests/wheel-matrix.mjs",
     "test:stickers": "node tests/sticker-frame.mjs",
+    "test:trax": "node tests/trax-bike.mjs",
     "showcase": "node tests/frame-showcase.mjs"
   },
   "devDependencies": {

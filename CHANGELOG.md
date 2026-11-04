@@ -1,5 +1,14 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 WIP — Chris's 20-inch TRAX bike, 4 Nov 2026 (not deployed)
+
+- Added a selectable **TRAX Lime Dual-Suspension Bike**, modeled from Chris's photo, with **20-inch wheels confirmed by Chris**. Includes its matching stock parts, own Y-frame/rear linkage, short near-horizontal lime coil, speckled lime/black livery and plain TRAX text, tall quill bars/cables, lime fork/rims, black spokes, amber reflectors, black saddle and guarded bicycle chainwheel.
+- The frame installs its complete stock pedal build when selected from another frame. Parts remain swappable; compatibility rejects long shocks and unsuitable forks. Matching stock parts are included in ownership. Existing frame behavior is retained for frames without a stock map.
+- Added a shared-hook 3D thumbnail and rotatable shop preview. Fixed rim paint targeting so rim swaps actually recolour the hoop/sidewall, rather than the tyre sidewall.
+- Fixed ride clones retaining the green equip-selection glow, and cleared stale adapter prompts when switching frames.
+- New module `trax-bike.js`; integration changes in `app.js`, `fitment.js`, `frame-geometry.js`, `parts3d.js`, `thumbs.js`, `ride.js` and `sw.js`. Exact hooks, provenance, estimates and validation are documented in `docs/TRAX-BIKE.md`.
+- Added `npm run test:trax` and screenshots in `wk-shots/trax/`; extended geometry fixtures to the ninth frame. Stock equip, preview, swaps, fitment and pedal-powered ride pass. Wider v18 remains WIP and is not deployed.
+
 ## v18 WIP — Codex geometry checkpoint, 4 Nov 2026 (not deployed)
 
 - `frame-geometry.js` (new): replaces `smoothFrame`'s indexed stock-mesh deletion and spherical weld blobs with a clean frame rebuild. Swept tubes use cylinder-intersection saddle cuts; weld seams and close-up bead instances follow the actual cut edge. Includes independent materials, headset cups, seat clamp/bolt, bottom bracket shells, dropouts, a wider fat-bike rear triangle, and paired moto cradle tubes and swingarms. The original moto shock is kept only when no replacement shock is fitted.

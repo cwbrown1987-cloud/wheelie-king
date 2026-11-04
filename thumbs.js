@@ -2,11 +2,13 @@
 // and the big drag-to-rotate preview in the part sheet. Same realistic models as on the bike (partmodels.js).
 import * as T from "./vendor/three.module.js";
 import * as PM from "./partmodels.js";
+import {TRAX_ID,traxPreview} from './trax-bike.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars"]);
 export const modelFor = (p) => {
   if (!p) return null;
+  if (p.id === TRAX_ID) return traxPreview(T);
   if (p.slot === "kit") { const m = (p.kit || []).map(find).find((q) => q?.slot === "motor"); const b = (p.kit || []).map(find).find((q) => q?.slot === "battery"); return modelFor(m || b); }
   if (!MODEL_SLOTS.has(p.slot)) return null;
   if (p.slot === "motor") return p.kind === "mid" ? (p.nopedal || (!p.real && (p.w || 0) >= 2500) || p.id === "x1" ? PM.motoMid(p) : PM.midDrive(p)) : PM.hubMotor(p);
@@ -16,7 +18,7 @@ export const modelFor = (p) => {
     for (let i = 0; i <= 12; i++) { const a = Math.PI / 2 + (i / 12) * Math.PI; pts.push([-cx + Math.cos(a) * rr, Math.sin(a) * rr]); }
     for (let i = 0; i <= 12; i++) { const a = -Math.PI / 2 + (i / 12) * Math.PI; pts.push([cx + Math.cos(a) * rf, Math.sin(a) * rf]); }
     G.add(PM.chainAlong(pts, p.std || "bicycle", p.color || "#4a4a4a")); G.name = "chainLoop"; return G; }
-  if (p.slot === "suspension") return PM.fork(p, [0, 0.5], [0, 0.35], [0.12, -0.18], [0, 0.48]);
+  if (p.slot === "suspension") return PM.fork(p, [0, 0.5], [0, 0.35], [0.12, -0.18], [0, 0.48], {color:p.color});
   if (p.slot === "shock") return PM.shock(p, [0, 0.12], [0, -0.12]);
   if (p.slot === "bars") return PM.bars(globalThis.__WK_BARSPEC__?.(p, find(globalThis.__WK_BUILD__?.grips)) || {}, [0, 0]);
   return null;
@@ -65,4 +67,4 @@ export function mount(el, p) { // big rotatable preview; returns cleanup
   live = { stop, obj }; return stop;
 }
 globalThis.__WK_THUMB__ = (p, size) => (modelFor ? thumb(p, size) : null);
-globalThis.__WK_PREVIEW__ = { has: (p) => !!p && (MODEL_SLOTS.has(p.slot) || (p.slot === "kit" && (p.kit || []).some((id) => ["motor", "battery"].includes(find(id)?.slot)))), mount, modelFor };
+globalThis.__WK_PREVIEW__ = { has: (p) => !!p && (p.id === TRAX_ID || MODEL_SLOTS.has(p.slot) || (p.slot === "kit" && (p.kit || []).some((id) => ["motor", "battery"].includes(find(id)?.slot)))), mount, modelFor };

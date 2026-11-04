@@ -3,6 +3,7 @@
 _Written 4 Nov 2026, 6:30 PM AEDT (Australia/Sydney), when Chris paused the previous agent mid-v18. This file is documentation only. No game code was changed and nothing was deployed when it was written._
 
 ## TL;DR
+- **TRAX addition:** Chris's photo-based **20-inch TRAX Lime Dual-Suspension Bike** is selectable under FRAMES on the v18 branch. It installs matching stock parts, remains moddable, has its own Y-frame/coil anchors, livery, tall bars, lime rims and reflectors, and works in ride mode. See `docs/TRAX-BIKE.md`, `trax-bike.js`, `tests/trax-bike.mjs` and `wk-shots/trax/`. Only the wheel size is confirmed; other specifications are game estimates. This is still **not deployed**.
 - **Latest continuation checkpoint (4 Nov, Codex):** v18 remains **WIP, not deployed** on `wip/v18-detail`. `frame-geometry.js` replaces blob welds with saddle-cut tube joints and matching weld seams; wheels have perforated flanges, evenly spaced rim sockets and spoke-aligned nipples. The e-moto has new cast perimeter rails and inset panels. See the v18 WIP entry in `CHANGELOG.md` for exact patches and validation. `wk-shots/before/` and `wk-shots/after/` contain eight-frame full/joint comparisons. The original section 6 below describes the inherited snapshot; this checkpoint supersedes its frame/spoke/weld details.
 - **Current checkout:** `C:\Users\cbrow\Documents\ChatGPT\Wheelie king` is a real Git checkout of `wip/v18-detail`. No `/workspace` or `/tmp` paths from the old agent exist on this Windows host.
 - **What it is:** a private PWA garage and wheelie game for Chris and his son Jaxon. You build a BMX/MTB/moto into an e-bike or e-moto out of modular 3D parts (three.js), add wrapped stickers, then ride a side-on 3D course.
@@ -33,6 +34,7 @@ npm run test:geometry
 npm run test:slots
 npm run test:wheels
 npm run test:stickers
+npm run test:trax
 npm run showcase -- after
 ```
 `test-results/` and `node_modules/` are ignored and must never be deployed. Browser test contexts use fresh storage with service workers blocked. `WK_BROWSER` can select another installed Playwright channel. Captures are desktop Chrome/SwiftShader evidence, **not** Android/iPad touch or performance validation. The slot test now returns a failing exit code for errors; its output path is no longer hardcoded to `/workspace`.

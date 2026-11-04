@@ -1,5 +1,6 @@
 // Swept frame tubes with saddle cuts at their receiving shells. Units: metres.
 // The cut edge and weld follow the actual cylinder intersection, including oblique stays.
+import { TRAX_ID, buildTraxFrame } from './trax-bike.js';
 export function sweptJoint(T, points, radius, material, name, start, end) {
   const path = new T.CatmullRomCurve3(points.map(p => new T.Vector3(p[0], p[1], p[2] || 0)));
   const segments = 48, sides = 24, frames = path.computeFrenetFrames(segments, false);
@@ -69,6 +70,7 @@ export function sweptJoint(T, points, radius, material, name, start, end) {
 export function buildFrame(root, x, T, g, b) {
   const fr = g('frame'); if (!fr || !x) return;
   const stock = fr.children.slice(), paint = stock[0]?.material; if (!paint) return;
+  if (b.frame === TRAX_ID) { buildTraxFrame(fr,x,T,paint,sweptJoint); return; }
   const moto = ['moto', 'emoto'].includes(b.frame), r = x.tr || .022;
   // Keep the stock moto shock only until the separate shock slot replaces it below.
   const shock = moto ? stock.slice(12) : [];

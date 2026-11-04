@@ -6,6 +6,7 @@ import { buildFrame as smoothFrame } from "./frame-geometry.js";
 export { buildFrame as smoothFrame } from "./frame-geometry.js";
 import { detailPass, startLOD } from "./detail.js";
 import { loadCond, applyCondition } from "./ride.js";
+import { TRAX_ID, traxAnchors, finishTrax } from './trax-bike.js';
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 export function anchors(x, R) { // named mount anchors per frame (x = frame geometry from app.js)
   const v = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -15,7 +16,7 @@ export function anchors(x, R) { // named mount anchors per frame (x = frame geom
 }
 function recolor(group, test, color, T) { if (!group) return 0; let n = 0; group.traverse((o) => { if (o.isMesh && test(o)) { o.material = o.material.clone(); o.material.color = new T.Color(color); n++; } }); return n; }
 globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
-  if (!x) return; const A = anchors(x, R), g = (n) => root.children.find((c) => c.name === "wk:" + n);
+  if (!x) return; const A = {...anchors(x, R), ...(b.frame === TRAX_ID ? traxAnchors(x) : {})}, g = (n) => root.children.find((c) => c.name === "wk:" + n);
   const mat = (c, o = {}) => new T.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.2, ...o });
   const slotGroup = (slot) => { const old = root.children.find((c) => c.name === "wk:part:" + slot); old && root.remove(old); const G = new T.Group(); G.name = "wk:part:" + slot; G.userData.slot = slot; root.add(G); return G; };
   const cyl = (a, b2, r, m, G) => { const va = new T.Vector3(...a), vb = new T.Vector3(...b2), d = vb.clone().sub(va), M = new T.Mesh(new T.CylinderGeometry(r, r, d.length(), 24), m);
@@ -35,11 +36,12 @@ globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
     if (li.lm > 1) box(0.03, 0.02, 0.05, mat("#ff2020", { emissive: "#ff2020", emissiveIntensity: 1 }), G, A.tail[0], A.tail[1]); }
   // --- in-place swaps of the existing meshes (the stock mesh is restyled, not duplicated) ---
   const st = part("seat"), sg = g("seat"); if (st && sg) sg.traverse((o) => { if (o.isMesh && o.geometry.type === "SphereGeometry") { o.scale.x *= st.sx || 1; o.material = o.material.clone(); o.material.color = new T.Color(st.color); } });
-  const rim = part("rims"); if (rim) for (const n of ["tyres", "motor"]) recolor(g(n), (o) => o.geometry.type === "TorusGeometry" && o.scale.z > 1.5, rim.color, T);
+  const rim = part("rims"); if (rim) for (const n of ["tyres", "motor"]) recolor(g(n), (o) => o.geometry.type === "TorusGeometry" && Math.abs(o.geometry.parameters.tube-.009)<1e-5 || o.geometry.type === 'CylinderGeometry' && o.geometry.parameters.openEnded, rim.color, T);
   realParts(root, A, b, T, g, slotGroup, part, x, R);
   try { smoothFrame(root, x, T, g, b); } catch (e) { console.warn("wk frame", e); }
   try { respoke(root, T); } catch (e) { console.warn("wk spokes", e); }
   try { detailPass(root, A, b, T, find, slotGroup, g); startLOD(); } catch (e) { console.warn("wk detail", e); }
+  try { finishTrax(root,A,b,T,g,slotGroup); } catch(e) { console.warn('wk trax',e); }
   root.userData.wkAnchors = A;
   try { const c = loadCond(); if (c.dirt > 0.01 || Object.keys(c.wear || {}).length) applyCondition(root, c); } catch (e) { console.warn("wk cond", e); }
 };

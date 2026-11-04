@@ -1,6 +1,8 @@
 // Wheelie King fitment-standards model (v14). Frames declare standards; parts declare needs.
 // fit(build, partId) -> { status: "ok" | "adapter" | "no", adapters: [adapterIds], reason }
+import {TRAX_RADIUS,traxGeometry} from './trax-bike.js';
 export const FRAME_STD = {
+  trax_lime: {bb:'68',drop:'135qr',head:'straight',seat:25.4,brake:['rim'],shock:'trax-short',batt:[],wheel:'20',alloy:false},
   bmx:       { bb: "bmx", drop: "110", head: "straight", seat: 25.4, brake: ["rim"], shock: null, batt: [], wheel: "20", alloy: false },
   rbmx:      { bb: "bmx", drop: "110", head: "straight", seat: 25.4, brake: ["rim", "is"], shock: null, batt: ["bottle"], wheel: "20", alloy: false },
   mtb_rigid: { bb: "68", drop: "135qr", head: "straight", seat: 27.2, brake: ["rim", "is"], shock: null, batt: ["bottle", "bag", "rack"], wheel: "27.5", alloy: false },
@@ -12,12 +14,13 @@ export const FRAME_STD = {
 };
 // frame geometry (side-on, metres) + default wheel radius for the new push-bike frames
 const GEO = {
+  trax_lime: { R:TRAX_RADIUS, x:traxGeometry },
   mtb_rigid: { R: 0.355, x: (R) => ({ rear: [-0.43, R], bb: [0, 0.31], seat: [-0.15, 0.86], htT: [0.58, 0.84], htB: [0.62, 0.66], front: [0.74, R], tr: 0.017 }) },
   mtb_ht:    { R: 0.375, x: (R) => ({ rear: [-0.44, R], bb: [0, 0.32], seat: [-0.15, 0.88], htT: [0.6, 0.87], htB: [0.64, 0.68], front: [0.77, R], tr: 0.021 }) },
   mtb_fs:    { R: 0.355, x: (R) => ({ rear: [-0.44, R], bb: [0, 0.33], seat: [-0.16, 0.86], htT: [0.6, 0.85], htB: [0.64, 0.67], front: [0.77, R], tr: 0.022 }) },
   fat:       { R: 0.37,  x: (R) => ({ rear: [-0.45, R], bb: [0, 0.32], seat: [-0.15, 0.86], htT: [0.6, 0.85], htB: [0.64, 0.68], front: [0.77, R], tr: 0.022 }) },
 };
-const TYRE_R = { "27.5": 0.355, "29": 0.375, "26f": 0.37 };
+const TYRE_R = { "24": .315, "27.5": 0.355, "29": 0.375, "26f": 0.37 };
 globalThis.__WK_FRAMEGEO__ = (frameId, R) => GEO[frameId]?.x(R);
 globalThis.__WK_WHEELR__ = (frameId, tyre) => (GEO[frameId] ? (TYRE_R[tyre?.size] || GEO[frameId].R) : undefined);
 const cat = () => globalThis.__WK_CAT__?.().items || [];
@@ -58,6 +61,8 @@ export function fit(build, id) {
     else if (disc && f.brake.includes("is") && !f.brake.includes("post")) need("adp_brake");
   } else if (p.slot === "shock") {
     if (!f.shock) return no("frame has no rear shock mount (rigid/hardtail)");
+    if (f.shock === 'trax-short' && id !== 'trax_coil') return no('TRAX frame needs its short horizontal coil shock');
+    if (id === 'trax_coil' && f.shock !== 'trax-short') return no('short TRAX coil mounts only to the TRAX linkage');
     if (f.shock === "moto" && id !== "shk_moto230") return no("moto swingarm needs the moto shock");
     if (f.shock !== "moto" && id === "shk_moto230") return no("moto shock is too long for an MTB linkage");
   } else if (p.slot === "battery") {
@@ -90,6 +95,7 @@ globalThis.__WK_FIT_WARN__ = (build) => { const out = [];
 // one-tap adapter prompt
 const bar = document.createElement("div");
 bar.style.cssText = "position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 78px);transform:translateX(-50%);z-index:10003;background:#1d1408f2;border:2px solid #ffc23d;color:#fff;font:600 14px system-ui;padding:8px 10px;border-radius:12px;display:none;gap:8px;align-items:center;max-width:92vw";
+globalThis.__WK_FIT_CLEAR__=()=>{bar.style.display='none';clearTimeout(bar._t);};
 document.addEventListener("DOMContentLoaded", () => document.body.append(bar)); if (document.body) document.body.append(bar);
 globalThis.__WK_FIT_PROMPT__ = (r, build) => { const miss = r.adapters.filter((a) => build?.[P(a)?.slot] !== a); if (!miss.length) return;
   bar.innerHTML = ""; const t = document.createElement("span"); t.textContent = "⚠ Needs " + miss.map((a) => P(a)?.name).join(" + "); bar.append(t);

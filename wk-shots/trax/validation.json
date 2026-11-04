@@ -1,0 +1,186 @@
+{
+  "report": {
+    "build": {
+      "frame": "trax_lime",
+      "suspension": "trax_fork",
+      "shock": "trax_coil",
+      "bars": "trax_bars",
+      "grips": "grip_std",
+      "seat": "trax_saddle",
+      "rims": "trax_rims",
+      "tyres": "trax_tyres",
+      "brakes": "rim",
+      "cranks": "crank_steel",
+      "chain": "chain_std",
+      "sprocket_f": "trax_38",
+      "sprocket_r": "trax_16"
+    },
+    "fit": [
+      [
+        "frame",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "suspension",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "shock",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "bars",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "grips",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "seat",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "rims",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "tyres",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "brakes",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "cranks",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "chain",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "sprocket_f",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ],
+      [
+        "sprocket_r",
+        {
+          "status": "ok",
+          "adapters": []
+        }
+      ]
+    ],
+    "reflectors": 4,
+    "shockGroups": 1,
+    "anchors": {
+      "frontAxle": [
+        0.5423809523809524,
+        0.255
+      ],
+      "rearAxle": [
+        -0.33190476190476187,
+        0.255
+      ],
+      "bb": [
+        0,
+        0.2752380952380952
+      ],
+      "headTop": [
+        0.38047619047619047,
+        0.6233333333333334
+      ],
+      "headBottom": [
+        0.41285714285714287,
+        0.51
+      ],
+      "seatTop": [
+        -0.12952380952380954,
+        0.5909523809523809
+      ],
+      "wheelR": 0.255,
+      "stem": [
+        0.3904761904761905,
+        0.6833333333333333
+      ],
+      "shockFrame": [
+        0.19428571428571426,
+        0.5707142857142857
+      ],
+      "shockArm": [
+        -0.09714285714285716,
+        0.518095238095238
+      ],
+      "underBB": [
+        0,
+        0.20523809523809522
+      ],
+      "headlight": [
+        0.4504761904761905,
+        0.6433333333333334
+      ],
+      "tail": [
+        -0.24952380952380954,
+        0.5709523809523809
+      ]
+    },
+    "swing": true,
+    "lettering": true
+  },
+  "preview": {
+    "rotatable": true,
+    "thumb": true
+  },
+  "swapped": {
+    "reflectors": 0,
+    "bars": 1,
+    "hubs": 1,
+    "shockGroups": 1,
+    "badShock": "no",
+    "badFork": "no"
+  },
+  "ride": {
+    "x": 2.0155313611055594,
+    "y": 0.9283120280323315,
+    "pitch": 0.017859149282919404,
+    "pedal": true
+  },
+  "errors": []
+}
