@@ -75,3 +75,5 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 - `/workspace/wheelie-king-app` is NOT a git checkout; v5–v10 changes are not on GitHub yet.
 - v11 (4 Nov 2026, live, cache `wk-v11`): infinite money behind `window.DEV_INFINITE_MONEY = true` in `index.html` (money shows ∞, purchases free, nothing locked by price). Set it to `false` to turn it off.
 - v12 (not deployed): motor types (rear hubs 1500/3000/5000/8000W, pedal mid, no-pedal moto mids with footpegs). Work-in-progress bundle at `/tmp/app.v12-wip.js`, not yet tested. It's built on v10, so the v11 money patches must be re-applied on top.
+- v12 (live, cache `wk-v12`): rear hub motors (1.5/3/5/8kW), a pedal mid (keeps cranks), and moto mids (6/8/12kW, no pedals, footpegs, need a throttle). Also 60V/72V moto batteries. See CHANGELOG.
+- Existing ride mode = React component `Vm` in app.js (canvas 2D side-on physics: wheelie, manual, flips, HEAD PLANT, BOTTOMED OUT, finish at x=220; keys arrows/WASD, n/m tricks). The v13 rebuild (side-on MotoX-Mayhem style with the real 3D bike, touch controls, suspension, particles, dirt, damage) and the sticker TRACE mode are not started.

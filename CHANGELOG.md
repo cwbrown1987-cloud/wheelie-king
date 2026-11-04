@@ -41,3 +41,11 @@ Every version bumps `CACHE` in `sw.js` (currently `wk-v10`).
 - `app.js` money displays (garage header `e.toLocaleString()` and the `["$ ",e.toLocaleString()]` summary) show `∞` when the flag is on. Coin balance itself is unchanged in storage.
 - `sw.js`: cache `wk-v11`.
 - Motor types (rear hub vs mid-drive, no-pedal moto mids) are work in progress for v12; WIP bundle kept off-deploy at `/tmp/app.v12-wip.js`.
+
+## v12 — motor types: rear hubs vs mid-drives, no-pedal moto mids
+- `app.js` catalog `li`: 8 new generic motors after `galah` — rear hubs `hub1500` (52V, 7.5kg), `hub3000` (72V, 9.5kg), `hub5000` (72V, 13kg), `hub8000` (72V, 17kg); pedal mid `pmid1k` (52V, keeps cranks); moto mids with `nopedal:!0`: `mmid6k` (60V), `mmid8k` (72V), `mmid12k` (72V). One `motor` slot, so a hub and a mid always swap each other out.
+- `app.js` catalog: 2 new batteries after `nullarbor`: `moto60` (60V 38Ah 150A) and `moto72` (72V 50Ah 250A). The existing 72V packs `tri72` and `redc` also match.
+- `app.js` `Kr()` build-warning list: no-pedal mid + no throttle → red "No pedals on a moto mid-drive: fit a throttle to ride"; info "cranks and pedals removed, footpegs fitted"; rear hub ≥9kg → "Heavy rear hub … easy wheelies". There's no separate pedals part in the game, so nothing else gets removed.
+- `app.js` 3D drive group (`let nn=.6;…`): if `Ve.nopedal`, it draws footpeg bars and pads instead of crank arms and pedals. The moto mid block branch also fires for `Ve.nopedal`. Hub visual radius `si` scales by power: 0.10 / 0.13 (≥3kW) / 0.15 (≥5kW) / 0.17 (≥8kW).
+- CoG: the existing `Y`/height maths is unchanged. Rear hubs shift the CoG back by `kg*0.005` and mids lower it by 0.02, so the 17kg hub is very rear-biased.
+- Infinite money (v11) kept. `sw.js` cache `wk-v12`.
