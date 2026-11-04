@@ -30,7 +30,32 @@ export function chainAlong(points, std = "bicycle", color = "#4a4a4a", z = 0, na
   const pm = M(name + ":plates", color, { metalness: 0.85, roughness: 0.35 }), rm = M(name + ":rollers", "#8a8a8a", { metalness: 0.9, roughness: 0.3 });
   for (const side of [-1, 1]) inst(G, name + ":plates" + (side > 0 ? "R" : "L"), new T.BoxGeometry(PITCH * 1.35, c.plate * 0.8, 0.0012), pm, n, (o, i) => { const [x, y, a] = at(i * step + step / 2); o.position.set(x, y, z + side * (c.w / 2 + (i % 2 ? 0.0012 : 0))); o.rotation.z = a; });
   inst(G, name + ":rollers", zCyl(c.roller, c.roller, c.w, 8), rm, n, (o, i) => { const [x, y] = at(i * step); o.position.set(x, y, z); });
-  G.userData.links = n; return G;
+  G.userData.links = n; G.userData.chain = {points,std,z}; return G;
+}
+const chainTables=new WeakMap();
+export function animateChain(G,points,phase=0) {
+ const data=G.userData.chain;if(!data)return;
+ points=points||data.points;let table=chainTables.get(G);
+ if(!table||table.points!==points){let total=0;const segments=points.map((a,i)=>{const b=points[(i+1)%points.length],L=Math.hypot(b[0]-a[0],b[1]-a[1]),s={a,b,L,start:total};total+=L;return s});table={points,segments,total};chainTables.set(G,table);}
+ const n=G.userData.links,c=CHAIN[data.std]||CHAIN.bicycle,step=table.total/n,ob=new T.Object3D();
+ const at=s=>{s=((s%table.total)+table.total)%table.total;const q=table.segments.find(q=>s<=q.start+q.L)||table.segments[0],u=q.L?(s-q.start)/q.L:0;return [q.a[0]+(q.b[0]-q.a[0])*u,q.a[1]+(q.b[1]-q.a[1])*u,Math.atan2(q.b[1]-q.a[1],q.b[0]-q.a[0])];};
+ for(const mesh of G.children){if(!mesh.isInstancedMesh)continue;const roller=mesh.name.endsWith(':rollers'),side=mesh.name.endsWith('R')?1:-1;
+  for(let i=0;i<n;i++){const [x,y,a]=at(i*step+(roller?0:step/2)+phase);ob.position.set(x,y,data.z+(roller?0:side*(c.w/2+(i%2?.0012:0))));ob.rotation.set(0,0,roller?0:a);ob.updateMatrix();mesh.setMatrixAt(i,ob.matrix);}mesh.instanceMatrix.needsUpdate=true;
+ }
+}
+
+export function crankset(bb,color='#292c2f',pegs=false) {
+ const G=new T.Group();G.name='wk:model:cranks';G.position.set(bb[0],bb[1],0);
+ if(pegs){for(const s of [-1,1]){between(G,'pegs:spindle'+s,[-.03,-.025,s*.055],[-.03,-.025,s*.16],.008,M('pegs:steel','#777'));const pad=mesh(G,'pegs:pad'+s,new T.BoxGeometry(.07,.014,.05),M('pegs:pad','#191b1d'));pad.position.set(-.03,-.02,s*.145);}return G;}
+ const rotor=new T.Group();rotor.name='cranks:rotor';G.add(rotor);
+ mesh(rotor,'cranks:axle',zCyl(.011,.011,.17,24),M('cranks:axle','#969da2',{metalness:.9}));
+ for(const s of [-1,1]) {
+  between(rotor,'cranks:arm'+s,[0,0,s*.075],[s*.14,0,s*.075],.012,M('cranks:arm',color));
+  const pedal=new T.Group();pedal.name='pedal:'+s;pedal.userData.wkPedal=true;pedal.position.set(s*.14,0,s*.12);rotor.add(pedal);
+  mesh(pedal,'pedal:cage'+s,new T.BoxGeometry(.095,.018,.075),M('pedal:cage','#202326',{metalness:.25}));
+  inst(pedal,'pedal:pins'+s,new T.CylinderGeometry(.0025,.0025,.025,6),M('pedal:pins','#a6adaf',{metalness:.9}),8,(o,i)=>o.position.set(-.036+(i%4)*.024,0,i<4?-.026:.026));
+ }
+ return G;
 }
 export function chainSegment(std = "bicycle", color = "#4a4a4a", links = 16) { const len = links * PITCH; return chainAlong([[-len / 2, 0], [len / 2, 0], [len / 2, -0.0001], [-len / 2, -0.0001]], std, color, 0, "chain"); }
 export function hubFlange(radius, holeRadius, side, color = '#9aa0a6') {

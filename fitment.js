@@ -59,6 +59,8 @@ export function fit(build, id) {
     if (!disc && !f.brake.includes("rim")) return no("frame has no rim-brake bosses");
     if (disc && f.brake.length === 1 && f.brake[0] === "rim") need("adp_disc");
     else if (disc && f.brake.includes("is") && !f.brake.includes("post")) need("adp_brake");
+  } else if (p.slot === 'rear_frame') {
+    if(fid!=='trax_lime') return no('TRAX rear assembly needs the TRAX single-pivot main frame');
   } else if (p.slot === "shock") {
     if (!f.shock) return no("frame has no rear shock mount (rigid/hardtail)");
     if (f.shock === 'trax-short' && id !== 'trax_coil') return no('TRAX frame needs its short horizontal coil shock');

@@ -2,13 +2,16 @@
 // and the big drag-to-rotate preview in the part sheet. Same realistic models as on the bike (partmodels.js).
 import * as T from "./vendor/three.module.js";
 import * as PM from "./partmodels.js";
-import {TRAX_ID,traxPreview} from './trax-bike.js';
+import {TRAX_ID,traxPreview,traxGeometry,traxAnchors} from './trax-bike.js';
+import {rearFrameModel,traxShockModel} from './trax-suspension.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
-const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars"]);
+const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame"]);
 export const modelFor = (p) => {
   if (!p) return null;
   if (p.id === TRAX_ID) return traxPreview(T);
+  if(p.slot==='rear_frame'){const x=traxGeometry();return rearFrameModel(T,{...traxAnchors(x),rearAxle:x.rear},p.color);}
+  if(p.id==='trax_coil')return traxShockModel(T,[.1,.06],[-.1,-.03],p.color);
   if (p.slot === "kit") { const m = (p.kit || []).map(find).find((q) => q?.slot === "motor"); const b = (p.kit || []).map(find).find((q) => q?.slot === "battery"); return modelFor(m || b); }
   if (!MODEL_SLOTS.has(p.slot)) return null;
   if (p.slot === "motor") return p.kind === "mid" ? (p.nopedal || (!p.real && (p.w || 0) >= 2500) || p.id === "x1" ? PM.motoMid(p) : PM.midDrive(p)) : PM.hubMotor(p);

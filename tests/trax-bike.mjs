@@ -16,7 +16,7 @@ try {
   const b=__WK_BUILD__,v=__WK_VIEW__;v.controls.autoRotate=false;v.controls.target.set(.1,.54,0);v.camera.position.set(.35,.75,2.6);v.controls.update();
   let root;v.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});
   let reflectors=0;root.traverse(o=>{if(o.name.startsWith('trax:spokeReflector'))reflectors++});
-  return {build:b,fit:Object.entries(b).map(([s,id])=>[s,__WK_FIT__(b,id)]),reflectors,shockGroups:root.children.filter(o=>o.name==='wk:part:shock').length,anchors:root.userData.wkAnchors,swing:!!root.getObjectByName('frame:swingUpper1'),lettering:!!root.getObjectByName('frame:downTube').material.map};
+  return {build:b,fit:Object.entries(b).map(([s,id])=>[s,__WK_FIT__(b,id)]),reflectors,shockGroups:root.children.filter(o=>o.name==='wk:part:shock').length,anchors:root.userData.wkAnchors,swing:!!root.getObjectByName('rearFrame:seatstay1'),lettering:!!root.getObjectByName('frame:downTube').material.map};
  });
  assert.equal(report.reflectors,4);assert.equal(report.shockGroups,1);assert(report.swing&&report.lettering);assert(report.fit.every(([s,f])=>f.status==='ok'),JSON.stringify(report.fit));
  assert.equal(report.build.motor,undefined);assert.equal(report.build.rims,'trax_rims');
@@ -47,8 +47,9 @@ try {
  await p.evaluate(()=>[...document.querySelectorAll('button')].find(b=>/RIDE/.test(b.textContent))?.click());
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);
  await p.keyboard.down('ArrowRight');await p.waitForTimeout(1000);await p.keyboard.up('ArrowRight');
- const ride=await p.evaluate(()=>{const {s,P}=__WK_RIDE_STATE__();return {x:s.x,y:s.y,pitch:s.pitch,pedal:P.pedal}});
+ const ride=await p.evaluate(()=>{const {s,P,mechanical}=__WK_RIDE_STATE__();return {x:s.x,y:s.y,pitch:s.pitch,pedal:P.pedal,wheelPhase:mechanical.wheelPhase,crankPhase:mechanical.crankPhase}});
  assert([ride.x,ride.y,ride.pitch].every(Number.isFinite));assert(ride.pedal);
+ assert(ride.wheelPhase<0&&ride.crankPhase<0);
  await p.screenshot({path:'wk-shots/trax/06-ride.png'});
  assert.deepEqual(errors,[]);writeFileSync('wk-shots/trax/validation.json',JSON.stringify({report,preview,swapped,ride,errors},null,2));console.log(JSON.stringify({stock:true,preview,swaps:true,ride,errors}));
 } finally {await browser.close();}

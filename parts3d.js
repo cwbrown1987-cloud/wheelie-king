@@ -7,6 +7,8 @@ export { buildFrame as smoothFrame } from "./frame-geometry.js";
 import { detailPass, startLOD } from "./detail.js";
 import { loadCond, applyCondition } from "./ride.js";
 import { TRAX_ID, traxAnchors, finishTrax } from './trax-bike.js';
+import {traxShockModel} from './trax-suspension.js';
+import {chainRoute} from './bike-motion.js';
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 export function anchors(x, R) { // named mount anchors per frame (x = frame geometry from app.js)
   const v = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -43,6 +45,7 @@ globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
   try { detailPass(root, A, b, T, find, slotGroup, g); startLOD(); } catch (e) { console.warn("wk detail", e); }
   try { finishTrax(root,A,b,T,g,slotGroup); } catch(e) { console.warn('wk trax',e); }
   root.userData.wkAnchors = A;
+  root.userData.wkBuild = {...b};
   try { const c = loadCond(); if (c.dirt > 0.01 || Object.keys(c.wear || {}).length) applyCondition(root, c); } catch (e) { console.warn("wk cond", e); }
 };
 
@@ -76,12 +79,16 @@ function realParts(root, A, b, T, g, slotGroup, part, x, R) {
     const rr = PM.sprocketR(G.rear) + 0.004; fr += 0.004; const pts = [], [bx, by] = A.bb, [rx, ry] = A.rearAxle;
     for (let i = 0; i <= 14; i++) { const a = Math.PI / 2 + (i / 14) * Math.PI; pts.push([rx + Math.cos(a) * rr, ry + Math.sin(a) * rr]); }
     for (let i = 0; i <= 18; i++) { const a = -Math.PI / 2 + (i / 18) * Math.PI; pts.push([bx + Math.cos(a) * fr, by + Math.sin(a) * fr]); }
+    if(b.frame===TRAX_ID&&b.rear_frame)pts.splice(0,pts.length,...chainRoute([{x:rx,y:ry,r:rr},{x:rx-.018,y:ry-.05,r:PM.sprocketR(8)+.004},{x:rx+.028,y:ry-.12,r:PM.sprocketR(8)+.004},{x:bx,y:by,r:fr}]));
     const ch = PM.chainAlong(pts, G.chain, part("chain")?.color || (G.chain === "bicycle" ? "#5a5a5a" : "#2a2a2a"), z, "chain"); ch.name = "wk:model:chain"; dr.add(ch);
+    // Replace the anonymous stock cranks/pedals with an explicit rotating axle assembly.
+    dr.children.filter(o=>!o.name).forEach(o=>dr.remove(o));
+    dr.add(PM.crankset(A.bb,part('cranks')?.color||'#33363a',!!motor?.nopedal||!!part('cranks')?.pegs));
     const cr = part("cranks"); if (cr && !cr.pegs) dr.traverse((o) => { if (o.isMesh && o.geometry.type === "CylinderGeometry" && Math.abs((o.geometry.parameters.radiusBottom || 0) - 0.011) < 0.001) { o.material = o.material.clone(); o.material.color = new T.Color(cr.color); } }); }
   // fork: stanchions/lowers/crown/arch (or rigid blades) between the head tube and front axle
   const sg = g("suspension"); if (sg) { sg.clear(); const fp = part("suspension") || { id: "rigid", travel: 0.03 }; const f = PM.fork(fp, A.headTop, A.headBottom, A.frontAxle, (fp.travel || 0) >= 0.18 ? A.headTop : null, { color: fp.color }); f.name = "wk:model:fork"; sg.add(f); }
   // rear shock: coil (helical spring) or air can, between the frame and swingarm mounts
-  const sh = part("shock"); if (sh) { const G = slotGroup("shock"); G.userData.mount = "shockFrame→shockArm"; const m = PM.shock(sh, A.shockFrame, A.shockArm); m.name = "wk:model:shock"; G.add(m); }
+  const sh = part("shock"); if (sh) { const G = slotGroup("shock"); G.userData.mount = "shockFrame→shockArm"; const m = sh.id==='trax_coil'?traxShockModel(T,A.shockFrame,A.shockArm,sh.color):PM.shock(sh, A.shockFrame, A.shockArm); m.name = "wk:model:shock"; G.add(m); }
   // bars + grips with real rise/sweep (stock tube/crossbar/grips removed; stem, levers kept)
   const cp = g("cockpit"); if (cp) { const old = cp.children.filter((o) => o.isMesh && (o.geometry.type === "TubeGeometry" || [0.008, 0.017].includes(o.geometry.parameters?.radiusTop))); old.forEach((o) => cp.remove(o));
     const clamp = [A.headTop[0] + 0.025, A.headTop[1] + 0.06], spec = { ...globalThis.__WK_BARSPEC__(part("bars"), part("grips")), width: moto ? 0.38 : (BARSPEC[b.bars]?.width || 0.34) };

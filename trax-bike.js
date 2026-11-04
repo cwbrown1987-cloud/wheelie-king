@@ -1,14 +1,17 @@
 // Photo-based TRAX bike. Proportions/specifications are visual estimates, not a manufacturer drawing.
 import * as PM from './partmodels.js';
+import {rearFrameModel} from './trax-suspension.js';
 export const TRAX_ID = 'trax_lime';
-export const TRAX_STOCK = {suspension:'trax_fork',shock:'trax_coil',bars:'trax_bars',grips:'grip_std',seat:'trax_saddle',rims:'trax_rims',tyres:'trax_tyres',brakes:'rim',cranks:'crank_steel',chain:'chain_std',sprocket_f:'trax_38',sprocket_r:'trax_16'};
+export const TRAX_STOCK = {rear_frame:'trax_rear_lime',suspension:'trax_fork',shock:'trax_coil',bars:'trax_bars',grips:'grip_std',seat:'trax_saddle',rims:'trax_rims',tyres:'trax_tyres',brakes:'rim',cranks:'crank_steel',chain:'chain_std',sprocket_f:'trax_38',sprocket_r:'trax_16'};
 const lime='#d2ed21';
 const liveryCache=new Map();
 export const TRAX_RADIUS=.255;
 const SCALE=TRAX_RADIUS/.315;
-export const traxGeometry=(R=TRAX_RADIUS)=>({rear:[-.41*SCALE,R],bb:[0,R+.025*SCALE],seat:[-.16*SCALE,.73*SCALE],htT:[.47*SCALE,.77*SCALE],htB:[.51*SCALE,.63*SCALE],front:[.67*SCALE,R],tr:.022*SCALE});
+export const traxGeometry=(R=TRAX_RADIUS)=>({rear:[-.41*SCALE,R],bb:[0,R+.025*SCALE],seat:[-.16*SCALE,.73*SCALE],htT:[.47*SCALE,.72],htB:[.51*SCALE,.61],front:[.67*SCALE,R],tr:.022*SCALE});
 export const TRAX_PARTS = [
- {id:TRAX_ID,slot:'frame',name:'TRAX Lime Dual-Suspension Bike',real:false,kg:5.8,price:1200,maxW:500,fc:0xd2ed21,stock:TRAX_STOCK,note:'Your lime/black bike: Y-frame, pivoting rear triangle, near-horizontal coil shock, lime fork/rims and tall quill bars. Selecting it installs the matching stock build. Dimensions, weight and fitment are photo-based estimates.'},
+ {id:'trax_rear_lime',slot:'rear_frame',name:'TRAX Lime Rear Swingarm',real:false,kg:2.2,price:0,color:lime,note:'Separate single-pivot rear frame: paired stays, shock clevis and axle dropouts. Fits the TRAX frame only.'},
+ {id:'trax_rear_black',slot:'rear_frame',name:'TRAX Black Rear Swingarm',real:false,kg:2.2,price:350,color:'#202528',note:'Black finish on the matching TRAX single-pivot rear assembly. Replaces the lime assembly.'},
+ {id:TRAX_ID,slot:'frame',name:'TRAX Lime Dual-Suspension Bike',real:false,kg:3.6,price:1200,maxW:500,fc:0xd2ed21,stock:TRAX_STOCK,note:'Your lime/black bike: Y-frame, pivoting rear triangle, diagonal coil shock, lime fork/rims and tall quill bars. Selecting it installs the matching stock build. Dimensions, weight and fitment are photo-based estimates.'},
  {id:'trax_fork',slot:'suspension',name:'TRAX Lime Suspension Fork',real:false,travel:.06,damp:.25,kg:1.8,price:0,color:lime,note:'Matching single-crown fork with lime lowers and silver stanchions. Estimated 60mm travel.'},
  {id:'trax_coil',slot:'shock',name:'TRAX Lime Coil Shock',real:false,travel:.06,kg:.65,price:0,color:lime,note:'Matching short coil-over with lime spring, mounted under the top tube. Travel estimated from the photo.'},
  {id:'trax_bars',slot:'bars',name:'TRAX Tall Quill Bars',real:false,rise:.055,kg:.75,price:0,color:'#17191b',note:'High chrome quill stem, swept black bars, black grips and brake levers.'},
@@ -40,7 +43,7 @@ export function traxPreview(T) {
  return root;
 }
 export function traxAnchors(x) {
- return {shockFrame:[x.htT[0]-.23*SCALE,x.htT[1]-.065*SCALE],shockArm:[x.seat[0]+.04*SCALE,x.seat[1]-.09*SCALE]};
+ return {swingPivot:[x.bb[0]+.025,x.bb[1]+.085],shockFrame:[x.bb[0]+.145,x.bb[1]+.31],shockArm:[x.bb[0]-.035,x.bb[1]+.215]};
 }
 
 export function buildTraxFrame(fr,x,T,paint,sweep) {
@@ -62,37 +65,36 @@ export function buildTraxFrame(fr,x,T,paint,sweep) {
  tube('frame:seatTube',[bb,v(bb).lerp(v(seat),.5).toArray(),seat],.028,black,bottom);
  shell('frame:seatCollar',v(seat).lerp(v(bb),.05).toArray(),seat,.031,black);
  const topStart=v(htT).lerp(v(htB),.18).toArray(),topEnd=v(seat).lerp(v(bb),.05).toArray();
- const top=tube('frame:topTube',[topStart,[(topStart[0]+seat[0])/2,seat[1]+.005],topEnd],.025,green,head,seatReceiver);
+ const top=tube('frame:topTube',[topStart,[(topStart[0]+topEnd[0])/2,(topStart[1]+topEnd[1])/2+.006],topEnd],.025,green,head,seatReceiver);
  const down=tube('frame:downTube',[v(htB).lerp(v(htT),.25).toArray(),[.22*SCALE,bb[1]+.17*SCALE],bb],.027,green,head,bottom);
  if(typeof document!=='undefined') {
    // Original lettering only; no traced brand logo. Speckled fade is generated deterministically.
-   for(const [o,label] of [[top,'DUAL SUSPENSION'],[down,'TRAX']]) {
+   for(const [o,label] of [[top,'50'],[down,'TRAX']]) {
     if(liveryCache.has(label)){o.material.map=liveryCache.get(label);o.material.needsUpdate=true;continue;}
     const c=document.createElement('canvas');c.width=1024;c.height=256;const cx=c.getContext('2d');cx.fillStyle=lime;cx.fillRect(0,0,1024,256);
     let seed=731;const rnd=()=>((seed=seed*16807%2147483647)/2147483647);
-    cx.fillStyle='#171b1e';cx.fillRect(760,0,264,256);
+    cx.fillStyle='#171b1e';cx.fillRect(label==='50'?330:760,0,label==='50'?694:264,256);
     for(let i=0;i<10000;i++){const px=rnd()*1024,py=rnd()*256;if(rnd()<Math.max(0,(px/1024-.42)*2)){cx.fillStyle='#171b1e';cx.fillRect(px,py,2+rnd()*6,1+rnd()*4)}}
-    cx.fillStyle='#14181a';cx.font=label==='TRAX'?'bold italic 72px Arial':'bold 22px Arial';cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillStyle=label==='50'?lime:'#14181a';cx.font=label==='TRAX'?'bold italic 72px Arial':'bold italic 68px Arial';cx.textAlign='center';cx.textBaseline='middle';
     const path=new T.CatmullRomCurve3(o.geometry.userData.wkTube.points.map(p=>new T.Vector3(...p))),frames=path.computeFrenetFrames(48,false);
     for(const side of [-1,1]) {
       const angle=Math.atan2(frames.binormals[24].z*side,frames.normals[24].z*side),v=((angle/(Math.PI*2))%1+1)%1,cy=(1-v)*256;
-      for(const offset of [-256,0,256]) {cx.save();cx.translate(410,cy+offset);if(label==='TRAX'){cx.scale(-1,1);if(side<0)cx.rotate(Math.PI);}else if(side>0)cx.rotate(Math.PI);cx.fillText(label,0,0);cx.restore();}
+      for(const offset of [-256,0,256]) {cx.save();cx.translate(label==='50'?820:410,cy+offset);if(label==='TRAX'){cx.scale(-1,1);if(side<0)cx.rotate(Math.PI);}else if(side>0)cx.rotate(Math.PI);cx.fillText(label,0,0);cx.restore();}
     }
     const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;liveryCache.set(label,tex);o.material.map=tex;o.material.needsUpdate=true;
    }
  }
- // The photograph's defining Y rear triangle: a floating seat tower above the swing pivot.
- shell('frame:swingPivot',[pivot[0],pivot[1],-.075*SCALE],[pivot[0],pivot[1],.075*SCALE],.022,black);
- for(const s of [-1,1]) {
-  const z=s*.065*SCALE;
-  tube('frame:swingLower'+s,[[pivot[0],pivot[1],z],[rear[0]+.14*SCALE,rear[1]-.015*SCALE,z],[rear[0],rear[1],z]],.018);
-  const tower=[A.shockArm[0],A.shockArm[1]-.025*SCALE,z];
-  tube('frame:swingUpper'+s,[[rear[0],rear[1],z],[rear[0]+.1*SCALE,rear[1]+.09*SCALE,z],tower,[pivot[0],pivot[1],z]],.017);
-  mesh('frame:dropout'+(s<0?'L':'R'),new T.BoxGeometry(.045*SCALE,.04*SCALE,.009*SCALE),[rear[0],rear[1],z],green);
-  const bolt=mesh('frame:pivotBolt'+s,new T.CylinderGeometry(.012*SCALE,.012*SCALE,.01*SCALE,6),[pivot[0],pivot[1],s*.079*SCALE],metal);bolt.rotation.x=Math.PI/2;
-  shell('frame:shockMount'+s,[A.shockFrame[0],A.shockFrame[1]+.04*SCALE,s*.015],[A.shockFrame[0],A.shockFrame[1],s*.015],.009,black);
-  shell('frame:rearShockMount'+s,[...A.shockArm,s*.015],[tower[0],tower[1],s*.015],.009,black);
+ // Fixed pivot cheeks and the upper shock hanger belong to the main frame.
+ const P=A.swingPivot;
+ for(const side of [-1,1]) {
+  const plate=new T.Shape();plate.moveTo(bb[0]-.018,bb[1]+.005);plate.lineTo(P[0]+.024,P[1]-.005);plate.absarc(P[0],P[1],.024,0,Math.PI,false);plate.lineTo(bb[0]-.025,bb[1]+.018);plate.closePath();
+  const bore=new T.Path();bore.absarc(P[0],P[1],.009,0,Math.PI*2,true);plate.holes.push(bore);
+  mesh('frame:pivotCheek'+side,new T.ExtrudeGeometry(plate,{depth:.007,bevelEnabled:true,bevelSize:.001,bevelThickness:.001,bevelSegments:2}),[0,0,side*.066-.0035],black);
+  const E=A.shockFrame,hang=new T.Shape();hang.moveTo(E[0]-.027,E[1]+.055);hang.lineTo(E[0]+.027,E[1]+.06);hang.lineTo(E[0]+.013,E[1]-.007);hang.lineTo(E[0]-.012,E[1]-.007);hang.closePath();
+  const hole=new T.Path();hole.absarc(E[0],E[1],.0045,0,Math.PI*2,true);hang.holes.push(hole);
+  mesh('frame:upperShockHanger'+side,new T.ExtrudeGeometry(hang,{depth:.006,bevelEnabled:true,bevelSize:.001,bevelThickness:.001,bevelSegments:2}),[0,0,side*.018-.003],black);
  }
+
 }
 
 export function finishTrax(root,A,b,T,g,slotGroup) {
@@ -109,7 +111,8 @@ export function finishTrax(root,A,b,T,g,slotGroup) {
   const spokes=w.getObjectByName('wheel:spokes');if(spokes)spokes.material=mat('#202326',.8);
   for(const side of [-1,1]){const a=-.95,r=rim.geometry.parameters.radius*.70;const refl=add(w,'trax:spokeReflector'+side,new T.BoxGeometry(.075,.014,.006),new T.MeshPhysicalMaterial({color:'#ff9f12',roughness:.25,clearcoat:1,emissive:'#7e3800',emissiveIntensity:.15}),[Math.cos(a)*r,Math.sin(a)*r,side*.014]);refl.rotation.z=a+Math.PI/2;}
  });
- if(!b.shock) {const group=slotGroup('shock');group.userData.mount='trax:stockShock';group.add(PM.shock(TRAX_PARTS.find(p=>p.id==='trax_coil'),A.shockFrame,A.shockArm));}
+ const rear=TRAX_PARTS.find(p=>p.slot==='rear_frame'&&p.id===b.rear_frame);if(rear){const group=slotGroup('rear_frame');group.userData.mount='swingPivot';group.add(rearFrameModel(T,A,rear.color));}
+ if(b.sprocket_r==='trax_16'){const cassette=g('drive')?.getObjectByName('sprocketR');if(cassette)for(const [i,teeth] of [28,24,21,18].entries()){const ring=PM.sprocket(teeth,'bicycle','#737a7e','cassette:ring'+teeth);ring.position.z=-(4-i)*.004;cassette.add(ring);}}
  if(b.suspension==='trax_fork'||!b.suspension)g('suspension')?.traverse(o=>{if(o.isMesh&&/fork:lower/.test(o.name)){o.material=o.material.clone();o.material.color.set(lime)}});
  if(b.seat==='trax_saddle'||!b.seat)g('seat')?.traverse(o=>{if(o.isMesh&&o.geometry?.type==='CylinderGeometry'){o.material=o.material.clone();o.material.color.set('#151719')}});
  if(b.bars==='trax_bars'||!b.bars) {

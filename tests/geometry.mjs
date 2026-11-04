@@ -13,7 +13,8 @@ for(const {frame,anchors:A} of baseline) {
  const tr=['moto','emoto'].includes(frame)?.03:['bmx','mtb_rigid'].includes(frame)?.017:frame==='mtb_ht'?.021:.022;
  buildFrame(root,{htT:A.headTop,htB:A.headBottom,bb:A.bb,seat:A.seatTop,rear:A.rearAxle,tr},T,()=>fr,{frame});
  assert(fr.getObjectByName('frame:headTube'),frame);
- assert(fr.getObjectByName('frame:dropoutL'),frame);
+ if(frame==='trax_lime')assert(!fr.getObjectByName('rearFrame:axle'),'rear assembly must be separate from main frame');
+ else assert(fr.getObjectByName('frame:dropoutL'),frame);
  assert(fr.getObjectByName('frame:seatCollar'),frame);
  const materials=new Set();
  fr.traverse(o=>{

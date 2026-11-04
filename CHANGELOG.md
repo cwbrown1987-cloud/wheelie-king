@@ -1,5 +1,16 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 WIP — TRAX pivot, rear-frame parts and drivetrain motion, 5 Nov 2026
+
+- Rebuilt the rear from Chris's two close-ups. Separate paired lime stays, upper bridge/clevis, axle dropouts and pivot bearings now hinge above the BB; the stationary black seat tube passes between them. The diagonal coil's frame eye mounts to a fixed black top-tube hanger and its moving eye follows the clevis.
+- Added **REAR FRAME** rail/store slot, lime/black TRAX assemblies and 3D previews; fitment restricts them to this frame. `TRAX_STOCK` includes the new part. Frame mass now excludes the separately counted assembly. Removed the hidden fallback coil so REMOVE really removes it.
+- `trax-suspension.js` builds the rear and a short coil shock with real eye/bolt positions, adjuster collars and a deformable helix. Coil wire thickness stays constant under compression. Corrected front-end clearance for the confirmed 20-inch wheels and fork stroke.
+- `bike-motion.js` provides a shared garage/ride visual rig: wheels rotate at distance/radius, stationary axle hardware/cables stay fixed, cranks/gears turn at the tooth ratio, pedal platforms counter-rotate, instanced chain links travel around tangent paths and the TRAX rear cluster/jockey wheels. The rear axle follows the single-pivot arc; the shock remains pinned at both eyes; fork lowers telescope along the fork axis. Peg builds have no pedal rotor.
+- Added **TEST MOTION** and a suspension slider to inspect the bike in the garage; normal riding drives the same visual rig and articulated rider legs. The original 2D ride-force integrator is unchanged. Other frames retain simplified rear suspension visuals.
+- `partmodels.js`: named replacement crank/pedal/peg assembly plus reusable instanced-chain updates. `parts3d.js` records the build/anchors for the rig and routes the TRAX chain through its rear pulleys. `ride.js` drives articulation and exposes phases in its existing test state.
+- Added `test:mechanics`, expanded the slot regression to 23 slots, and updated TRAX ride validation. Geometry, slot, 111-build / 222-wheel, sticker, store-swap, mount-alignment and ride checks pass. Screenshots: `wk-shots/trax/` and `wk-shots/trax-mechanics/`.
+- Photo-derived dimensions and non-wheel-size specifications remain estimates. Original personal photos stay excluded from Git.
+
 ## v18 WIP — click to fit, separate part information
 
 - Part cards now fit/buy through the existing equip/fitment path immediately, replacing the currently fitted part. The separate `i` button opens the original part sheet without fitting the part. Sticker placement and custom upload retain their existing actions.

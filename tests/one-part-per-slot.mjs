@@ -9,8 +9,8 @@ await p.goto(URL_ + "?v=" + Date.now()); await p.waitForFunction(() => globalThi
 await p.evaluate(() => { __WK_VIEW__.controls.autoRotate = false; });
 // open a category so the card renderer runs and exposes the equip fn
 await p.click('[data-cat="bars"]', { force: true }); await p.waitForFunction(() => globalThis.__WK_EQUIP__, null, { timeout: 10000 });
-const slots = ["shock","bars","grips","seat","rims","cranks","chain","fender_f","fender_r","bash","lights","suspension","tyres","brakes","frame","motor","battery","controller","throttle","sprocket_f","sprocket_r","wing"];
-const added = new Set(["shock","fender_f","fender_r","bash","lights","wing"]);
+const slots = ["shock","bars","grips","seat","rims","cranks","chain","fender_f","fender_r","bash","lights","suspension","tyres","brakes","frame","motor","battery","controller","throttle","sprocket_f","sprocket_r","wing","rear_frame"];
+const added = new Set(["shock","fender_f","fender_r","bash","lights","wing","rear_frame"]);
 let fails = 0, skipped = 0;
 for (const slot of slots) {
   const ids = await p.evaluate((s) => __WK_CAT__().items.filter(i => i.slot === s).map(i => i.id), slot);

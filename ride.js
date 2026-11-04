@@ -2,6 +2,7 @@
 // Physics: ride-physics.js (pure 2D, reusable for a later 3D mode). This file is only rendering, input, FX, HUD and saving condition.
 import * as T from "./vendor/three.module.js";
 import { makeTerrain, bikeParams, makeState, step } from "./ride-physics.js";
+import {createBikeMotion} from './bike-motion.js';
 const COND_KEY = "wk-condition";
 export const loadCond = () => { try { return JSON.parse(localStorage.getItem(COND_KEY)) || { dirt: 0, wear: {} }; } catch { return { dirt: 0, wear: {} }; } };
 export const saveCond = (c) => localStorage.setItem(COND_KEY, JSON.stringify(c));
@@ -76,6 +77,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   // wheels move with their suspension (visible travel); find the wheel groups at each axle
   const wheels = [[], []]; bike.traverse((o) => { if (o.isGroup && o.parent && /wk:(tyres|motor)/.test(o.parent.name) && o.children.some((c) => c.geometry?.type === "TorusGeometry")) { const i = Math.abs(o.position.x - A.frontAxle[0]) < 0.05 ? 1 : 0; wheels[i].push([o, o.position.y]); } });
   const forkG = bike.getObjectByName("wk:suspension"), forkY = forkG?.position.y || 0;
+  const mechanical=createBikeMotion(bike,build,find);
   // rider (simple low-poly, leans with input)
   const rider = new T.Group(); body.add(rider); const skin = new T.MeshStandardMaterial({ color: "#2b7bff", roughness: 0.7 }), dark = new T.MeshStandardMaterial({ color: "#1a1a1a" }), helm = new T.MeshStandardMaterial({ color: "#39ff7a", metalness: 0.3, roughness: 0.3 });
   const off = (p) => new T.Vector3(p[0] + bike.position.x, p[1] + bike.position.y, 0);
@@ -86,7 +88,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const head = new T.Mesh(new T.SphereGeometry(0.13, 16, 12), helm); head.position.copy(shoulder).add(new T.Vector3(0.05, 0.2, 0)); torsoG.add(head);
   const visor = new T.Mesh(new T.BoxGeometry(0.06, 0.06, 0.2), dark); visor.position.copy(head.position).add(new T.Vector3(0.12, 0, 0)); torsoG.add(visor);
   const arms = new T.Group(); torsoG.add(arms);
-  const legs = new T.Group(); rider.add(legs); for (const z of [-0.12, 0.12]) { const k = hip.clone().lerp(foot, 0.5).add(new T.Vector3(0.18, 0.08, z)); legs.add(limb(hip.clone().setZ(z * 0.6), k, 0.06, dark), limb(k, foot.clone().setZ(z), 0.05, dark)); }
+  const legs = new T.Group(); rider.add(legs);const legMeshes=[];
+  for(const side of [-1,1]){const upper=new T.Mesh(new T.CylinderGeometry(.055,.055,1,12),dark),lower=new T.Mesh(new T.CylinderGeometry(.045,.045,1,12),dark);legs.add(upper,lower);legMeshes.push({side,upper,lower});}
+  const poseSegment=(mesh,a,b)=>{const d=b.clone().sub(a);mesh.position.copy(a).addScaledVector(d,.5);mesh.scale.y=d.length();mesh.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());};
+  const setLegs=()=>{const pedalMode=!!bike.getObjectByName('cranks:rotor'),angle=mechanical?.state.crankPhase||0;
+    for(const {side,upper,lower} of legMeshes){const h=hip.clone().setZ(side*.075),f=pedalMode?off([A.bb[0]+Math.cos(angle)*side*.14,A.bb[1]+Math.sin(angle)*side*.14]).setZ(side*.12):foot.clone().add(new T.Vector3(-.03,-.025,side*.145));
+      const d=f.clone().sub(h),D=d.length(),u=d.normalize(),along=D/2,k=h.clone().addScaledVector(u,along).addScaledVector(new T.Vector3(-u.y,u.x,0),Math.sqrt(Math.max(.001,.29**2-along**2)));poseSegment(upper,h,k);poseSegment(lower,k,f);}
+  };setLegs();
   const setArms = () => { arms.clear(); const sh = shoulder.clone(); const hl = hand.clone().sub(torsoG.position).applyAxisAngle(new T.Vector3(0, 0, 1), -torsoG.rotation.z);
     for (const z of [-0.18, 0.18]) { const el2 = sh.clone().lerp(hl, 0.5).add(new T.Vector3(-0.05, -0.08, z * 0.7)); arms.add(limb(sh.clone().setZ(z * 0.6), el2, 0.045, skin), limb(el2, hl.clone().setZ(z), 0.04, skin)); } };
   setArms();
@@ -161,9 +169,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     else { pivot.position.set(s.x, s.y, 0); pivot.rotation.z = s.pitch; }
     spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; pivot.rotation.y = spinVis;
     // suspension: wheels slide toward the frame by compression*travel
-    wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
-    if (forkG) forkG.position.y = forkY; // stanchions stay; wheel moves into the fork
-    torsoG.rotation.z = inp.lean * 0.25 + (s.crashed ? 0.6 : 0); setArms();
+    if(mechanical)mechanical.update({distance:s.vx*dt,driveDistance:inp.throttle>0||find(build.motor)?.nopedal?s.vx*dt:0,rearCompression:build.shock?s.comp[0]||0:0,frontCompression:s.comp[1]||0,travelR:P.travelR,travelF:P.travelF});
+    else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
+    torsoG.rotation.z = inp.lean * 0.25 + (s.crashed ? 0.6 : 0); setArms();setLegs();
     // checkpoints / finish
     while (cpI + 1 < ter.checkpoints.length && s.x > ter.checkpoints[cpI + 1]) { cpI++; lastCP = ter.checkpoints[cpI] + 1; msg = "CHECKPOINT " + cpI; msgT = 1.2; }
     if (!finished && s.x > ter.finish) { finished = true; msg = `FINISH! SCORE ${Math.round(s.score).toLocaleString()} · +$${Math.round(s.score / 10).toLocaleString()}`; msgT = 99; maxScore = Math.max(maxScore, s.score); report(); }
@@ -181,7 +189,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     const w = W(), h = H(); if (R.domElement.width !== Math.round(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     R.render(scene, cam); };
   raf = requestAnimationFrame(frame);
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, mechanical:mechanical?.state });
   return () => { report(); cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori); R.dispose(); el.innerHTML = ""; };
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }
