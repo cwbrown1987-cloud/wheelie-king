@@ -8,6 +8,7 @@
     "test:wheels": "node tests/wheel-matrix.mjs",
     "test:stickers": "node tests/sticker-frame.mjs",
     "test:trax": "node tests/trax-bike.mjs",
+    "test:cards": "node tests/part-card-interaction.mjs",
     "showcase": "node tests/frame-showcase.mjs"
   },
   "devDependencies": {

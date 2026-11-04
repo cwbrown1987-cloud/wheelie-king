@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 WIP — click to fit, separate part information
+
+- Part cards now fit/buy through the existing equip/fitment path immediately, replacing the currently fitted part. The separate `i` button opens the original part sheet without fitting the part. Sticker placement and custom upload retain their existing actions.
+- Added keyboard activation, labelled info buttons, spacing for card controls and independent REMOVE handling.
+- `tests/part-card-interaction.mjs` exercises real mouse clicks and emulated touch taps: direct fitting, one replacement model/group, info-only opening, keyboard operation, incompatible-part rejection and removal. Screenshots are in `wk-shots/part-click/`.
+- Service-worker cache: `wk-v18-part-click-1`. WIP branch only; production remains v17.
+
 ## v18 WIP — Chris's 20-inch TRAX bike, 4 Nov 2026 (not deployed)
 
 - Added a selectable **TRAX Lime Dual-Suspension Bike**, modeled from Chris's photo, with **20-inch wheels confirmed by Chris**. Includes its matching stock parts, own Y-frame/rear linkage, short near-horizontal lime coil, speckled lime/black livery and plain TRAX text, tall quill bars/cables, lime fork/rims, black spokes, amber reflectors, black saddle and guarded bicycle chainwheel.
