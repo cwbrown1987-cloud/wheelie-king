@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 modular — published 5 Nov 2026
+
+- Published `87ca35a` to the existing production Cloudflare Pages project after successful OAuth sign-in. Live: https://wheelie-king.pages.dev; immutable deployment: https://8197f184.wheelie-king.pages.dev.
+- Production HTML, `sw.js`, `modular-catalogue.js` and `trax-suspension.js` return HTTP 200. Live service-worker cache is `wk-v18-modular-3`.
+- Includes the modular catalogue/colour variants, nine complete bike kits, click-to-fit/info-button interaction, photo-based 20-inch TRAX rear-frame/pivot correction, and shared wheel/suspension/drivetrain motion described below. The nine-kit local integration check passed before publication; real-device validation remains with Chris.
+- Both GitHub branches contain the release. Earlier notes about sign-in blocking deployment are historical.
+
 ## Publishing workflow — 5 Nov 2026
 
 - Chris confirmed every update must reach the hosted web app, in addition to GitHub. Added `npm run deploy` for the existing `wheelie-king` Cloudflare Pages project and production branch.
