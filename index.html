@@ -30,6 +30,8 @@ window.__WK_URLS__ = { three: new URL("./vendor/three.module.js", location.href)
 </script>
 </head>
 <body>
+<script>if(location.hash==="#chat-history")location.replace("./chat-history.html");</script>
+<a href="./chat-history.html" style="position:fixed;right:8px;bottom:8px;z-index:9999;background:#000a;color:#fff;font:600 13px system-ui;padding:6px 10px;border-radius:14px;text-decoration:none">💬 Chat log</a>
 <div id="root"></div>
 <div id="install"><span id="itext">Install Wheelie King for full-screen play</span><button id="ibtn">INSTALL</button><button class="x" id="iclose">✕</button></div>
 <script type="module">
@@ -38,6 +40,7 @@ import * as OC from "./vendor/OrbitControls.js";
 import * as RE from "./vendor/RoomEnvironment.js";
 window.__WK_THREE__ = Promise.resolve([T, OC, RE]);
 await import("./app.js");
+import("./stickers-dd.js");
 </script>
 <script>
 if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("./sw.js", { scope: "./" }));

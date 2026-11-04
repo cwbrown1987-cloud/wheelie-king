@@ -65,3 +65,11 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 - Live: https://wheelie-king.pages.dev
 - GitHub Pages: https://cwbrown1987-cloud.github.io/wheelie-king/
 - Garage preview Page (2D, it can't load three.js): https://cursor.com/canvas/store-3c0c76ee-a94a-40c6-b880-99298dfc214d/a47f8930-ad97-4ae5-9e18-e5301977a222
+
+### Live app state (v10, 4 Nov 2026)
+- Live: https://wheelie-king.pages.dev, cache `wk-v10`. Full per-version change list: `/workspace/wheelie-king-app/CHANGELOG.md`.
+- Chat history page: https://wheelie-king.pages.dev/chat-history.html ("💬 Chat log" link on the garage).
+- Stickers: in the STICKERS screen, tap a sticker (or SHOW ALL → full picker), then drag the big flat sticker onto the bike; it wraps live over any tube or part (DecalGeometry, `stickers-dd.js`). Placed stickers can be dragged again any time; tap one for Size/Rotate/nudge/Remove. One finger elsewhere spins, two fingers pinch-zoom and pan; zoom goes right in to tubes.
+- Placed stickers are stored per device in localStorage `wk-decals` (not in the build save / not synced).
+- Deploy: `CLOUDFLARE_ACCOUNT_ID=7f9b89a42182a51327a119efb6cf949e WRANGLER_CACHE_DIR=/tmp/wcache npx wrangler pages deploy . --project-name wheelie-king --branch main --commit-dirty=true` from `/workspace/wheelie-king-app`.
+- `/workspace/wheelie-king-app` is NOT a git checkout; v5–v10 changes are not on GitHub yet.
