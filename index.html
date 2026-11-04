@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Wheelie King: Outback</title>
+<meta name="theme-color" content="#0d1110">
+<meta name="description" content="Build a BMX into an e-bike in the outback garage, then wheelie it.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wheelie King">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#050706;overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+#root{position:fixed;top:env(safe-area-inset-top);bottom:env(safe-area-inset-bottom);left:env(safe-area-inset-left);right:env(safe-area-inset-right)}
+#install{position:fixed;z-index:99;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;align-items:center;gap:10px;background:#101814;border:2px solid #39ff7a;border-radius:14px;padding:8px 12px;color:#eef5f0;font:14px 'Russo One',sans-serif;box-shadow:0 0 18px rgba(57,255,122,.5)}
+#install button{background:linear-gradient(#5dff95,#1fbf55);border:0;border-radius:8px;padding:6px 12px;font:inherit;color:#03250f}
+#install .x{background:none;color:#8a9a92}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+<script>
+window.__WK_STANDALONE__ = true;
+window.__WK_URLS__ = { three: new URL("vendor/three.module.js", location.href).href, orbit: new URL("vendor/OrbitControls.js", location.href).href, room: new URL("vendor/RoomEnvironment.js", location.href).href };
+</script>
+</head>
+<body>
+<div id="root"></div>
+<div id="install"><span id="itext">Install Wheelie King for full-screen play</span><button id="ibtn">INSTALL</button><button class="x" id="iclose">✕</button></div>
+<script type="module">
+import * as T from "./vendor/three.module.js";
+import * as OC from "./vendor/OrbitControls.js";
+import * as RE from "./vendor/RoomEnvironment.js";
+window.__WK_THREE__ = Promise.resolve([T, OC, RE]);
+await import("./app.js");
+</script>
+<script>
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+(function () {
+  const bar = document.getElementById("install"), btn = document.getElementById("ibtn"), txt = document.getElementById("itext");
+  const standalone = matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || navigator.standalone;
+  if (standalone || localStorage.getItem("wk-install-dismissed")) return;
+  document.getElementById("iclose").onclick = () => { bar.style.display = "none"; localStorage.setItem("wk-install-dismissed", "1"); };
+  let deferred = null;
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; bar.style.display = "flex"; });
+  btn.onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; bar.style.display = "none"; };
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) { txt.textContent = "Install: tap Share ⬆ then 'Add to Home Screen'"; btn.style.display = "none"; setTimeout(() => (bar.style.display = "flex"), 1500); }
+})();
+</script>
+</body>
+</html>
