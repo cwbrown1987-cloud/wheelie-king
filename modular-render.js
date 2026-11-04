@@ -78,6 +78,7 @@ export function finishModular(root,A,b,selected,T,slotGroup,g) {
  if(b.pedals){const G=slotGroup('pedals');if(find('pedals')?.pegs)G.add(PM.crankset(A.bb,find('pedals').color,true));else if(b.cranks&&rotor){root.updateMatrixWorld(true);for(const o of pedalMeshes)G.attach(o);}}
  else for(const o of pedalMeshes)o.parent?.remove(o);
  // Remove absent stock pieces: there is no implicit free fork/seat/chain/etc.
+ if(!b.grips){const grips=[];root.traverse(o=>{if(o.name.startsWith('grips:'))grips.push(o)});for(const o of grips)o.removeFromParent();}
  for(const slot of ['suspension','seat','bars','brakes','motor','battery','controller','throttle'])if(!b[slot]){
   if(slot==='bars')g('cockpit')?.children.slice().forEach(o=>{if(o.name==='wk:model:bars'||/brakeLever|brakeCable|quillStem/.test(o.name))g('cockpit').remove(o)});
   else g(slot)?.clear();

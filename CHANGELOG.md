@@ -1,5 +1,10 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Grip-removal correction — 5 Nov 2026
+
+- Removing grips previously left the default pair visible on the bars. `modular-render.js` now removes those meshes when the grip slot is empty; refitting restores exactly one pair, including colour variants.
+- The five current release checks passed during the bug review. The extended `test:modular` also passes after the correction, including actual removal/refitting. Cache: `wk-v18-modular-5`.
+
 ## Workflow consolidation — 5 Nov 2026
 
 - `CODEX-HANDOFF.md` is now the single concise current instruction/resume page. Four original documents are preserved under `docs/archive/`; previous entry links point to the current page and archive. `AGENTS.md` points agents to the current page.

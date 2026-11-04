@@ -19,6 +19,11 @@ try {
  const bare=await p.evaluate(()=>{let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});return {ready:__WK_BUILD_READY__(__WK_BUILD__).ready,shock:!!root.getObjectByName('wk:model:shock'),rear:!!root.getObjectByName('wk:model:rearFrame'),bars:!!root.getObjectByName('wk:model:bars'),panels:!!root.getObjectByName('emoto:sidePanelR'),motor:root.getObjectByName('wk:motor')?.children.length,seat:root.getObjectByName('wk:seat')?.children.length};});
  assert.deepEqual(bare,{ready:false,shock:false,rear:false,bars:false,panels:false,motor:0,seat:0});
  await p.evaluate(()=>__WK_EQUIP__('bike_trax_lime'));await p.waitForTimeout(200);
+ // Removing a purchased grip pair must expose the bare bars, not leave stock grips.
+ await p.evaluate(()=>__WK_SETBUILD__({...__WK_BUILD__,grips:undefined}));await p.waitForTimeout(200);
+ const gripCount=()=>p.evaluate(()=>{let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});let n=0;root.traverse(o=>{if(o.isMesh&&o.name.startsWith('grips:'))n++});return n});
+ assert.equal(await gripCount(),0,'removed grips must leave the bike');
+ assert(await p.evaluate(()=>__WK_EQUIP__('grip_std__blue')));await p.waitForTimeout(200);assert.equal(await gripCount(),2,'refitted grips must replace the pair');
  // Real UI swatch clicks must fit and colour the selected part, retaining the TRAX interfaces.
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();await p.locator('[data-cat="rear_frame"]').click();
  await p.locator('[data-wk-swatch="trax_rear_lime__blue"]').click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_lime__blue');
