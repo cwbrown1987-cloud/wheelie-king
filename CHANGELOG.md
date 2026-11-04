@@ -1,5 +1,14 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 WIP — modular catalogue and colour choices, 5 Nov 2026
+
+- Added separate stems, headsets, seatposts, pedals/pegs, hubs, sized rims, suspension rear assemblies, Enduro covers and number plates. Rigid welded rear triangles remain part of their main frame.
+- Paintable parts have separately priced/owned colour variants selected by swatches; tyre variants colour the sidewalls. Geometry identity and mounting interfaces stay attached to the base part.
+- Strengthened compatibility for pivot families, wheel/rim/tyre/fork sizes, hub dropouts, bar clamps and saddle/post mounts. Added complete-bike kits for all nine bikes; individual frame purchases no longer grant a full build.
+- Removed implicit stock geometry for missing components and separated Enduro accessories from its chassis. Shared motion supports separately fitted pedals/rear assemblies.
+- New modules: modular-catalogue.js and modular-render.js. Cache: wk-v18-modular-2.
+- USER-REQUESTED CHECKPOINT: user asked to stop tests and push immediately. Initial loading and static fitment checks for all nine stock manifests passed. The integration run caught complete-kit swaps retaining old parts/interfaces; both equip and fitment paths were corrected. The final correction has NOT been retested. Existing tests also need updating for explicit parts and complete-bike kits. Further polishing and verification are deferred.
+
 ## v18 WIP — TRAX pivot, rear-frame parts and drivetrain motion, 5 Nov 2026
 
 - Rebuilt the rear from Chris's two close-ups. Separate paired lime stays, upper bridge/clevis, axle dropouts and pivot bearings now hinge above the BB; the stationary black seat tube passes between them. The diagonal coil's frame eye mounts to a fixed black top-tube hanger and its moving eye follows the clevis.

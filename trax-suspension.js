@@ -5,6 +5,7 @@ export function rearFrameModel(T,A,color='#d2ed21') {
  const G=new T.Group();G.name='wk:model:rearFrame';
  const P=A.swingPivot, R=A.rearAxle, E=A.shockArm, width=.052;
  G.position.set(P[0],P[1],0);G.userData.pivot=[...P,0];G.userData.shockEye=[...E,0];
+ G.userData.jockeys=true;
  const add=(name,geo,p,c=color)=>{const o=new T.Mesh(geo,material(T,name,c));o.name=name;if(p)o.position.set(p[0]-P[0],p[1]-P[1],p[2]||0);o.castShadow=o.receiveShadow=true;G.add(o);return o};
  const tube=(name,pts,r=.014)=>{
   const path=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0]-P[0],p[1]-P[1],p[2]||0)));

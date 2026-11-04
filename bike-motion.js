@@ -2,6 +2,7 @@
 import * as T from './vendor/three.module.js';
 import * as PM from './partmodels.js';
 import {setTraxShockPose} from './trax-suspension.js';
+import {canonicalBuild} from './modular-catalogue.js';
 const springOwners=new WeakMap();
 
 // Outer tangents of a closed, counter-clockwise sequence of sprockets/pulleys.
@@ -14,6 +15,7 @@ export function chainRoute(circles) {
 }
 
 export function createBikeMotion(root,build={},find=()=>null) {
+ build=canonicalBuild(build);
  const A=root.userData.wkAnchors;if(!A)return null;
  PM.useThree(T);
  const wheels=[];root.traverse(w=>{if(w.isGroup&&/wk:(tyres|motor)/.test(w.parent?.name||'')&&w.children.some(o=>o.geometry?.type==='TorusGeometry'))wheels.push(w)});
@@ -32,7 +34,7 @@ export function createBikeMotion(root,build={},find=()=>null) {
  const rear=root.getObjectByName('wk:model:rearFrame'),shock=root.getObjectByName('wk:model:shock');
  const spring=shock?.getObjectByName('shock:spring');
  if(build.shock==='trax_coil'&&spring){const owner=springOwners.get(spring.geometry);if(owner&&owner!==spring)spring.geometry=spring.geometry.clone();springOwners.set(spring.geometry,spring);}
- const crank=root.getObjectByName('cranks:rotor'),pedals=[];crank?.traverse(o=>{if(o.userData.wkPedal)pedals.push(o)});
+ const crank=root.getObjectByName('cranks:rotor'),pedals=[];root.traverse(o=>{if(o.userData.wkPedal)pedals.push(o)});
  const front=root.getObjectByName('sprocketF')||root.getObjectByName('mid:chainring')||root.getObjectByName('motoMid:sprocket'),back=root.getObjectByName('sprocketR'),chain=root.getObjectByName('wk:model:chain'),guard=root.getObjectByName('trax:chainGuard');
  const motor=find(build.motor),fp=find(build.sprocket_f),rp=find(build.sprocket_r),frontN=fp?.teeth||(motor?.nopedal?14:motor?.kind==='mid'?44:25),rearN=rp?.teeth||(motor?.nopedal?48:motor?.kind==='mid'?18:9),rF=PM.sprocketR(frontN)+.004,rR=PM.sprocketR(rearN)+.004;
  const fork=root.getObjectByName('wk:model:fork'),lowers=[];
@@ -51,15 +53,16 @@ export function createBikeMotion(root,build={},find=()=>null) {
    const goal=Math.PI-Math.asin(Math.max(-.99,Math.min(.99,(targetY-p[1])/L))),base=Math.atan2(dy,dx);
    angle=Math.atan2(Math.sin(goal-base),Math.cos(goal-base));rear.rotation.z=angle;ra=rotate(A.rearAxle,angle);sa=rotate(A.shockArm,angle);
    if(build.shock==='trax_coil'&&shock)setTraxShockPose(T,shock,A.shockFrame,sa);
+   else if(shock&&build.shock){const start=new T.Vector3(...A.shockFrame,0),base=new T.Vector3(...A.shockArm,0).sub(start),current=new T.Vector3(...sa,0).sub(start),q0=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),base.clone().normalize()),q1=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),current.clone().normalize());shock.matrixAutoUpdate=false;shock.matrix.makeTranslation(...start.toArray()).multiply(new T.Matrix4().makeRotationFromQuaternion(q1)).multiply(new T.Matrix4().makeScale(1,current.length()/base.length(),1)).multiply(new T.Matrix4().makeRotationFromQuaternion(q0.invert())).multiply(new T.Matrix4().makeTranslation(...start.negate().toArray()));shock.matrixWorldNeedsUpdate=true;}
   } else ra[1]+=Math.max(0,Math.min(1,rearCompression))*travelR*.8;
   const shift=forkDirection.clone().multiplyScalar(Math.max(0,Math.min(1,frontCompression))*travelF*.8),fa=[A.frontAxle[0]+shift.x,A.frontAxle[1]+shift.y];
   for(const entry of rotors){entry.wheel.position.set(...(entry.front?fa:ra),entry.base.z);matrix.makeRotationZ(wheelPhase);for(const {o,base} of entry.parts){o.matrixAutoUpdate=false;o.matrix.copy(matrix).multiply(base);o.matrixWorldNeedsUpdate=true;}}
   for(const {o,base} of lowers)o.position.copy(base).add(shift);
-  if(crank)crank.rotation.z=crankPhase;for(const pedal of pedals)pedal.rotation.z=-crankPhase;
+  if(crank)crank.rotation.z=crankPhase;for(const pedal of pedals){if(pedal.parent===crank)pedal.rotation.z=-crankPhase;else{const side=pedal.userData.wkPedalSide;pedal.position.set(A.bb[0]+Math.cos(crankPhase)*side*.14,A.bb[1]+Math.sin(crankPhase)*side*.14,side*.12);pedal.rotation.z=0;}}
   if(front)front.rotation.z=crankPhase;
   if(guard)guard.rotation.z=crankPhase;
   if(back){back.position.set(ra[0],ra[1],back.position.z);back.rotation.z=crankPhase*frontN/rearN;}
-  const jockeys=rear?[rotate([A.rearAxle[0]-.018,A.rearAxle[1]-.05],angle),rotate([A.rearAxle[0]+.028,A.rearAxle[1]-.12],angle)]:[];
+  const jockeys=rear?.userData.jockeys?[rotate([A.rearAxle[0]-.018,A.rearAxle[1]-.05],angle),rotate([A.rearAxle[0]+.028,A.rearAxle[1]-.12],angle)]:[];
   if(chain){const key=ra.map(v=>v.toFixed(5)).join(',')+':'+angle.toFixed(5);if(key!==lastKey||!route){route=chainRoute([{x:ra[0],y:ra[1],r:rR},...jockeys.map(c=>({x:c[0],y:c[1],r:PM.sprocketR(8)+.004})),{x:A.bb[0],y:A.bb[1],r:rF}]);lastKey=key;}PM.animateChain(chain,route,chainPhase);}
   rear?.traverse(o=>{if(/^derailleur:jockey\d$/.test(o.name))o.rotation.z=chainPhase/(PM.sprocketR(8)+.004)});
   Object.assign(state,{wheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa});return state;

@@ -4,15 +4,18 @@ import * as T from "./vendor/three.module.js";
 import * as PM from "./partmodels.js";
 import {TRAX_ID,traxPreview,traxGeometry,traxAnchors} from './trax-bike.js';
 import {rearFrameModel,traxShockModel} from './trax-suspension.js';
+import {part,baseId,canonicalBuild} from './modular-catalogue.js';
+import {componentModel,previewBuild,paintBuild} from './modular-render.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
-const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame"]);
-export const modelFor = (p) => {
+const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame", "frame", "stem", "seatpost", "pedals", "headset", "hubs", "body_panels", "number_plate", "grips", "seat", "rims", "tyres"]);
+const makeModel = (p) => {
   if (!p) return null;
-  if (p.id === TRAX_ID) return traxPreview(T);
-  if(p.slot==='rear_frame'){const x=traxGeometry();return rearFrameModel(T,{...traxAnchors(x),rearAxle:x.rear},p.color);}
+  if(p.slot==='frame'){const root=previewBuild(T,p.id),fr=root.getObjectByName('wk:frame');fr.removeFromParent();return fr;}
+  if(p.slot==='rear_frame'||p.slot==='body_panels'){const root=previewBuild(T,p.family||'trax_lime'),g=root.getObjectByName('wk:part:'+p.slot);g?.removeFromParent();return g;}
+  if(['stem','seatpost','pedals','headset','hubs','number_plate','grips','seat','rims','tyres'].includes(p.slot))return componentModel(T,p);
   if(p.id==='trax_coil')return traxShockModel(T,[.1,.06],[-.1,-.03],p.color);
-  if (p.slot === "kit") { const m = (p.kit || []).map(find).find((q) => q?.slot === "motor"); const b = (p.kit || []).map(find).find((q) => q?.slot === "battery"); return modelFor(m || b); }
+  if (p.slot === "kit") { const f=(p.kit||[]).map(find).find(q=>q?.slot==='frame');if(f)return previewBuild(T,f.id);const m = (p.kit || []).map(find).find((q) => q?.slot === "motor"); const b = (p.kit || []).map(find).find((q) => q?.slot === "battery"); return modelFor(m || b); }
   if (!MODEL_SLOTS.has(p.slot)) return null;
   if (p.slot === "motor") return p.kind === "mid" ? (p.nopedal || (!p.real && (p.w || 0) >= 2500) || p.id === "x1" ? PM.motoMid(p) : PM.midDrive(p)) : PM.hubMotor(p);
   if (p.slot === "battery") return PM.battery(p);
@@ -26,6 +29,7 @@ export const modelFor = (p) => {
   if (p.slot === "bars") return PM.bars(globalThis.__WK_BARSPEC__?.(p, find(globalThis.__WK_BUILD__?.grips)) || {}, [0, 0]);
   return null;
 };
+export const modelFor=p=>{if(!p)return null;const selected=p,p0=part(baseId(p.id))||p;const obj=makeModel({...p0,color:p.color||p0.color});if(obj&&selected.color){const root=new T.Group(),holder=new T.Group();holder.name='wk:'+p.slot;root.add(holder);holder.add(obj);paintBuild(root,{[p.slot]:selected.id},T);obj.removeFromParent();}return obj;};
 let R = null, scene, cam, holder;
 function ensure() {
   if (R) return R;

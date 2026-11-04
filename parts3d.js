@@ -2,6 +2,8 @@
 // Called by app.js at the end of each bike rebuild (the bike root is rebuilt from scratch every time,
 // so equipping a part always REPLACES the previous one: one group "wk:part:<slot>" per slot, never stacked).
 import * as PM from "./partmodels.js";
+import {canonicalBuild} from './modular-catalogue.js';
+import {modularAnchors,finishModular} from './modular-render.js';
 import { buildFrame as smoothFrame } from "./frame-geometry.js";
 export { buildFrame as smoothFrame } from "./frame-geometry.js";
 import { detailPass, startLOD } from "./detail.js";
@@ -18,7 +20,8 @@ export function anchors(x, R) { // named mount anchors per frame (x = frame geom
 }
 function recolor(group, test, color, T) { if (!group) return 0; let n = 0; group.traverse((o) => { if (o.isMesh && test(o)) { o.material = o.material.clone(); o.material.color = new T.Color(color); n++; } }); return n; }
 globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
-  if (!x) return; const A = {...anchors(x, R), ...(b.frame === TRAX_ID ? traxAnchors(x) : {})}, g = (n) => root.children.find((c) => c.name === "wk:" + n);
+  const selectedBuild=b;b=canonicalBuild(b);
+  if (!x) return; const A = modularAnchors({...anchors(x, R), ...(b.frame === TRAX_ID ? traxAnchors(x) : {})},b), g = (n) => root.children.find((c) => c.name === "wk:" + n);
   const mat = (c, o = {}) => new T.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.2, ...o });
   const slotGroup = (slot) => { const old = root.children.find((c) => c.name === "wk:part:" + slot); old && root.remove(old); const G = new T.Group(); G.name = "wk:part:" + slot; G.userData.slot = slot; root.add(G); return G; };
   const cyl = (a, b2, r, m, G) => { const va = new T.Vector3(...a), vb = new T.Vector3(...b2), d = vb.clone().sub(va), M = new T.Mesh(new T.CylinderGeometry(r, r, d.length(), 24), m);
@@ -44,6 +47,7 @@ globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
   try { respoke(root, T); } catch (e) { console.warn("wk spokes", e); }
   try { detailPass(root, A, b, T, find, slotGroup, g); startLOD(); } catch (e) { console.warn("wk detail", e); }
   try { finishTrax(root,A,b,T,g,slotGroup); } catch(e) { console.warn('wk trax',e); }
+  try { finishModular(root,A,b,selectedBuild,T,slotGroup,g); } catch(e) { console.warn('wk modular',e); }
   root.userData.wkAnchors = A;
   root.userData.wkBuild = {...b};
   try { const c = loadCond(); if (c.dirt > 0.01 || Object.keys(c.wear || {}).length) applyCondition(root, c); } catch (e) { console.warn("wk cond", e); }
@@ -101,6 +105,7 @@ function realParts(root, A, b, T, g, slotGroup, part, x, R) {
 // spokes: replace the stock instanced spokes; each one runs from a flange hole to a rim nipple, ends exactly on both radii
 export function respoke(root, T) {
   root.traverse((w) => { if (!w.isGroup) return; const sp = w.children.find((c) => c.isInstancedMesh && c.count === 36 && c.geometry.type === "CylinderGeometry"); if (!sp) return;
+    w.userData.wkWheel=true;
     const rim = w.children.find((c) => c.geometry?.type === "TorusGeometry" && Math.abs(c.geometry.parameters.tube - 0.009) < 1e-4); if (!rim) return;
     const nipR = rim.geometry.parameters.radius - Math.sqrt(.009 ** 2 - .003 ** 2), H = w.userData.hubHoles || { r: 0.03, z: 0.035 }, N = 36, mat = sp.material; w.remove(sp);
     if (!w.userData.hubHoles) {

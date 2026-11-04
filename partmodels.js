@@ -51,7 +51,7 @@ export function crankset(bb,color='#292c2f',pegs=false) {
  mesh(rotor,'cranks:axle',zCyl(.011,.011,.17,24),M('cranks:axle','#969da2',{metalness:.9}));
  for(const s of [-1,1]) {
   between(rotor,'cranks:arm'+s,[0,0,s*.075],[s*.14,0,s*.075],.012,M('cranks:arm',color));
-  const pedal=new T.Group();pedal.name='pedal:'+s;pedal.userData.wkPedal=true;pedal.position.set(s*.14,0,s*.12);rotor.add(pedal);
+  const pedal=new T.Group();pedal.name='pedal:'+s;pedal.userData.wkPedal=true;pedal.userData.wkPedalSide=s;pedal.position.set(s*.14,0,s*.12);rotor.add(pedal);
   mesh(pedal,'pedal:cage'+s,new T.BoxGeometry(.095,.018,.075),M('pedal:cage','#202326',{metalness:.25}));
   inst(pedal,'pedal:pins'+s,new T.CylinderGeometry(.0025,.0025,.025,6),M('pedal:pins','#a6adaf',{metalness:.9}),8,(o,i)=>o.position.set(-.036+(i%4)*.024,0,i<4?-.026:.026));
  }
