@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Workflow consolidation — 5 Nov 2026
+
+- `CODEX-HANDOFF.md` is now the single concise current instruction/resume page. Four original documents are preserved under `docs/archive/`; previous entry links point to the current page and archive. `AGENTS.md` points agents to the current page.
+- `npm run check` supports targeted `ride`, `mechanics`, `modular` and full `release` groups, deduplicates combined groups, runs browser checks sequentially, stops on failure and saves detailed logs/JSON under ignored `test-results/checks/` with short terminal summaries.
+- Shared packaging remains runtime-only. `npm run deploy` now verifies every served runtime asset against the upload using SHA-256; `npm run verify:live` performs the same read-only production check. Production verification retries briefly for propagation and fails if assets differ.
+- No game behaviour or service-worker cache changed in this batch.
+
 ## v18 modular — landings, touch controls and moving attachments, 5 Nov 2026
 
 - `ride-physics.js`: suspension now has hard travel stops and normal-direction contact impulses instead of an explosive extra bottom-out spring. Landing angles use the contacted wheel/track slope; normal rear/front-wheel-first landings are accepted, and completed flips normalize correctly. Genuine inverted and mid-spin impacts still crash. Rigid bikes no longer receive implicit suspension travel.
