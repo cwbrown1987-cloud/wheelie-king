@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "deploy": "node scripts/deploy.mjs",
     "test:geometry": "node tests/geometry.mjs",
     "test:slots": "node tests/one-part-per-slot.mjs",
     "test:wheels": "node tests/wheel-matrix.mjs",

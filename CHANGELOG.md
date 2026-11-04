@@ -1,5 +1,11 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Publishing workflow — 5 Nov 2026
+
+- Chris confirmed every update must reach the hosted web app, in addition to GitHub. Added `npm run deploy` for the existing `wheelie-king` Cloudflare Pages project and production branch.
+- Upload staging includes only runtime JavaScript, HTML, manifest, headers, vendor modules, stickers and icons. Private attachments, chat history, tests and dependencies are excluded. Every service-worker precache asset is checked before upload.
+- Merged the existing production Git history without reverting the modular build. Current runtime remains `wk-v18-modular-3`; Cloudflare OAuth authorization is pending.
+
 ## v18 WIP — modular quick-check follow-up, 5 Nov 2026
 
 - Fixed removal of the old motor-bundled controller during scene traversal, which interrupted moto stem/footpeg construction. Collect meshes first and remove them after traversing.
