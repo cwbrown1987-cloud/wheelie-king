@@ -5,7 +5,7 @@ _Written 4 Nov 2026, 6:30 PM AEDT (Australia/Sydney), when Chris paused the prev
 ## TL;DR
 - **What it is:** a private PWA garage and wheelie game for Chris and his son Jaxon. You build a BMX/MTB/moto into an e-bike or e-moto out of modular 3D parts (three.js), add wrapped stickers, then ride a side-on 3D course.
 - **LIVE:** v17 at https://wheelie-king.pages.dev (service worker cache `wk-v17`).
-- **GitHub:** https://github.com/cwbrown1987-cloud/wheelie-king, branch `main`. The last pushed commit is `e9e13c7` (v15). **v16 and v17 are live but NOT pushed.**
+- **GitHub:** https://github.com/cwbrown1987-cloud/wheelie-king, branch `main`. `main` = live v17 at `cf56f41` (tag `v17`). Unfinished v18 is on branch `wip/v18-detail` at `4a90c95`. Merge it to main and deploy only once it's finished and has a CHANGELOG entry.
 - **LOCAL:** `/workspace/wheelie-king-app` (not a git checkout) holds an **undeployed, unfinished v18** (`wk-v18`, new `detail.js`). See [Current state](#6-exact-current-state-v18-wip).
 - **Next work, in order:** (1) finish frames and spokes, (2) bring every part up to product-render quality, (3) per-frame fenders and covers with paint swatches, (4) TRACE sticker mode, (5) push v16+ to GitHub.
 - **Standing rule:** after EVERY update, deploy to Cloudflare AND push to GitHub, with CHANGELOG.md and handoff notes that list the exact changes.
@@ -122,9 +122,9 @@ The app's own save state (builds, coins, owned parts) is persisted by the bundle
 | v12 | Rear hubs 1.5/3/5/8 kW, pedal mid, no-pedal moto mids with footpegs, 60/72 V batteries. |
 | v13 | Modular bike (12 new slots), the swap-in-place REPLACE rule, `parts3d.js`, the slot test. |
 | v14 | Fitment standards, push-bike MTB/fat frames, conversion kits and adapters (`fitment.js`). |
-| v15 | Realistic named-sub-mesh part models (`partmodels.js`), 3D shop previews (`thumbs.js`), sprocket slots and gearing. **Last version on GitHub (`e9e13c7`).** |
-| v16 | `smoothFrame()` swept frames and welds, `respoke()` flange-to-nipple spokes, adapter banner moved. **Live, not pushed.** |
-| v17 | New three.js ride (`ride.js` + `ride-physics.js`), money from score, dirt and damage, WASH/REPAIR. Chat log removed. **Live, not pushed.** |
+| v15 | Realistic named-sub-mesh part models (`partmodels.js`), 3D shop previews (`thumbs.js`), sprocket slots and gearing. Pushed (`e9e13c7`). |
+| v16 | `smoothFrame()` swept frames and welds, `respoke()` flange-to-nipple spokes, adapter banner moved. Live and pushed. |
+| v17 | New three.js ride (`ride.js` + `ride-physics.js`), money from score, dirt and damage, WASH/REPAIR. Chat log removed. Live and on `main` (`cf56f41`, tag v17). |
 | v18 | WIP, local only. See below. |
 
 ## 6. Exact current state (v18 WIP)
