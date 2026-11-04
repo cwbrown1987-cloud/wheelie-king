@@ -88,7 +88,7 @@ globalThis.__WK_FIT_WARN__ = (build) => { const out = [];
   return out; };
 // one-tap adapter prompt
 const bar = document.createElement("div");
-bar.style.cssText = "position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:10003;background:#1d1408f2;border:2px solid #ffc23d;color:#fff;font:600 14px system-ui;padding:8px 10px;border-radius:12px;display:none;gap:8px;align-items:center;max-width:92vw";
+bar.style.cssText = "position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 78px);transform:translateX(-50%);z-index:10003;background:#1d1408f2;border:2px solid #ffc23d;color:#fff;font:600 14px system-ui;padding:8px 10px;border-radius:12px;display:none;gap:8px;align-items:center;max-width:92vw";
 document.addEventListener("DOMContentLoaded", () => document.body.append(bar)); if (document.body) document.body.append(bar);
 globalThis.__WK_FIT_PROMPT__ = (r, build) => { const miss = r.adapters.filter((a) => build?.[P(a)?.slot] !== a); if (!miss.length) return;
   bar.innerHTML = ""; const t = document.createElement("span"); t.textContent = "⚠ Needs " + miss.map((a) => P(a)?.name).join(" + "); bar.append(t);

@@ -34,7 +34,7 @@ export function chainAlong(points, std = "bicycle", color = "#4a4a4a", z = 0, na
 }
 export function chainSegment(std = "bicycle", color = "#4a4a4a", links = 16) { const len = links * PITCH; return chainAlong([[-len / 2, 0], [len / 2, 0], [len / 2, -0.0001], [-len / 2, -0.0001]], std, color, 0, "chain"); }
 export function hubMotor(p, opts = {}) {
-  const G = new T.Group(); G.name = "hub"; const w = p.w || 1000, r = 0.05 + Math.min(0.06, w / 140000), wd = 0.05 + Math.min(0.04, w / 200000), front = p.kind === "front";
+  const G = new T.Group(); G.name = "hub"; const w = p.w || 1000, r = opts.r || 0.05 + Math.min(0.06, w / 140000), wd = opts.wd || 0.05 + Math.min(0.04, w / 200000), front = p.kind === "front";
   mesh(G, "hub:shell", zCyl(r, r, wd, 48), M("hub:shell", opts.color || "#2b2d30", { metalness: 0.7, roughness: 0.35 }));
   for (const s of [-1, 1]) { const f = mesh(G, "hub:flange" + (s > 0 ? "R" : "L"), zCyl(r + 0.014, r + 0.014, 0.004, 48), M("hub:flange", "#9aa0a6", { metalness: 0.9, roughness: 0.25 })); f.position.z = s * (wd / 2 - 0.004);
     const c = mesh(G, "hub:cover" + (s > 0 ? "R" : "L"), zCyl(r * 0.7, r * 0.75, 0.008, 32), M("hub:cover", "#1c1d1f", { metalness: 0.6 })); c.position.z = s * (wd / 2 + 0.003);

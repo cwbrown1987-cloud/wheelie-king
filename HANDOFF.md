@@ -1,5 +1,7 @@
 # Wheelie King: Outback — Handoff for Codex
 
+> **START HERE: `/workspace/wheelie-king-app/CODEX-HANDOFF.md`** (repo: `CODEX-HANDOFF.md`). It's the master handoff with the current state (v17 live, v18 WIP local), the pending queue, architecture, deploy/push steps and known issues. Sections below are older history and may be stale (e.g. "main at fba9d424" and "Pages NOT enabled" are out of date: main is at e9e13c7 = v15, and Pages is enabled).
+
 > **Full transcript:** read `wheelie-king-CHAT-HISTORY.md` for the complete Chris ↔ Odd Job Bot conversation. This file is the short design/tech summary. Next work: gameplay to 2.5D, then full 3D.
 Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son, aimed at teens and adults.
 
@@ -38,6 +40,19 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 - FUTURE (not built): **Detail workshop.** Tap a part to inspect it, then modify or paint individual sub-meshes.
   - The model groups already expose named sub-meshes with unique materials, so painting = `obj.getObjectByName("hub:coverL").material.color.set(...)`.
   - Save per-part paint as `build.paint[partId][subMeshName]` and re-apply it in `realParts()` after building.
+
+
+### v16: frame + spoke polish (done)
+- Frames are rebuilt in `parts3d.js` `smoothFrame()`: swept CatmullRom tubes, weld fillets, a gusset, a head tube with cups, a seat collar and dropouts. Every piece is a named `frame:*` sub-mesh, ready for the detail workshop.
+- Spokes are rebuilt in `respoke()`: each one goes exactly from a flange hole to a rim nipple. Keep this if you touch wheels.
+- v17 = ride (B), done; see below. v18 = TRACE stickers (C).
+
+
+### v17: ride (done)
+- `ride.js` handles rendering, input, FX, HUD and condition; `ride-physics.js` is the pure physics, which can be reused for a future 3D mode.
+- `Vm` in `app.js` is now just a mount point.
+- Condition is stored per device in `localStorage["wk-condition"] = {dirt, wear:{slot:0..1+}}`. It is global (not per saved build) for now.
+- Chat log was REMOVED from the app (Chris). `CHAT-HISTORY.md` is a repo-only doc now; don't re-add `chat-history.html` to the deploy.
 
 ## Full design brief (everything agreed with Chris)
 ### Bike and garage
@@ -78,7 +93,7 @@ Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son,
 
 ### Live app state (v10, 4 Nov 2026)
 - Live: https://wheelie-king.pages.dev, cache `wk-v10`. Full per-version change list: `/workspace/wheelie-king-app/CHANGELOG.md`.
-- Chat history page: https://wheelie-king.pages.dev/chat-history.html ("💬 Chat log" link on the garage).
+- Chat history page: REMOVED from the app in v17 (repo doc only).
 - Stickers: in the STICKERS screen, tap a sticker (or SHOW ALL → full picker), then drag the big flat sticker onto the bike; it wraps live over any tube or part (DecalGeometry, `stickers-dd.js`). Placed stickers can be dragged again any time; tap one for Size/Rotate/nudge/Remove. One finger elsewhere spins, two fingers pinch-zoom and pan; zoom goes right in to tubes.
 - Placed stickers are stored per device in localStorage `wk-decals` (not in the build save / not synced).
 - Deploy: `CLOUDFLARE_ACCOUNT_ID=7f9b89a42182a51327a119efb6cf949e WRANGLER_CACHE_DIR=/tmp/wcache npx wrangler pages deploy . --project-name wheelie-king --branch main --commit-dirty=true` from `/workspace/wheelie-king-app`.

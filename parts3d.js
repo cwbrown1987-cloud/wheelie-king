@@ -2,6 +2,7 @@
 // Called by app.js at the end of each bike rebuild (the bike root is rebuilt from scratch every time,
 // so equipping a part always REPLACES the previous one: one group "wk:part:<slot>" per slot, never stacked).
 import * as PM from "./partmodels.js";
+import { loadCond, applyCondition } from "./ride.js";
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 export function anchors(x, R) { // named mount anchors per frame (x = frame geometry from app.js)
   const v = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -33,7 +34,10 @@ globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
   const st = part("seat"), sg = g("seat"); if (st && sg) sg.traverse((o) => { if (o.isMesh && o.geometry.type === "SphereGeometry") { o.scale.x *= st.sx || 1; o.material = o.material.clone(); o.material.color = new T.Color(st.color); } });
   const rim = part("rims"); if (rim) for (const n of ["tyres", "motor"]) recolor(g(n), (o) => o.geometry.type === "TorusGeometry" && o.scale.z > 1.5, rim.color, T);
   realParts(root, A, b, T, g, slotGroup, part, x, R);
+  try { smoothFrame(root, x, T, g, b); } catch (e) { console.warn("wk frame", e); }
+  try { respoke(root, T); } catch (e) { console.warn("wk spokes", e); }
   root.userData.wkAnchors = A;
+  try { const c = loadCond(); if (c.dirt > 0.01 || Object.keys(c.wear || {}).length) applyCondition(root, c); } catch (e) { console.warn("wk cond", e); }
 };
 
 // ---------- v15 realistic parts: the stock app meshes in each group are REMOVED and replaced by one named model ----------
@@ -56,7 +60,7 @@ function realParts(root, A, b, T, g, slotGroup, part, x, R) {
   const mg = g("motor");
   if (mg && motor && dt === "hub") { const wheel = mg.children.find((c) => c.isGroup); if (wheel) { const pe = motor.kind === "rear" ? ((motor.w || 0) >= 8e3 ? 0.17 : (motor.w || 0) >= 5e3 ? 0.15 : (motor.w || 0) >= 3e3 ? 0.13 : 0.1) : 0.09;
       wheel.children.filter((o) => (o.geometry?.type === "CylinderGeometry" && (Math.abs(o.geometry.parameters.radiusTop - pe) < 0.002 || [0.006, 0.011].includes(o.geometry.parameters.radiusTop))) || (o.geometry?.type === "TorusGeometry" && Math.abs(o.geometry.parameters.radius - pe * 0.8) < 0.002) || (o.geometry?.type === "BoxGeometry" && Math.abs(o.geometry.parameters.width - 0.008) < 1e-4 && o.geometry.parameters.height === 0.012)).forEach((o) => wheel.remove(o));
-      const h = PM.hubMotor({ ...motor, kind: motor.kind }, {}); h.name = "wk:model:hub"; const sc = pe / h.userData.r; h.scale.set(sc, sc, 1); wheel.add(h); } }
+      const h = PM.hubMotor({ ...motor, kind: motor.kind }, { r: pe, wd: 0.09 }); h.name = "wk:model:hub"; wheel.add(h); wheel.userData.hubHoles = { r: pe + 0.009, z: 0.09 / 2 - 0.004, phase: true }; } }
   if (mg && motor && dt !== "hub") { mg.clear(); const f = find(b.sprocket_f); const m = dt === "mmid" ? PM.motoMid(motor, { teeth: f?.std !== "bicycle" ? f?.teeth : undefined }) : PM.midDrive(motor, { teeth: f?.std === "bicycle" ? f.teeth : undefined }); m.name = "wk:model:" + m.name; m.position.set(A.bb[0], A.bb[1], 0); mg.add(m); }
   // drivetrain: front sprocket/chainring, rear sprocket, chain with visible links
   const dr = g("drive"); if (dr) { dr.children.filter(isDrivetrainMesh).forEach((o) => dr.remove(o));
@@ -79,4 +83,65 @@ function realParts(root, A, b, T, g, slotGroup, part, x, R) {
     // move levers + bar-mounted throttle/display to the new grip height
     const dy = spec.rise - 0.17, dx = 0.06 - spec.sweep; cp.children.forEach((o) => { if (o.isMesh && o.geometry.parameters?.radiusTop === 0.004) o.position.add(new T.Vector3(dx, dy, 0)); });
     const th = g("throttle"); th?.children.forEach((c) => { if (c.position.y > clamp[1] + 0.12) { c.position.y += dy; c.position.x += dx; } }); }
+}
+
+// ---------- v16: smooth swept frame + spokes that end exactly at flange holes and rim nipples ----------
+function tube(T, pts, r, mat, name, seg = 48) { const m = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts.map((p) => new T.Vector3(p[0], p[1], p[2] || 0))), seg, r, 20, false), mat); m.name = name; m.castShadow = m.receiveShadow = true; return m; }
+function blob(T, p, r, mat, name, sx = 1) { const m = new T.Mesh(new T.SphereGeometry(r, 20, 14), mat); m.position.set(p[0], p[1], p[2] || 0); m.scale.x = sx; m.name = name; m.castShadow = true; return m; }
+function cyl(T, a, b, r, mat, name, seg = 24) { const va = new T.Vector3(...a), vb = new T.Vector3(...b), d = vb.clone().sub(va), m = new T.Mesh(new T.CylinderGeometry(r, r, d.length(), seg), mat);
+  m.position.copy(va).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize()); m.name = name; m.castShadow = true; return m; }
+export function smoothFrame(root, x, T, g, b) {
+  const fr = g("frame"); if (!fr || !x) return; const kids = fr.children.slice(), moto = (b.frame || "bmx") === "moto";
+  const mat = kids[0]?.material; if (!mat) return; const Ye = x.tr || 0.022;
+  const L = (a, c, t) => [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t];
+  const remove = moto ? [0, 1, 2, 3, 4, 10, 11] : kids.map((_, i) => i).filter((i) => i <= 10); // stock straight tubes (+ moto cradle); swingarm/shock kept
+  remove.forEach((i) => kids[i] && fr.remove(kids[i]));
+  const add = (m) => (fr.add(m), m), dark = mat.clone(); dark.color = new T.Color(mat.color).multiplyScalar(0.55); dark.name = "frame:cups";
+  const { htT, htB, bb, seat, rear } = x, dirHT = [htT[0] - htB[0], htT[1] - htB[1]], hl = Math.hypot(...dirHT), u = [dirHT[0] / hl, dirHT[1] / hl];
+  // head tube with headset cups
+  add(cyl(T, [htB[0] - u[0] * 0.012, htB[1] - u[1] * 0.012, 0], [htT[0] + u[0] * 0.012, htT[1] + u[1] * 0.012, 0], Ye * 1.5, mat, "frame:headTube"));
+  for (const [p, s] of [[htB, -1], [htT, 1]]) add(cyl(T, [p[0] + u[0] * s * 0.008, p[1] + u[1] * s * 0.008, 0], [p[0] + u[0] * s * 0.024, p[1] + u[1] * s * 0.024, 0], Ye * 1.7, dark, s < 0 ? "frame:lowerCup" : "frame:upperCup"));
+  // seat tube: BB -> seat cluster, ends with a collar (never above the clamp)
+  const stTop = seat, ttS = L(seat, bb, 0.07), ttH = L(htT, htB, 0.18), dtH = L(htB, htT, 0.2);
+  add(tube(T, [bb, L(bb, seat, 0.5), stTop], Ye, mat, "frame:seatTube", 16));
+  add(cyl(T, [stTop[0] + (bb[0] - seat[0]) * 0.04, stTop[1] + (bb[1] - seat[1]) * 0.04, 0], [stTop[0], stTop[1], 0], Ye * 1.35, dark, "frame:seatCollar"));
+  // curved top tube (gentle arch) and downtube flowing into the BB
+  const ttMid = L(ttH, ttS, 0.5); ttMid[1] += 0.025;
+  add(tube(T, [ttH, L(ttH, ttS, 0.25).map((v, i) => v + (i ? 0.018 : 0)), ttMid, L(ttH, ttS, 0.75).map((v, i) => v + (i ? 0.012 : 0)), ttS], Ye, mat, "frame:topTube"));
+  const dtMid = L(dtH, bb, 0.55); dtMid[1] -= 0.02; const dtLow = L(dtH, bb, 0.85); dtLow[0] += 0.01;
+  add(tube(T, [dtH, L(dtH, bb, 0.3), dtMid, dtLow, bb], Ye * (moto ? 1.3 : 1.15), mat, "frame:downTube"));
+  // BB shell + weld fillets at every join
+  const bbs = new T.Mesh(new T.CylinderGeometry(0.03, 0.03, 0.09, 24), mat); bbs.rotation.x = Math.PI / 2; bbs.position.set(bb[0], bb[1], 0); bbs.name = "frame:bbShell"; add(bbs);
+  add(blob(T, ttH, Ye * 1.25, mat, "frame:weldHeadTop")); add(blob(T, dtH, Ye * (moto ? 1.5 : 1.35), mat, "frame:weldHeadDown")); add(blob(T, ttS, Ye * 1.2, mat, "frame:weldSeatTop")); add(blob(T, bb, 0.034, mat, "frame:weldBB"));
+  // gusset under the top tube / downtube at the head tube
+  { const gs = new T.Shape(); const a0 = [ttH[0] - htB[0], ttH[1] - htB[1]]; gs.moveTo(0, 0); gs.lineTo(L(ttH, ttS, 0.18)[0] - htB[0], L(ttH, ttS, 0.18)[1] - htB[1]); gs.lineTo(L(dtH, bb, 0.16)[0] - htB[0], L(dtH, bb, 0.16)[1] - htB[1]); gs.lineTo(a0[0] * 0.2, a0[1] * 0.2); gs.closePath();
+    const gm = new T.Mesh(new T.ExtrudeGeometry(gs, { depth: 0.008, bevelEnabled: true, bevelSize: 0.003, bevelThickness: 0.003, bevelSegments: 2 }), mat); gm.position.set(htB[0], htB[1], -0.004); gm.name = "frame:gusset"; add(gm); }
+  if (moto) { const c0 = L(htB, bb, 0.1); add(tube(T, [c0, [0.14, 0.33], [0.12, 0.26], [0.04, 0.25], [-0.04, 0.27]], Ye, mat, "frame:cradle")); add(blob(T, c0, Ye * 1.2, mat, "frame:weldCradle")); return; }
+  // stays: curved chainstays (bow out for tyre clearance) and seatstays, wishbone bridge, dropouts
+  const ssTop = L(seat, bb, 0.1);
+  for (const s of [-1, 1]) { const zR = s * 0.058;
+    add(tube(T, [[bb[0] - 0.02, bb[1], s * 0.03], [L(bb, rear, 0.3)[0], L(bb, rear, 0.3)[1] - 0.008, s * 0.06], [L(bb, rear, 0.7)[0], L(bb, rear, 0.7)[1] - 0.004, s * 0.066], [rear[0] + 0.012, rear[1], zR]], Ye * 0.72, mat, s < 0 ? "frame:chainstayL" : "frame:chainstayR", 32));
+    const m1 = L(ssTop, rear, 0.35), m2 = L(ssTop, rear, 0.72);
+    add(tube(T, [[ssTop[0] - 0.012, ssTop[1], s * 0.022], [m1[0] - 0.01, m1[1] + 0.012, s * 0.045], [m2[0], m2[1] + 0.008, s * 0.06], [rear[0] + 0.012, rear[1] + 0.018, zR]], Ye * 0.62, mat, s < 0 ? "frame:seatstayL" : "frame:seatstayR", 32));
+    // dropout plate with axle slot
+    const ds = new T.Shape(); ds.moveTo(-0.03, -0.022); ds.lineTo(0.035, -0.022); ds.lineTo(0.04, 0.03); ds.lineTo(0.0, 0.045); ds.lineTo(-0.035, 0.012); ds.closePath();
+    const slot = new T.Path(); slot.absarc(0, 0, 0.0065, 0, Math.PI * 2, true); ds.holes.push(slot);
+    const dm = new T.Mesh(new T.ExtrudeGeometry(ds, { depth: 0.006, bevelEnabled: true, bevelSize: 0.002, bevelThickness: 0.002, bevelSegments: 1 }), mat); dm.position.set(rear[0], rear[1], zR - 0.003); dm.name = s < 0 ? "frame:dropoutL" : "frame:dropoutR"; add(dm);
+    add(blob(T, [ssTop[0] - 0.012, ssTop[1], s * 0.02], Ye * 0.75, mat, "frame:weldSeatstay")); add(blob(T, [bb[0] - 0.02, bb[1], s * 0.03], Ye * 0.85, mat, "frame:weldChainstay")); }
+  const br = L(ssTop, rear, 0.42); add(cyl(T, [br[0] - 0.012, br[1] + 0.012, -0.05], [br[0] - 0.012, br[1] + 0.012, 0.05], Ye * 0.45, mat, "frame:bridge"));
+}
+// spokes: replace the stock instanced spokes; each one runs from a flange hole to a rim nipple, ends exactly on both radii
+export function respoke(root, T) {
+  root.traverse((w) => { if (!w.isGroup) return; const sp = w.children.find((c) => c.isInstancedMesh && c.count === 36 && c.geometry.type === "CylinderGeometry"); if (!sp) return;
+    const rim = w.children.find((c) => c.geometry?.type === "TorusGeometry" && Math.abs(c.geometry.parameters.tube - 0.009) < 1e-4); if (!rim) return;
+    const nipR = rim.geometry.parameters.radius - 0.009, H = w.userData.hubHoles || { r: 0.03, z: 0.035 }, N = 36, mat = sp.material; w.remove(sp);
+    const im = new T.InstancedMesh(new T.CylinderGeometry(0.0013, 0.0013, 1, 5), mat, N), o = new T.Object3D(), up = new T.Vector3(0, 1, 0); im.name = "wheel:spokes";
+    const holes = [], nips = [];
+    for (let i = 0; i < N; i++) { const side = i % 2 ? 1 : -1, k = Math.floor(i / 2), ha = (k + (side > 0 ? 0.5 : 0)) / 18 * Math.PI * 2, lead = (k % 2 ? 1 : -1) * (H.r > 0.05 ? 0.35 : 0.9);
+      const a = new T.Vector3(Math.cos(ha) * H.r, Math.sin(ha) * H.r, side * H.z), ra = ha + lead, bpt = new T.Vector3(Math.cos(ra) * nipR, Math.sin(ra) * nipR, side * 0.003), d = bpt.clone().sub(a);
+      o.position.copy(a).addScaledVector(d, 0.5); o.scale.set(1, d.length(), 1); o.quaternion.setFromUnitVectors(up, d.normalize()); o.updateMatrix(); im.setMatrixAt(i, o.matrix); holes.push(a); nips.push(bpt); }
+    im.castShadow = true; w.add(im);
+    const nm = new T.InstancedMesh(new T.CylinderGeometry(0.0026, 0.0026, 0.012, 6), new T.MeshStandardMaterial({ color: "#c8c8c8", metalness: 1, roughness: 0.3 }), N); nm.name = "wheel:nipples";
+    nips.forEach((p, i) => { o.position.copy(p); o.scale.set(1, 1, 1); o.quaternion.setFromUnitVectors(up, p.clone().setZ(0).normalize()); o.updateMatrix(); nm.setMatrixAt(i, o.matrix); }); w.add(nm);
+    w.userData.spokeCheck = { holeR: H.r, nipR, holes: holes.map((v) => v.toArray()), nips: nips.map((v) => v.toArray()) }; });
 }

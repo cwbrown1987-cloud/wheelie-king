@@ -44,6 +44,7 @@ export function step(s, p, inp, dt, ter) {
   const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR, p.travelF];
   const k = (i) => p.mass * 9.8 / 2 / Math.max(travel[i] * 0.35, 0.012), c = (i) => 2 * (0.25 + p.damp) * Math.sqrt(k(i) * p.mass / 2);
   let Fx = 0, Fy = -9.8 * p.mass, T = 0; const N = [0, 0];
+  s.thr = (s.thr || 0) + Math.max(-dt * 6, Math.min(dt * 2.5, (inp.throttle || 0) - (s.thr || 0))); // throttle ramps like a real twist grip
   s.ground = [false, false];
   for (let i = 0; i < 2; i++) {
     const [ox, oy] = rot(wl[i][0], wl[i][1], s.pitch), wx = s.x + ox, wy = s.y + oy, g = ter.h(wx), d = g + p.R - wy;
@@ -53,15 +54,15 @@ export function step(s, p, inp, dt, ter) {
       Fx += f * nx; Fy += f * ny; T += ox * f * ny - (oy - 0) * f * nx; // r x F (z)
       const tx = Math.cos(a), ty = Math.sin(a), vt = s.vx * tx + s.vy * ty;
       let ft = -vt * 2.2 * (i ? 1 : 1); // rolling resistance
-      if (i === 0 && inp.throttle > 0 && s.battery > 0) { const v = Math.max(Math.abs(vt), 1.2); let drive = Math.min(p.torque * 9, p.power / v) * inp.throttle; if (vt > p.vmax) drive *= Math.max(0, 1 - (vt - p.vmax)); drive = Math.min(drive, f * 1.15 * p.grip + 80); ft += drive; }
+      if (i === 0 && inp.throttle > 0 && s.battery > 0) { const v = Math.max(Math.abs(vt), 1.2); let drive = Math.min(p.torque * 4, p.power / v, p.mass * 9.8 * 0.4 * p.grip) * (s.thr || 0); { const rel0 = s.pitch - a; if (rel0 > 0.6 && !(inp.lean > 0)) drive *= Math.max(0.15, 1 - (rel0 - 0.6) * 3 - Math.max(0, s.w) * 0.25); } /* rider feathers the throttle at the balance point unless leaning back */ if (vt > p.vmax) drive *= Math.max(0, 1 - (vt - p.vmax)); drive = Math.min(drive, f * 1.15 * p.grip + 80); ft += drive; }
       if (inp.brake > 0) { const bias = i === 1 ? 0.45 + 0.45 * Math.max(0, inp.lean) : 0.55 - 0.3 * Math.max(0, inp.lean); ft -= Math.sign(vt) * Math.min(f * 0.9 * p.grip, p.mass * 9 * bias) * inp.brake * Math.min(1, Math.abs(vt) * 2); }
       Fx += ft * tx; Fy += ft * ty; const rx = ox - nx * p.R, ry = oy - ny * p.R; T += rx * ft * ty - ry * ft * tx;
     } else s.comp[i] = Math.max(0, s.comp[i] - dt * 6);
   }
   const onG = s.ground[0] || s.ground[1];
   Fx -= 0.32 * s.vx * Math.abs(s.vx);
-  if (onG) T += inp.lean * p.mass * 1.25; else s.w += inp.lean * 7 * dt; // rider body English / air control
-  s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.995 : 0.999;
+  if (onG) { T += inp.lean * p.mass * 2.4; if (s.ground[0] && !s.ground[1]) { const set = 0.55 + 0.6 * Math.max(0, inp.lean), rel1 = s.pitch - ter.slope(s.x); if (rel1 > set) T -= (rel1 - set) * p.mass * 16 + Math.max(0, s.w) * p.mass * 1.6; } } /* rider balance assist: rear brake + body at the balance point */ else s.w += inp.lean * 7 * dt; // rider body English / air control
+  s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : 0.999;
   s.x += s.vx * dt; s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
   for (let i = 0; i < 2; i++) s.wheelSpin[i] += s.vx / p.R * dt;
   if (inp.throttle > 0 && s.ground[0] && !p.pedal) s.battery = Math.max(0, s.battery - inp.throttle * p.power * dt / 3600 / Math.max(50, p.batteryWh));

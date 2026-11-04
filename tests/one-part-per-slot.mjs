@@ -7,8 +7,8 @@ await p.goto(URL_ + "?v=" + Date.now()); await p.waitForFunction(() => globalThi
 await p.evaluate(() => { __WK_VIEW__.controls.autoRotate = false; });
 // open a category so the card renderer runs and exposes the equip fn
 await p.click('[data-cat="bars"]', { force: true }); await p.waitForFunction(() => globalThis.__WK_EQUIP__, null, { timeout: 10000 });
-const slots = ["shock","bars","grips","seat","rims","cranks","chain","fender_f","fender_r","bash","lights","suspension","tyres","brakes","frame","motor","battery","controller","throttle"];
-const added = new Set(["shock","fender_f","fender_r","bash","lights"]);
+const slots = ["shock","bars","grips","seat","rims","cranks","chain","fender_f","fender_r","bash","lights","suspension","tyres","brakes","frame","motor","battery","controller","throttle","sprocket_f","sprocket_r","wing"];
+const added = new Set(["shock","fender_f","fender_r","bash","lights","wing"]);
 let fails = 0, skipped = 0;
 for (const slot of slots) {
   const ids = await p.evaluate((s) => __WK_CAT__().items.filter(i => i.slot === s).map(i => i.id), slot);
@@ -18,8 +18,9 @@ for (const slot of slots) {
     const r = await p.evaluate(([slot, id, isAdded]) => { const v = __WK_VIEW__; let root; v.scene.traverse(o => { if (!root && o.name === "wk:frame") root = o.parent; });
       const groups = root.children.filter(c => c.name === "wk:part:" + slot).length, same = root.children.filter(c => c.name === "wk:" + slot).length;
       let roots = 0; v.scene.traverse(o => { if (o.children?.some?.(c => c.name === "wk:frame")) roots++; });
-      return { equipped: __WK_BUILD__?.[slot] === id, groups, same, roots, isAdded }; }, [slot, id, added.has(slot)]);
-    const ok = r.roots === 1 && (r.isAdded ? r.groups === 1 : r.groups === 0 && r.same <= 1);
+      let spF = 0, spR = 0, chains = 0; root.traverse(o => { if (["sprocketF", "mid:chainring", "motoMid:sprocket"].includes(o.name)) spF++; if (o.name === "sprocketR") spR++; if (o.name === "wk:model:chain") chains++; });
+      return { equipped: __WK_BUILD__?.[slot] === id, groups, same, roots, isAdded, spF, spR, chains }; }, [slot, id, added.has(slot)]);
+    const ok = r.roots === 1 && r.spF === 1 && r.spR === 1 && r.chains === 1 && (r.isAdded ? r.groups === 1 : r.groups === 0 && r.same <= 1);
     if (!ok || !r.equipped) { fails++; console.log("FAIL", slot, id, JSON.stringify(r)); }
   }
   console.log("slot", slot, ids.length, "options ok");
