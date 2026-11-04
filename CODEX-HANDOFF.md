@@ -5,11 +5,11 @@ Updated 5 Nov 2026. This is the single current instruction page. Replace the res
 ## Resume
 
 - Branch: `wip/v18-detail`; completed releases also go to `main`.
-- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-modular-5`. Check Git for the current HEAD.
+- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-modular-6`. Check Git for the current HEAD.
 - Working: nine compatible complete-bike kits; separate parts/colour variants (including actual grip removal/refitting); click-to-fit and separate info button; photo-based 20-inch TRAX; pivot/shock alignment; wheel/chain/crank/pedal motion; corrected landings and two-finger controls.
 - Last relevant checks passed: modular builds, 45 motion poses, TRAX mechanics, 36 flat/sloped landings and Chromium multi-touch. Actual Android/iPad behaviour and performance remain unverified.
 - Outstanding: device feedback on landings/touch; finer component detail; older tests still assuming frames include stock parts. Stickers/condition save per device, condition is global rather than per build, and decals have projection-depth limits.
-- Next: address Chris's device feedback first; otherwise refine separate stem, seatpost and pedal models/mounts. Migrate only the older tests needed for that batch.
+- Next: address Chris's device feedback first; stem clamp, pedal spindle, rear chain clearance and fork detail corrections are complete. Continue with seatpost/pedal platform detail if no further bugs are reported. Migrate only the older tests needed for that batch.
 
 ## Working rules
 

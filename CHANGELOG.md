@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## TRAX close-up corrections — 5 Nov 2026
+
+- Replaced the stem block with a bored, bevelled clamp and four face bolts; removed the overlapping bar-bundled clamp. Handlebars have a straight central clamping section instead of a kink.
+- Connected crank arms to the separately fitted pedals with actual spindles and added crank fixing bolts. Reduced overlapping chain-plate length and added small-sprocket lockrings. Widened the TRAX rear stays to clear its chain/cassette plane while retaining the existing pivot and shock anchors.
+- Forks now have a steerer, rounded/bevelled crown, separate leg top caps, lower seals and axle bolt heads. Removed the orange crosswise top-cap cylinder visible in the reference screenshot. Rigid forks retain zero travel.
+- Targeted checks passed: nine-bike motion, TRAX mechanics, modular catalogue/removal/colour/ride integration. Cache: `wk-v18-modular-6`.
+
 ## Grip-removal correction — 5 Nov 2026
 
 - Removing grips previously left the default pair visible on the bars. `modular-render.js` now removes those meshes when the grip slot is empty; refitting restores exactly one pair, including colour variants.

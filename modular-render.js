@@ -14,7 +14,10 @@ export function componentModel(T,p,A={bb:[0,0],headTop:[0,0],seatTop:[0,0],rearA
  PM.useThree(T);const G=new T.Group();G.name='wk:model:'+p.slot;const {mesh,rod}=helpers(T),c=p.color||'#3e494f';
  if(p.slot==='stem') {
   const h=A.headTop,top=[h[0]+.025,h[1]+(p.id==='stem_trax'?.17:.06),0];
-  rod(G,'stem:body',[h[0],h[1],0],top,.013,c);mesh(G,'stem:clamp',new T.BoxGeometry(.055,.03,.05),c,top);
+  rod(G,'stem:body',[h[0],h[1],0],[top[0],top[1]-.014,0],.013,c);
+  const profile=new T.Shape();profile.absarc(0,0,.022,0,Math.PI*2,false);const bore=new T.Path();bore.absarc(0,0,.0113,0,Math.PI*2,true);profile.holes.push(bore);
+  const clampGeo=new T.ExtrudeGeometry(profile,{depth:.05,bevelEnabled:true,bevelSize:.001,bevelThickness:.001,bevelSegments:2,curveSegments:16});clampGeo.translate(0,0,-.025);mesh(G,'stem:clamp',clampGeo,c,top);
+  for(const side of [-1,1])for(const height of [-1,1]){const bolt=mesh(G,'stem:faceBolt'+side+height,new T.CylinderGeometry(.0035,.0035,.005,6),'#bdc6cb',[top[0]+.019,top[1]+height*.012,side*.016]);bolt.rotation.z=Math.PI/2;}
   G.userData.clamp=top;
  } else if(p.slot==='seatpost')rod(G,'seatpost:post',[...A.seatTop,0],[A.seatTop[0]-.016,A.seatTop[1]+.075,0],.013,c);
  else if(p.slot==='headset')for(const [i,y] of [[0,-.015],[1,.015]]){const m=mesh(G,'headset:cup'+i,new T.CylinderGeometry(.029,.029,.015,24),c,[0,y,0]);}
@@ -66,7 +69,7 @@ export function finishModular(root,A,b,selected,T,slotGroup,g) {
  // Original anonymous quill and seatpost meshes are replaced, not layered over.
  g('cockpit')?.children.slice().forEach(o=>{if(o.name==='trax:quillStem'||!o.name&&o.geometry&&(o.geometry.type==='CylinderGeometry'&&Math.abs(o.geometry.parameters.radiusTop-.016)<.001||o.geometry.type==='BoxGeometry'&&Math.abs(o.geometry.parameters.width-.07)<.001))g('cockpit').remove(o)});
  g('seat')?.children.slice().forEach(o=>{if(o.geometry?.type==='CylinderGeometry')g('seat').remove(o)});
- if(b.stem){const clamp=root.getObjectByName('wk:model:stem')?.userData.clamp;const bars=g('cockpit')?.getObjectByName('wk:model:bars');if(clamp&&bars){const delta=clamp[1]-(A.headTop[1]+(b.frame==='trax_lime'&&b.bars==='trax_bars'?.17:.06));bars.position.y+=delta;}}
+ if(b.stem){const clamp=root.getObjectByName('wk:model:stem')?.userData.clamp;const bars=g('cockpit')?.getObjectByName('wk:model:bars');if(clamp&&bars){bars.getObjectByName('bars:clamp')?.removeFromParent();const delta=clamp[1]-(A.headTop[1]+(b.frame==='trax_lime'&&b.bars==='trax_bars'?.17:.06));bars.position.y+=delta;}}
  // Headset cups retain the actual frame-axis transforms when moved into their slot.
  const cups=[];g('frame')?.traverse(o=>{if(['frame:lowerCup','frame:upperCup'].includes(o.name))cups.push(o)});
  if(b.headset){const G=slotGroup('headset');for(const o of cups){o.parent.remove(o);G.add(o);}}

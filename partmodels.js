@@ -19,7 +19,7 @@ export function sprocket(n = 44, std = "bicycle", color = "#2a2a2a", name = "spr
   inst(G, name + ":teeth", new T.BoxGeometry(PITCH * 0.42, 0.007, t), M(name + ":teeth", color, { metalness: 0.85, roughness: 0.25 }), n, (o, i) => { const a = i / n * Math.PI * 2; o.position.set(Math.cos(a) * (r + 0.001), Math.sin(a) * (r + 0.001), 0); o.rotation.z = a - Math.PI / 2; });
   if (n > 20) { const arms = 5; inst(G, name + ":spider", new T.BoxGeometry(r * 0.8, 0.012, t * 1.6), M(name + ":spider", "#1a1a1a"), arms, (o, i) => { const a = i / arms * Math.PI * 2 + 0.3; o.position.set(Math.cos(a) * r * 0.4, Math.sin(a) * r * 0.4, 0.002); o.rotation.z = a; });
     inst(G, name + ":bolts", zCyl(0.004, 0.004, t * 2.4, 8), M(name + ":bolts", "#c0c0c0", { metalness: 1 }), arms, (o, i) => { const a = i / arms * Math.PI * 2 + 0.3; o.position.set(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8, 0); }); }
-  else mesh(G, name + ":hub", zCyl(r * 0.42, r * 0.42, t * 2.5, 24), M(name + ":hub", "#555", { metalness: 0.9 }));
+  else {mesh(G, name + ":hub", zCyl(r * 0.42, r * 0.42, t * 2.5, 24), M(name + ":hub", "#555", { metalness: 0.9 }));const lock=mesh(G,name+':lockring',zCyl(r*.34,r*.34,t*.65,12),M(name+':lockring','#a4afb5',{metalness:.95,roughness:.25}));lock.position.z=t*1.6;}
   G.userData.r = r; G.userData.teeth = n; return G;
 }
 // links placed along a closed polyline (array of [x,y]) at depth z
@@ -28,7 +28,7 @@ export function chainAlong(points, std = "bicycle", color = "#4a4a4a", z = 0, na
   const L = []; let tot = 0; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], d = a.distanceTo(b); L.push([a, b, d, tot]); tot += d; }
   const n = Math.max(8, Math.round(tot / PITCH)), step = tot / n, at = (s) => { s = ((s % tot) + tot) % tot; const seg = L.find((q) => s >= q[3] && s <= q[3] + q[2]) || L[0]; const t = seg[2] ? (s - seg[3]) / seg[2] : 0; return [seg[0].x + (seg[1].x - seg[0].x) * t, seg[0].y + (seg[1].y - seg[0].y) * t, Math.atan2(seg[1].y - seg[0].y, seg[1].x - seg[0].x)]; };
   const pm = M(name + ":plates", color, { metalness: 0.85, roughness: 0.35 }), rm = M(name + ":rollers", "#8a8a8a", { metalness: 0.9, roughness: 0.3 });
-  for (const side of [-1, 1]) inst(G, name + ":plates" + (side > 0 ? "R" : "L"), new T.BoxGeometry(PITCH * 1.35, c.plate * 0.8, 0.0012), pm, n, (o, i) => { const [x, y, a] = at(i * step + step / 2); o.position.set(x, y, z + side * (c.w / 2 + (i % 2 ? 0.0012 : 0))); o.rotation.z = a; });
+  for (const side of [-1, 1]) inst(G, name + ":plates" + (side > 0 ? "R" : "L"), new T.BoxGeometry(PITCH * .88, c.plate * .65, 0.0012), pm, n, (o, i) => { const [x, y, a] = at(i * step + step / 2); o.position.set(x, y, z + side * (c.w / 2 + (i % 2 ? 0.0012 : 0))); o.rotation.z = a; });
   inst(G, name + ":rollers", zCyl(c.roller, c.roller, c.w, 8), rm, n, (o, i) => { const [x, y] = at(i * step); o.position.set(x, y, z); });
   G.userData.links = n; G.userData.chain = {points,std,z}; return G;
 }
@@ -51,6 +51,8 @@ export function crankset(bb,color='#292c2f',pegs=false) {
  mesh(rotor,'cranks:axle',zCyl(.011,.011,.17,24),M('cranks:axle','#969da2',{metalness:.9}));
  for(const s of [-1,1]) {
   between(rotor,'cranks:arm'+s,[0,0,s*.075],[s*.14,0,s*.075],.012,M('cranks:arm',color));
+  between(rotor,'cranks:pedalSpindle'+s,[s*.14,0,s*.075],[s*.14,0,s*.12],.006,M('cranks:spindle','#9ba5ab',{metalness:.95}));
+  mesh(rotor,'cranks:fixingBolt'+s,zCyl(.007,.007,.006,6),M('cranks:fixingBolt','#929da5')).position.set(0,0,s*.087);
   const pedal=new T.Group();pedal.name='pedal:'+s;pedal.userData.wkPedal=true;pedal.userData.wkPedalSide=s;pedal.position.set(s*.14,0,s*.12);rotor.add(pedal);
   mesh(pedal,'pedal:cage'+s,new T.BoxGeometry(.095,.018,.075),M('pedal:cage','#202326',{metalness:.25}));
   inst(pedal,'pedal:pins'+s,new T.CylinderGeometry(.0025,.0025,.025,6),M('pedal:pins','#a6adaf',{metalness:.9}),8,(o,i)=>o.position.set(-.036+(i%4)*.024,0,i<4?-.026:.026));
@@ -134,10 +136,11 @@ export function battery(p) {
 }
 // --- forks / shocks / bars, built between bike anchors ---
 export function fork(p, top, bottom, axle, headTop, opts = {}) {
-  const G = new T.Group(); G.name = "fork"; const id = p?.id || "rigid", travel = p?.travel || 0.03, dual = ["dnm", "fox40", "corro"].includes(id), usd = id === "dnm";
+  const G = new T.Group(); G.name = "fork"; const id = p?.id || "rigid", travel = p?.travel ?? 0, dual = ["dnm", "fox40", "corro"].includes(id), usd = id === "dnm";
   const crown = new T.Vector3(...bottom, 0).add(new T.Vector3(0.012, -0.03, 0)), ax = new T.Vector3(...axle, 0), dir = ax.clone().sub(crown), len = dir.length(); dir.normalize();
   const sideZ = 0.065, stanchionR = travel >= 0.18 ? 0.019 : travel >= 0.14 ? 0.0175 : 0.016, lowerR = stanchionR + 0.006;
   const silver = M("fork:stanchions", usd ? "#c9a227" : "#d8dde2", { metalness: 0.95, roughness: 0.15 }), lowers = M("fork:lowers", opts.color || (id === "fox40" ? "#1a1a1a" : id === "pike" ? "#141414" : "#202020"), { metalness: 0.4, roughness: 0.45 });
+  between(G,'fork:steerer',crown.toArray(),[...top,0],.012,M('fork:steerer','#86939c',{metalness:.9}));
   if (id === "rigid" || travel < 0.05) { // rigid steel blades
     for (const s of [-1, 1]) { const a = crown.clone().setZ(s * sideZ), b = ax.clone().setZ(s * sideZ); between(G, "fork:blade" + (s > 0 ? "R" : "L"), a.toArray(), b.toArray(), 0.011, M("fork:blades", opts.color || "#2b2b2b", { metalness: 0.5 })); }
     mesh(G, "fork:crown", new T.BoxGeometry(0.05, 0.03, 0.16), M("fork:crown", "#2b2b2b", { metalness: 0.5 })).position.copy(crown);
@@ -151,8 +154,14 @@ export function fork(p, top, bottom, axle, headTop, opts = {}) {
     mesh(G, "fork:crown", new T.BoxGeometry(0.06, 0.03, 2 * sideZ + 0.05), M("fork:crown", "#2a2a2a", { metalness: 0.7 })).position.copy(crown);
     if (dual && headTop) { const up = new T.Vector3(...headTop, 0).add(new T.Vector3(-0.01, 0.01, 0)); mesh(G, "fork:upperCrown", new T.BoxGeometry(0.06, 0.025, 2 * sideZ + 0.05), M("fork:upperCrown", "#2a2a2a", { metalness: 0.7 })).position.copy(up);
       for (const s of [-1, 1]) between(G, "fork:stanchionTop" + (s > 0 ? "R" : "L"), up.clone().setZ(s * sideZ).toArray(), crown.clone().setZ(s * sideZ).toArray(), usd ? lowerR + 0.004 : stanchionR, usd ? lowers : silver); }
-    const cap = mesh(G, "fork:topCaps", zCyl(0.012, 0.012, 2 * sideZ + 0.03, 12), M("fork:topCaps", "#ff6a00", { metalness: 0.8 })); cap.position.copy(dual && headTop ? new T.Vector3(...headTop, 0).add(new T.Vector3(-0.01, 0.03, 0)) : crown.clone().add(new T.Vector3(0, 0.02, 0)));
+    for(const side of [-1,1]){
+      const cap=mesh(G,'fork:topCap'+side,new T.CylinderGeometry(stanchionR*.85,stanchionR*.85,.009,12),M('fork:topCaps','#65717a',{metalness:.9}));cap.position.copy(dual&&headTop?new T.Vector3(...headTop,side*sideZ).add(new T.Vector3(-.01,.024,0)):crown.clone().add(new T.Vector3(0,.019,side*sideZ)));cap.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.clone().negate());
+      if(!usd){const seal=mesh(G,'fork:lowerSeal'+side,new T.CylinderGeometry(lowerR+.002,lowerR+.002,.009,24),M('fork:seal','#13181b',{metalness:.05,roughness:.85}));seal.position.copy(mid.clone().setZ(side*sideZ));seal.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir);}
+      const bolt=mesh(G,'fork:dropoutBolt'+side,zCyl(.006,.006,.006,6),M('fork:axleBolt','#b4bec4',{metalness:.95}));bolt.position.copy(ax.clone().setZ(side*(sideZ+.014)));
+    }
   }
+  const crownMesh=G.getObjectByName('fork:crown');
+  if(crownMesh){const w=.06,h=2*sideZ+.05,r=.012,s=new T.Shape();s.moveTo(-w/2+r,-h/2);s.lineTo(w/2-r,-h/2);s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r);s.lineTo(w/2,h/2-r);s.quadraticCurveTo(w/2,h/2,w/2-r,h/2);s.lineTo(-w/2+r,h/2);s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r);s.lineTo(-w/2,-h/2+r);s.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);const geo=new T.ExtrudeGeometry(s,{depth:.024,bevelEnabled:true,bevelSize:.003,bevelThickness:.003,bevelSegments:2,curveSegments:4});geo.translate(0,0,-.012);geo.rotateX(Math.PI/2);crownMesh.geometry.dispose();crownMesh.geometry=geo;}
   return G;
 }
 export function shock(p, a, b) {
@@ -170,8 +179,7 @@ export function shock(p, a, b) {
 }
 export function bars(spec, clamp) { // spec: {rise, sweep, width, up} — real rise (mm) and backsweep
   const G = new T.Group(); G.name = "bars"; const [cx, cy] = clamp, rise = spec.rise ?? 0.05, sweep = spec.sweep ?? 0.04, w = spec.width ?? 0.36, col = spec.color || "#333";
-  const pts = []; for (const s of [-1, 1]) for (const t of s < 0 ? [1, 0.75, 0.45, 0.2] : [0.2, 0.45, 0.75, 1]) pts.push(new T.Vector3(cx - sweep * t * t, cy + rise * Math.min(1, t * 1.6) , s * w * t));
-  pts.splice(4, 0, new T.Vector3(cx, cy, 0));
+  const pts=[[-sweep,rise,-w],[-sweep*.56,rise,-w*.75],[-sweep*.15,rise*.7,-w*.4],[0,0,-.055],[0,0,-.025],[0,0,0],[0,0,.025],[0,0,.055],[-sweep*.15,rise*.7,w*.4],[-sweep*.56,rise,w*.75],[-sweep,rise,w]].map(([x,y,z])=>new T.Vector3(cx+x,cy+y,z));
   mesh(G, "bars:bar", new T.TubeGeometry(new T.CatmullRomCurve3(pts), 48, 0.011, 10), M("bars:bar", col, { metalness: 0.6, roughness: 0.35 }));
   mesh(G, "bars:clamp", zCyl(0.02, 0.02, 0.05, 16), M("bars:clamp", "#1a1a1a", { metalness: 0.7 })).position.set(cx, cy, 0);
   if (spec.crossbar) { const cb = between(G, "bars:crossbar", [cx - sweep * 0.2, cy + rise * 0.65, -w * 0.38], [cx - sweep * 0.2, cy + rise * 0.65, w * 0.38], 0.008, M("bars:crossbar", col, { metalness: 0.6 }));
