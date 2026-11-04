@@ -1,9 +1,11 @@
 # Wheelie King: Outback — Handoff for Codex
+
+> **Full transcript:** read `wheelie-king-CHAT-HISTORY.md` for the complete Chris ↔ Odd Job Bot conversation. This file is the short design/tech summary. Next work: gameplay to 2.5D, then full 3D.
 Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son, aimed at teens and adults.
 
 ## Where things are
 - Live app (PWA): https://wheelie-king.pages.dev (Cloudflare Pages project `wheelie-king`, deployed with wrangler)
-- Repo: https://github.com/cwbrown1987-cloud/wheelie-king (public). main is at commit 7120540, which has the full app sync, with the stickers in assets/stickers/pack1 and pack2.
+- Repo: https://github.com/cwbrown1987-cloud/wheelie-king (public). main is at commit fba9d424 (wk-v4 UI), with the stickers in assets/stickers/pack1 and pack2.
 - GitHub Pages is NOT enabled yet. In Settings > Pages, set the branch to main and the folder to root. It will then be at https://cwbrown1987-cloud.github.io/wheelie-king/
 - Source on the bot's computer: /workspace/wheelie-king-app/
 - Stickers: /workspace/stickers/pack1/ and /workspace/stickers/pack2/ (the latest 5, each in a different style)
