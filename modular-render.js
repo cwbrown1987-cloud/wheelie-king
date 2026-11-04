@@ -61,7 +61,7 @@ export function finishModular(root,A,b,selected,T,slotGroup,g) {
   em.children.slice().forEach(o=>{em.remove(o);if(!/^swingarm:/.test(o.name))g('frame').add(o)});root.remove(em);
  }
  // Remove the extra controller bundled into the old motor model.
- root.traverse(o=>{if(o.name==='motoMid:controller'||o.name==='motoMid:ctlFins')o.parent?.remove(o)});
+ const bundledControllers=[];root.traverse(o=>{if(o.name==='motoMid:controller'||o.name==='motoMid:ctlFins')bundledControllers.push(o)});for(const o of bundledControllers)o.removeFromParent();
  for(const slot of ['stem','seatpost'])if(find(slot)){const G=slotGroup(slot);G.add(componentModel(T,find(slot),A));}
  // Original anonymous quill and seatpost meshes are replaced, not layered over.
  g('cockpit')?.children.slice().forEach(o=>{if(o.name==='trax:quillStem'||!o.name&&o.geometry&&(o.geometry.type==='CylinderGeometry'&&Math.abs(o.geometry.parameters.radiusTop-.016)<.001||o.geometry.type==='BoxGeometry'&&Math.abs(o.geometry.parameters.width-.07)<.001))g('cockpit').remove(o)});

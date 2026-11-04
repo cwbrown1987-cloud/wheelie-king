@@ -1,5 +1,11 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 WIP — modular quick-check follow-up, 5 Nov 2026
+
+- Fixed removal of the old motor-bundled controller during scene traversal, which interrupted moto stem/footpeg construction. Collect meshes first and remove them after traversing.
+- `node tests/modular-builds.mjs` now passes: all nine complete-bike builds and their component colour compatibility, no duplicate part groups, truly bare Enduro frame, real colour-swatch/info clicks, incompatible-interface rejection, and a finite moving pedal-powered ride. No page/hook errors reported.
+- Updated screenshots/result: `wk-shots/modular/`. Cache: `wk-v18-modular-3`. Remote Cloudflare deployment still needs sign-in; this is a local/browser smoke check, not real-device validation.
+
 ## v18 WIP — modular catalogue and colour choices, 5 Nov 2026
 
 - Added separate stems, headsets, seatposts, pedals/pegs, hubs, sized rims, suspension rear assemblies, Enduro covers and number plates. Rigid welded rear triangles remain part of their main frame.

@@ -11,7 +11,7 @@ try {
   assert.equal(await p.evaluate(id=>__WK_EQUIP__(id),id),true,id);await p.waitForTimeout(200);
   const r=await p.evaluate(()=>{let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});const b={...__WK_BUILD__},bad=Object.entries(b).filter(([s,id])=>__WK_FIT__(b,id).status!=='ok');let duplicates=0;const groups=root.children.map(o=>o.name);for(const name of new Set(groups))if(name.startsWith('wk:part:')&&groups.filter(n=>n===name).length>1)duplicates++;
    const variants=Object.entries(b).flatMap(([s,id])=>__WK_VARIANTS__(id).map(v=>({slot:s,id:v.id,fit:__WK_FIT__({...b,[s]:v.id},v.id).status})));return {frame:b.frame,build:b,bad,duplicates,variantsBad:variants.filter(v=>v.fit!=='ok'),ready:__WK_BUILD_READY__(b).ready,rear:!!root.getObjectByName('wk:part:rear_frame'),stem:!!root.getObjectByName('wk:part:stem'),pedals:!!root.getObjectByName('wk:part:pedals')};});
-  assert.deepEqual(r.bad,[]);assert.deepEqual(r.variantsBad,[]);assert.equal(r.duplicates,0);assert(r.ready&&r.stem&&r.pedals);if(['trax_lime','mtb_fs','moto','emoto'].includes(r.frame))assert(r.rear);
+  assert.deepEqual(r.bad,[]);assert.deepEqual(r.variantsBad,[]);assert.equal(r.duplicates,0);assert(r.ready&&r.stem&&r.pedals,JSON.stringify(r));if(['trax_lime','mtb_fs','moto','emoto'].includes(r.frame))assert(r.rear);
   report.push(r);
  }
  // Bare frames really have no hidden handlebars, fork, shock or drivetrain.
@@ -28,5 +28,8 @@ try {
  const rejected=await p.evaluate(()=>({rear:__WK_FIT__({frame:'bmx'},'rear_emoto__red').status,rim:__WK_FIT__({frame:'bmx'},'rim_29__red').status,post:__WK_FIT__({frame:'trax_lime'},'post_316__red').status,stem:__WK_FIT__({frame:'bmx',bars:'bar_bmx'},'stem_moto__red').status,shock:__WK_FIT__({frame:'trax_lime'},'shk_moto230__blue').status,hub:__WK_FIT__({frame:'mtb_ht'},'hubs_135qr__red').status}));
  assert(Object.values(rejected).every(v=>v==='no'));
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();await p.evaluate(()=>{const v=__WK_VIEW__;v.controls.autoRotate=false;v.controls.target.set(.12,.52,0);v.camera.position.set(.5,.8,2.6);v.controls.update()});await p.waitForTimeout(2000);await p.screenshot({path:'wk-shots/modular/trax-blue-rear.png'});
- assert.deepEqual(errors,[]);writeFileSync('wk-shots/modular/validation.json',JSON.stringify({report,bare,rejected,errors},null,2));console.log(JSON.stringify({bikes:report.length,stockAndColoursFit:true,barePartsRemoved:true,uiColour:true,incompatibleRejected:true,errors}));
+ await p.getByRole('button',{name:'Test ride',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);
+ await p.keyboard.down('ArrowRight');await p.waitForTimeout(900);await p.keyboard.up('ArrowRight');
+ const ride=await p.evaluate(()=>{const {s,mechanical}=__WK_RIDE_STATE__();return {x:s.x,y:s.y,pitch:s.pitch,wheel:mechanical.wheelPhase,crank:mechanical.crankPhase}});assert(Object.values(ride).every(Number.isFinite));assert(ride.wheel<0&&ride.crank<0);
+ assert.deepEqual(errors,[]);writeFileSync('wk-shots/modular/validation.json',JSON.stringify({report,bare,rejected,ride,errors},null,2));console.log(JSON.stringify({bikes:report.length,stockAndColoursFit:true,barePartsRemoved:true,uiColour:true,incompatibleRejected:true,ride:true,errors}));
 } finally {await browser.close();}
