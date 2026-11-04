@@ -30,7 +30,8 @@ export function detailPass(root, A, b, three, find, slotGroup, g) {
   const fr = g("frame");
   // ---- frame welds (hi LOD bead rings) + fasteners ----
   if (fr) {
-    hexBolts(fr, "frame:bolts", [[A.bb[0], A.bb[1], 0.048], [A.bb[0], A.bb[1], -0.048], [A.rearAxle[0], A.rearAxle[1], 0.068], [A.rearAxle[0], A.rearAxle[1], -0.068], [A.headTop[0], A.headTop[1] + 0.02, 0.03]], 0.006, 0.008); }
+    hexBolts(fr, "frame:bolts", [[A.bb[0], A.bb[1], 0.048], [A.bb[0], A.bb[1], -0.048], [A.headTop[0], A.headTop[1] + 0.02, 0.03]], 0.006, 0.008);
+    hexBolts(fr, "frame:rearAxleBolts", [[A.rearAxle[0], A.rearAxle[1], 0.068], [A.rearAxle[0], A.rearAxle[1], -0.068]], 0.006, 0.008); }
   // ---- brakes: real rotors with holes + bevelled calipers with pistons ----
   const br = g("brakes"); if (br) { br.children.slice().forEach((o) => {
       if (o.geometry?.type === "TorusGeometry" && Math.abs(o.scale.z - 0.15) < 0.01) { const rr = o.geometry.parameters.radius + 0.012, sh = new T.Shape(); sh.absarc(0, 0, rr, 0, Math.PI * 2, false);

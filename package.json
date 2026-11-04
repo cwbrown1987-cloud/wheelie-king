@@ -11,6 +11,9 @@
     "test:trax": "node tests/trax-bike.mjs",
     "test:cards": "node tests/part-card-interaction.mjs",
     "test:mechanics": "node tests/trax-mechanics.mjs",
+    "test:motion": "node tests/bike-motion.mjs",
+    "test:landings": "node tests/ride-landings.mjs",
+    "test:touch": "node tests/ride-touch.mjs",
     "test:modular": "node tests/modular-builds.mjs",
     "showcase": "node tests/frame-showcase.mjs"
   },

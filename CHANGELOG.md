@@ -1,5 +1,18 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## v18 modular — landings, touch controls and moving attachments, 5 Nov 2026
+
+- `ride-physics.js`: suspension now has hard travel stops and normal-direction contact impulses instead of an explosive extra bottom-out spring. Landing angles use the contacted wheel/track slope; normal rear/front-wheel-first landings are accepted, and completed flips normalize correctly. Genuine inverted and mid-spin impacts still crash. Rigid bikes no longer receive implicit suspension travel.
+- `ride.js`: physical travel follows fitted parts and matches visual compression. Fork lowers retain rest mounts when starting a ride from a compressed garage preview.
+- `index.html` / `ride.js`: the entire riding surface blocks text selection, long-press menus, drag and browser gestures. Independent pointers retain gas while lean is released. Blur/backgrounding clears held inputs; normal touch taps on Back/Reset/Tilt remain enabled. All listeners are removed on exit.
+- `test:landings` passes 36 flat/uphill/downhill drops across four travel settings and three touchdown angles, checking settlement, penetration limits, false crashes, real crash cases and a complete flip. `test:touch` uses actual Chromium touch events for simultaneous gas/lean, independent release, selection/menu prevention, focus loss and a touch tap to exit. This is desktop touch emulation, not real Android/iPad validation.
+
+- `bike-motion.js`: rigid rear triangles now keep their wheel axles fixed; rigid forks no longer telescope. Front travel is limited by the selected fork's travel.
+- Brake discs and their mounting bolts rotate with the wheels. Calipers/rim brakes follow the fork lowers or rear swingarm, without spinning with the tyre. Low front guards move with the fork; high triple-clamp guards stay fixed. Rear huggers follow the rear pivot.
+- `detail.js`: rear axle fasteners are separated from stationary bottom-bracket/head fasteners so they follow the axle instead of floating at its rest position.
+- `test:motion` passes nine builds at five suspension positions (45 poses). Updated `test:mechanics` for complete kits and genuinely separate pedal platforms; it passes TRAX pivot/eye/axle alignment, chain movement, pedal levels, bench controls and no-pedal moto drive. The nine-kit modular/store/ride integration check also passes, with no page errors.
+- Cache: `wk-v18-modular-4`. Publication follows this commit through `npm run deploy`.
+
 ## v18 modular — published 5 Nov 2026
 
 - Published `87ca35a` to the existing production Cloudflare Pages project after successful OAuth sign-in. Live: https://wheelie-king.pages.dev; immutable deployment: https://8197f184.wheelie-king.pages.dev.

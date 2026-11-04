@@ -38,8 +38,24 @@ export function createBikeMotion(root,build={},find=()=>null) {
  const front=root.getObjectByName('sprocketF')||root.getObjectByName('mid:chainring')||root.getObjectByName('motoMid:sprocket'),back=root.getObjectByName('sprocketR'),chain=root.getObjectByName('wk:model:chain'),guard=root.getObjectByName('trax:chainGuard');
  const motor=find(build.motor),fp=find(build.sprocket_f),rp=find(build.sprocket_r),frontN=fp?.teeth||(motor?.nopedal?14:motor?.kind==='mid'?44:25),rearN=rp?.teeth||(motor?.nopedal?48:motor?.kind==='mid'?18:9),rF=PM.sprocketR(frontN)+.004,rR=PM.sprocketR(rearN)+.004;
  const fork=root.getObjectByName('wk:model:fork'),lowers=[];
- fork?.traverse(o=>{if(/fork:(lower|arch|dropout)/.test(o.name))lowers.push({o,base:o.position.clone()})});
+ fork?.traverse(o=>{if(/fork:(lower|arch|dropout)/.test(o.name)){o.userData.wkForkRestPosition??=o.position.toArray();lowers.push({o,base:new T.Vector3(...o.userData.wkForkRestPosition)})}});
  const forkDirection=new T.Vector3(A.headBottom[0]-A.frontAxle[0],A.headBottom[1]-A.frontAxle[1],0).normalize();
+ // Capture mount transforms once. Wheel-mounted discs turn; calipers and
+ // axle hardware follow their fork/swingarm without turning with the wheel.
+ root.updateMatrixWorld(true);
+ const attachments=[];
+ const capture=(o,mount,spin=false)=>{o.updateMatrix();attachments.push({o,mount,spin,base:o.matrix.clone()})};
+ for(const o of root.getObjectByName('wk:brakes')?.children||[]){
+  const center=o.parent.worldToLocal(new T.Box3().setFromObject(o).getCenter(new T.Vector3()));
+  capture(o,Math.abs(center.x-A.frontAxle[0])<Math.abs(center.x-A.rearAxle[0])?'front':'rear',/^brake:rotor(?:Bolts)?$/.test(o.name));
+ }
+ const frontFender=root.getObjectByName('wk:part:fender_f');
+ if(frontFender?.userData.mount==='frontAxle')capture(frontFender,'front');
+ const rearFender=root.getObjectByName('wk:part:fender_r');
+ if(rearFender)capture(rearFender,'rear');
+ const axleBolts=root.getObjectByName('frame:rearAxleBolts');
+ if(axleBolts)capture(axleBolts,'rear');
+ const forkTravel=Math.max(0,find(build.suspension)?.travel||0);
  let wheelPhase=0,crankPhase=0,chainPhase=0,lastKey='',route=null;
  const matrix=new T.Matrix4(),p=A.swingPivot;
  const rotate=(point,angle)=>{const dx=point[0]-p[0],dy=point[1]-p[1];return [p[0]+Math.cos(angle)*dx-Math.sin(angle)*dy,p[1]+Math.sin(angle)*dx+Math.cos(angle)*dy]};
@@ -49,15 +65,23 @@ export function createBikeMotion(root,build={},find=()=>null) {
   const angular=-driveDistance/A.wheelR*(rearN/frontN);crankPhase+=angular;chainPhase+=angular*rF;
   let ra=[...A.rearAxle],sa=[...A.shockArm],angle=0;
   if(rear&&p){
-   const dx=A.rearAxle[0]-p[0],dy=A.rearAxle[1]-p[1],L=Math.hypot(dx,dy),targetY=A.rearAxle[1]+Math.min(.06,travelR)*Math.max(0,Math.min(1,rearCompression));
+   const dx=A.rearAxle[0]-p[0],dy=A.rearAxle[1]-p[1],L=Math.hypot(dx,dy),targetY=A.rearAxle[1]+Math.min(.06,travelR)*.8*Math.max(0,Math.min(1,rearCompression));
    const goal=Math.PI-Math.asin(Math.max(-.99,Math.min(.99,(targetY-p[1])/L))),base=Math.atan2(dy,dx);
    angle=Math.atan2(Math.sin(goal-base),Math.cos(goal-base));rear.rotation.z=angle;ra=rotate(A.rearAxle,angle);sa=rotate(A.shockArm,angle);
    if(build.shock==='trax_coil'&&shock)setTraxShockPose(T,shock,A.shockFrame,sa);
    else if(shock&&build.shock){const start=new T.Vector3(...A.shockFrame,0),base=new T.Vector3(...A.shockArm,0).sub(start),current=new T.Vector3(...sa,0).sub(start),q0=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),base.clone().normalize()),q1=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),current.clone().normalize());shock.matrixAutoUpdate=false;shock.matrix.makeTranslation(...start.toArray()).multiply(new T.Matrix4().makeRotationFromQuaternion(q1)).multiply(new T.Matrix4().makeScale(1,current.length()/base.length(),1)).multiply(new T.Matrix4().makeRotationFromQuaternion(q0.invert())).multiply(new T.Matrix4().makeTranslation(...start.negate().toArray()));shock.matrixWorldNeedsUpdate=true;}
-  } else ra[1]+=Math.max(0,Math.min(1,rearCompression))*travelR*.8;
-  const shift=forkDirection.clone().multiplyScalar(Math.max(0,Math.min(1,frontCompression))*travelF*.8),fa=[A.frontAxle[0]+shift.x,A.frontAxle[1]+shift.y];
+  }
+  const shift=forkDirection.clone().multiplyScalar(Math.max(0,Math.min(1,frontCompression))*Math.min(forkTravel,Math.max(0,travelF))*.8),fa=[A.frontAxle[0]+shift.x,A.frontAxle[1]+shift.y];
   for(const entry of rotors){entry.wheel.position.set(...(entry.front?fa:ra),entry.base.z);matrix.makeRotationZ(wheelPhase);for(const {o,base} of entry.parts){o.matrixAutoUpdate=false;o.matrix.copy(matrix).multiply(base);o.matrixWorldNeedsUpdate=true;}}
   for(const {o,base} of lowers)o.position.copy(base).add(shift);
+  for(const {o,mount,spin,base} of attachments){
+   const axle=mount==='front'?A.frontAxle:A.rearAxle,target=mount==='front'?fa:ra;
+   const transform=new T.Matrix4();
+   if(spin)transform.makeTranslation(target[0],target[1],0).multiply(new T.Matrix4().makeRotationZ(wheelPhase)).multiply(new T.Matrix4().makeTranslation(-axle[0],-axle[1],0));
+   else if(mount==='rear'&&rear&&p)transform.makeTranslation(...p,0).multiply(new T.Matrix4().makeRotationZ(angle)).multiply(new T.Matrix4().makeTranslation(-p[0],-p[1],0));
+   else transform.makeTranslation(target[0]-axle[0],target[1]-axle[1],0);
+   o.matrixAutoUpdate=false;o.matrix.copy(transform).multiply(base);o.matrixWorldNeedsUpdate=true;
+  }
   if(crank)crank.rotation.z=crankPhase;for(const pedal of pedals){if(pedal.parent===crank)pedal.rotation.z=-crankPhase;else{const side=pedal.userData.wkPedalSide;pedal.position.set(A.bb[0]+Math.cos(crankPhase)*side*.14,A.bb[1]+Math.sin(crankPhase)*side*.14,side*.12);pedal.rotation.z=0;}}
   if(front)front.rotation.z=crankPhase;
   if(guard)guard.rotation.z=crankPhase;

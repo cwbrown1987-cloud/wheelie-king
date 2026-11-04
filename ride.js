@@ -35,6 +35,11 @@ export function cloneForRide(src) {
 }
 
 export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
+  el.setAttribute('data-wk-ride-surface','');
+  const blockBrowserGesture=e=>{if(e.type.startsWith('touch')&&e.target.closest?.('[data-r]'))return;if(e.cancelable)e.preventDefault()};
+  const blockedGestures=['selectstart','contextmenu','dragstart','gesturestart','gesturechange','touchstart','touchmove'];
+  for(const type of blockedGestures)el.addEventListener(type,blockBrowserGesture,{passive:false});
+  window.getSelection()?.removeAllRanges();
   const W = () => el.clientWidth || 900, H = () => el.clientHeight || 420;
   const R = new T.WebGLRenderer({ antialias: true }); R.setPixelRatio(Math.min(2, devicePixelRatio)); R.shadowMap.enabled = true; R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping;
   R.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;touch-action:none"; el.appendChild(R.domElement);
@@ -73,6 +78,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const cond = loadCond(); applyCondition(bike, cond);
   const stOut = { ...stats, wheelR: A.wheelR, batteryWh: (() => { const b = find(build.battery); return b ? b.v * b.ah : 0; })() };
   const P = bikeParams(stOut); P.wb = Math.max(0.6, A.frontAxle[0] - A.rearAxle[0]); P.R = A.wheelR; P.comH = Math.max(P.R + 0.45, P.comH);
+  P.travelF=Math.max(0,find(build.suspension)?.travel||0);P.travelR=build.rear_frame&&build.shock?Math.min(.06,find(build.shock)?.travel||.045):0;
+  P.forkVertical=new T.Vector2(A.headBottom?.[0]-A.frontAxle[0]||0,A.headBottom?.[1]-A.frontAxle[1]||1).normalize().y;
   const hC = P.comH - P.R; bike.position.set(-P.wb * P.comBack - A.rearAxle[0], -hC - A.rearAxle[1], 0); body.add(bike);
   // wheels move with their suspension (visible travel); find the wheel groups at each axle
   const wheels = [[], []]; bike.traverse((o) => { if (o.isGroup && o.parent && /wk:(tyres|motor)/.test(o.parent.name) && o.children.some((c) => c.geometry?.type === "TorusGeometry")) { const i = Math.abs(o.position.x - A.frontAxle[0]) < 0.05 ? 1 : 0; wheels[i].push([o, o.position.y]); } });
@@ -132,8 +139,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   ui.querySelectorAll("[data-t]").forEach((b) => { const c = b.dataset.t;
     b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); held.set(e.pointerId, c); if (c === "lean") setLeanFrom(e); else touch[c] = 1; b.style.filter = "brightness(1.5)"; });
     b.addEventListener("pointermove", (e) => { if (c === "lean" && held.get(e.pointerId) === "lean") setLeanFrom(e); });
-    const up = (e) => { held.delete(e.pointerId); if (c === "lean") { touch.lean = 0; knob.style.left = "50%"; } else touch[c] = 0; b.style.filter = ""; };
+    const up = (e) => { if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if([...held.values()].includes(c))return; if (c === "lean") { touch.lean = 0; knob.style.left = "50%"; } else touch[c] = 0; b.style.filter = ""; };
     b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("lostpointercapture", up); });
+  const releaseControls=()=>{held.clear();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];knob.style.left='50%';ui.querySelectorAll('[data-t]').forEach(b=>b.style.filter='')};
+  const visibility=()=>{if(document.hidden)releaseControls()};
+  addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
   $('[data-r="back"]').onclick = () => close(); $('[data-r="reset"]').onclick = () => respawn();
   $('[data-r="tilt"]').onclick = async (e) => { try { if (!tilt && typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {} tilt = !tilt; tiltLean = 0; e.target.textContent = "TILT: " + (tilt ? "ON" : "OFF"); };
   function respawn() { const keep = s.score; s = makeState(P, lastCP, ter); s.score = keep; crashT = 0; msg = "RESPAWN"; msgT = 1; }
@@ -190,7 +200,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     R.render(scene, cam); };
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, mechanical:mechanical?.state });
-  return () => { report(); cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori); R.dispose(); el.innerHTML = ""; };
+  return () => { report(); cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface'); R.dispose(); el.innerHTML = ""; };
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }
 globalThis.__WK_RIDE__ = mountRide;

@@ -7,7 +7,7 @@ try {
  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/wk (hook|frame|trax|spokes|detail)/.test(m.text()))errors.push(m.text())});
  await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
  await p.locator('[data-cat="frame"]').click();await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
- await p.locator('[data-wk-part="trax_lime"]').click();await p.waitForFunction(()=>__WK_BUILD__.frame==='trax_lime');
+ await p.evaluate(()=>__WK_EQUIP__('bike_trax_lime'));await p.waitForFunction(()=>__WK_BUILD__.frame==='trax_lime');
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();
  await p.locator('[data-cat="rear_frame"]').click();await p.locator('[data-wk-part="trax_rear_black"]').click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_black');
  await p.locator('[data-wk-info="trax_rear_lime"]').click();await p.getByText('PART SHEET',{exact:true}).waitFor();
@@ -24,7 +24,7 @@ try {
    const state=rig.update({distance:.13,driveDistance:.13,rearCompression:compression,frontCompression:compression,travelR:.045,travelF:.06});root.updateMatrixWorld(true);
    const axle=world(root.getObjectByName('rearFrame:axle')),rearEye=world(root.getObjectByName('rearFrame:shockEye')),fixedEye=world(root.getObjectByName('shock:eyeletTop')),movingEye=world(root.getObjectByName('shock:eyeletBottom'));
    let rearWheel;root.traverse(o=>{if(o.isGroup&&/wk:(tyres|motor)/.test(o.parent?.name||'')&&o.children.some(m=>m.name==='wheel:spokes')&&Math.abs(o.position.x-state.rearAxle[0])<.001)rearWheel=o});
-   let pedalError=0;root.getObjectByName('cranks:rotor').children.filter(o=>o.userData.wkPedal).forEach(o=>pedalError=Math.max(pedalError,Math.abs(o.rotation.z+state.crankPhase)));
+   let pedalError=0,pedalCount=0;root.traverse(o=>{if(o.userData.wkPedal){pedalCount++;pedalError=Math.max(pedalError,Math.abs(o.rotation.z),Math.abs(o.position.x-(A.bb[0]+Math.cos(state.crankPhase)*o.userData.wkPedalSide*.14)),Math.abs(o.position.y-(A.bb[1]+Math.sin(state.crankPhase)*o.userData.wkPedalSide*.14)))}});if(pedalCount!==2)throw Error('Expected two separately fitted pedal platforms');
    const crown=world(root.getObjectByName('fork:crown')),frontClearance=crown.distanceTo(point(state.frontAxle))-A.wheelR;
    samples.push({compression,frontClearance,pivotError:world(root.getObjectByName('rearFrame:pivot')).distanceTo(pivot),headError:world(root.getObjectByName('frame:headTube')).distanceTo(head),axleError:axle.distanceTo(world(rearWheel)),radiusError:Math.abs(axle.distanceTo(pivot)-point(A.rearAxle).distanceTo(pivot)),fixedEyeError:fixedEye.distanceTo(point(A.shockFrame)),movingEyeError:movingEye.distanceTo(rearEye),length:fixedEye.distanceTo(movingEye),pedalError,state:{...state}});
   }
@@ -45,7 +45,7 @@ try {
  // No built-in fallback shock may reappear after REMOVE.
  await p.evaluate(()=>__WK_SETBUILD__({...__WK_BUILD__,shock:undefined}));await p.waitForTimeout(200);
  assert.equal(await p.evaluate(()=>{let r;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')r=o.parent});return !!r.getObjectByName('wk:part:shock')}),false);
- await p.evaluate(()=>__WK_SETBUILD__({frame:'moto',motor:'mmid8k',suspension:'dnm',cranks:__WK_CAT__().items.find(p=>p.slot==='cranks'&&p.pegs).id}));await p.waitForTimeout(250);
+ await p.evaluate(()=>__WK_EQUIP__('bike_moto'));await p.waitForTimeout(250);
  const noPedals=await p.evaluate(async()=>{const {createBikeMotion}=await import('/bike-motion.js');let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});const rig=createBikeMotion(root,__WK_BUILD__,id=>__WK_CAT__().items.find(p=>p.id===id));rig.update({distance:.2,driveDistance:.2});return {cranks:!!root.getObjectByName('cranks:rotor'),front:root.getObjectByName('motoMid:sprocket').rotation.z}});
  assert.equal(noPedals.cranks,false);assert.notEqual(noPedals.front,0);
  assert.deepEqual(errors,[]);writeFileSync('wk-shots/trax-mechanics/validation.json',JSON.stringify({report,noPedals,errors},null,2));console.log(JSON.stringify({samples:report.samples.length,mountsAligned:true,chainMoved:report.chainMoved,onePartPerSlot:true,bench:true,noPedals,errors}));
