@@ -1,6 +1,6 @@
 # Wheelie King: Outback — Handoff for Codex
 
-> **START HERE: `/workspace/wheelie-king-app/CODEX-HANDOFF.md`** (repo: `CODEX-HANDOFF.md`). It's the master handoff with the current state (v17 live, v18 WIP local), the pending queue, architecture, deploy/push steps and known issues. Sections below are older history and may be stale (e.g. "main at fba9d424" and "Pages NOT enabled" are out of date: main is at e9e13c7 = v15, and Pages is enabled).
+> **START HERE: `/workspace/wheelie-king-app/CODEX-HANDOFF.md`** (repo: `CODEX-HANDOFF.md`). It's the master handoff with the current state (v17 live, v18 WIP local), the pending queue, architecture, deploy/push steps and known issues. Sections below are older history and may be stale (e.g. "main at fba9d424" and "Pages NOT enabled" are out of date: main is at cf56f41 = v17 (tag v17); v18 WIP is on branch wip/v18-detail (4a90c95), and Pages is enabled).
 
 > **Full transcript:** read `wheelie-king-CHAT-HISTORY.md` for the complete Chris ↔ Odd Job Bot conversation. This file is the short design/tech summary. Next work: gameplay to 2.5D, then full 3D.
 Owner: Chris (Korumburra VIC, AEDT). This is a private game for him and his son, aimed at teens and adults.
