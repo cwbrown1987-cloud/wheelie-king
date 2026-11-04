@@ -8,6 +8,7 @@ export const FRAME_STD = {
   mtb_fs:    { bb: "73", drop: "148ta", head: "tapered", seat: 31.6, brake: ["post"], shock: "metric", batt: ["bottle"], wheel: "27.5", alloy: true },
   fat:       { bb: "100", drop: "197", head: "tapered", seat: 30.9, brake: ["post"], shock: null, batt: ["bottle", "bag", "rack"], wheel: "26f", alloy: true },
   moto:      { bb: "moto", drop: "moto", head: "triple", seat: 0, brake: ["moto", "post"], shock: "moto", batt: ["integrated"], wheel: "moto", alloy: true },
+  emoto:     { bb: "moto", drop: "moto", head: "triple", seat: 0, brake: ["moto", "post"], shock: "moto", batt: ["integrated"], wheel: "moto", alloy: true },
 };
 // frame geometry (side-on, metres) + default wheel radius for the new push-bike frames
 const GEO = {

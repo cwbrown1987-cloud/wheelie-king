@@ -2,6 +2,7 @@
 // Called by app.js at the end of each bike rebuild (the bike root is rebuilt from scratch every time,
 // so equipping a part always REPLACES the previous one: one group "wk:part:<slot>" per slot, never stacked).
 import * as PM from "./partmodels.js";
+import { detailPass, startLOD } from "./detail.js";
 import { loadCond, applyCondition } from "./ride.js";
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 export function anchors(x, R) { // named mount anchors per frame (x = frame geometry from app.js)
@@ -36,6 +37,7 @@ globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
   realParts(root, A, b, T, g, slotGroup, part, x, R);
   try { smoothFrame(root, x, T, g, b); } catch (e) { console.warn("wk frame", e); }
   try { respoke(root, T); } catch (e) { console.warn("wk spokes", e); }
+  try { detailPass(root, A, b, T, find, slotGroup, g); startLOD(); } catch (e) { console.warn("wk detail", e); }
   root.userData.wkAnchors = A;
   try { const c = loadCond(); if (c.dirt > 0.01 || Object.keys(c.wear || {}).length) applyCondition(root, c); } catch (e) { console.warn("wk cond", e); }
 };
@@ -55,7 +57,7 @@ globalThis.__WK_GEAR__ = gearing;
 const BARSPEC = { bar_bmx: { rise: 0.17, sweep: 0.06, crossbar: true }, bar_riser: { rise: 0.05, sweep: 0.035, width: 0.39 }, bar_moto: { rise: 0.09, sweep: 0.05, crossbar: true, pad: true, width: 0.4 } };
 globalThis.__WK_BARSPEC__ = (p, grip) => ({ rise: 0.17, sweep: 0.06, crossbar: true, ...(BARSPEC[p?.id] || {}), color: p?.color || "#333", gripColor: grip?.color || "#222" });
 function realParts(root, A, b, T, g, slotGroup, part, x, R) {
-  PM.useThree(T); const motor = part("motor"), dt = driveType(motor), moto = (b.frame || "bmx") === "moto";
+  PM.useThree(T); const motor = part("motor"), dt = driveType(motor), moto = ["moto", "emoto"].includes(b.frame || "bmx");
   // motor: hub (shell/flanges/covers/axle/cable) or mid (motor can + gear housing + chainring)
   const mg = g("motor");
   if (mg && motor && dt === "hub") { const wheel = mg.children.find((c) => c.isGroup); if (wheel) { const pe = motor.kind === "rear" ? ((motor.w || 0) >= 8e3 ? 0.17 : (motor.w || 0) >= 5e3 ? 0.15 : (motor.w || 0) >= 3e3 ? 0.13 : 0.1) : 0.09;
@@ -91,7 +93,7 @@ function blob(T, p, r, mat, name, sx = 1) { const m = new T.Mesh(new T.SphereGeo
 function cyl(T, a, b, r, mat, name, seg = 24) { const va = new T.Vector3(...a), vb = new T.Vector3(...b), d = vb.clone().sub(va), m = new T.Mesh(new T.CylinderGeometry(r, r, d.length(), seg), mat);
   m.position.copy(va).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize()); m.name = name; m.castShadow = true; return m; }
 export function smoothFrame(root, x, T, g, b) {
-  const fr = g("frame"); if (!fr || !x) return; const kids = fr.children.slice(), moto = (b.frame || "bmx") === "moto";
+  const fr = g("frame"); if (!fr || !x) return; const kids = fr.children.slice(), moto = ["moto", "emoto"].includes(b.frame || "bmx");
   const mat = kids[0]?.material; if (!mat) return; const Ye = x.tr || 0.022;
   const L = (a, c, t) => [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t];
   const remove = moto ? [0, 1, 2, 3, 4, 10, 11] : kids.map((_, i) => i).filter((i) => i <= 10); // stock straight tubes (+ moto cradle); swingarm/shock kept
