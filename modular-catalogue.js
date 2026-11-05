@@ -69,6 +69,18 @@ export function prepareCatalogue(items) {
   for(const [key,label,color] of PALETTE.filter(c=>p.slot!=='tyres'||c[0]!=='chrome')){const v={...p,id:p.id+'__'+key,variantOf:p.id,finish:key,name:p.name+' — '+label+(p.slot==='tyres'?' Sidewalls':''),color,price:Math.round(p.price*(key==='chrome'?1.18:1)),hidden:true};if(p.slot==='frame')v.fc=parseInt(color.slice(1),16);lookup.set(v.id,v);list.push(v);}
   variants.set(p.id,list);
  }
+ // Keep old battery-only bundle IDs loadable, but sell actual conversion systems under Kits.
+ for(const kit of all.filter(p=>p.slot==='kit')){
+  const motor=kit.kit?.map(part).find(p=>p?.slot==='motor');if(!motor){kit.hidden=true;continue;}
+  const choose=slot=>all.filter(p=>p.slot===slot&&!p.hidden&&p.v===motor.v&&p.v*p.a>=motor.w).sort((a,b)=>a.price-b.price)[0];
+  const battery=choose('battery'),controller=choose('controller');if(!battery||!controller){kit.hidden=true;continue;}
+  const ids=kit.kit.filter(id=>!['battery','controller','throttle'].includes(part(id)?.slot));
+  ids.push(battery.id,controller.id,motor.w>=3000?'twist':'thumb');
+  if(motor.kind==='mid')ids.push('crank_mid','chain_std','pedal_flat');
+  kit.kit=[...new Set(ids)].filter(id=>part(id));kit.price=kit.kit.reduce((n,id)=>n+part(id).price,0);
+  kit.name=kit.name.replace(/(\d+(?:\.\d+)?)\s*kW\b/gi,(_,n)=>(Number(n)*1000)+' W')+' Complete Conversion Kit';
+  kit.note='Complete matched system: '+kit.kit.map(id=>part(id).name).join(', ')+'. Mount adapters are fitted automatically when required.';
+ }
  for(const [frame,build] of Object.entries(STOCK_BUILDS)) {
   const f=lookup.get(frame),kit={id:'bike_'+frame,slot:'kit',completeBike:true,name:(f?.name||frame).replace(/Frame$/,'')+' Complete Bike',real:false,kit:Object.values(build),kg:0,price:Object.values(build).reduce((n,id)=>n+(lookup.get(id)?.price||0),0),note:'Complete compatible stock build. Every included component is also sold separately.'};
   all.push(kit);lookup.set(kit.id,kit);

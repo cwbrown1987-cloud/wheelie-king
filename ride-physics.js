@@ -39,6 +39,15 @@ export function makeState(p, x = 2, ter) { const y = ter.h(x) + p.R + p.comH * 0
   return { x, y, vx: 0, vy: 0, pitch: 0, w: 0, comp: [0, 0], ground: [false, false], air: 0, airRot: 0, wasAir: false, crashed: null, wheelieT: 0, stoppieT: 0, score: 0, trick: "", trickT: 0,
     spin: 0, spinV: 0, wear: {}, events: [], battery: 1, odo: 0, wheelSpin: [0, 0] }; }
 const rot = (x, y, a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+// Sample the tyre footprint so sharp ledges meet the round tyre before its
+// axle crosses them. Using only ground directly under the axle caused popping
+// and sinking at near-vertical ramp joins.
+function wheelContact(ter,x,r){
+  let height=ter.h(x)+r,angle=ter.slope(x);
+  const offsets=[Math.sin(angle),-.98,-.8,-.5,0,.5,.8,.98];
+  for(const ratio of offsets){const dx=r*ratio,dy=r*Math.sqrt(Math.max(0,1-ratio*ratio)),y=ter.h(x+dx)+dy;if(y>height+1e-7){height=y;angle=Math.asin(ratio)}}
+  return {height,angle};
+}
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles
@@ -51,8 +60,8 @@ export function step(s, p, inp, dt, ter) {
   s.reversing=s.reverseHold>.4&&s.vx<.25&&inp.lean>=-.2;s.burnout=false;
   s.ground = [false, false];
   for (let i = 0; i < 2; i++) {
-    const [ox, oy] = rot(wl[i][0], wl[i][1], s.pitch), wx = s.x + ox, wy = s.y + oy, g = ter.h(wx), d = g + p.R - wy;
-    if (d > 0) { s.ground[i] = true; const a = ter.slope(wx), nx = -Math.sin(a), ny = Math.cos(a),vn=(s.vx-s.w*oy)*nx+(s.vy+s.w*ox)*ny;
+    const [ox, oy] = rot(wl[i][0], wl[i][1], s.pitch), wx = s.x + ox, wy = s.y + oy, contact=wheelContact(ter,wx,p.R), d = contact.height - wy;
+    if (d > 0) { s.ground[i] = true; const a = contact.angle, nx = -Math.sin(a), ny = Math.cos(a),vn=(s.vx-s.w*oy)*nx+(s.vy+s.w*ox)*ny;
       impactV=Math.min(impactV,vn);
       // Suspension supplies spring force; a contact impulse handles bottom-out.
       // An arbitrarily stiff extra spring used to sink, then launch the bike.
@@ -71,23 +80,25 @@ export function step(s, p, inp, dt, ter) {
   let onG = s.ground[0] || s.ground[1];
   Fx -= 0.32 * s.vx * Math.abs(s.vx);
   if(s.burnout)Fx-=s.vx*p.mass*12;
-  if (onG) { T += inp.lean * p.mass * 2.4; if (s.ground[0] && !s.ground[1]) { const set = 1.50 + 0.08 * Math.max(0, inp.lean), rel1 = s.pitch - ter.slope(s.x); if (rel1 > set) T -= (rel1 - set) * p.mass * 16 + Math.max(0, s.w) * p.mass * 1.6; } } /* rider balance assist: rear brake + body at the balance point */ else s.w += inp.lean * 7 * dt; // rider body English / air control
-  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>1.2){const target=inp.brake>0||inp.lean<0?.85:1.50+.08*inp.lean;T=(target-rel)*p.mass*22-s.w*p.mass*3.5;}}
+  if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*7*dt;
+  // Arcade balance: slow the response near vertical, but leave an unstable
+  // balance point. Lean/throttle raise the front; brake/forward lean recover it.
+  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>.65)T=p.mass*(inp.lean*4+(rel-1.5)*14-inp.brake*7-s.w*3);}
   if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
   s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : 0.999;
   s.x += s.vx * dt; s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
   // Hard travel stops prevent tunnelling. Cancel only velocity INTO the
   // contact, including the wheel's angular velocity; do not add bounce energy.
   for(let i=0;i<2;i++){
-    const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),wx=s.x+ox,d=ter.h(wx)+p.R-(s.y+oy),limit=maxDeflection(i);
+    const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),wx=s.x+ox,contact=wheelContact(ter,wx,p.R),d=contact.height-(s.y+oy),limit=maxDeflection(i);
     if(d>limit){
       s.y+=d-limit;s.ground[i]=true;
-      const a=ter.slope(wx),nx=-Math.sin(a),ny=Math.cos(a),vn=(s.vx-s.w*oy)*nx+(s.vy+s.w*ox)*ny,lever=ox*ny-oy*nx;
+      const a=contact.angle,nx=-Math.sin(a),ny=Math.cos(a),vn=(s.vx-s.w*oy)*nx+(s.vy+s.w*ox)*ny,lever=ox*ny-oy*nx;
       impactV=Math.min(impactV,vn);
       if(vn<0){const impulse=-vn/(1/p.mass+lever*lever/I);s.vx+=impulse*nx/p.mass;s.vy+=impulse*ny/p.mass;s.w+=impulse*lever/I;}
     }
   }
-  for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=ter.h(s.x+ox)+p.R-(s.y+oy);s.comp[i]=Math.max(0,Math.min(1,depth/maxDeflection(i)));}
+  for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R).height-(s.y+oy);s.comp[i]=Math.max(0,Math.min(1,depth/maxDeflection(i)));}
   onG=s.ground[0]||s.ground[1];
   for (let i = 0; i < 2; i++) s.wheelSpin[i] += s.vx / p.R * dt;
   if(s.burnout)s.wheelSpin[driven]+=Math.min(18,4+p.power/1500)/p.R*dt;
@@ -117,13 +128,25 @@ export function step(s, p, inp, dt, ter) {
   if (s.ground[0] && !s.ground[1] && rel > 0.12) { s.wheelieT += dt; s.score += (inp.throttle > 0 ? 70 : 100) * dt; s.balance = inp.throttle > 0 ? "WHEELIE" : "MANUAL"; }
   else if (s.ground[1] && !s.ground[0] && rel < -0.1) { s.stoppieT += dt; s.score += (inp.brake > 0 ? 120 : 140) * dt; s.balance = inp.brake > 0 ? "STOPPIE" : "NOSE MANUAL"; }
   else { if (s.balance && (s.wheelieT > 1 || s.stoppieT > 0.6)) pop(`${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s`, 0); s.balance = ""; if (onG && s.ground[0] && s.ground[1]) { s.bestWheelie = Math.max(s.bestWheelie || 0, s.wheelieT); s.wheelieT = 0; s.stoppieT = 0; } }
-  if(s.ground[0]&&!s.ground[1]&&rel>1.2&&rel<1.95&&inp.lean>=0&&!inp.brake&&rel>1.62){s.pitch=ter.slope(s.x)+1.62;s.w=Math.min(0,s.w);}
   if(s.ground[1]&&!s.ground[0]&&rel< -1.15&&rel> -1.5&&inp.brake>0&&inp.lean<0){s.pitch=ter.slope(s.x)-1.15;s.w=Math.max(0,s.w);}
   if (onG && (rel > 2.4)) return crash(s, "LOOPED OUT", "fender_r");
   if (onG && (rel < -1.5)) return crash(s, "OVER THE BARS", "fender_f");
   // rear fender / tail scrape when the mono is too deep
   const [tx, ty] = rot(-p.wb * p.comBack - p.R * 0.95, -hC + p.R * 0.55, s.pitch);
-  if (ter.h(s.x + tx) > s.y + ty) { s.events.push({ type: "scrape", x: s.x + tx, y: s.y + ty }); s.wear.fender_r = (s.wear.fender_r || 0) + dt * 0.35; s.wear.bash = (s.wear.bash || 0) + dt * 0.05; s.score += 40 * dt; }
+  const scrapeDepth=ter.h(s.x+tx)-(s.y+ty);
+  if(scrapeDepth>0&&rel>.8&&rel<2.2){
+    s.events.push({type:'scrape',x:s.x+tx,y:ter.h(s.x+tx)});s.wear.fender_r=(s.wear.fender_r||0)+dt*.35;s.score+=40*dt;
+    // A forgiving skid contact, rather than a fixed wheelie angle. Its response
+    // depends on actual ground clearance, so slopes and wheel sizes still matter.
+    if(s.ground[0]){
+      const oldRear=rot(wl[0][0],wl[0][1],s.pitch)[1],dx=-p.R*.95,dy=p.R*.55;
+      const clearanceRate=dx*Math.cos(s.pitch)-dy*Math.sin(s.pitch);
+      s.pitch-=Math.min(.08,scrapeDepth/Math.max(.08,-clearanceRate))*.7;
+      s.y+=oldRear-rot(wl[0][0],wl[0][1],s.pitch)[1];
+      if(s.w>0)s.w*=Math.exp(-35*dt);
+    }
+    s.vx*=Math.max(0,1-dt*.6);
+  }
   // head
   const [hx, hy] = rot(0.1, p.comH * 0.85, s.pitch); if (ter.h(s.x + hx) > s.y + hy) return crash(s, "HEAD PLANT", "bars");
   s.wasAir = !onG; if (inp.hop && onG && s.ground[0] && s.ground[1] && !s.hopCd) { s.vy += 3.4; s.w += 0.6; s.hopCd = 0.4; pop("BUNNY HOP", 50); }

@@ -33,5 +33,6 @@ export const categoryPaths={
  sticker:'M4 4h24v17l-7 7H4z M21 28v-7h7 M10 11h12 M10 16h7',
 };
 categoryPaths.sprocket_r=categoryPaths.sprocket_f;
+categoryPaths.bike=categoryPaths.frame;
 globalThis.__WK_ICON_PATH__=categoryPaths;
 export function categoryIcon(slot){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 32 32');svg.setAttribute('width','28');svg.setAttribute('height','28');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',categoryPaths[slot]||categoryPaths.frame);path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','2');path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');svg.append(path);return svg;}

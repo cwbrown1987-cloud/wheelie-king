@@ -38,8 +38,8 @@ export function createBikeMotion(root,build={},find=()=>null) {
  const front=root.getObjectByName('sprocketF')||root.getObjectByName('mid:chainring')||root.getObjectByName('motoMid:sprocket'),back=root.getObjectByName('sprocketR'),chain=root.getObjectByName('wk:model:chain'),guard=root.getObjectByName('trax:chainGuard');
  const motor=find(build.motor),fp=find(build.sprocket_f),rp=find(build.sprocket_r),frontN=fp?.teeth||(motor?.nopedal?14:motor?.kind==='mid'?44:25),rearN=rp?.teeth||(motor?.nopedal?48:motor?.kind==='mid'?18:9),rF=PM.sprocketR(frontN)+.004,rR=PM.sprocketR(rearN)+.004;
  const fork=root.getObjectByName('wk:model:fork'),lowers=[];
- fork?.traverse(o=>{if(/fork:(lower|arch|dropout)/.test(o.name)){o.userData.wkForkRestPosition??=o.position.toArray();lowers.push({o,base:new T.Vector3(...o.userData.wkForkRestPosition)})}});
- const forkDirection=new T.Vector3(A.headBottom[0]-A.frontAxle[0],A.headBottom[1]-A.frontAxle[1],0).normalize();
+ fork?.traverse(o=>{if(o.userData.wkForkMoving??/fork:(lower|arch|dropout)/.test(o.name)){o.userData.wkForkRestPosition??=o.position.toArray();lowers.push({o,base:new T.Vector3(...o.userData.wkForkRestPosition)})}});
+ const forkDirection=fork?.userData.wkFork?new T.Vector3(...fork.userData.wkFork.axis):new T.Vector3(A.headBottom[0]-A.frontAxle[0],A.headBottom[1]-A.frontAxle[1],0).normalize();
  // Capture mount transforms once. Wheel-mounted discs turn; calipers and
  // axle hardware follow their fork/swingarm without turning with the wheel.
  root.updateMatrixWorld(true);

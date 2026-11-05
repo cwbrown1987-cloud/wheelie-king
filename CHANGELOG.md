@@ -1,5 +1,22 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Workshop, cutouts, fork contacts and arcade balance — 5 Nov 2026
+
+- Small-window All Parts access, wrapping sticker tools, nested style-menu Back, colours only under Styles, quiet automatic removals, persistent rotation pause and readable compact stat units.
+- BIKES holds the nine presets. KITS holds seven complete motor/battery/controller/throttle conversion packages with automatic adapters and multi-component thumbnails; old battery-only bundle IDs remain loadable but hidden.
+- Fork motion follows the model's actual leg axis, including upside-down lower stanchions. Fixed crowns/uppers remain in place. Round-tyre footprint contacts improve sharp terrain joins; landings retain hard travel stops. Replaced locked upright wheelies with counterlean/brake balance and a terrain-dependent forgiving fender contact.
+- Custom sticker creator now supports pointer/touch tracing or polygon taps, undo/clear/cancel and transparent cutouts feeding the existing die-cut, rating and save flow.
+- Added a textured rideable road and near concrete/neon foreground below the static scenic backdrop. Full scenery/chase camera remains deferred.
+- Cache: `wk-v18-workshop-ride-3`. Automated release checks include focused kit, responsive sticker, rotation, units and lasso/save coverage.
+
+## Reference controls and static neon backdrop — 5 Nov 2026
+
+- At Chris's request, changed the ride controls to match his new concept images: white circular lean arrows on the left, dark rectangular trick buttons in the centre, white brake-disc and large green accelerator circles on the right. The earlier slider/preset experiments are superseded. Existing press/release, multi-touch, tricks and burnout behaviour remain interactive.
+- Added functional pause/resume and reference-style top buttons. Pause freezes simulation and releases held inputs; the camera label stays side view, without a non-functional chase toggle.
+- Built-in imagegen produced a clean static sunset skatepark background from the neon reference. The project ships the copied PNG, not a screenshot containing a rider/HUD. Muted foreground paving and cyan markings blend the current 3D ride with this static 2.5D-looking picture. Legacy outback scenery is hidden when it loads. Prompt/provenance: `docs/assets/neon-backdrop.md`.
+- Full 3D scene styling and switchable over-the-shoulder chase view remain future work. The earlier responsive/menu/fork/physics list is addressed by the batch above; see `docs/visual-direction.md`.
+- Included in cache `wk-v18-workshop-ride-3`. Relevant checks: builder/preview/level/backdrop flow, landing regression and multi-touch controls/tricks/pause.
+
 ## Shared garage rail, analogue lean and tricks — 5 Nov 2026
 
 - Simple and Advanced now share a wider two-column category rail and inline parts drawer. The existing top-left Back location switches modes. Added matching line icons for every previously empty category. Existing presets, compatibility/automatic supporting parts, colours and ✓/✕ previews remain.

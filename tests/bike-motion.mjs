@@ -22,11 +22,17 @@ try {
    const head=root.getObjectByName('frame:headTube'),headStart=pos(head),frontFender=root.getObjectByName('wk:part:fender_f'),frontFenderStart=frontFender.matrix.clone();
    const rear=root.getObjectByName('wk:model:rearFrame'),pivot=rear?pos(root.getObjectByName('rearFrame:pivot')):null;
    const brakes=root.getObjectByName('wk:brakes')?.children.map(o=>({o,base:o.matrix.clone(),center:o.parent.worldToLocal(new T.Box3().setFromObject(o).getCenter(new T.Vector3()))}))||[];
+   const fork=root.getObjectByName('wk:model:fork'),crown=fork?.getObjectByName('fork:crown'),crownStart=crown?pos(crown):null,moving=[];fork?.traverse(o=>{if(o.userData.wkForkMoving)moving.push({o,base:o.position.clone()})});
    const samples=[];let maxError=0,rotorCount=0;
    const check=(label,error)=>{maxError=Math.max(maxError,error);if(error>1e-6)throw Error(`${b.frame}: ${label} error ${error}`)};
    for(const compression of [0,.25,.5,.75,1]){
     const state=rig.update({distance:.13,driveDistance:.13,rearCompression:compression,frontCompression:compression,travelR:.045,travelF:.06});root.updateMatrixWorld(true);
     check('main frame',pos(head).distanceTo(headStart));
+    if(crown)check('fixed fork crown',pos(crown).distanceTo(crownStart));
+    const shift=new T.Vector3(state.frontAxle[0]-A.frontAxle[0],state.frontAxle[1]-A.frontAxle[1],0);
+    for(const {o,base}of moving)check('fork slider '+o.name,o.position.distanceTo(base.clone().add(shift)));
+    if(__WK_PART__(b.suspension)?.id==='dnm'&&compression>0){if(!moving.some(v=>v.o.name==='fork:stanchionR'))throw Error('USD stanchion must move');}
+
     if(!rear)check('rigid rear',new T.Vector2(...state.rearAxle).distanceTo(new T.Vector2(...A.rearAxle)));
     if(!(__WK_PART__(b.suspension)?.travel>0))check('rigid fork',new T.Vector2(...state.frontAxle).distanceTo(new T.Vector2(...A.frontAxle)));
     if(rear){

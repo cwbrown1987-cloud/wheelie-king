@@ -15,7 +15,12 @@ const makeModel = (p) => {
   if(p.slot==='rear_frame'||p.slot==='body_panels'){const root=previewBuild(T,p.family||'trax_lime'),g=root.getObjectByName('wk:part:'+p.slot);g?.removeFromParent();return g;}
   if(['stem','seatpost','pedals','headset','hubs','number_plate','grips','seat','rims','tyres'].includes(p.slot))return componentModel(T,p);
   if(p.id==='trax_coil')return traxShockModel(T,[.1,.06],[-.1,-.03],p.color);
-  if (p.slot === "kit") { const f=(p.kit||[]).map(find).find(q=>q?.slot==='frame');if(f)return previewBuild(T,f.id);const m = (p.kit || []).map(find).find((q) => q?.slot === "motor"); const b = (p.kit || []).map(find).find((q) => q?.slot === "battery"); return modelFor(m || b); }
+  if (p.slot === "kit") { const f=(p.kit||[]).map(find).find(q=>q?.slot==='frame');if(f)return previewBuild(T,f.id);const bundle=new T.Group();bundle.name='wk:conversion-kit';
+    for(const [index,slot]of ['motor','battery','controller','throttle'].entries()){
+      const item=(p.kit||[]).map(find).find(q=>q?.slot===slot);if(!item)continue;
+      let model;if(slot==='controller'){model=new T.Group();const mat=new T.MeshStandardMaterial({color:'#77848b',metalness:.8,roughness:.4});model.add(new T.Mesh(new T.BoxGeometry(.2,.08,.13),mat));for(let i=0;i<7;i++){const fin=new T.Mesh(new T.BoxGeometry(.008,.025,.13),mat);fin.position.set(-.085+i*.028,.05,0);model.add(fin)}}else if(slot==='throttle'){model=new T.Group();const grip=new T.Mesh(new T.CylinderGeometry(.024,.024,.13,12),new T.MeshStandardMaterial({color:'#222b2d'}));grip.rotation.z=Math.PI/2;model.add(grip);const lever=new T.Mesh(new T.BoxGeometry(.06,.025,.02),new T.MeshStandardMaterial({color:'#e3a34b'}));lever.position.set(-.05,-.025,.03);model.add(lever)}else model=modelFor(item);
+      if(!model)continue;const box=new T.Box3().setFromObject(model),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3()),scale=.31/Math.max(size.x,size.y,size.z);model.position.sub(center);const holder=new T.Group();holder.name='kit:'+slot;holder.userData.partId=item.id;holder.add(model);holder.scale.setScalar(scale);holder.position.set((index%2-.5)*.4,index<2?.21:-.21,0);bundle.add(holder);
+    }return bundle; }
   if (!MODEL_SLOTS.has(p.slot)) return null;
   if (p.slot === "motor") return p.kind === "mid" ? (p.nopedal || (!p.real && (p.w || 0) >= 2500) || p.id === "x1" ? PM.motoMid(p) : PM.midDrive(p)) : PM.hubMotor(p);
   if (p.slot === "battery") return PM.battery(p);

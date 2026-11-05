@@ -1,11 +1,14 @@
 // Simple assembly plans share the advanced catalogue and real fitment rules.
 import {part} from './modular-catalogue.js';
 import {categoryIcon} from './category-icons.js';
-let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null;
+let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null,menuStack=[],categoryToggle,rotationButton,lastControls;
+let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{last='';globalThis.__WK_SETBUILD__?.(b=>({...b}))},160)});
+function kitPlan(build,p){const b=p.completeBike?{}:{...build};for(const id of p.kit||[])b[part(id).slot]=id;if(mode==='simple'&&part(b.frame)?.maxW&&part(b.motor)?.w>part(b.frame).maxW)return null;for(let pass=0;pass<3;pass++)for(const id of Object.values(b)){if(!id)continue;const f=globalThis.__WK_FIT__(b,id);if(f.status==='no')return null;for(const a of f.adapters||[])b[part(a).slot]=a;}return globalThis.__WK_BUILD_READY__(b).ready?b:null;}
 let recovery;try{recovery=JSON.parse(sessionStorage.getItem('wk-pending-build')||'null')}catch{}
 const items=()=>globalThis.__WK_CAT__?.().items.filter(p=>!p.hidden)||[];
 export function upgradePlan(build,id){
  const p=part(id);if(!p)return null;const b={...build,[p.slot]:id},all=items(),m=p.slot==='motor'?p:part(b.motor);
+ if(p.slot==='kit')return kitPlan(build,p);
  if(m&&part(b.frame)?.maxW&&m.w>part(b.frame).maxW)return null;
  if(p.slot==='bars'){const current=part(b.stem);const stem=all.find(x=>x.slot==='stem'&&x.interface===current?.interface&&x.clamp===p.clamp);if(stem)b.stem=stem.id;}
  if(p.slot==='seat'&&b.seatpost&&part(b.seatpost)?.saddleMount!==p.saddleMount){const post=all.find(x=>x.slot==='seatpost'&&globalThis.__WK_FIT__(b,x.id).status!=='no');if(post)b.seatpost=post.id;}
@@ -32,15 +35,15 @@ function preview(plan,id,automatic=false){if(pending)return;pending={original:{.
 function finish(apply){if(!pending)return;const p=pending;pending=null;sessionStorage.removeItem('wk-pending-build');delete document.body.dataset.wkPreviewing;if(apply){if(p.automatic){globalThis.__WK_EQUIP_MANY__(Object.values(p.plan).filter(Boolean));globalThis.__WK_SETBUILD__(p.plan)}else if(!globalThis.__WK_EQUIP__(p.id))globalThis.__WK_SETBUILD__(p.original)}else globalThis.__WK_SETBUILD__(p.original);last='';tick();}
 globalThis.__WK_PREVIEW_BUILD__={start:preview,apply:()=>finish(true),cancel:()=>finish(false),get pending(){return pending}};
 document.addEventListener('click',e=>{
- const nav=e.target.closest('button');if(pending&&nav&&!nav.closest('#wk-builder')){e.preventDefault();e.stopImmediatePropagation();return;}if(nav&&nav===modeToggle){e.preventDefault();e.stopImmediatePropagation();globalThis.__WK_MODE__(mode==='simple'?'advanced':'simple');section='home';tick();return;}if(mode==='simple'&&!pending&&nav&&!nav.closest('#wk-builder')&&/\bSHOP$/.test(nav.textContent.trim())){e.preventDefault();e.stopImmediatePropagation();section='home';last='';for(const button of document.querySelectorAll('button'))if(/\bGARAGE$/.test(button.textContent.trim())){button.click();break}tick();return;}
+ const nav=e.target.closest('button');if(pending&&nav&&!nav.closest('#wk-builder')&&nav!==rotationButton){e.preventDefault();e.stopImmediatePropagation();return;}if(nav&&nav===modeToggle){e.preventDefault();e.stopImmediatePropagation();globalThis.__WK_MODE__(mode==='simple'?'advanced':'simple');section='home';menuStack=[];tick();return;}if(nav?.matches('[data-cat]'))document.querySelector('[data-rail="left"]')?.setAttribute('data-expanded','false');if(mode==='simple'&&!pending&&nav&&!nav.closest('#wk-builder')&&/\bSHOP$/.test(nav.textContent.trim())){e.preventDefault();e.stopImmediatePropagation();section='home';last='';for(const button of document.querySelectorAll('button'))if(/\bGARAGE$/.test(button.textContent.trim())){button.click();break}tick();return;}
  if(pending&&e.target.closest('[aria-label="Test ride"]')){e.preventDefault();e.stopImmediatePropagation();return;}
  const swatch=e.target.closest('[data-wk-swatch]'),card=e.target.closest('[data-wk-part]');if(!swatch&&!card)return;
  if(e.target.closest('[data-wk-info]')||(!swatch&&e.target.closest('button')))return;
  const id=swatch?.dataset.wkSwatch||card.dataset.wkPart,p=part(id);if(!p||p.slot==='sticker'||pending)return;
  const b=globalThis.__WK_BUILD__;if(globalThis.__WK_FIT__(b,id).status==='no')return;
- let plan={...b,[p.slot]:id};if(p.slot==='kit'){plan=p.completeBike?{}:{...b};for(const value of p.kit)plan[part(value).slot]=value;}
+ let plan={...b,[p.slot]:id};if(p.slot==='kit'){plan=kitPlan(b,p);if(!plan)return;}
  if(p.slot==='frame')for(const [slot,value]of Object.entries(plan))if(slot!=='frame'&&value&&globalThis.__WK_FIT__(plan,value).status==='no')delete plan[slot];
- e.preventDefault();e.stopImmediatePropagation();preview(plan,id);
+ e.preventDefault();e.stopImmediatePropagation();preview(plan,id,p.slot==='kit');
 },true);
 globalThis.__WK_MODE__=value=>{mode=value==='advanced'?'advanced':'simple';localStorage.setItem('wk-builder-mode',mode);document.body.dataset.wkMode=mode;last='';};
 globalThis.__WK_MODE__(mode);
@@ -56,34 +59,38 @@ body[data-wk-mode="simple"] [data-cat]{display:none!important}body[data-wk-mode=
 body[data-wk-previewing] #wk-builder{top:auto!important;bottom:12px;left:50%!important;transform:translateX(-50%);width:auto!important;max-height:none;display:flex;gap:12px;padding:10px}body[data-wk-previewing] #wk-builder button{font-size:30px;min-width:70px}
 [data-catpanel]{width:min(600px,60vw)!important;max-width:60vw!important}[data-wk-part]{min-width:0}
 [data-catpanel] :has(> [data-wk-part]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+#wk-all-categories{display:none}[data-stickers]>div:first-child{flex-wrap:wrap!important}[data-wk-rotate]{position:absolute;right:12px;top:56px;z-index:6;border:1px solid #759a82;background:#0e231ae8;color:#dcffe5;padding:7px 10px;border-radius:7px;font:12px system-ui;cursor:pointer}
+@media(max-width:800px){[data-rail="left"]{grid-template-columns:1fr!important}[data-rail="left"]:not([data-expanded="true"])>[data-cat],[data-rail="left"]:not([data-expanded="true"]) #wk-simple-rail{display:none!important}[data-rail="left"][data-expanded="true"]{width:min(360px,calc(100vw - 110px))!important;z-index:12!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;background:#0c1713fa!important}#wk-all-categories{display:flex!important;grid-column:1/-1;font-size:10px;gap:4px}[data-catpanel],[data-stickers],#wk-builder{width:min(600px,calc(100% - 174px))!important;max-width:calc(100% - 174px)!important}[data-stickers]>div:first-child button{font-size:11px!important;padding:5px 7px!important;min-height:30px;height:auto!important;flex-shrink:0}[data-stickers]>div:nth-child(2){grid-template-columns:repeat(2,minmax(0,1fr))!important}[data-wk-stat]>div:first-child{font-size:10px!important;gap:2px!important}[data-wk-stat]>div:first-child span{font-size:11px!important}[data-wk-stat]>div:last-child{display:none}[data-wk-stat]{min-height:17px!important}[data-wk-stat] small{font-size:8px!important}}
 `;document.head.append(style);
 function tick(){
  const riding=!!document.querySelector('[data-ride]'),garage=!!globalThis.__WK_VIEW__?.renderer?.domElement?.isConnected&&!riding;
  if(!panel){panel=document.createElement('section');panel.id='wk-builder';panel.setAttribute('aria-label','Builder mode');document.body.append(panel);}
  panel.hidden=!garage||(!pending&&(mode==='advanced'||section==='home'));if(!garage){if(pending)finish(false);return;}
- const rail=document.querySelector('[data-rail="left"]');if(!rail)return;if(panel.parentElement!==rail.parentElement)rail.parentElement.append(panel);
+ const rail=document.querySelector('[data-rail="left"]');if(!rail)return;if(panel.parentElement!==rail.parentElement)rail.parentElement.append(panel);panel.style.left=((innerWidth<800?62:rail.offsetWidth)+8)+'px';
+ if(!categoryToggle){categoryToggle=document.createElement('button');categoryToggle.id='wk-all-categories';categoryToggle.setAttribute('aria-label','All categories');categoryToggle.innerHTML='▦<span>ALL PARTS</span>';categoryToggle.onclick=()=>{const r=categoryToggle.parentElement;r.setAttribute('data-expanded',String(r.getAttribute('data-expanded')!=='true'));categoryToggle.setAttribute('aria-expanded',r.dataset.expanded)};}if(categoryToggle.parentElement!==rail)rail.prepend(categoryToggle);
+ const view=globalThis.__WK_VIEW__;if(lastControls!==view.controls){lastControls=view.controls;view.controls.autoRotate=localStorage.getItem('wk-rotation-paused')!=='1';}if(!rotationButton){rotationButton=document.createElement('button');rotationButton.dataset.wkRotate='';rotationButton.onclick=()=>{const c=globalThis.__WK_VIEW__.controls;c.autoRotate=!c.autoRotate;localStorage.setItem('wk-rotation-paused',c.autoRotate?'0':'1')}}const scene=document.querySelector('[data-scene]');if(scene&&rotationButton.parentElement!==scene)scene.append(rotationButton);rotationButton.textContent=view.controls.autoRotate?'Ⅱ ROTATION':'▶ ROTATION';rotationButton.setAttribute('aria-label',view.controls.autoRotate?'Pause workshop rotation':'Resume workshop rotation');
  modeToggle=document.querySelector('#root button');if(modeToggle){modeToggle.dataset.wkModeToggle='';modeToggle.setAttribute('aria-label','Simple / Advanced');const html=`<span class="${mode==='simple'?'active':'inactive'}">SIMPLE</span> / <span class="${mode==='advanced'?'active':'inactive'}">ADVANCED</span>`;if(modeToggle.innerHTML!==html)modeToggle.innerHTML=html;}
  if(!simpleRail){simpleRail=document.createElement('div');simpleRail.id='wk-simple-rail';}if(simpleRail.parentElement!==rail)rail.append(simpleRail);simpleRail.hidden=mode!=='simple';
  if(!globalThis.__WK_EQUIP__){document.querySelector('[data-cat="bars"]')?.click();return;}
  if(recovery){const original=recovery;recovery=null;sessionStorage.removeItem('wk-pending-build');globalThis.__WK_SETBUILD__(original);return;}
  const b=globalThis.__WK_BUILD__,key=mode+section+JSON.stringify(b)+!!pending;if(key===last)return;last=key;
- simpleRail.replaceChildren();for(const [key,label,icon]of [['bikes','BIKES','frame'],['motor','MOTORS · W','motor'],['battery','BATTERY','battery'],['wheels','WHEELS','tyres'],['suspension','SUSPENSION','suspension'],['style','STYLES / COLOURS','bars'],['paint_frame','FRAME COLOUR','frame'],['paint_suspension','FORK COLOUR','suspension']]){const e=document.createElement('button');e.dataset.simpleCategory=key;e.append(categoryIcon(icon),document.createTextNode(label));e.onclick=()=>{section=section===key?'home':key;last='';tick()};simpleRail.append(e);}
+ simpleRail.replaceChildren();for(const [key,label,icon]of [['bikes','BIKES','frame'],['kit','KITS','kit'],['motor','MOTORS · W','motor'],['battery','BATTERY','battery'],['wheels','WHEELS','tyres'],['suspension','SUSPENSION','suspension'],['style','STYLES / COLOURS','bars'],['stickers','STICKERS','sticker']]){const e=document.createElement('button');e.dataset.simpleCategory=key;e.append(categoryIcon(icon),document.createTextNode(label));e.onclick=()=>{rail.dataset.expanded='false';menuStack=[];if(key==='stickers'){section='home';document.querySelector('[data-cat="sticker"]')?.click()}else section=section===key?'home':key;last='';tick()};simpleRail.append(e);}
  panel.replaceChildren();
  const button=(label,action,parent=panel)=>{const e=document.createElement('button');e.textContent=label;e.onclick=action;parent.append(e);return e};
  if(pending){const yes=button('✓',()=>finish(true));yes.setAttribute('aria-label','Apply preview');const no=button('✕',()=>finish(false));no.setAttribute('aria-label','Cancel preview');return;}
  if(mode==='advanced')return;
  const all=items();
- const nav=(label,key,parent)=>button(label,()=>{section=key;last='';tick()},parent);
+ const nav=(label,key,parent)=>button(label,()=>{menuStack.push(section);section=key;last='';tick()},parent);
  const grid=document.createElement('div');grid.className='choices';
  if(section==='home'){
   return;
  }else{
-  nav('‹ Back','home');const title=document.createElement('h3');title.textContent=section.replaceAll('_',' ');panel.append(title,grid);
+  button('‹ Back',()=>{section=menuStack.pop()||'home';last='';tick()});const title=document.createElement('h3');title.textContent=section.replaceAll('_',' ');panel.append(title,grid);
   if(section==='style'){for(const [key,label]of [['paint_frame','Frame colour'],['paint_suspension','Fork colour'],['paint_rear_frame','Rear frame colour'],['paint_rims','Rim colour'],['bars','Handlebar styles'],['seat','Seat styles'],['paint_grips','Grip colour']])if(!key.startsWith('paint_')||b[key.slice(6)])nav(label,key,grid);}
   else {
    let options;if(section==='bikes')options=all.filter(p=>p.completeBike);
    else if(section.startsWith('paint_'))options=globalThis.__WK_VARIANTS__(b[section.slice(6)]);
-   else {const slots=section==='wheels'?['rims','tyres']:section==='suspension'?['suspension','shock']:[section];options=all.filter(p=>slots.includes(p.slot));if(section==='wheels')options.push(...globalThis.__WK_VARIANTS__(b.rims),...globalThis.__WK_VARIANTS__(b.tyres));options=options.filter(p=>upgradePlan(b,p.id));}
+   else {const slots=section==='wheels'?['rims','tyres']:section==='suspension'?['suspension','shock']:[section];options=all.filter(p=>slots.includes(p.slot)&&!p.completeBike);if(section==='wheels')options.push(...globalThis.__WK_VARIANTS__(b.rims),...globalThis.__WK_VARIANTS__(b.tyres));options=options.filter(p=>upgradePlan(b,p.id));}
    for(const p of new Map(options.map(p=>[p.id,p])).values()){
     const e=button(p.name+' · $'+p.price,()=>{let plan;if(p.completeBike){plan={};for(const id of p.kit)plan[part(id).slot]=id;}else plan=upgradePlan(globalThis.__WK_BUILD__,p.id);if(plan)preview(plan,p.id,true)},grid);e.dataset.simplePart=p.id;
     if(b[p.slot]===p.id)e.classList.add('selected');

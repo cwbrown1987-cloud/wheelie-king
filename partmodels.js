@@ -160,6 +160,8 @@ export function fork(p, top, bottom, axle, headTop, opts = {}) {
       const bolt=mesh(G,'fork:dropoutBolt'+side,zCyl(.006,.006,.006,6),M('fork:axleBolt','#b4bec4',{metalness:.95}));bolt.position.copy(ax.clone().setZ(side*(sideZ+.014)));
     }
   }
+  G.userData.wkFork={axis:dir.clone().negate().toArray(),usd};
+  G.traverse(o=>{o.userData.wkForkMoving=travel>=.05&&(usd?/^fork:(stanchion[RL]|dropout)/.test(o.name):/^fork:(lower|arch|dropout)/.test(o.name));});
   const crownMesh=G.getObjectByName('fork:crown');
   if(crownMesh){const w=.06,h=2*sideZ+.05,r=.012,s=new T.Shape();s.moveTo(-w/2+r,-h/2);s.lineTo(w/2-r,-h/2);s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r);s.lineTo(w/2,h/2-r);s.quadraticCurveTo(w/2,h/2,w/2-r,h/2);s.lineTo(-w/2+r,h/2);s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r);s.lineTo(-w/2,-h/2+r);s.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);const geo=new T.ExtrudeGeometry(s,{depth:.024,bevelEnabled:true,bevelSize:.003,bevelThickness:.003,bevelSegments:2,curveSegments:4});geo.translate(0,0,-.012);geo.rotateX(Math.PI/2);crownMesh.geometry.dispose();crownMesh.geometry=geo;}
   return G;
