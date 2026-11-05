@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Compact glass workshop drawer — 5 Nov 2026
+
+- Selecting a category replaces the left category list with one compact two-column parts drawer. Simple/Advanced/sticker panels use translucent frosted glass; the category rail and parts drawer are mutually exclusive. Back restores categories.
+- Smaller cards retain 3D thumbnails, names, prices and key stats. Simple category changes close old native sticker/parts drawers, preventing stacked panels.
+- Stickers is the final full-width category with a double-size icon. Compatibility, nested Back and apply/cancel previews remain.
+- Builder and workshop/cutout checks passed; Simple and Advanced visibility checked in Chromium. Cache: `wk-v18-glass-workshop-1`.
+
 ## Articulated rider and side-view composition — 5 Nov 2026
 
 - Replaced the capsule person with a shaped blue hoodie, hood/pockets/cuffs, lime vented helmet/peak/straps, face/goggles, gloves, trousers, knees and trainers/soles. Jointed limbs follow pedals and existing lean/Superman poses. Arm meshes are reused instead of regenerated every frame.
