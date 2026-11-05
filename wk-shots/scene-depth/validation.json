@@ -1,0 +1,139 @@
+{
+  "nearMiddleFar3D": true,
+  "sharedSideChasePreview": true,
+  "animatedPan": true,
+  "pausedPosePreserved": true,
+  "uniqueWorldSections": true,
+  "boundedStreaming": true,
+  "beyond5km": true,
+  "initial": {
+    "environment": {
+      "sections": [
+        -3,
+        -2,
+        -1,
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "near": true,
+      "middle": true,
+      "far": true,
+      "worldStart": -72,
+      "worldEnd": 120
+    },
+    "render": {
+      "calls": 252,
+      "triangles": 87926,
+      "geometries": 227,
+      "textures": 13
+    },
+    "x": 2,
+    "y": 0.9284921846123554
+  },
+  "streams": [
+    {
+      "environment": {
+        "sections": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "near": true,
+        "middle": true,
+        "far": true,
+        "worldStart": 0,
+        "worldEnd": 192
+      },
+      "render": {
+        "calls": 256,
+        "triangles": 88090,
+        "geometries": 248,
+        "textures": 15
+      }
+    },
+    {
+      "environment": {
+        "sections": [
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "near": true,
+        "middle": true,
+        "far": true,
+        "worldStart": 168,
+        "worldEnd": 360
+      },
+      "render": {
+        "calls": 253,
+        "triangles": 88022,
+        "geometries": 226,
+        "textures": 13
+      }
+    },
+    {
+      "environment": {
+        "sections": [
+          205,
+          206,
+          207,
+          208,
+          209,
+          210,
+          211,
+          212
+        ],
+        "near": true,
+        "middle": true,
+        "far": true,
+        "worldStart": 4920,
+        "worldEnd": 5112
+      },
+      "render": {
+        "calls": 256,
+        "triangles": 88546,
+        "geometries": 230,
+        "textures": 13
+      }
+    },
+    {
+      "environment": {
+        "sections": [
+          413,
+          414,
+          415,
+          416,
+          417,
+          418,
+          419,
+          420
+        ],
+        "near": true,
+        "middle": true,
+        "far": true,
+        "worldStart": 9912,
+        "worldEnd": 10104
+      },
+      "render": {
+        "calls": 258,
+        "triangles": 89292,
+        "geometries": 230,
+        "textures": 13
+      }
+    }
+  ],
+  "errors": []
+}

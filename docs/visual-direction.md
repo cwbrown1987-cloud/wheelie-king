@@ -30,3 +30,7 @@ Chris wants the supplied images treated as the actual composition/style target: 
 The long environment should develop through similar scenes without obvious repeated wallpaper; blend overlapping scenery sections and keep near/middle/far depth consistent through camera movement. A flat static backdrop cannot deliver the reference chase view. Build a shared 3D track/near environment with distant scenery behind it before enabling the camera switch. No claim of exact visual parity yet. Chris has more requirements to supply before that larger batch.
 
 Current immediate change: shaped hoodie/helmet/face/gloves/trousers/trainers with persistent articulated meshes; narrower visible side-view road and shallower camera pitch. Camera switching, gentle-bend path following and long scenery transitions are still pending the larger batch.
+
+## Depth preparation delivered
+
+The track now has streamed 3D surroundings and a QA side/chase orbit for screenshots. Near and middle geometry supplies actual perspective, with a far sky image. Public camera switching, gentle turns/auto-steering, new biome transitions and full concept-image fidelity remain pending. Latest workshop glass drawer is live independently.

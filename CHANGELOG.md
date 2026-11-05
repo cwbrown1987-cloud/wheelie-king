@@ -1,5 +1,11 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Shared scene depth preparation — 5 Nov 2026
+
+- Added world-seeded streamed 3D urban sections around the actual track: walls/fences/lamps, containers, palms, distant buildings, planted/rocky foreground, paved surroundings and neon edges. Material crops reuse the existing generated neon art. The distant image supplies sky; near surroundings now have real perspective/parallax.
+- Added a QA-only animated side/chase orbit to inspect the same world; public camera toggle and curving track are still deferred. Near fence fades out of the side camera. Corrected scaled-stage ride HUD sizing and rendering resolution.
+- Scene checks cover both views, animated pan, unchanged paused bike pose, unique sections beyond 10 km, bounded GPU resources and cleanup. Landing and multi-touch/trick checks passed. Screenshots in `wk-shots/scene-depth/`. Cache: `wk-v18-scene-depth-1`.
+
 ## Compact glass workshop drawer — 5 Nov 2026
 
 - Selecting a category replaces the left category list with one compact two-column parts drawer. Simple/Advanced/sticker panels use translucent frosted glass; the category rail and parts drawer are mutually exclusive. Back restores categories.
