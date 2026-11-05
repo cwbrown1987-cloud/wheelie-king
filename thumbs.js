@@ -9,13 +9,28 @@ import {componentModel,previewBuild,paintBuild} from './modular-render.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame", "frame", "stem", "seatpost", "pedals", "headset", "hubs", "body_panels", "number_plate", "grips", "seat", "rims", "tyres"]);
+const accessorySlots=['controller','throttle','cranks','brakes','fender_f','fender_r','wing','bash','lights'];accessorySlots.forEach(s=>MODEL_SLOTS.add(s));
+function accessoryModel(p){
+ if(!accessorySlots.includes(p.slot))return null;if(p.slot==='cranks'){const g=PM.crankset([0,0],p.color||'#30363d');const pedals=[];g.traverse(o=>{if(o.userData.wkPedal)pedals.push(o)});pedals.forEach(o=>o.removeFromParent());return g;}
+ const g=new T.Group();g.name='preview:'+p.slot;const mat=new T.MeshStandardMaterial({color:p.color||'#77848b',metalness:.65,roughness:.4}),dark=new T.MeshStandardMaterial({color:'#17212a',roughness:.8});
+ const box=(name,w,h,d,x=0,y=0,z=0,m=mat)=>{const o=new T.Mesh(new T.BoxGeometry(w,h,d),m);o.name=name;o.position.set(x,y,z);g.add(o);return o};
+ const cyl=(name,r,h,x,y,z,m=mat)=>{const o=new T.Mesh(new T.CylinderGeometry(r,r,h,20),m);o.name=name;o.position.set(x,y,z);o.rotation.z=Math.PI/2;g.add(o);return o};
+ if(p.slot==='controller'){box('controller:case',.2,.07,.13);for(let i=0;i<8;i++)box('controller:fins',.007,.025,.13,-.09+i*.025,.045);for(let i=0;i<4;i++)cyl('controller:connector',.006,.025,.11,-.02,i*.025-.035,dark);}
+ else if(p.slot==='throttle'){cyl('throttle:grip',.023,.12,0,0,0,dark);cyl('throttle:collar',.03,.018,-.06,0,0);if(!p.id.includes('twist')){const o=box('throttle:thumb-paddle',.055,.018,.035,-.075,-.025,.027,dark);o.rotation.z=-.4;}}
+ else if(p.slot==='brakes'){const shape=new T.Shape();shape.absarc(0,0,.085,0,Math.PI*2,false);const hole=new T.Path();hole.absarc(0,0,.065,0,Math.PI*2,true);shape.holes.push(hole);for(let i=0;i<12;i++){const a=i/12*Math.PI*2,h=new T.Path();h.absarc(Math.cos(a)*.075,Math.sin(a)*.075,.003,0,Math.PI*2,true);shape.holes.push(h)}g.add(new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.002,bevelEnabled:false}),mat));for(let i=0;i<6;i++){const o=box('brake:spider',.06,.008,.003,Math.cos(i*Math.PI/3)*.04,Math.sin(i*Math.PI/3)*.04);o.rotation.z=i*Math.PI/3}box('brake:caliper',.055,.035,.035,.065,.045,.014,dark);box('brake:lever',.09,.009,.014,-.025,.12,0,dark);}
+ else if(p.slot.startsWith('fender')){const shape=new T.Shape();shape.absarc(0,0,.24,.15,Math.PI-.15,false);shape.absarc(0,0,.227,Math.PI-.15,.15,true);shape.closePath();const geo=new T.ExtrudeGeometry(shape,{depth:.07,bevelEnabled:false});geo.translate(0,0,-.035);g.add(new T.Mesh(geo,mat));}
+ else if(p.slot==='lights'){cyl('light:housing',.036,.06,0,0,0,dark);cyl('light:lens',.029,.003,.032,0,0,new T.MeshStandardMaterial({color:'#e7f4ff',emissive:'#b8dbff',emissiveIntensity:.6}));box('light:mount',.025,.05,.02,-.012,-.035);}
+ else{box(p.slot+':plate',.25,.012,p.slot==='wing'?.09:.15);for(const x of [-.09,.09])box(p.slot+':mount',.015,.04,.02,x,-.025);}
+ return g;
+}
 const makeModel = (p) => {
   if (!p) return null;
+  if(accessorySlots.includes(p.slot))return accessoryModel(p);
   if(p.slot==='frame'){const root=previewBuild(T,p.id),fr=root.getObjectByName('wk:frame');fr.removeFromParent();return fr;}
   if(p.slot==='rear_frame'||p.slot==='body_panels'){const root=previewBuild(T,p.family||'trax_lime'),g=root.getObjectByName('wk:part:'+p.slot);g?.removeFromParent();return g;}
   if(['stem','seatpost','pedals','headset','hubs','number_plate','grips','seat','rims','tyres'].includes(p.slot))return componentModel(T,p);
   if(p.id==='trax_coil')return traxShockModel(T,[.1,.06],[-.1,-.03],p.color);
-  if (p.slot === "kit") { const f=(p.kit||[]).map(find).find(q=>q?.slot==='frame');if(f)return previewBuild(T,f.id);const bundle=new T.Group();bundle.name='wk:conversion-kit';
+  if (p.slot === "kit") { const f=(p.kit||[]).map(find).find(q=>q?.slot==='frame');if(f)return previewBuild(T,f.id,Object.fromEntries(p.kit.map(id=>[part(id).slot,id])));const bundle=new T.Group();bundle.name='wk:conversion-kit';
     for(const [index,slot]of ['motor','battery','controller','throttle'].entries()){
       const item=(p.kit||[]).map(find).find(q=>q?.slot===slot);if(!item)continue;
       let model;if(slot==='controller'){model=new T.Group();const mat=new T.MeshStandardMaterial({color:'#77848b',metalness:.8,roughness:.4});model.add(new T.Mesh(new T.BoxGeometry(.2,.08,.13),mat));for(let i=0;i<7;i++){const fin=new T.Mesh(new T.BoxGeometry(.008,.025,.13),mat);fin.position.set(-.085+i*.028,.05,0);model.add(fin)}}else if(slot==='throttle'){model=new T.Group();const grip=new T.Mesh(new T.CylinderGeometry(.024,.024,.13,12),new T.MeshStandardMaterial({color:'#222b2d'}));grip.rotation.z=Math.PI/2;model.add(grip);const lever=new T.Mesh(new T.BoxGeometry(.06,.025,.02),new T.MeshStandardMaterial({color:'#e3a34b'}));lever.position.set(-.05,-.025,.03);model.add(lever)}else model=modelFor(item);
@@ -79,4 +94,4 @@ export function mount(el, p) { // big rotatable preview; returns cleanup
   live = { stop, obj }; return stop;
 }
 globalThis.__WK_THUMB__ = (p, size) => (modelFor ? thumb(p, size) : null);
-globalThis.__WK_PREVIEW__ = { has: (p) => !!p && (p.id === TRAX_ID || MODEL_SLOTS.has(p.slot) || (p.slot === "kit" && (p.kit || []).some((id) => ["motor", "battery"].includes(find(id)?.slot)))), mount, modelFor };
+globalThis.__WK_PREVIEW__ = { has: (p) => !!p && (p.completeBike || p.id === TRAX_ID || MODEL_SLOTS.has(p.slot) || (p.slot === "kit" && (p.kit || []).some((id) => ["motor", "battery"].includes(find(id)?.slot)))), mount, modelFor };

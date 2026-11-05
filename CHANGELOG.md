@@ -1,5 +1,13 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Neon Workshop and readable assembly previews — 5 Nov 2026
+
+- Renamed the builder Workshop. Added a generated static neon garage behind the editable 3D bike; hid the old green turntable. Kept the left parts layout, moved primary navigation to the top and extended the background across the whole screen with cleaner glass/slate panels.
+- Compact top-right summary has a whole-bike image, watts, battery, speed, range and torque; Expand opens the existing stats panel with glass styling. Stickers overlay without pushing/resizing the bike view.
+- Preview keeps the category rail visible; Advanced restores its parts drawer after apply/cancel. Fixed complete-bike thumbnails and added 3D accessory thumbnails for previously missing categories.
+- Top navigation reserves Garage/Browser with Coming Soon badges, exposes Workshop/Race, and puts the existing My Builds/Parts Shop/Challenges/Settings under More. Browser and future trophy/owned-bike Garage are not implemented.
+- Built-in imagegen asset/prompt: `docs/assets/neon-garage.md`. Cache: `wk-v18-neon-workshop-1`. Validation covers builder, tracing, complete-bike images, preview visibility, stable sticker viewport and stats expansion.
+
 ## Shared scene depth preparation — 5 Nov 2026
 
 - Added world-seeded streamed 3D urban sections around the actual track: walls/fences/lamps, containers, palms, distant buildings, planted/rocky foreground, paved surroundings and neon edges. Material crops reuse the existing generated neon art. The distant image supplies sky; near surroundings now have real perspective/parallax.

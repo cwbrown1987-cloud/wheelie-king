@@ -1,0 +1,9 @@
+# Neon workshop background
+
+- Generated with the built-in image_gen tool on 5 Nov 2026, using Chris's workshop concept as a style reference.
+- Runtime asset: `icons/neon-garage-background.png`. Copied from the original generated output; no source image was deleted.
+- Static environment only. The actual bike, stand, stats and menus remain editable game content.
+
+## Final prompt
+
+Create a clean static background asset for a 3D bike customization game, using the attached image ONLY as a visual style and workshop lighting reference. Wide landscape 16:9 image. A high-quality stylized realistic neon electric-bike repair garage interior, purple and cyan LED ceiling strips with warm amber task lights, charcoal brick walls, organized pegboard tools, shelves with labeled but unreadable containers, a red tool cabinet along the right rear wall, a subtle blue blueprint poster with generic bicycle mechanics drawings, cables and workshop details at the edges. Camera faces the back wall with a very slight view from the right, approximately bike axle height, matching a game bike presented side-on in the centre. Leave the central 65 percent of the composition OPEN and uncluttered for a separately rendered editable 3D bicycle. Clean lightly reflective grey concrete floor occupying the bottom 28 percent; detailed garage environment recedes into depth behind the central bike space. Rich materials and atmospheric light, crisp professional game environment art, no excessive blur. Absolutely NO bicycle, motorbike, rider, person, bicycle stand, platform, foreground loose parts, HUD, buttons, user interface, menus, floating panels, currency, text, branding, logos, crown emblem, watermarks or split screen. Deliver only the garage environment itself. Keep the floor and centre free of objects so the live 3D bike and our own stand can be overlaid convincingly.

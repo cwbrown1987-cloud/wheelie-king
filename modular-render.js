@@ -128,8 +128,8 @@ export function paintBuild(root,build,T) {
  }
 }
 
-export function previewBuild(T,frame) {
- const b={...STOCK_BUILDS[baseId(frame)],frame},base=baseId(frame),R=globalThis.__WK_WHEELR__?.(base,part(b.tyres))||(['moto','emoto'].includes(base)?.33:.255),x=globalThis.__WK_FRAMEGEO__?.(base,R,b)||(['moto','emoto'].includes(base)?{rear:[-.52,R],bb:[0,.36],seat:[-.14,.86],htT:[.6,.93],htB:[.66,.7],front:[.82,R],tr:.03}:{rear:[-.37,R],bb:[0,R+.035],seat:[-.1,.7],htT:[.5,.74],htB:[.545,.58],front:[.63,R],tr:.017});
+export function previewBuild(T,frame,overrides={}) {
+ const b={...STOCK_BUILDS[baseId(frame)],...overrides,frame},base=baseId(frame),R=globalThis.__WK_WHEELR__?.(base,part(b.tyres))||(['moto','emoto'].includes(base)?.33:.255),x=globalThis.__WK_FRAMEGEO__?.(base,R,b)||(['moto','emoto'].includes(base)?{rear:[-.52,R],bb:[0,.36],seat:[-.14,.86],htT:[.6,.93],htB:[.66,.7],front:[.82,R],tr:.03}:{rear:[-.37,R],bb:[0,R+.035],seat:[-.1,.7],htT:[.5,.74],htB:[.545,.58],front:[.63,R],tr:.017});
  const root=new T.Group(),groups={};for(const name of ['frame','tyres','motor','drive','suspension','cockpit','seat','brakes','controller','battery','throttle']){const g=new T.Group();g.name='wk:'+name;root.add(g);groups[name]=g;}
  const mat=c=>new T.MeshStandardMaterial({color:c,roughness:.5});groups.frame.add(new T.Mesh(new T.BoxGeometry(.01,.01,.01),mat(part(frame)?.color||part(frame)?.fc||'#586b72')));
  for(const a of [x.rear,x.front]){const w=new T.Group();w.position.set(...a,0);groups.tyres.add(w);w.add(new T.Mesh(new T.TorusGeometry(R-.028,.028,12,48),mat('#171b1d')));w.add(new T.Mesh(new T.TorusGeometry(R-.060,.009,8,48),mat('#8e999e')));w.add(new T.InstancedMesh(new T.CylinderGeometry(.0013,.0013,1,5),mat('#555'),36));}
