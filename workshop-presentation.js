@@ -1,5 +1,5 @@
 import {part} from './modular-catalogue.js';
-let summary,lastView,lastKey='';
+let summary,lastView,lastRoot,lastKey='';
 const style=document.createElement('style');style.textContent=`
 html,body{background:#080c16 url('./icons/neon-garage-background.png') center/cover fixed no-repeat}#root>div,[data-stage]{background:transparent!important}[data-scene]{background:transparent!important;border-color:#9bc4dc33!important}[data-scene]>div:first-child,[data-scene]>div:nth-child(2){display:none!important}[data-wk-header]{background:#0c172675;border:1px solid #9abbd438;border-radius:10px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}[data-wk-mode-toggle],[data-wk-header]>div:last-child{background:#15284288!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid #8ac8ee55!important}[data-fitpanel]{background:#13243c9e!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 [data-wk-old-light]{display:none!important}
@@ -21,6 +21,7 @@ body[data-wk-workshop] [data-wk-bench]{right:98px!important;background:#122037b9
 function update(){
  const v=globalThis.__WK_VIEW__,garage=v?.renderer.domElement.isConnected&&!document.querySelector('[data-ride]');if(!garage){delete document.body.dataset.wkWorkshop;return;}document.body.dataset.wkWorkshop='';
  if(v.stage&&lastView!==v){lastView=v;v.stage.floor.visible=false;v.stage.ring.visible=false;const [key,rim,fill]=v.stage.lights;key.color.set('#fff0f5');rim.color.set('#829bff');fill.color.set('#bc6dff');rim.intensity=1.9;fill.intensity=.7;}
+ let root;v.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});if(root&&root!==lastRoot){lastRoot=root;const a=root.userData.wkAnchors?.bb||[0,0],anchor=root.localToWorld(root.position.clone().set(a[0]-.02,0,0));v.orbitAnchor=anchor;if(v.controls.autoRotate){v.camera.position.x+=anchor.x-v.controls.target.x;v.camera.position.z+=anchor.z-v.controls.target.z;v.controls.target.x=anchor.x;v.controls.target.z=anchor.z;v.controls.update()}}
  const rail=document.querySelector('[data-rail="right"]');if(!rail)return;const expand=rail.querySelector(':scope > button:first-child');if(expand)expand.dataset.wkExpandStats='';
  document.querySelector('[data-statspanel] button')?.setAttribute('data-wk-collapse-stats','');
  for(const button of document.querySelectorAll('[data-scene]>button'))if(button.textContent.includes('RESET VIEW'))button.dataset.wkReset='';

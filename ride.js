@@ -41,14 +41,14 @@ export function cloneForRide(src) {
   return bike;
 }
 
-export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
+export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDetail=false }) {
   el.setAttribute('data-wk-ride-surface','');
   const blockBrowserGesture=e=>{if(e.type.startsWith('touch')&&e.target.closest?.('[data-r],button,input'))return;if(e.cancelable)e.preventDefault()};
   const blockedGestures=['selectstart','contextmenu','dragstart','gesturestart','gesturechange','touchstart','touchmove'];
   for(const type of blockedGestures)el.addEventListener(type,blockBrowserGesture,{passive:false});
   window.getSelection()?.removeAllRanges();
   const W = () => el.clientWidth || 900, H = () => el.clientHeight || 420;
-  const R = new T.WebGLRenderer({ antialias: true }); R.setPixelRatio(Math.min(2, devicePixelRatio*el.getBoundingClientRect().width/W())); R.shadowMap.enabled = true; R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping;
+  const R = new T.WebGLRenderer({ antialias: !lowDetail,powerPreference:"high-performance" }); R.setPixelRatio(Math.min(lowDetail?1:1.5, devicePixelRatio*el.getBoundingClientRect().width/W())); R.shadowMap.enabled = !lowDetail; R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping;
   R.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;touch-action:none"; el.appendChild(R.domElement);
   const scene = new T.Scene(); scene.background = new T.Color("#55516d"); scene.fog = new T.Fog("#69637e", 25, 95);
   const cam = new T.PerspectiveCamera(40, 16 / 9, 0.1, 400);
@@ -78,7 +78,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= renderEnd + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(renderEnd + 120, -20); s.closePath();
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }
-  const environment=makeEnvironment(T,scene,ter);dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;
+  const environment=makeEnvironment(T,scene,ter,{lowDetail});dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;
   // the real garage bike, cloned
   const src = (() => { let r = null; globalThis.__WK_VIEW__?.scene.traverse((o) => { if (!r && o.getObjectByName?.("wk:frame") && o.children.some((c) => c.name === "wk:frame")) r = o; }); return r; })();
   const pivot = new T.Group(), body = new T.Group(); pivot.add(body); scene.add(pivot);
@@ -195,7 +195,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     hud.speed.innerHTML = Math.round(sp * 3.6) + "<small style='font-size:14px'> km/h</small>"; hud.wheelie.textContent = s.balance ? `${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s` : s.bestWheelie ? `BEST MONO ${s.bestWheelie.toFixed(1)}s` : "";
     hud.batt.textContent = P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
     if (s.trickT <= 0) hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; hud.msg.textContent = paused?"PAUSED":msgT > 0 ? msg : "";
-    const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;ui.style.transformOrigin="top left";ui.style.transform=`scale(${1/screenScale})`;ui.style.width=(w*screenScale)+"px";ui.style.height=(h*screenScale)+"px";ui.style.right=ui.style.bottom="auto";const pixelRatio=Math.min(2,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+    const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;ui.style.transformOrigin="top left";ui.style.transform=`scale(${1/screenScale})`;ui.style.width=(w*screenScale)+"px";ui.style.height=(h*screenScale)+"px";ui.style.right=ui.style.bottom="auto";const pixelRatio=Math.min(lowDetail?1:1.5,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     backdrop.repeat.set(Math.min(1,w/h*.3),.6);backdrop.offset.set(Math.max(0,Math.min(1-backdrop.repeat.x,(1-backdrop.repeat.x)/2+Math.sin(s.x*.001)*.08)),.4);
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;layers.foreground.position.x=tile;layers.update(tile);flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;hud.prog.style.display='none';hud.best.textContent='FLAT ENDLESS · '+Math.floor(s.odo)+' m';}
     R.render(scene, cam); };

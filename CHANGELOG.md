@@ -1,5 +1,13 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Centred Workshop orbit and isolated race launch — 5 Nov 2026
+
+- Centred reset/orbit on the stand; retained free orbit, pan and zoom. Reset clears residual damping and idle rotation respects the explicit pause preference. Workshop rendering pauses while Race is open.
+- Race owns an untransformed full-viewport portal. Added loading and explicit startup/graphics-loss recovery with a reduced-detail retry, instead of leaving an empty black overlay. Resolution/shadow load is reduced in compatibility mode.
+- Raised and levelled the wall cap/fence and lowered far-building foundations; wall top remains straight independently of track bumps.
+- Added WIP Accessories placeholder gear and themed bundle cards. Shared rarity/premium economy is recorded for later; no real payment integration or locks.
+- Ride regressions and targeted centred-orbit/pause/portal/graphics-retry checks passed. User-device black-screen confirmation remains outstanding. Cache: `wk-v18-camera-launch-1`.
+
 ## Smooth Trials, grounded scenery and detached crash recovery — 5 Nov 2026
 
 - Replaced hard terrain joins/near-vertical short steps with a rounded monotone profile. Road visuals and collision heights use the same surface. Walls/caps/fences follow terrain continuously; terrain-following surroundings, planted stems, properly based props and smoother vegetation/rocks remove floating scenery. Floor coverage and endless tile UVs stay continuous.

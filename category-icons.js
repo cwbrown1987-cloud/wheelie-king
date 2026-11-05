@@ -34,5 +34,10 @@ export const categoryPaths={
 };
 categoryPaths.sprocket_r=categoryPaths.sprocket_f;
 categoryPaths.bike=categoryPaths.frame;
+categoryPaths.gear='M12 7a4 4 0 1 1 7 3l-3 3 M16 13L3 23v3h26v-3L16 13';
+categoryPaths.helmet='M4 19C2 2 28 1 29 18l-9 2-1 7H6z M4 15h24 M21 20l6 5';
+categoryPaths.tops='M10 5L3 10l4 7 4-3v15h12V14l4 3 4-7-8-5c-2 5-10 5-13 0';
+categoryPaths.pants='M8 3h16l3 26h-9l-2-16-2 16H5z M8 7h16';
+categoryPaths.gloves='M8 28L4 16c-1-4 3-5 5-1V5c0-4 4-4 4 0v8-10c0-3 4-3 4 0v10-8c0-3 4-3 4 0v10-6c0-3 4-3 4 0v13l-5 6z';
 globalThis.__WK_ICON_PATH__=categoryPaths;
 export function categoryIcon(slot){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 32 32');svg.setAttribute('width','28');svg.setAttribute('height','28');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',categoryPaths[slot]||categoryPaths.frame);path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','2');path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');svg.append(path);return svg;}
