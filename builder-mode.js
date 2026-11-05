@@ -1,6 +1,7 @@
 // Simple assembly plans share the advanced catalogue and real fitment rules.
 import {part} from './modular-catalogue.js';
-let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,last='',section='home',pending=null;
+import {categoryIcon} from './category-icons.js';
+let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null;
 let recovery;try{recovery=JSON.parse(sessionStorage.getItem('wk-pending-build')||'null')}catch{}
 const items=()=>globalThis.__WK_CAT__?.().items.filter(p=>!p.hidden)||[];
 export function upgradePlan(build,id){
@@ -31,7 +32,7 @@ function preview(plan,id,automatic=false){if(pending)return;pending={original:{.
 function finish(apply){if(!pending)return;const p=pending;pending=null;sessionStorage.removeItem('wk-pending-build');delete document.body.dataset.wkPreviewing;if(apply){if(p.automatic){globalThis.__WK_EQUIP_MANY__(Object.values(p.plan).filter(Boolean));globalThis.__WK_SETBUILD__(p.plan)}else if(!globalThis.__WK_EQUIP__(p.id))globalThis.__WK_SETBUILD__(p.original)}else globalThis.__WK_SETBUILD__(p.original);last='';tick();}
 globalThis.__WK_PREVIEW_BUILD__={start:preview,apply:()=>finish(true),cancel:()=>finish(false),get pending(){return pending}};
 document.addEventListener('click',e=>{
- const nav=e.target.closest('button');if(pending&&nav&&!nav.closest('#wk-builder')){e.preventDefault();e.stopImmediatePropagation();return;}if(mode==='simple'&&!pending&&nav&&!nav.closest('#wk-builder')&&/\bSHOP$/.test(nav.textContent.trim())){e.preventDefault();e.stopImmediatePropagation();section='home';last='';for(const button of document.querySelectorAll('button'))if(/\bGARAGE$/.test(button.textContent.trim())){button.click();break}tick();return;}
+ const nav=e.target.closest('button');if(pending&&nav&&!nav.closest('#wk-builder')){e.preventDefault();e.stopImmediatePropagation();return;}if(nav&&nav===modeToggle){e.preventDefault();e.stopImmediatePropagation();globalThis.__WK_MODE__(mode==='simple'?'advanced':'simple');section='home';tick();return;}if(mode==='simple'&&!pending&&nav&&!nav.closest('#wk-builder')&&/\bSHOP$/.test(nav.textContent.trim())){e.preventDefault();e.stopImmediatePropagation();section='home';last='';for(const button of document.querySelectorAll('button'))if(/\bGARAGE$/.test(button.textContent.trim())){button.click();break}tick();return;}
  if(pending&&e.target.closest('[aria-label="Test ride"]')){e.preventDefault();e.stopImmediatePropagation();return;}
  const swatch=e.target.closest('[data-wk-swatch]'),card=e.target.closest('[data-wk-part]');if(!swatch&&!card)return;
  if(e.target.closest('[data-wk-info]')||(!swatch&&e.target.closest('button')))return;
@@ -44,36 +45,38 @@ document.addEventListener('click',e=>{
 globalThis.__WK_MODE__=value=>{mode=value==='advanced'?'advanced':'simple';localStorage.setItem('wk-builder-mode',mode);document.body.dataset.wkMode=mode;last='';};
 globalThis.__WK_MODE__(mode);
 const style=document.createElement('style');style.textContent=`
-body[data-wk-mode="simple"] [data-cat],body[data-wk-mode="simple"] [data-catpanel],body[data-wk-mode="simple"] [data-wk-advanced-tools],body[data-wk-previewing] [data-catpanel],body[data-wk-previewing] [data-rail="left"]{visibility:hidden!important;pointer-events:none!important}
-#wk-builder{position:fixed;left:max(10px,env(safe-area-inset-left));top:78px;z-index:10020;width:min(44vw,440px);max-height:calc(100dvh - 170px);overflow:auto;background:#101b17f5;border:1px solid #6b987b;border-radius:10px;padding:9px;color:#edf7ef;font:13px system-ui;box-sizing:border-box}
+body[data-wk-mode="simple"] [data-cat]{display:none!important}body[data-wk-mode="simple"] [data-catpanel],body[data-wk-mode="simple"] [data-wk-advanced-tools],body[data-wk-previewing] [data-catpanel],body[data-wk-previewing] [data-rail="left"]{visibility:hidden!important;pointer-events:none!important}
+[data-rail="left"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:54px!important;align-content:start;gap:5px!important;scrollbar-width:thin}[data-rail="left"]>button,#wk-simple-rail>button{min-height:54px!important;border-radius:10px;background:#0b100e;color:#cfe9da;border:2px solid #2c3f35;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;font:10px system-ui;font-weight:800;padding:3px;cursor:pointer}#wk-simple-rail{display:contents}#wk-simple-rail[hidden]{display:none!important}
+[data-wk-mode-toggle]{width:132px!important;min-width:94px!important;font:11px system-ui!important;font-weight:800!important;padding:5px!important;line-height:1.4!important}[data-wk-mode-toggle] .active{color:#60ff95}[data-wk-mode-toggle] .inactive{color:#91a699}
+#wk-builder{position:absolute;left:0;top:0;bottom:0;z-index:9;width:min(600px,60vw);overflow:auto;background:#0d1612fa;border:2px solid #526c5b;border-radius:14px;padding:10px;color:#edf7ef;font:13px system-ui;box-sizing:border-box}#wk-builder[hidden]{display:none!important}
 #wk-builder button{background:#214631;color:#d9ffe3;border:1px solid #72a683;border-radius:6px;padding:7px;cursor:pointer}
 #wk-builder .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}#wk-builder .choices button{min-height:64px;white-space:normal;font-size:13px}#wk-builder .choices img{width:100%;height:74px;object-fit:contain;display:block}#wk-builder .selected{border:2px solid #5aff91;background:#305d40}#wk-builder .modes{display:flex;gap:6px;justify-content:space-between}#wk-builder h3{margin:8px 0;font-size:15px}
 #wk-builder label{display:block;margin-top:9px}#wk-builder select{display:block;width:100%;margin-top:4px;background:#182820;color:white;border:1px solid #72917d;border-radius:5px;padding:6px}
 #wk-builder p{font:12px system-ui;margin:8px 0 0;color:#b8cbbb}
-body[data-wk-mode="advanced"] #wk-builder{width:auto;left:auto;right:140px;top:78px;padding:4px}
-body[data-wk-previewing] #wk-builder{top:auto!important;bottom:95px;left:50%!important;transform:translateX(-50%);width:auto!important;max-height:none;display:flex;gap:12px;padding:10px}body[data-wk-previewing] #wk-builder button{font-size:30px;min-width:70px}
+body[data-wk-previewing] #wk-builder{top:auto!important;bottom:12px;left:50%!important;transform:translateX(-50%);width:auto!important;max-height:none;display:flex;gap:12px;padding:10px}body[data-wk-previewing] #wk-builder button{font-size:30px;min-width:70px}
 [data-catpanel]{width:min(600px,60vw)!important;max-width:60vw!important}[data-wk-part]{min-width:0}
 [data-catpanel] :has(> [data-wk-part]){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
 `;document.head.append(style);
 function tick(){
  const riding=!!document.querySelector('[data-ride]'),garage=!!globalThis.__WK_VIEW__?.renderer?.domElement?.isConnected&&!riding;
  if(!panel){panel=document.createElement('section');panel.id='wk-builder';panel.setAttribute('aria-label','Builder mode');document.body.append(panel);}
- panel.hidden=!garage;if(!garage){if(pending)finish(false);return;}
+ panel.hidden=!garage||(!pending&&(mode==='advanced'||section==='home'));if(!garage){if(pending)finish(false);return;}
+ const rail=document.querySelector('[data-rail="left"]');if(!rail)return;if(panel.parentElement!==rail.parentElement)rail.parentElement.append(panel);
+ modeToggle=document.querySelector('#root button');if(modeToggle){modeToggle.dataset.wkModeToggle='';modeToggle.setAttribute('aria-label','Simple / Advanced');const html=`<span class="${mode==='simple'?'active':'inactive'}">SIMPLE</span> / <span class="${mode==='advanced'?'active':'inactive'}">ADVANCED</span>`;if(modeToggle.innerHTML!==html)modeToggle.innerHTML=html;}
+ if(!simpleRail){simpleRail=document.createElement('div');simpleRail.id='wk-simple-rail';}if(simpleRail.parentElement!==rail)rail.append(simpleRail);simpleRail.hidden=mode!=='simple';
  if(!globalThis.__WK_EQUIP__){document.querySelector('[data-cat="bars"]')?.click();return;}
  if(recovery){const original=recovery;recovery=null;sessionStorage.removeItem('wk-pending-build');globalThis.__WK_SETBUILD__(original);return;}
  const b=globalThis.__WK_BUILD__,key=mode+section+JSON.stringify(b)+!!pending;if(key===last)return;last=key;
+ simpleRail.replaceChildren();for(const [key,label,icon]of [['bikes','BIKES','frame'],['motor','MOTORS · W','motor'],['battery','BATTERY','battery'],['wheels','WHEELS','tyres'],['suspension','SUSPENSION','suspension'],['style','STYLES / COLOURS','bars'],['paint_frame','FRAME COLOUR','frame'],['paint_suspension','FORK COLOUR','suspension']]){const e=document.createElement('button');e.dataset.simpleCategory=key;e.append(categoryIcon(icon),document.createTextNode(label));e.onclick=()=>{section=section===key?'home':key;last='';tick()};simpleRail.append(e);}
  panel.replaceChildren();
  const button=(label,action,parent=panel)=>{const e=document.createElement('button');e.textContent=label;e.onclick=action;parent.append(e);return e};
  if(pending){const yes=button('✓',()=>finish(true));yes.setAttribute('aria-label','Apply preview');const no=button('✕',()=>finish(false));no.setAttribute('aria-label','Cancel preview');return;}
- const modes=document.createElement('div');modes.className='modes';panel.append(modes);
- for(const value of ['simple','advanced']){const e=button(value==='simple'?'Simple':'Advanced',()=>{globalThis.__WK_MODE__(value);section='home';tick()},modes);e.setAttribute('aria-pressed',String(mode===value));if(mode===value)e.classList.add('selected');}
- if(mode==='advanced'){button('Level: '+((localStorage.getItem('wk-level')||'flat')==='flat'?'Flat endless':'Trials track'),()=>{localStorage.setItem('wk-level',(localStorage.getItem('wk-level')||'flat')==='flat'?'trials':'flat');last='';tick()},modes);return;}
+ if(mode==='advanced')return;
  const all=items();
  const nav=(label,key,parent)=>button(label,()=>{section=key;last='';tick()},parent);
  const grid=document.createElement('div');grid.className='choices';
  if(section==='home'){
-  panel.append(grid);for(const [key,label]of [['bikes','Pre-made bikes'],['motor','Motor upgrades · kW'],['battery','Battery upgrades'],['wheels','Wheels'],['style','Styles & colours'],['suspension','Suspension upgrades']])nav(label,key,grid);
-  const levels=document.createElement('div');levels.className='choices';panel.append(levels);for(const [key,label]of [['flat','Flat endless'],['trials','Trials track']]){const e=button(label,()=>{localStorage.setItem('wk-level',key);last='';tick()},levels);if((localStorage.getItem('wk-level')||'flat')===key)e.classList.add('selected');}
+  return;
  }else{
   nav('‹ Back','home');const title=document.createElement('h3');title.textContent=section.replaceAll('_',' ');panel.append(title,grid);
   if(section==='style'){for(const [key,label]of [['paint_frame','Frame colour'],['paint_suspension','Fork colour'],['paint_rear_frame','Rear frame colour'],['paint_rims','Rim colour'],['bars','Handlebar styles'],['seat','Seat styles'],['paint_grips','Grip colour']])if(!key.startsWith('paint_')||b[key.slice(6)])nav(label,key,grid);}

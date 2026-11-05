@@ -56,12 +56,13 @@ export function createBikeMotion(root,build={},find=()=>null) {
  const axleBolts=root.getObjectByName('frame:rearAxleBolts');
  if(axleBolts)capture(axleBolts,'rear');
  const forkTravel=Math.max(0,find(build.suspension)?.travel||0);
- let wheelPhase=0,crankPhase=0,chainPhase=0,lastKey='',route=null;
+ let wheelPhase=0,rearWheelPhase=0,crankPhase=0,chainPhase=0,lastKey='',route=null;
  const matrix=new T.Matrix4(),p=A.swingPivot;
  const rotate=(point,angle)=>{const dx=point[0]-p[0],dy=point[1]-p[1];return [p[0]+Math.cos(angle)*dx-Math.sin(angle)*dy,p[1]+Math.sin(angle)*dx+Math.cos(angle)*dy]};
- const state={wheelPhase:0,crankPhase:0,chainPhase:0,rearAngle:0,rearAxle:[...A.rearAxle],shockArm:[...A.shockArm],frontAxle:[...A.frontAxle]};
- const update=({distance=0,driveDistance=distance,rearCompression=0,frontCompression=0,travelR=.045,travelF=.06}={})=>{
-  wheelPhase-=distance/A.wheelR;
+ const state={wheelPhase:0,rearWheelPhase:0,crankPhase:0,chainPhase:0,rearAngle:0,rearAxle:[...A.rearAxle],shockArm:[...A.shockArm],frontAxle:[...A.frontAxle]};
+ const update=({distance=0,frontDistance=distance,rearDistance=distance,driveDistance=distance,rearCompression=0,frontCompression=0,travelR=.045,travelF=.06}={})=>{
+  wheelPhase-=frontDistance/A.wheelR;
+  rearWheelPhase-=rearDistance/A.wheelR;
   const angular=-driveDistance/A.wheelR*(rearN/frontN);crankPhase+=angular;chainPhase+=angular*rF;
   let ra=[...A.rearAxle],sa=[...A.shockArm],angle=0;
   if(rear&&p){
@@ -72,12 +73,12 @@ export function createBikeMotion(root,build={},find=()=>null) {
    else if(shock&&build.shock){const start=new T.Vector3(...A.shockFrame,0),base=new T.Vector3(...A.shockArm,0).sub(start),current=new T.Vector3(...sa,0).sub(start),q0=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),base.clone().normalize()),q1=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),current.clone().normalize());shock.matrixAutoUpdate=false;shock.matrix.makeTranslation(...start.toArray()).multiply(new T.Matrix4().makeRotationFromQuaternion(q1)).multiply(new T.Matrix4().makeScale(1,current.length()/base.length(),1)).multiply(new T.Matrix4().makeRotationFromQuaternion(q0.invert())).multiply(new T.Matrix4().makeTranslation(...start.negate().toArray()));shock.matrixWorldNeedsUpdate=true;}
   }
   const shift=forkDirection.clone().multiplyScalar(Math.max(0,Math.min(1,frontCompression))*Math.min(forkTravel,Math.max(0,travelF))*.8),fa=[A.frontAxle[0]+shift.x,A.frontAxle[1]+shift.y];
-  for(const entry of rotors){entry.wheel.position.set(...(entry.front?fa:ra),entry.base.z);matrix.makeRotationZ(wheelPhase);for(const {o,base} of entry.parts){o.matrixAutoUpdate=false;o.matrix.copy(matrix).multiply(base);o.matrixWorldNeedsUpdate=true;}}
+  for(const entry of rotors){entry.wheel.position.set(...(entry.front?fa:ra),entry.base.z);matrix.makeRotationZ(entry.front?wheelPhase:rearWheelPhase);for(const {o,base} of entry.parts){o.matrixAutoUpdate=false;o.matrix.copy(matrix).multiply(base);o.matrixWorldNeedsUpdate=true;}}
   for(const {o,base} of lowers)o.position.copy(base).add(shift);
   for(const {o,mount,spin,base} of attachments){
    const axle=mount==='front'?A.frontAxle:A.rearAxle,target=mount==='front'?fa:ra;
    const transform=new T.Matrix4();
-   if(spin)transform.makeTranslation(target[0],target[1],0).multiply(new T.Matrix4().makeRotationZ(wheelPhase)).multiply(new T.Matrix4().makeTranslation(-axle[0],-axle[1],0));
+   if(spin)transform.makeTranslation(target[0],target[1],0).multiply(new T.Matrix4().makeRotationZ(mount==='front'?wheelPhase:rearWheelPhase)).multiply(new T.Matrix4().makeTranslation(-axle[0],-axle[1],0));
    else if(mount==='rear'&&rear&&p)transform.makeTranslation(...p,0).multiply(new T.Matrix4().makeRotationZ(angle)).multiply(new T.Matrix4().makeTranslation(-p[0],-p[1],0));
    else transform.makeTranslation(target[0]-axle[0],target[1]-axle[1],0);
    o.matrixAutoUpdate=false;o.matrix.copy(transform).multiply(base);o.matrixWorldNeedsUpdate=true;
@@ -89,7 +90,7 @@ export function createBikeMotion(root,build={},find=()=>null) {
   const jockeys=rear?.userData.jockeys?[rotate([A.rearAxle[0]-.018,A.rearAxle[1]-.05],angle),rotate([A.rearAxle[0]+.028,A.rearAxle[1]-.12],angle)]:[];
   if(chain){const key=ra.map(v=>v.toFixed(5)).join(',')+':'+angle.toFixed(5);if(key!==lastKey||!route){route=chainRoute([{x:ra[0],y:ra[1],r:rR},...jockeys.map(c=>({x:c[0],y:c[1],r:PM.sprocketR(8)+.004})),{x:A.bb[0],y:A.bb[1],r:rF}]);lastKey=key;}PM.animateChain(chain,route,chainPhase);}
   rear?.traverse(o=>{if(/^derailleur:jockey\d$/.test(o.name))o.rotation.z=chainPhase/(PM.sprocketR(8)+.004)});
-  Object.assign(state,{wheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa});return state;
+  Object.assign(state,{wheelPhase,rearWheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa});return state;
  };
  return {update,state};
 }

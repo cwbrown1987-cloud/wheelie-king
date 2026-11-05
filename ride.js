@@ -3,6 +3,8 @@
 import * as T from "./vendor/three.module.js";
 import { makeTerrain, makeFlatTerrain, bikeParams, makeState, step } from "./ride-physics.js";
 import {createBikeMotion} from './bike-motion.js';
+import {rideControlsMarkup,mountLeanControls} from './ride-controls.js';
+import {makeStuntRig} from './ride-tricks.js';
 const COND_KEY = "wk-condition";
 export const loadCond = () => ({dirt:0,wear:{}}); // Repair/condition system paused at Chris's request.
 export const saveCond = (c) => localStorage.setItem(COND_KEY, JSON.stringify(c));
@@ -37,7 +39,7 @@ export function cloneForRide(src) {
 
 export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   el.setAttribute('data-wk-ride-surface','');
-  const blockBrowserGesture=e=>{if(e.type.startsWith('touch')&&e.target.closest?.('[data-r]'))return;if(e.cancelable)e.preventDefault()};
+  const blockBrowserGesture=e=>{if(e.type.startsWith('touch')&&e.target.closest?.('[data-r],button,input'))return;if(e.cancelable)e.preventDefault()};
   const blockedGestures=['selectstart','contextmenu','dragstart','gesturestart','gesturechange','touchstart','touchmove'];
   for(const type of blockedGestures)el.addEventListener(type,blockBrowserGesture,{passive:false});
   window.getSelection()?.removeAllRanges();
@@ -52,6 +54,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const sky = new T.Mesh(new T.PlaneGeometry(900, 260), new T.ShaderMaterial({ depthWrite: false, fog: false, uniforms: {}, vertexShader: "varying float v;void main(){v=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: "varying float v;void main(){gl_FragColor=vec4(mix(vec3(.98,.6,.3),vec3(.25,.45,.85),smoothstep(.35,.8,v)),1.);}" }));
   sky.position.set(0, 40, -120); scene.add(sky);
   const sunDisc = new T.Mesh(new T.CircleGeometry(9, 32), new T.MeshBasicMaterial({ color: "#fff3b0", fog: false })); sunDisc.position.set(40, 30, -110); scene.add(sunDisc);
+  let backdropLoaded=false;const backdrop=new T.TextureLoader().load('./icons/outback-background.svg',texture=>{texture.colorSpace=T.SRGBColorSpace;scene.background=texture;sky.visible=false;sunDisc.visible=false;backdropLoaded=true;});
   // terrain
   const flat=(localStorage.getItem('wk-level')||'flat')==='flat',ter=flat?makeFlatTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0], -30); pts.forEach(([x, y]) => shape.lineTo(x, y)); shape.lineTo(pts[pts.length - 1][0], -30); shape.closePath();
@@ -80,13 +83,14 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const cond = loadCond(); applyCondition(bike, cond);
   const stOut = { ...stats, wheelR: A.wheelR, batteryWh: (() => { const b = find(build.battery); return b ? b.v * b.ah : 0; })() };
   const P = bikeParams(stOut); P.wb = Math.max(0.6, A.frontAxle[0] - A.rearAxle[0]); P.R = A.wheelR; P.comH = Math.max(P.R + 0.45, P.comH);
-  P.travelF=Math.max(0,find(build.suspension)?.travel||0);P.travelR=build.rear_frame&&build.shock?Math.min(.06,find(build.shock)?.travel||.045):0;
+  P.driveAxle=find(build.motor)?.kind==='front'?'front':'rear';P.travelF=Math.max(0,find(build.suspension)?.travel||0);P.travelR=build.rear_frame&&build.shock?Math.min(.06,find(build.shock)?.travel||.045):0;
   P.forkVertical=new T.Vector2(A.headBottom?.[0]-A.frontAxle[0]||0,A.headBottom?.[1]-A.frontAxle[1]||1).normalize().y;
   const hC = P.comH - P.R; bike.position.set(-P.wb * P.comBack - A.rearAxle[0], -hC - A.rearAxle[1], 0); body.add(bike);
   // wheels move with their suspension (visible travel); find the wheel groups at each axle
   const wheels = [[], []]; bike.traverse((o) => { if (o.isGroup && o.parent && /wk:(tyres|motor)/.test(o.parent.name) && o.children.some((c) => c.geometry?.type === "TorusGeometry")) { const i = Math.abs(o.position.x - A.frontAxle[0]) < 0.05 ? 1 : 0; wheels[i].push([o, o.position.y]); } });
   const forkG = bike.getObjectByName("wk:suspension"), forkY = forkG?.position.y || 0;
   const mechanical=createBikeMotion(bike,build,find);
+  const stuntRig=makeStuntRig(T,bike,A,find(build.motor)?.kind);
   // rider (simple low-poly, leans with input)
   const rider = new T.Group(); body.add(rider); const skin = new T.MeshStandardMaterial({ color: "#2b7bff", roughness: 0.7 }), dark = new T.MeshStandardMaterial({ color: "#1a1a1a" }), helm = new T.MeshStandardMaterial({ color: "#39ff7a", metalness: 0.3, roughness: 0.3 });
   const off = (p) => new T.Vector3(p[0] + bike.position.x, p[1] + bike.position.y, 0);
@@ -97,12 +101,12 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const head = new T.Mesh(new T.SphereGeometry(0.13, 16, 12), helm); head.position.copy(shoulder).add(new T.Vector3(0.05, 0.2, 0)); torsoG.add(head);
   const visor = new T.Mesh(new T.BoxGeometry(0.06, 0.06, 0.2), dark); visor.position.copy(head.position).add(new T.Vector3(0.12, 0, 0)); torsoG.add(visor);
   const arms = new T.Group(); torsoG.add(arms);
-  const legs = new T.Group(); rider.add(legs);const legMeshes=[];
+  const legs = new T.Group(); rider.add(legs);const legMeshes=[];let supermanPose=0,hopQueued=false;
   for(const side of [-1,1]){const upper=new T.Mesh(new T.CylinderGeometry(.055,.055,1,12),dark),lower=new T.Mesh(new T.CylinderGeometry(.045,.045,1,12),dark);legs.add(upper,lower);legMeshes.push({side,upper,lower});}
   const poseSegment=(mesh,a,b)=>{const d=b.clone().sub(a);mesh.position.copy(a).addScaledVector(d,.5);mesh.scale.y=d.length();mesh.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());};
   const setLegs=()=>{const pedalMode=!!bike.getObjectByName('cranks:rotor'),angle=mechanical?.state.crankPhase||0;
     for(const {side,upper,lower} of legMeshes){const h=hip.clone().setZ(side*.075),f=pedalMode?off([A.bb[0]+Math.cos(angle)*side*.14,A.bb[1]+Math.sin(angle)*side*.14]).setZ(side*.12):foot.clone().add(new T.Vector3(-.03,-.025,side*.145));
-      const d=f.clone().sub(h),D=d.length(),u=d.normalize(),along=D/2,k=h.clone().addScaledVector(u,along).addScaledVector(new T.Vector3(-u.y,u.x,0),Math.sqrt(Math.max(.001,.29**2-along**2)));poseSegment(upper,h,k);poseSegment(lower,k,f);}
+      f.lerp(new T.Vector3(hip.x-.55,hip.y+.03,side*.12),supermanPose);const d=f.clone().sub(h),D=d.length(),u=d.normalize(),along=D/2,k=h.clone().addScaledVector(u,along).addScaledVector(new T.Vector3(-u.y,u.x,0),Math.sqrt(Math.max(.001,.29**2-along**2))*(1-supermanPose*.85));poseSegment(upper,h,k);poseSegment(lower,k,f);}
   };setLegs();
   const setArms = () => { arms.clear(); const sh = shoulder.clone(); const hl = hand.clone().sub(torsoG.position).applyAxisAngle(new T.Vector3(0, 0, 1), -torsoG.rotation.z);
     for (const z of [-0.18, 0.18]) { const el2 = sh.clone().lerp(hl, 0.5).add(new T.Vector3(-0.05, -0.08, z * 0.7)); arms.add(limb(sh.clone().setZ(z * 0.6), el2, 0.045, skin), limb(el2, hl.clone().setZ(z), 0.04, skin)); } };
@@ -110,44 +114,38 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   // particles: one instanced pool (roost, landing dust, puddle splash, scrape sparks)
   const NP = 260, pm = new T.InstancedMesh(new T.BoxGeometry(0.06, 0.06, 0.06), new T.MeshBasicMaterial({ color: "#fff" }), NP); pm.userData.wkFx = 1; pm.frustumCulled = false; scene.add(pm);
   const parts = Array.from({ length: NP }, () => ({ life: 0 })); let pi = 0; const o3 = new T.Object3D(), col = new T.Color();
+  const smoke=new T.InstancedMesh(new T.SphereGeometry(.12,8,6),new T.MeshBasicMaterial({color:'#c5cec5',transparent:true,opacity:.32,depthWrite:false}),96),smokeParts=Array.from({length:96},()=>({life:0}));let smokeIndex=0;smoke.frustumCulled=false;smoke.userData.wkFx=1;scene.add(smoke);
   const emit = (x, y, vx, vy, c, life = 0.8, g = 9.8, sz = 1) => { const p = parts[pi = (pi + 1) % NP]; Object.assign(p, { x, y, z: (Math.random() - 0.5) * 0.6, vx, vy, life, max: life, g, sz }); pm.setColorAt(pi, col.set(c)); pm.instanceColor.needsUpdate = true; };
   for (let i = 0; i < NP; i++) pm.setColorAt(i, col.set("#fff"));
   // state + input
   let s = makeState(P, 2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0 }; let tilt = false, tiltLean = 0;
-  const kd = (e) => { const k = e.key.toLowerCase(); if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault(); keys[k] = true; if (k === "r") respawn(); if (k === "escape") close(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
+  const kd = (e) => { const k = e.key.toLowerCase(); if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;const action=({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); if (k === "escape") close(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   const ori = (e) => { if (tilt && e.gamma != null) { const land = Math.abs(window.orientation || screen.orientation?.angle || 0) === 90; const v = land ? (e.beta || 0) * Math.sign(window.orientation || screen.orientation?.angle || 1) : e.gamma; tiltLean = Math.max(-1, Math.min(1, -v / 25)); } };
   addEventListener("deviceorientation", ori);
   // HUD + touch controls (DOM over the canvas)
   const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none"; el.appendChild(ui);
   ui.innerHTML = `<div style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
-    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" style="${btnCss("#222", 90, 44)}">↻ RESET</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button></div>
+    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" style="${btnCss("#222", 90, 44)}">↻ RESET</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">ENDLESS: ${flat?"ON":"OFF"}</button></div>
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
    <div style="position:absolute;top:60px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
    <div data-h="trick" style="position:absolute;top:22%;width:100%;text-align:center;font-size:34px;color:#39ff7a;text-shadow:0 0 14px #000"></div>
    <div data-h="msg" style="position:absolute;top:36%;width:100%;text-align:center;font-size:26px;text-shadow:0 0 10px #000"></div>
-   <div style="position:absolute;left:10px;bottom:12px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto">
-     <div data-t="brake" style="${btnCss("#ff5468cc", 72, 82)}">BRAKE</div>
-     <div data-t="leanBack" role="button" aria-label="Lean back" style="${btnCss("#ffffff33",72,82)}">◀ BACK</div><div data-t="leanForward" role="button" aria-label="Lean forward" style="${btnCss("#ffffff33",72,82)}">FWD ▶</div>
-     <div data-t="lean" style="display:none"><div data-knob></div></div></div>
-   <div style="position:absolute;right:10px;bottom:12px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto">
-     <div style="display:flex;flex-direction:column;gap:8px"><div data-t="trick" style="${btnCss("#c77dffcc", 72, 42)}">360</div><div data-t="whip" style="${btnCss("#3ab8ffcc", 72, 42)}">WHIP</div></div>
-     <div data-t="hop" style="${btnCss("#ffd23dcc", 80, 80)};color:#222">HOP</div><div data-t="throttle" style="${btnCss("#39ff7acc", 110, 110)};color:#062">GAS</div></div>
-   <div style="position:absolute;bottom:2px;width:100%;text-align:center;font:11px sans-serif;opacity:.7">↑/W gas · ↓/S brake · ←/A lean back · →/D lean forward · Space hop · R reset</div>`;
+   ${rideControlsMarkup()}`;
   const $ = (q) => ui.querySelector(q), hud = Object.fromEntries([...ui.querySelectorAll("[data-h]")].map((e) => [e.dataset.h, e]));
   const held = new Map(); // pointerId -> control
-  const leanPad = $('[data-t="lean"]'), knob = leanPad.querySelector("[data-knob]");
-  const setLeanFrom = (e) => { const r = leanPad.getBoundingClientRect(); touch.lean = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2.4)); knob.style.left = (50 + touch.lean * 40) + "%"; };
-  ui.querySelectorAll("[data-t]").forEach((b) => { const c = b.dataset.t;
-    b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); held.set(e.pointerId, c); if (c === "lean") setLeanFrom(e); else touch[c] = 1; b.style.filter = "brightness(1.5)"; });
-    b.addEventListener("pointermove", (e) => { if (c === "lean" && held.get(e.pointerId) === "lean") setLeanFrom(e); });
-    const up = (e) => { if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if([...held.values()].includes(c))return; if (c === "lean") { touch.lean = 0; knob.style.left = "50%"; } else touch[c] = 0; b.style.filter = ""; };
-    b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("lostpointercapture", up); });
-  const releaseControls=()=>{held.clear();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];knob.style.left='50%';ui.querySelectorAll('[data-t]').forEach(b=>b.style.filter='')};
+  const leanControls=mountLeanControls(ui,touch);
+  ui.querySelectorAll('[data-t]').forEach(b=>{const c=b.dataset.t;
+    b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);held.set(e.pointerId,c);touch[c]=1;if(c==='hop')hopQueued=true;if(['tailwhip','barspin','superman'].includes(c))s.stuntRequest={name:c,expires:.7};b.style.filter='brightness(1.5)'});
+    const up=e=>{if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if([...held.values()].includes(c))return;touch[c]=0;b.style.filter=''};
+    for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,up);
+  });
+  const releaseControls=()=>{hopQueued=false;held.clear();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];leanControls.release();ui.querySelectorAll('[data-t]').forEach(b=>b.style.filter='')};
   const visibility=()=>{if(document.hidden)releaseControls()};
   addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
   $('[data-r="back"]').onclick = () => close(); $('[data-r="reset"]').onclick = () => respawn();
+  let replacementStop=null,disposed=false;const switchLevel=()=>{localStorage.setItem('wk-level',flat?'trials':'flat');stop(false);replacementStop=mountRide(el,{stats,build,onResult,onClose});};$('[data-r="level"]').onclick=switchLevel;
   $('[data-r="tilt"]').onclick = async (e) => { try { if (!tilt && typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {} tilt = !tilt; tiltLean = 0; e.target.textContent = "TILT: " + (tilt ? "ON" : "OFF"); };
   function respawn() { const keep = s.score; s = makeState(P, lastCP, ter); s.score = keep; crashT = 0; msg = "RESPAWN"; msgT = 1; }
   function report() { if (reported) return; reported = true; saveCond({ dirt: Math.min(1, dirt), wear }); try { onResult?.({ score: Math.round(maxScore), flips, wheelieT: s.bestWheelie || 0, finished, money: Math.round(maxScore / 10) }); } catch (e) { console.warn(e); } }
@@ -155,9 +153,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   const frame = (now) => { raf = requestAnimationFrame(frame); const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
+    leanControls.update(dt);
     inp.throttle = Math.max(touch.throttle, keys.arrowup || keys.w ? 1 : 0); inp.brake = Math.max(touch.brake, keys.arrowdown || keys.s ? 1 : 0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0)+(tilt?tiltLean:0)))*-1;
-    inp.hop = touch.hop || keys[" "] ? 1 : 0; inp.trick = touch.trick || keys.q ? 1 : 0; inp.whip = touch.whip || keys.e ? 1 : 0;
+    inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
     if (!s.crashed && !finished) { const n = Math.ceil(dt * 480); for (let k = 0; k < n; k++) step(s, P, inp, dt / n, ter); }
     // events -> FX, wear, messages
     for (const ev of s.events.splice(0)) {
@@ -168,6 +167,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
       if (ev.type === "crash") { msg = "CRASH! " + ev.why; msgT = 99; hud.trick.textContent = ""; for (let i = 0; i < 30; i++) emit(s.x, s.y, (Math.random() - 0.5) * 6, Math.random() * 4, "#c9844a", 1.2, 8); }
     }
     for (const k in s.wear) { wear[k] = (wear[k] || 0) + s.wear[k]; } s.wear = {};
+    if(s.burnout&&!s.crashed){for(let i=0;i<3;i++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:s.x+P.wb*(P.driveAxle==='front'?1-P.comBack:-P.comBack),y:ter.h(s.x)+.12,z:(Math.random()-.5)*.35,vx:-.5-Math.random(),vy:.5+Math.random()*.6,life:1.8});}msg='BURNOUT';msgT=.2;}
     // roost + splash + dirt build-up
     const rx = s.x + Math.cos(s.pitch) * (-P.wb * P.comBack) + Math.sin(s.pitch) * hC, onRear = s.ground[0];
     if (onRear && inp.throttle && Math.abs(s.vx) > 0.5 && Math.random() < 0.8) emit(rx - P.R * 0.6, ter.h(rx) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, ter.inPuddle(rx) ? "#7fb4d6" : "#a8693a", 0.7);
@@ -177,14 +177,16 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     // particles update
     for (let i = 0; i < NP; i++) { const p = parts[i]; if (p.life > 0) { p.life -= dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y < ter.h(p.x)) { p.y = ter.h(p.x); p.vy *= -0.2; p.vx *= 0.5; } o3.position.set(p.x, p.y, p.z); o3.scale.setScalar(Math.max(0.01, p.life / p.max) * p.sz); } else o3.scale.setScalar(0); o3.updateMatrix(); pm.setMatrixAt(i, o3.matrix); }
     pm.instanceMatrix.needsUpdate = true;
+    smokeParts.forEach((particle,i)=>{if(particle.life>0){particle.life-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;o3.position.set(particle.x,particle.y,particle.z);o3.scale.setScalar((1+(1-particle.life/1.8)*3)*Math.min(1,particle.life*3));}else o3.scale.setScalar(0);o3.updateMatrix();smoke.setMatrixAt(i,o3.matrix)});smoke.instanceMatrix.needsUpdate=true;
     // crash -> auto respawn at last checkpoint
     if (s.crashed) { crashT += dt; pivot.rotation.z += dt * 2; pivot.position.y = Math.max(ter.h(s.x) + 0.3, pivot.position.y - dt * 2); if (crashT > 1.2) respawn(); }
     else { pivot.position.set(s.x, s.y, 0); pivot.rotation.z = s.pitch; }
     spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; pivot.rotation.y = spinVis;
     // suspension: wheels slide toward the frame by compression*travel
-    if(mechanical)mechanical.update({distance:s.vx*dt,driveDistance:inp.throttle>0||find(build.motor)?.nopedal?s.vx*dt:0,rearCompression:build.shock?s.comp[0]||0:0,frontCompression:s.comp[1]||0,travelR:P.travelR,travelF:P.travelF});
+    stuntRig.restore();
+    if(mechanical)mechanical.update({distance:s.vx*dt,frontDistance:s.burnout&&P.driveAxle==='front'?dt*Math.min(18,4+P.power/1500):s.vx*dt,rearDistance:s.burnout&&P.driveAxle!=='front'?dt*Math.min(18,4+P.power/1500):s.vx*dt,driveDistance:s.burnout?(find(build.motor)?.kind==="mid"?dt*Math.min(18,4+P.power/1500):0):inp.throttle>0||find(build.motor)?.nopedal||s.reversing?s.vx*dt:0,rearCompression:build.shock?s.comp[0]||0:0,frontCompression:s.comp[1]||0,travelR:P.travelR,travelF:P.travelF});
     else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
-    torsoG.rotation.z = inp.lean * 0.25 + (s.crashed ? 0.6 : 0); setArms();setLegs();
+    supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;torsoG.rotation.z=inp.lean*.25+(s.crashed?.6:0)-supermanPose*.9;setArms();setLegs();stuntRig.pose(s.stunt);
     // checkpoints / finish
     while (cpI + 1 < ter.checkpoints.length && s.x > ter.checkpoints[cpI + 1]) { cpI++; lastCP = ter.checkpoints[cpI] + 1; msg = "CHECKPOINT " + cpI; msgT = 1.2; }
     if (!finished && s.x > ter.finish) { finished = true; msg = `FINISH! SCORE ${Math.round(s.score).toLocaleString()} · +$${Math.round(s.score / 10).toLocaleString()}`; msgT = 99; maxScore = Math.max(maxScore, s.score); report(); }
@@ -200,11 +202,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     hud.batt.textContent = P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
     if (s.trickT <= 0) hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; hud.msg.textContent = msgT > 0 ? msg : "";
     const w = W(), h = H(); if (R.domElement.width !== Math.round(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+    backdrop.repeat.set(Math.min(1,w/h/2),Math.min(1,2/(w/h)));backdrop.offset.set((1-backdrop.repeat.x)/2,(1-backdrop.repeat.y)/2);
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;hud.prog.style.display='none';hud.best.textContent='FLAT ENDLESS · '+Math.floor(s.odo)+' m';}
     R.render(scene, cam); };
   raf = requestAnimationFrame(frame);
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, cameraX:cam.position.x,groundX:ground.position.x,mechanical:mechanical?.state });
-  return () => { report(); cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface'); R.dispose(); el.innerHTML = ""; };
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, cameraX:cam.position.x,groundX:ground.position.x,backdropLoaded,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),mechanical:mechanical?.state });
+  function stop(save=true) {if(disposed)return;disposed=true;if(save)report();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface'); backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
+  return ()=>{replacementStop?.();stop();};
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }
 globalThis.__WK_RIDE__ = mountRide;

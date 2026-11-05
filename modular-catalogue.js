@@ -48,7 +48,7 @@ for(const frame of ['moto','emoto'])STOCK_BUILDS[frame]={frame,motor:'mmid8k',ba
 export function prepareCatalogue(items) {
  const all=[...items,...MODULAR_PARTS];lookup=new Map(all.map(p=>[p.id,p]));variants=new Map();
  for(const p of all) {
-  if(p.slot==='motor'&&p.w)p.name=`${p.w/1000} kW · ${p.name.replace(/\b(\d+)W\b/gi,(_,n)=>(Number(n)/1000)+' kW')}`;
+  if(p.slot==='motor'&&p.w){p.name=`${p.w} W · ${p.name.replace(/(\d+(?:\.\d+)?)\s*kW\b/gi,(_,n)=>(Number(n)*1000)+' W')}`;p.note=p.note?.replace(/(\d+(?:\.\d+)?)\s*kW\b/gi,(_,n)=>(Number(n)*1000)+' W');}
   if(p.slot==='bars')p.clamp=({bar_bmx:22.2,trax_bars:25.4,bar_riser:31.8,bar_moto:28.6})[p.id]||31.8;
   if(p.slot==='rims')p.size=p.size||(p.id==='rim_moto'?'moto':'20');
   if(p.slot==='seatpost')p.saddleMount=p.saddleMount||'rails';

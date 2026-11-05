@@ -14,6 +14,7 @@
         "pedalError": 0,
         "state": {
           "wheelPhase": -0.5098039215686274,
+          "rearWheelPhase": -0.5098039215686274,
           "crankPhase": -0.21465428276573784,
           "chainPhase": -0.017364617363519602,
           "rearAngle": -2.4492935982947064e-16,
@@ -44,6 +45,7 @@
         "pedalError": 0,
         "state": {
           "wheelPhase": -1.0196078431372548,
+          "rearWheelPhase": -1.0196078431372548,
           "crankPhase": -0.42930856553147567,
           "chainPhase": -0.034729234727039204,
           "rearAngle": -0.02512638113490009,
@@ -74,6 +76,7 @@
         "pedalError": 0,
         "state": {
           "wheelPhase": -1.5294117647058822,
+          "rearWheelPhase": -1.5294117647058822,
           "crankPhase": -0.6439628482972135,
           "chainPhase": -0.052093852090558807,
           "rearAngle": -0.050084806188447815,
@@ -104,6 +107,7 @@
         "pedalError": 0,
         "state": {
           "wheelPhase": -2.0392156862745097,
+          "rearWheelPhase": -2.0392156862745097,
           "crankPhase": -0.8586171310629513,
           "chainPhase": -0.06945846945407841,
           "rearAngle": -0.07489385763515012,
@@ -134,6 +138,7 @@
         "pedalError": 0,
         "state": {
           "wheelPhase": -2.549019607843137,
+          "rearWheelPhase": -2.549019607843137,
           "crankPhase": -1.0732714138286892,
           "chainPhase": -0.08682308681759801,
           "rearAngle": -0.09957120274427858,

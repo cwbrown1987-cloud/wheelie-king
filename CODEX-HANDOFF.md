@@ -5,11 +5,12 @@ Updated 5 Nov 2026. This is the single current instruction page. Replace the res
 ## Resume
 
 - Branch: `wip/v18-detail`; completed releases also go to `main`.
-- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-simple-1`. Check Git for the current HEAD.
-- Working: Simple (default) and Advanced modes; nine preset bikes; compatible automatic motor/battery/supporting-part plans; wider two-column wheel/style/colour choices; transactional bike previews with collapsed menus and ✓/✕; separate info button; TRAX geometry and shared drivetrain/suspension motion. Repairs/condition effects are paused. Motors show kW; fit messages overlay menus.
-- Riding: Flat endless practice (default) or Trials; up/W gas, down/S brake, left/A back, right/D forward, Space hop; separate touch lean buttons. Forgiving arcade/trials landing and upright-mono assists; simplified rigid-body physics, not an elastic frame simulation.
-- Last checks passed: builder preview/colour/wheel/motor flows, 5 km endless ground/camera, modular builds, 45 motion poses, TRAX mechanics, 36 landings, upright mono and Chromium multi-touch. Real Android/iPad behaviour/performance remains unverified.
-- Outstanding/next: Chris's device feedback on the new menus, controls and arcade balance; then finer component detail. Older pre-modular/pre-preview tests need migration when relevant. Decal projection limits remain. Do not re-enable repairs without Chris's request.
+- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-controls-2`. Check Git for the current HEAD.
+- Builder: Simple (default) and Advanced share the same wider two-column left category rail and inline parts area. The old top-left Back button is the mode toggle. Every category has a line icon. Nine presets, automatic compatible upgrades and ✓/✕ previews remain. Motors show watts. The glowing green stand pad is replaced by a dark support; repairs stay paused.
+- Riding: Endless/Trials toggle is in the ride and starts a new run. Original illustrated outback backdrop. Right-hand accelerator and brake/reverse pedals; one spring-centred horizontal lean slider on the left, with NO preset/chain controls. Accelerate + back lean = mono; brake + forward lean = stoppie; lean rotates in air. Holding brake after stopping reverses; simultaneous gas/brake burns out the driven wheel on electric bikes/motos, with smoke. Pedal bikes do not burn out.
+- Tricks: Hop, Tailwhip (Z/E), Barspin (X), Superman (C), 360 (Q), above the slider. Airborne animations restore their transforms every frame; completed tricks score in landing combos. Up/W gas, down/S brake, left/A back, right/D forward, Space hop. Arcade assistance supports upright monos/stoppies; contact physics stays simplified/reusable.
+- Last checks passed: all six release checks, including shared rail/header/icons, preview recovery, watts, 5 km ground/camera/backdrop, in-ride course changes, touch slider spring return/multi-touch pedals, reverse/burnouts, trick visuals/landing awards, 36 landings, nine-bike motion/fitment and TRAX mechanics. Real Android/iPad feel/performance remains unverified.
+- Next: Chris's device feedback on layout, controls and tricks; then finer part detail. Older pre-modular/pre-preview tests need migration when relevant. Decal projection limits remain. Do not re-enable repairs without Chris's request.
 
 ## Working rules
 
@@ -48,7 +49,7 @@ Cloudflare project: `wheelie-king`, account `7f9b89a42182a51327a119efb6cf949e`. 
 
 - Catalogue/variants/stock: `modular-catalogue.js`; fitment: `fitment.js`; assembly: `parts3d.js`, `modular-render.js`; previews: `thumbs.js`.
 - Geometry/detail: `frame-geometry.js`, `partmodels.js`, `detail.js`; TRAX: `trax-bike.js`, `trax-suspension.js`; motion: `bike-motion.js`.
-- Riding/input: `ride.js`; contacts/landings: `ride-physics.js`; decals: `stickers-dd.js`; PWA: `index.html`, `sw.js`, manifest/headers/icons.
+- Riding/rendering: `ride.js`; slider/pedal UI: `ride-controls.js`; stunt transforms: `ride-tricks.js`; contacts/landings/trick awards: `ride-physics.js`; category icons: `category-icons.js`; backdrop: `icons/outback-background.svg`; decals: `stickers-dd.js`; PWA: `index.html`, `sw.js`, manifest/headers/icons.
 - Deferred priorities: component detail, frame-specific fender/cover styles and finishes, TRACE sticker editing. Future: sub-mesh workshop, 3D free roam, scooters, richer per-build wear.
 - Targets: `docs/reference/quality-reference-emoto.png`, `docs/reference/frame-joints.png`, `docs/reference/hub-spokes.png`. Evidence: `wk-shots/`.
 - History: [CHANGELOG](CHANGELOG.md), [old checkpoints](docs/archive/CODEX-HANDOFF-through-2026-11-05.md), [original brief](docs/archive/HANDOFF-original.md), [TRAX notes](docs/archive/TRAX-BIKE-through-2026-11-05.md), [transcript](docs/archive/CHAT-HISTORY.md). Historical instructions do not override this page or Chris's latest request.

@@ -1,5 +1,15 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Shared garage rail, analogue lean and tricks — 5 Nov 2026
+
+- Simple and Advanced now share a wider two-column category rail and inline parts drawer. The existing top-left Back location switches modes. Added matching line icons for every previously empty category. Existing presets, compatibility/automatic supporting parts, colours and ✓/✕ previews remain.
+- Motors display watts in catalogue names and motor badges. Replaced the glowing green support block near the crank with a slim dark stand pad.
+- Moved Endless/Trials switching into the ride. Switching starts a new run and disposes the old renderer/context/listeners. Added an original SVG outback picture with explicit texture dimensions and aspect-correct cropping; endless ground still recycles beyond 5 km.
+- Final lean control follows Chris's supplied reference: one horizontal spring-centred slider, no presets or chaining. Back lean with acceleration triggers monos; forward lean with braking triggers stoppies; airborne lean rotates the bike. Right-hand accelerator and brake/reverse controls resemble metal pedals. Both pointers work independently; holding brake after stopping reverses.
+- Electric gas+brake combinations produce stationary burnouts and rising smoke. Only the motor-driven wheel/disc spins; front-hub and rear/mid-drive configurations are handled separately. Pedal bikes do not burn out.
+- Added airborne Tailwhip, Barspin and Superman buttons, alongside Hop and 360. Frame/rear assembly or steering assembly animates around the steerer; Superman extends the rider's legs and torso. Temporary transforms restore before mechanical updates. Completed stunts add named landing-combo points; brief taps queue reliably until airborne.
+- All six release checks passed: shared layout/mode/icon/stand assertions, preview recovery/compatible upgrades, live course toggling/backdrop/5 km rendering, actual Chromium multi-touch pedals and spring slider, stunt poses, reverse/burnouts and landing/trick awards, nine-bike motion/fitment and TRAX mechanics. Real-device testing remains with Chris. Cache: `wk-v18-controls-2`.
+
 ## Simple/Advanced builder and arcade practice — 5 Nov 2026
 
 - New `builder-mode.js`: Simple is the default, with nine complete presets and wider two-column compatible motor, battery, suspension, wheel, style and colour choices. Matching controller/throttle/drivetrain/adapters are assembled automatically; electrical voltage/current, frame power limits and existing interface rules filter choices. Advanced preserves the full builder. Both modes have an explicit toggle and level selection.

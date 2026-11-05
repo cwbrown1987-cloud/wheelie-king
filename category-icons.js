@@ -1,0 +1,37 @@
+// Shared line icons use the existing category artwork's 32px stroke language.
+export const categoryPaths={
+ kit:'M5 11h22v16H5z M3 6h26v5H3z M16 6v21 M10 6C3-1 19 0 16 6 M22 6C29-1 13 0 16 6',
+ motor:'M5 9h18v14H5z M23 13h5v6h-5 M9 9V6h10v3 M9 13v6 M14 13v6 M19 13v6',
+ battery:'M4 8h23v18H4z M27 13h3v8h-3 M9 12v10 M14 12v10 M19 12v10',
+ controller:'M8 8h16v16H8z M12 12h8v8h-8 M4 10h4 M4 16h4 M4 22h4 M24 10h4 M24 16h4 M24 22h4 M10 4v4 M16 4v4 M22 4v4 M10 24v4 M16 24v4 M22 24v4',
+ tyres:'M16 3a13 13 0 1 0 .01 0 M16 7a9 9 0 1 0 .01 0 M16 7v18 M7 16h18',
+ frame:'M4 24l8-15 9 15H4l10-2 10-13 M10 6h6 M23 6h4l3 18 M25 24h5',
+ rear_frame:'M4 24L19 6l9 18H4l17-7 M19 6v11 M18 4h5 M24 24a3 3 0 1 0 .01 0',
+ headset:'M8 5h16v5H8z M6 11h20v4H6z M9 16h14v6H9z M6 23h20v4H6z',
+ stem:'M7 27V10h16V5h5v12H13v10 M20 6v10 M17 9h10',
+ seatpost:'M9 4h15v5H9z M13 9v18h6V9 M8 5V2h17v4',
+ pedals:'M3 12h12v11H3z M18 6h12v11H18z M15 17h5V9 M6 15v5 M10 15v5 M22 9v5 M26 9v5',
+ hubs:'M2 16h28 M9 6v20 M23 6v20 M10 10h12v12H10z M6 12v8 M26 12v8',
+ body_panels:'M5 6l22 4-4 17-17-3z M10 11l12 2-2 9-10-2z',
+ number_plate:'M6 5h20l2 23H4z M13 11l3-2v13 M12 23h9',
+ suspension:'M8 4v11 M24 4v11 M5 10h22 M6 15h5v13H6z M21 15h5v13h-5z M11 20h10',
+ shock:'M8 4l16 24 M12 3L5 8 M27 24l-7 5 M10 8l9-2-5 9 9-2-5 9',
+ bars:'M3 5l5 2 3 13h10l3-13 5-2 M11 21h10 M13 20v6h6v-6',
+ grips:'M3 11h26v10H3z M7 11v10 M11 11v10 M15 11v10 M19 11v10 M23 11v10',
+ seat:'M3 15C1 6 13 6 17 10l12 4v5H4z M10 20l4 7h8',
+ rims:'M16 3a13 13 0 1 0 .01 0 M16 7a9 9 0 1 0 .01 0 M16 7v18 M7 16h18 M10 10l12 12 M10 22l12-12',
+ cranks:'M16 15L6 5 M16 17l10 10 M2 3h8v5H2z M22 24h8v5h-8z M16 12a4 4 0 1 0 .01 0',
+ chain:'M8 11h16a5 5 0 0 1 0 10H8a5 5 0 0 1 0-10z M8 15h16v2H8z',
+ sprocket_f:'M16 3v5 M16 24v5 M3 16h5 M24 16h5 M7 7l4 4 M21 21l4 4 M7 25l4-4 M21 11l4-4 M16 7a9 9 0 1 0 .01 0 M16 13a3 3 0 1 0 .01 0',
+ fender_f:'M3 23C3 2 29 2 29 23 M6 23C6 6 26 6 26 23 M16 7v8',
+ fender_r:'M3 23C3 3 27 3 29 19 M6 23C6 7 24 7 26 20 M16 7v8',
+ wing:'M3 8h26v5H3z M10 13v8 M22 13v8 M6 24h20',
+ bash:'M4 8v14l12 6 12-6V8 M4 14l12 6 12-6 M9 7h14',
+ lights:'M12 8h10v16H12l-9-5v-6z M25 9l4-3 M25 16h6 M25 23l4 3',
+ throttle:'M3 12h22v9H3z M8 12v9 M23 21l5 7 M25 12l4-5',
+ brakes:'M16 4a12 12 0 1 0 .01 0 M16 11a5 5 0 1 0 .01 0 M22 6h7v10h-7z',
+ sticker:'M4 4h24v17l-7 7H4z M21 28v-7h7 M10 11h12 M10 16h7',
+};
+categoryPaths.sprocket_r=categoryPaths.sprocket_f;
+globalThis.__WK_ICON_PATH__=categoryPaths;
+export function categoryIcon(slot){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 32 32');svg.setAttribute('width','28');svg.setAttribute('height','28');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',categoryPaths[slot]||categoryPaths.frame);path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','2');path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');svg.append(path);return svg;}
