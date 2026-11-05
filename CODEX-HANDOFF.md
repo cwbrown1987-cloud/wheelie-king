@@ -5,13 +5,14 @@ Updated 5 Nov 2026. This is the single current instruction page. Replace the res
 ## Resume
 
 - Branch: `wip/v18-detail`; completed releases also go to `main`.
-- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-workshop-ride-3`. Check Git for the current HEAD.
+- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-rider-side-1`. Check Git for the current HEAD.
 - Builder: Simple (default) and Advanced share the wider two-column rail/inline previews. Small screens have All Parts; sticker tools wrap. Bikes is separate from Kits (seven complete matched conversion packages, bundle thumbnails). Styles contains colour choices, with nested Back history. Automatic removals are quiet. Rotation pause persists. Compact stats retain km/h, W, Nm, km, kg and stunt labels. Repairs remain paused; infinite coins stays on.
 - Mechanics: fork sliders/dropouts follow the real leg axis; upside-down forks move their lower stanchions, with crowns/uppers fixed. Nine-bike pivot/shock/brake/fender relationships remain checked.
 - Riding: reference-style lean circles, centre trick row, right brake-disc/green accelerator, pause/reset/endless/tilt. Static neon sunset background, textured 3D road and near concrete foreground. Current side camera remains; full redesign/chase camera is future work. Round-tyre footprint contacts smooth sharp joins; travel stops handle landings. Monos use responsive counterlean/brake and a ground-dependent fender scrape, without a fixed 93-degree lock. Reverse, driven-wheel electric burnouts and trick combinations remain.
 - Stickers: upload → DRAW CUTOUT → trace/tap around object → Use cutout → existing border/rating/APPLY TO BIKE flow. Clear/undo/cancel and transparent alpha are supported. Ratings and adult PIN gating remain.
 - Validation: all seven release checks passed (builder, workshop/cutout, landings, multi-touch controls, nine-bike motion, TRAX mechanics, modular fitment). A separate sharp-join ride check passed. Publish with `npm run deploy`, which verifies every runtime file hash. Real Android/iPad feel and performance remain unverified.
-- Next: Chris tests this batch on the public app. Full scene/chase-camera target remains deferred in [visual-direction.md](docs/visual-direction.md). Keep one concise resume here.
+- Rider: `rider-model.js` has shaped blue hoodie, helmet/face/gloves, trousers and trainers, articulated limbs and persistent meshes (no per-frame arm geometry rebuild). Side camera is shallower; road narrowed to 1.4 m and shallow track ribbon/foreground rather than a full-screen slab. Ride checks and visual inspection cover this follow-up.
+- Next: Chris is supplying a larger list. The reference pictures remain the exact visual target. Plan a smooth roughly 0.4-second side/chase camera orbit in one shared environment, mostly straight track with gentle bends/automatic side steering, and long scenery sections blended without obvious repetition. Those larger changes are not implemented yet; see [visual-direction.md](docs/visual-direction.md).
 
 ## Working rules
 

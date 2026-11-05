@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Articulated rider and side-view composition — 5 Nov 2026
+
+- Replaced the capsule person with a shaped blue hoodie, hood/pockets/cuffs, lime vented helmet/peak/straps, face/goggles, gloves, trousers, knees and trainers/soles. Jointed limbs follow pedals and existing lean/Superman poses. Arm meshes are reused instead of regenerated every frame.
+- Narrowed the visible side-view road, shallowed camera pitch and reduced the near track thickness so the road no longer fills half the view.
+- Recorded the reference-matching side/chase target, smooth snappy pan, gentle-bend track/automatic steering, and non-repeating long scenery transitions. Those are the next larger batch, not claimed implemented.
+- Cache: `wk-v18-rider-side-1`. Landings and real Chromium multi-touch/ride/trick/pause checks passed; current rider and scene visually inspected.
+
 ## Workshop, cutouts, fork contacts and arcade balance — 5 Nov 2026
 
 - Small-window All Parts access, wrapping sticker tools, nested style-menu Back, colours only under Styles, quiet automatic removals, persistent rotation pause and readable compact stat units.

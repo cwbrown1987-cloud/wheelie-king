@@ -11,7 +11,7 @@ export function roadLayers(T,scene,pts,topGeometry){
  }
  const topMap=texture(),uv=[];for(const [x]of pts)uv.push(x/8,1,x/8,0);topGeometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
  const group=new T.Group();group.name='wk:foreground';const positions=[],coords=[],indices=[];
- pts.forEach(([x,y],i)=>{positions.push(x,y+.25,2.015,x,y-1.4,2.015);coords.push(x/8,1,x/8,0);if(i<pts.length-1){const a=i*2;indices.push(a,a+1,a+2,a+1,a+3,a+2)}});
+ pts.forEach(([x,y],i)=>{positions.push(x,y+.08,.715,x,y-.44,.715);coords.push(x/8,1,x/8,0);if(i<pts.length-1){const a=i*2;indices.push(a,a+1,a+2,a+1,a+3,a+2)}});
  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('uv',new T.Float32BufferAttribute(coords,2));geo.setIndex(indices);geo.computeVertexNormals();
  const edge=new T.Mesh(geo,new T.MeshStandardMaterial({map:texture(true),roughness:.85,side:T.DoubleSide}));edge.name='wk:near-concrete-edge';edge.receiveShadow=true;group.add(edge);scene.add(group);
  return {topMap,foreground:group};

@@ -6,6 +6,7 @@ import {createBikeMotion} from './bike-motion.js';
 import {rideControlsMarkup,mountLeanControls} from './ride-controls.js';
 import {makeStuntRig} from './ride-tricks.js';
 import {roadLayers} from './ride-scenery.js';
+import {makeRider} from './rider-model.js';
 const COND_KEY = "wk-condition";
 export const loadCond = () => ({dirt:0,wear:{}}); // Repair/condition system paused at Chris's request.
 export const saveCond = (c) => localStorage.setItem(COND_KEY, JSON.stringify(c));
@@ -58,15 +59,15 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const legacyScenery=[];let backdropLoaded=false;const backdrop=new T.TextureLoader().load('./icons/neon-skatepark-background.png',texture=>{texture.colorSpace=T.SRGBColorSpace;scene.background=texture;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;});
   // terrain
   const flat=(localStorage.getItem('wk-level')||'flat')==='flat',ter=flat?makeFlatTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat?500:ter.finish;const pts=ter.pts;
-  const shape = new T.Shape(); shape.moveTo(pts[0][0], -30); pts.forEach(([x, y]) => shape.lineTo(x, y)); shape.lineTo(pts[pts.length - 1][0], -30); shape.closePath();
-  const groundGeo = new T.ExtrudeGeometry(shape, { depth: 4, bevelEnabled: false }); groundGeo.translate(0, 0, -2);
+  const shape = new T.Shape(); shape.moveTo(pts[0][0],pts[0][1]-.45);pts.forEach(([x,y])=>shape.lineTo(x,y));[...pts].reverse().forEach(([x,y])=>shape.lineTo(x,y-.45));shape.closePath();
+  const groundGeo = new T.ExtrudeGeometry(shape, { depth: 1.4, bevelEnabled: false }); groundGeo.translate(0, 0, -.7);
   const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
-  const strip = []; pts.forEach(([x, y]) => strip.push(x, y + 0.02, 2, x, y + 0.02, -2)); const sg = new T.BufferGeometry(); sg.setAttribute("position", new T.Float32BufferAttribute(strip, 3));
+  const strip = []; pts.forEach(([x, y]) => strip.push(x, y + 0.02, .7, x, y + 0.02, -.7)); const sg = new T.BufferGeometry(); sg.setAttribute("position", new T.Float32BufferAttribute(strip, 3));
   const idx = []; for (let i = 0; i < pts.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } sg.setIndex(idx); sg.computeVertexNormals();
   const layers=roadLayers(T,scene,pts,sg);
   const dirtTop = new T.Mesh(sg, new T.MeshStandardMaterial({ map:layers.topMap,roughness: .65, side: T.DoubleSide })); dirtTop.receiveShadow = true; scene.add(dirtTop);
-  let flatMarkers;if(flat){flatMarkers=new T.InstancedMesh(new T.BoxGeometry(2,.006,.055),new T.MeshStandardMaterial({color:'#7ed4ed',emissive:'#174b63',emissiveIntensity:.5,roughness:.7}),82);const marker=new T.Object3D();for(let i=0;i<82;i++){marker.position.set(-200+(i%41)*10,.028,i<41?-1.5:1.5);marker.updateMatrix();flatMarkers.setMatrixAt(i,marker.matrix)}scene.add(flatMarkers);}
-  ter.puddles.forEach(([a, b]) => { const m = new T.Mesh(new T.PlaneGeometry(b - a, 3.6), new T.MeshStandardMaterial({ color: "#3d6f8f", roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.85 })); m.rotation.x = -Math.PI / 2; m.position.set((a + b) / 2, ter.h((a + b) / 2) + 0.04, 0); scene.add(m); });
+  let flatMarkers;if(flat){flatMarkers=new T.InstancedMesh(new T.BoxGeometry(2,.006,.055),new T.MeshStandardMaterial({color:'#7ed4ed',emissive:'#174b63',emissiveIntensity:.5,roughness:.7}),82);const marker=new T.Object3D();for(let i=0;i<82;i++){marker.position.set(-200+(i%41)*10,.028,i<41?-.53:.53);marker.updateMatrix();flatMarkers.setMatrixAt(i,marker.matrix)}scene.add(flatMarkers);}
+  ter.puddles.forEach(([a, b]) => { const m = new T.Mesh(new T.PlaneGeometry(b - a, 1.3), new T.MeshStandardMaterial({ color: "#3d6f8f", roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.85 })); m.rotation.x = -Math.PI / 2; m.position.set((a + b) / 2, ter.h((a + b) / 2) + 0.04, 0); scene.add(m); });
   const flag = (x, col, label) => { const g = new T.Group(); const y = ter.h(x); const pole = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 2.6), new T.MeshStandardMaterial({ color: "#ddd" })); pole.position.set(x, y + 1.3, -1.6);
     const f = new T.Mesh(new T.PlaneGeometry(0.9, 0.55), new T.MeshStandardMaterial({ color: col, side: T.DoubleSide })); f.position.set(x + 0.45, y + 2.3, -1.6); g.add(pole, f); g.userData.label = label; scene.add(g); return g; };
   ter.checkpoints.slice(1).forEach((x) => flag(x, "#39ff7a", "CP")); if(!flat){flag(ter.finish, "#ffffff", "FINISH"); flag(ter.finish, "#111111", "FINISH").position.z = 3.2;}
@@ -93,26 +94,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   const forkG = bike.getObjectByName("wk:suspension"), forkY = forkG?.position.y || 0;
   const mechanical=createBikeMotion(bike,build,find);
   const stuntRig=makeStuntRig(T,bike,A,find(build.motor)?.kind);
-  // rider (simple low-poly, leans with input)
-  const rider = new T.Group(); body.add(rider); const skin = new T.MeshStandardMaterial({ color: "#2b7bff", roughness: 0.7 }), dark = new T.MeshStandardMaterial({ color: "#1a1a1a" }), helm = new T.MeshStandardMaterial({ color: "#39ff7a", metalness: 0.3, roughness: 0.3 });
-  const off = (p) => new T.Vector3(p[0] + bike.position.x, p[1] + bike.position.y, 0);
-  const hip = off([A.seatTop[0], A.seatTop[1] + 0.1]), hand = off([A.headTop[0] - 0.04, A.headTop[1] + 0.2]), foot = off(A.bb);
-  const limb = (a, b, r, m) => { const d = b.clone().sub(a), me = new T.Mesh(new T.CapsuleGeometry(r, d.length(), 4, 8), m); me.position.copy(a).addScaledVector(d, 0.5); me.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize()); me.castShadow = true; return me; };
-  const torsoG = new T.Group(); torsoG.position.copy(hip); rider.add(torsoG);
-  const shoulder = new T.Vector3(0.22, 0.48, 0); torsoG.add(limb(new T.Vector3(), shoulder, 0.11, skin));
-  const head = new T.Mesh(new T.SphereGeometry(0.13, 16, 12), helm); head.position.copy(shoulder).add(new T.Vector3(0.05, 0.2, 0)); torsoG.add(head);
-  const visor = new T.Mesh(new T.BoxGeometry(0.06, 0.06, 0.2), dark); visor.position.copy(head.position).add(new T.Vector3(0.12, 0, 0)); torsoG.add(visor);
-  const arms = new T.Group(); torsoG.add(arms);
-  const legs = new T.Group(); rider.add(legs);const legMeshes=[];let supermanPose=0,hopQueued=false;
-  for(const side of [-1,1]){const upper=new T.Mesh(new T.CylinderGeometry(.055,.055,1,12),dark),lower=new T.Mesh(new T.CylinderGeometry(.045,.045,1,12),dark);legs.add(upper,lower);legMeshes.push({side,upper,lower});}
-  const poseSegment=(mesh,a,b)=>{const d=b.clone().sub(a);mesh.position.copy(a).addScaledVector(d,.5);mesh.scale.y=d.length();mesh.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());};
-  const setLegs=()=>{const pedalMode=!!bike.getObjectByName('cranks:rotor'),angle=mechanical?.state.crankPhase||0;
-    for(const {side,upper,lower} of legMeshes){const h=hip.clone().setZ(side*.075),f=pedalMode?off([A.bb[0]+Math.cos(angle)*side*.14,A.bb[1]+Math.sin(angle)*side*.14]).setZ(side*.12):foot.clone().add(new T.Vector3(-.03,-.025,side*.145));
-      f.lerp(new T.Vector3(hip.x-.55,hip.y+.03,side*.12),supermanPose);const d=f.clone().sub(h),D=d.length(),u=d.normalize(),along=D/2,k=h.clone().addScaledVector(u,along).addScaledVector(new T.Vector3(-u.y,u.x,0),Math.sqrt(Math.max(.001,.29**2-along**2))*(1-supermanPose*.85));poseSegment(upper,h,k);poseSegment(lower,k,f);}
-  };setLegs();
-  const setArms = () => { arms.clear(); const sh = shoulder.clone(); const hl = hand.clone().sub(torsoG.position).applyAxisAngle(new T.Vector3(0, 0, 1), -torsoG.rotation.z);
-    for (const z of [-0.18, 0.18]) { const el2 = sh.clone().lerp(hl, 0.5).add(new T.Vector3(-0.05, -0.08, z * 0.7)); arms.add(limb(sh.clone().setZ(z * 0.6), el2, 0.045, skin), limb(el2, hl.clone().setZ(z), 0.04, skin)); } };
-  setArms();
+  const riderModel=makeRider(T,body,bike,A,mechanical);riderModel.update();let supermanPose=0,hopQueued=false;
   // particles: one instanced pool (roost, landing dust, puddle splash, scrape sparks)
   const NP = 260, pm = new T.InstancedMesh(new T.BoxGeometry(0.06, 0.06, 0.06), new T.MeshBasicMaterial({ color: "#fff" }), NP); pm.userData.wkFx = 1; pm.frustumCulled = false; scene.add(pm);
   const parts = Array.from({ length: NP }, () => ({ life: 0 })); let pi = 0; const o3 = new T.Object3D(), col = new T.Color();
@@ -189,14 +171,14 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     stuntRig.restore();
     if(mechanical)mechanical.update({distance:s.vx*dt,frontDistance:s.burnout&&P.driveAxle==='front'?dt*Math.min(18,4+P.power/1500):s.vx*dt,rearDistance:s.burnout&&P.driveAxle!=='front'?dt*Math.min(18,4+P.power/1500):s.vx*dt,driveDistance:s.burnout?(find(build.motor)?.kind==="mid"?dt*Math.min(18,4+P.power/1500):0):inp.throttle>0||find(build.motor)?.nopedal||s.reversing?s.vx*dt:0,rearCompression:build.shock?s.comp[0]||0:0,frontCompression:s.comp[1]||0,travelR:P.travelR,travelF:P.travelF});
     else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
-    supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;torsoG.rotation.z=inp.lean*.25+(s.crashed?.6:0)-supermanPose*.9;setArms();setLegs();stuntRig.pose(s.stunt);
+    supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;riderModel.update({lean:inp.lean,crashed:!!s.crashed,superman:supermanPose});stuntRig.pose(s.stunt);
     // checkpoints / finish
     while (cpI + 1 < ter.checkpoints.length && s.x > ter.checkpoints[cpI + 1]) { cpI++; lastCP = ter.checkpoints[cpI] + 1; msg = "CHECKPOINT " + cpI; msgT = 1.2; }
     if (!finished && s.x > ter.finish) { finished = true; msg = `FINISH! SCORE ${Math.round(s.score).toLocaleString()} · +$${Math.round(s.score / 10).toLocaleString()}`; msgT = 99; maxScore = Math.max(maxScore, s.score); report(); }
     maxScore = Math.max(maxScore, s.score);
     // camera: side-on follow, zooms out with speed
     const sp = Math.hypot(s.vx, s.vy), dist = 6.5 + Math.min(6, sp * 0.35), cx = (s.crashed ? pivot.position.x : s.x) + Math.min(3, s.vx * 0.15);
-    const cameraTarget=new T.Vector3(cx,(s.crashed?pivot.position.y:s.y)+1.2+dist*.12,dist);if(cam.position.distanceTo(cameraTarget)>50)cam.position.copy(cameraTarget);else cam.position.lerp(cameraTarget,.12);cam.lookAt(cam.position.x,cam.position.y-.9-dist*.08,0);
+    const cameraTarget=new T.Vector3(cx,(s.crashed?pivot.position.y:s.y)+.45+dist*.025,dist);if(cam.position.distanceTo(cameraTarget)>50)cam.position.copy(cameraTarget);else cam.position.lerp(cameraTarget,.12);cam.lookAt(cam.position.x,cam.position.y-.65,0);
     sun.position.set(s.x + 4, s.y + 10, 6); sun.target.position.set(s.x, s.y, 0);
     sky.position.x = cam.position.x; sunDisc.position.x = cam.position.x + 40;
     // HUD
@@ -209,7 +191,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;layers.foreground.position.x=tile;flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;hud.prog.style.display='none';hud.best.textContent='FLAT ENDLESS · '+Math.floor(s.odo)+' m';}
     R.render(scene, cam); };
   raf = requestAnimationFrame(frame);
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, cameraX:cam.position.x,groundX:ground.position.x,backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),mechanical:mechanical?.state });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, cameraX:cam.position.x,groundX:ground.position.x,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),mechanical:mechanical?.state });
   function stop(save=true) {if(disposed)return;disposed=true;if(save)report();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused'); backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }

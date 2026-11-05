@@ -22,3 +22,11 @@
 6. Rework riding collisions and exaggerated wheelies: easy to raise until the fender scrapes, while still requiring balance. Do not retain a locked upright angle as the final behaviour.
 
 The workshop release includes these fixes, rotation pause, labelled stats, separate Bikes/complete Kits, sticker tracing, and road/foreground layers. Full scene and chase-camera work remains deferred.
+
+## Camera and scenery clarification — 5 Nov 2026
+
+Chris wants the supplied images treated as the actual composition/style target: a narrow side-on road strip, stylised blue hoodie/green helmet rider, and an over-the-shoulder chase view of the same world. Use one predominantly straight track with gentle bends, not a circuit. Side mode follows the track automatically; steering input should not be required. Switch views through a smooth, snappy physical camera pan (initial target about 0.4 seconds), keeping rider and track continuous.
+
+The long environment should develop through similar scenes without obvious repeated wallpaper; blend overlapping scenery sections and keep near/middle/far depth consistent through camera movement. A flat static backdrop cannot deliver the reference chase view. Build a shared 3D track/near environment with distant scenery behind it before enabling the camera switch. No claim of exact visual parity yet. Chris has more requirements to supply before that larger batch.
+
+Current immediate change: shaped hoodie/helmet/face/gloves/trousers/trainers with persistent articulated meshes; narrower visible side-view road and shallower camera pitch. Camera switching, gentle-bend path following and long scenery transitions are still pending the larger batch.
