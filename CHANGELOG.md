@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Mobile Workshop and sticker-equipped Race startup — 6 Nov 2026
+
+- Fixed circular sticker editor data breaking Three.js bike cloning on Race entry. Keep the visible decal geometry/material and restore source metadata; preflight cloning happens before allocating ride graphics.
+- Enlarged touch menus and category pictures rendered from actual 3D models. Removed the oversized Workshop banner and bottom-right Ride button; use Race in the top menu.
+- Docked half-height Stickers above Simple/Advanced at the sidebar bottom. Footer remains accessible while browsing parts; drawers preserve the bike viewport.
+- Added phone landscape/portrait layout checks and repeated Race launch regression with a circular decal fixture. Cache: `wk-v18-mobile-decals-1`.
+
 ## Centred Workshop orbit and isolated race launch — 5 Nov 2026
 
 - Centred reset/orbit on the stand; retained free orbit, pan and zoom. Reset clears residual damping and idle rotation respects the explicit pause preference. Workshop rendering pauses while Race is open.

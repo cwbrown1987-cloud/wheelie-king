@@ -29,8 +29,16 @@ export function applyCondition(root, cond) {
 export const condLabel = (w) => (w >= 1 ? "BROKEN" : w >= 0.4 ? "CRACKED" : w > 0.05 ? "WORN" : "OK");
 globalThis.__WK_COND__ = { load: loadCond, save: saveCond, apply: applyCondition, label: condLabel };
 
+// Three.js clones userData through JSON. Editor decal records contain live mesh
+// references; omit those runtime links while retaining the rendered decal mesh.
+function rideData(value,parents=new WeakSet()){
+ if(value===null||typeof value!=='object')return typeof value==='function'?undefined:value;
+ if(value.isObject3D||value.isMaterial||value.isTexture||value.isBufferGeometry||parents.has(value))return undefined;
+ parents.add(value);const out=Array.isArray(value)?[]:{};for(const [key,item]of Object.entries(value))if(key!=='wkDecal'){const v=rideData(item,parents);if(v!==undefined)out[key]=v}parents.delete(value);return out;
+}
 export function cloneForRide(src) {
-  const bike=src.clone(true);
+ const originals=[];let bike;try{src.traverse(o=>{originals.push([o,o.userData]);o.userData=rideData(o.userData)});bike=src.clone(true)}finally{for(const [o,data]of originals)o.userData=data;}
+
   bike.traverse(o=>{
     if(!o.isMesh||!o.userData.wkFlashBase)return;
     const base=o.userData.wkFlashBase;
@@ -42,6 +50,7 @@ export function cloneForRide(src) {
 }
 
 export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDetail=false }) {
+  const src=(()=>{let root=null;globalThis.__WK_VIEW__?.scene.traverse(o=>{if(!root&&o.name==='wk:frame')root=o.parent});return root})(),preparedBike=src?cloneForRide(src):null;
   el.setAttribute('data-wk-ride-surface','');
   const blockBrowserGesture=e=>{if(e.type.startsWith('touch')&&e.target.closest?.('[data-r],button,input'))return;if(e.cancelable)e.preventDefault()};
   const blockedGestures=['selectstart','contextmenu','dragstart','gesturestart','gesturechange','touchstart','touchmove'];
@@ -80,9 +89,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }
   const environment=makeEnvironment(T,scene,ter,{lowDetail});dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;
   // the real garage bike, cloned
-  const src = (() => { let r = null; globalThis.__WK_VIEW__?.scene.traverse((o) => { if (!r && o.getObjectByName?.("wk:frame") && o.children.some((c) => c.name === "wk:frame")) r = o; }); return r; })();
   const pivot = new T.Group(), body = new T.Group(); pivot.add(body); scene.add(pivot);
-  let bike = src ? cloneForRide(src) : null, A = src?.userData.wkAnchors;
+  let bike = preparedBike, A = src?.userData.wkAnchors;
   if (!bike) { bike = new T.Group(); A = { rearAxle: [-0.5, 0.33], frontAxle: [0.5, 0.33], wheelR: 0.33, bb: [0, 0.3], seatTop: [-0.2, 0.75], headTop: [0.4, 0.8] }; }
   bike.position.set(0, 0, 0); bike.rotation.set(0, 0, 0); bike.scale.set(1, 1, 1); bike.traverse((o) => { o.castShadow = true; if (o.name === "wk:stand" || o.name?.includes("platform")) o.visible = false; });
   bike.children.filter((c) => c.name === "wk:stand").forEach((c) => (c.visible = false));

@@ -1,10 +1,10 @@
 # Wheelie King — current instructions and resume
 
-Updated 5 Nov 2026. This is the single current instruction page. Replace the resume when work changes; do not append checkpoints. Consult history only for a specific question.
+Updated 6 Nov 2026. This is the single current instruction page. Replace the resume when work changes; do not append checkpoints. Consult history only for a specific question.
 
 ## Resume
 
-- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-camera-launch-1`.
+- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-mobile-decals-1`.
 - Workshop: renamed builder, same layout. Full-screen neon static garage image behind editable 3D bike and frosted panels; old green turntable hidden. Compact top-right bike/stats card expands the existing glass panel. Sticker drawer does not resize the bike viewport. Parts replace the category rail; ✓/✕ preview keeps that rail visible. Bikes cards show complete assemblies, not just frames. More accessory categories now have rendered 3D pictures.
 - Navigation: primary menus are at the top; left parts layout retained. Garage/Browser are explicitly Coming Soon, Workshop and Race work; My Builds/Parts Shop/Challenges/Settings are under More. Future Garage ownership/trophies and simulated marketplace Browser remain deferred; see `docs/future-garage-browser.md`.
 - Builder: Simple default/Advanced, compatible plans, separate complete Bikes/conversion Kits, nested colours, preview recovery, rotation pause, quiet automatic removals. Infinite money on; repairs paused. TRAX wheel size is confirmed 20 inch; other photo dimensions remain estimates.
@@ -16,7 +16,8 @@ Updated 5 Nov 2026. This is the single current instruction page. Replace the res
 - Camera/launch follow-up: reset/orbit centred on the stand, pan/zoom unchanged, explicit rotation pause survives idle timers. Workshop rendering pauses beneath Race. Race launches in its own viewport portal outside transformed/glassy Workshop DOM, with visible loading/startup errors and a compatibility-graphics retry (reduced resolution/shadows/streaming). Desktop/touch ride checks and a simulated graphics-loss/retry check passed; Chris's specific black-screen device still needs confirmation.
 - Wall: higher, level cap/fence; wall top no longer follows/bends with track. Far building foundations extended below the wall.
 - Accessories: Simple-mode WIP category with six placeholder gear/bundle cards. Shared Common/Rare/Epic/Legendary and premium/themed bundles are design backlog only; no real payments or item locks added.
-- Next: Chris tests camera and Race startup; capture any visible startup error if it still fails. Further art/gear UI, public chase switching, Garage and Browser remain deferred. Keep repairs paused and rating/PIN gate intact.
+- Mobile/decals: Race clones omit circular editor links while preserving rendered stickers and original Workshop metadata. Clone preflight runs before graphics allocation. Larger touch layout, actual 3D category pictures, banner and bottom-right Ride removed; compact Stickers and Simple/Advanced are docked at sidebar bottom and stay accessible beside drawers. Top Race is the ride entry. Automated desktop/touch checks cover layouts, source preservation and repeated sticker-equipped Race launches; physical iOS/Android confirmation remains outstanding.
+- Next: Chris tests the mobile Workshop and sticker-equipped Race startup. Further art/gear UI, public chase switching, Garage and Browser remain deferred. Keep repairs paused and rating/PIN gate intact.
 
 ## Working rules
 
@@ -55,7 +56,7 @@ Cloudflare project: `wheelie-king`, account `7f9b89a42182a51327a119efb6cf949e`. 
 
 - Catalogue/variants/stock: `modular-catalogue.js`; fitment: `fitment.js`; assembly: `parts3d.js`, `modular-render.js`; previews: `thumbs.js`.
 - Geometry/detail: `frame-geometry.js`, `partmodels.js`, `detail.js`; TRAX: `trax-bike.js`, `trax-suspension.js`; motion: `bike-motion.js`.
-- Riding/rendering: `ride.js`; reference control skin: `ride-controls.js`; stunt transforms: `ride-tricks.js`; contacts/landings/trick awards: `ride-physics.js`; category icons: `category-icons.js`; backdrop: `icons/neon-skatepark-background.png` ([prompt/provenance](docs/assets/neon-backdrop.md)); decals: `stickers-dd.js`; cutouts: `sticker-trace.js`; road/foreground: `ride-scenery.js`; workshop presentation/nav: `workshop-presentation.js`, `workshop-navigation.js`; PWA: `index.html`, `sw.js`, manifest/headers/icons.
+- Riding/rendering: `ride.js`; reference control skin: `ride-controls.js`; stunt transforms: `ride-tricks.js`; contacts/landings/trick awards: `ride-physics.js`; category icons: `category-icons.js`; backdrop: `icons/neon-skatepark-background.png` ([prompt/provenance](docs/assets/neon-backdrop.md)); decals: `stickers-dd.js`; cutouts: `sticker-trace.js`; road/foreground: `ride-scenery.js`; workshop presentation/nav: `workshop-presentation.js`, `workshop-navigation.js`, `workshop-mobile.js`; PWA: `index.html`, `sw.js`, manifest/headers/icons.
 - Deferred priorities: component detail, frame-specific fender/cover styles and finishes, richer sticker editing. Future: sub-mesh workshop, 3D free roam, scooters, richer per-build wear.
 - Targets: `docs/reference/quality-reference-emoto.png`, `docs/reference/frame-joints.png`, `docs/reference/hub-spokes.png`. Evidence: `wk-shots/`.
 - History: [CHANGELOG](CHANGELOG.md), [old checkpoints](docs/archive/CODEX-HANDOFF-through-2026-11-05.md), [original brief](docs/archive/HANDOFF-original.md), [TRAX notes](docs/archive/TRAX-BIKE-through-2026-11-05.md), [transcript](docs/archive/CHAT-HISTORY.md). Historical instructions do not override this page or Chris's latest request.
