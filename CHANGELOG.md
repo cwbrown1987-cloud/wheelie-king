@@ -1,5 +1,10 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Cleaner sticker selection — 6 Nov 2026
+
+- Two larger sticker art cards per row, name search and clearer compact controls in a frosted drawer. Existing sticker info, upload/cutout, placement and content gates remain native.
+- Search/filter and upload/cutout checks passed. Cache: `wk-v18-sticker-picker-1`.
+
 ## Mobile Workshop and sticker-equipped Race startup — 6 Nov 2026
 
 - Fixed circular sticker editor data breaking Three.js bike cloning on Race entry. Keep the visible decal geometry/material and restore source metadata; preflight cloning happens before allocating ride graphics.

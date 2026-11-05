@@ -4,10 +4,11 @@ Updated 6 Nov 2026. This is the single current instruction page. Replace the res
 
 ## Resume
 
-- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-mobile-decals-1`.
+- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-sticker-picker-1`.
 - Workshop: renamed builder, same layout. Full-screen neon static garage image behind editable 3D bike and frosted panels; old green turntable hidden. Compact top-right bike/stats card expands the existing glass panel. Sticker drawer does not resize the bike viewport. Parts replace the category rail; ✓/✕ preview keeps that rail visible. Bikes cards show complete assemblies, not just frames. More accessory categories now have rendered 3D pictures.
 - Navigation: primary menus are at the top; left parts layout retained. Garage/Browser are explicitly Coming Soon, Workshop and Race work; My Builds/Parts Shop/Challenges/Settings are under More. Future Garage ownership/trophies and simulated marketplace Browser remain deferred; see `docs/future-garage-browser.md`.
 - Builder: Simple default/Advanced, compatible plans, separate complete Bikes/conversion Kits, nested colours, preview recovery, rotation pause, quiet automatic removals. Infinite money on; repairs paused. TRAX wheel size is confirmed 20 inch; other photo dimensions remain estimates.
+- Sticker picker: two larger art cards per row, searchable names, restrained glass cards and compact controls; existing info, upload/cutout and rating gates retained.
 - Stickers: upload → Draw Cutout → trace/tap → Use cutout → existing die-cut/rating/apply flow. Adult PIN/rating rules remain.
 - Ride: reference-style controls, tricks, flat endless/trials, forgiving contacts/monos, reverse/electric burnouts. Streamed 3D near/middle/far surroundings and QA `__WK_SCENE_VIEW__('side'|'chase')` pan; no public camera toggle/curving track yet. Depth checks passed beyond 10 km with bounded resource use. Screenshots: `wk-shots/scene-depth/`.
 - Race follow-up: rounded monotone terrain supplies the same surface to visuals/contacts. Track, walls, caps/fences and nearby ground follow it; flowers have grounded stems, props use their actual placement height, and palms/grass/rocks have smoother geometry. Floor coverage and tile UV continuity improved. Suspension contact travel follows real fork/swingarm motion relative to road angle; rendered-wheel test on rounded Trials terrain found only 0.000044 m penetration.
