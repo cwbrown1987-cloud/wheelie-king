@@ -17,11 +17,13 @@ const style=document.createElement('style');style.textContent=`
 [data-stickers] [data-wk-part] canvas,[data-stickers] [data-wk-part] img{max-width:100%!important;width:128px!important;height:auto!important;max-height:72px;object-fit:contain;filter:drop-shadow(0 3px 3px #0007)}
 [data-stickers] [data-wk-part]>div:nth-of-type(2){font:650 12px/1.3 system-ui!important;min-height:32px!important;color:#eff8ff}
 [data-stickers] [data-wk-part]>div:last-child{font:800 12px system-ui!important;color:#8dffc3!important}
-@media(pointer:coarse){[data-stickers]{width:min(420px,47%)!important}[data-stickers]>div:first-child button{min-height:40px!important;font-size:12px!important}[data-stickers] [data-wk-part]>div:nth-of-type(2){font-size:13px!important}}
+[data-wk-sticker-result]{font:11px system-ui;color:#c0d7e8;min-height:14px;margin:0;flex-shrink:0}
+@media(pointer:coarse){[data-wk-sticker-search]{font-size:16px}[data-stickers]{width:min(420px,47%)!important}[data-stickers]>div:first-child button{min-height:40px!important;font-size:12px!important}[data-stickers] [data-wk-part]>div:nth-of-type(2){font-size:13px!important}}
 `;document.head.append(style);
 setInterval(()=>{
  const panel=document.querySelector('[data-stickers][data-open="true"]');if(!panel)return;
  const cards=[...panel.querySelectorAll('[data-wk-part]')],grid=cards[0]?.parentElement;if(grid)grid.dataset.wkStickerGrid='';
  let search=panel.querySelector('[data-wk-sticker-search]');if(!search){search=document.createElement('input');search.type='search';search.placeholder='Find a sticker…';search.setAttribute('aria-label','Find a sticker');search.dataset.wkStickerSearch='';search.value=query;search.addEventListener('input',()=>{query=search.value;filter()});panel.insertBefore(search,grid||panel.children[1]);}
- function filter(){for(const card of panel.querySelectorAll('[data-wk-part]'))card.hidden=!card.getAttribute('aria-label').toLowerCase().includes(query.trim().toLowerCase())}filter();
+ let result=panel.querySelector('[data-wk-sticker-result]');if(!result){result=document.createElement('p');result.dataset.wkStickerResult='';result.setAttribute('role','status');result.setAttribute('aria-live','polite');search.after(result)}
+ function filter(){const cards=[...panel.querySelectorAll('[data-wk-part]')];for(const card of cards)card.hidden=!card.getAttribute('aria-label').toLowerCase().includes(query.trim().toLowerCase());const count=cards.filter(c=>!c.hidden).length,text=count?count+' stickers · drag onto your bike':query?'No matches — try another name or clear search.':'No stickers in this collection yet.';if(result.textContent!==text)result.textContent=text}filter();
 },300);

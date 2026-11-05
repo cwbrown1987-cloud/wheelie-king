@@ -1,5 +1,13 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Ride and Workshop polish — 6 Nov 2026
+
+- Spawn/recover follows the road angle with both round tyres above the sampled surface, fixing small-wheel scooter starts inside the road. Nine wheel-size/slope settling cases and the existing 36 landing cases pass.
+- Rider feet use separate anchors: staggered inside the scooter deck, correctly above motorbike footpegs. Existing bike pedalling poses remain supported.
+- Aligned prototype headset bearings to the head tube, added fork-following front axle hardware and deck fasteners/charging-port detail. Chain previews now wrap around the sprockets.
+- Compact spacing fits all ten Simple categories on landscape touch screens, with direct categories retained on smaller phones. Sticker search has result/empty-state feedback and a touch font size that avoids iOS input zoom.
+- Cache: `wk-v18-polish-1`.
+
 ## Motorbike and E-scooter test platforms — 6 Nov 2026
 
 - Added Motorbikes and E-scooters sections with an Outback 125 petrol test bike and provisional Kaiji rear-hub test scooter. Both are original procedural prototypes with estimated game specifications.

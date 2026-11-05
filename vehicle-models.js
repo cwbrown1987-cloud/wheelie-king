@@ -1,11 +1,12 @@
 import {prototypeFor} from './vehicle-platforms.js';
 import * as PM from './partmodels.js';
+import {chainRoute} from './bike-motion.js';
 // All assemblies use the same axle/pivot/fork names as the existing motion rig.
 export function buildVehicle(root,build,T,find){
  const v=prototypeFor(build.frame);if(!v)return false;PM.useThree(T);
  const stand=root.getObjectByName('wk:stand');if(stand)stand.removeFromParent();
  root.traverse(o=>{o.geometry?.dispose()});root.clear();if(stand)root.add(stand);
- const scooter=v.vehicleClass==='escooter',R=v.wheelR,x=v.geometry(R),A={frontAxle:x.front,rearAxle:x.rear,bb:x.bb,headTop:x.htT,headBottom:x.htB,seatTop:x.seat,wheelR:R,swingPivot:v.pivot,shockFrame:v.shockFrame,shockArm:v.shockArm,feet:v.feet,vehicleClass:v.vehicleClass,hand:[x.htT[0],x.htT[1]+(scooter?.075:.14)],handWidth:scooter?.29:.36};
+ const scooter=v.vehicleClass==='escooter',R=v.wheelR,x=v.geometry(R),A={frontAxle:x.front,rearAxle:x.rear,bb:x.bb,headTop:x.htT,headBottom:x.htB,seatTop:x.seat,wheelR:R,swingPivot:v.pivot,shockFrame:v.shockFrame,shockArm:v.shockArm,feet:v.feet,vehicleClass:v.vehicleClass,hand:[x.htT[0],x.htT[1]+(scooter?.075:.14)],handWidth:scooter?.29:.36,footTargets:scooter?[[-.18,.31,-.04],[.06,.31,.04]]:[[-.135,.381,-.14],[-.135,.381,.14]]};
  const groups=new Map(),p=slot=>find(build[slot]),color=slot=>p(slot)?.color||v.colour;
  const group=slot=>{if(groups.has(slot))return groups.get(slot);const g=new T.Group();g.name=['frame','tyres','motor','suspension','brakes','seat','battery','controller','throttle'].includes(slot)?'wk:'+slot:'wk:part:'+slot;g.userData.slot=slot;root.add(g);groups.set(slot,g);return g};
  const mat=(c,metal=.3)=>new T.MeshStandardMaterial({color:c,metalness:metal,roughness:.42});
@@ -17,6 +18,8 @@ export function buildVehicle(root,build,T,find){
   rounded(fr,'scooter:deck',.65,.085,.19,fc,[-.04,.205,0]);
   rod(fr,'scooter:neck',[.22,.23,0],[.43,.43,0],.033,fc);rod(fr,'frame:headTube',[.43,.43,0],[.35,1.06,0],.024,fc);
   rounded(fr,'scooter:foldingLatch',.06,.08,.075,'#454f5d',[.42,.46,0]);
+  for(const px of [-.31,.23])for(const side of [-1,1])mesh(fr,'scooter:deckBolt',new T.CylinderGeometry(.004,.004,.003,6),'#aab8c2',[px,.261,side*.073]);
+  rounded(fr,'scooter:chargePort',.035,.025,.008,'#111c29',[.19,.207,.101],.005);
  }else{
   for(const side of [-1,1]){const z=side*.065;rod(fr,'pit:topRail',[-.42,.68,z],[.48,.78,z],.018,fc);rod(fr,'pit:downTube',[.48,.74,z],[.15,.27,z],.023,fc);rod(fr,'pit:engineCradle',[.15,.27,z],[-.25,.29,z],.019,fc);rod(fr,'pit:seatStrut',[-.25,.29,z],[-.27,.69,z],.02,fc);}
   rod(fr,'frame:headTube',[...x.htB,0],[...x.htT,0],.035,fc);
@@ -29,10 +32,11 @@ export function buildVehicle(root,build,T,find){
   const fork=new T.Group();fork.name='wk:model:fork';const direction=new T.Vector3(x.htB[0]-x.front[0],x.htB[1]-x.front[1],0).normalize();fork.userData.wkFork={axis:direction.toArray()};group('suspension').add(fork);
   for(const side of [-1,1]){const z=side*(scooter?.065:.082),middle=[x.front[0]+direction.x*(scooter?.14:.26),x.front[1]+direction.y*(scooter?.14:.26),z];rod(fork,'fork:stanchion'+side,[x.htB[0],x.htB[1],z],middle,.014,'#c7d5dd');const lower=rod(fork,'fork:lower'+side,[x.front[0],x.front[1],z],middle,.022,color('suspension'));lower.userData.wkForkMoving=true;}
   rod(fork,'fork:crown',[x.htB[0],x.htB[1],-.1],[x.htB[0],x.htB[1],.1],.022,fc);
+  const axle=new T.Group();axle.name='fork:frontAxle';axle.userData.wkForkMoving=true;fork.add(axle);for(const side of [-1,1])rod(axle,'frontAxle:nut',[...A.frontAxle,side*.075],[...A.frontAxle,side*.095],.011,'#a7b5bf');
  }
  if(p('bars')){const cg=group('bars');cg.name='wk:cockpit';const clamp=[x.htT[0]+.025,x.htT[1]+.06];if(p('stem'))rod(group('stem'),'stem:body',[...x.htT,0],[...clamp,0],.015,color('stem'));const bar=PM.bars({width:scooter?.29:.36,rise:scooter?.015:.08,sweep:.025,crossbar:!scooter,color:color('bars'),gripColor:color('grips')},clamp);bar.name='wk:model:bars';cg.add(bar);}
  if(p('throttle')){const g=group('throttle'),h=A.hand;rounded(g,'throttle:paddle',.035,.018,.025,color('throttle'),[h[0],h[1]-.025,A.handWidth-.025],.004);for(const side of [-1,1])rod(g,'brake:lever',[h[0],h[1],side*(A.handWidth-.07)],[h[0]+.06,h[1]-.015,side*(A.handWidth-.04)],.005,'#8d9ca7');const pts=[[h[0],h[1],.1],[h[0]+.05,h[1]-.1,.10],[x.htB[0]+.04,x.htB[1]-.06,.09],[x.front[0]+.025,x.front[1]+.04,.08]].map(a=>new T.Vector3(...a));mesh(g,'brake:frontHose',new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,.003,6,false),'#17202b');}
- if(p('headset'))for(const y of [x.htT[1],x.htB[1]])mesh(group('headset'),'headset:cup',new T.CylinderGeometry(.038,.038,.014,24),'#7b8c97',[x.htT[0],y,0]);
+ if(p('headset')){const axis=new T.Vector3(x.htT[0]-x.htB[0],x.htT[1]-x.htB[1],0).normalize();for(const point of [x.htT,x.htB]){const a=new T.Vector3(...point,0);rod(group('headset'),'headset:cup',a.clone().addScaledVector(axis,-.007).toArray(),a.clone().addScaledVector(axis,.007).toArray(),.038,color('headset'));}}
  if(p('seat')&&!scooter){const seat=rounded(group('seat'),'pit:benchSeat',.49,.075,.17,color('seat'),[-.24,.76,0],.025);seat.rotation.z=.04;}
  if(p('body_panels')){
   if(scooter){rounded(group('body_panels'),'scooter:gripMat',.57,.006,.167,'#171c24',[-.055,.252,0],.01);for(let i=0;i<9;i++)rounded(group('body_panels'),'scooter:gripStripe',.008,.002,.14,color('body_panels'),[-.30+i*.062,.257,0],.001);}
@@ -58,7 +62,7 @@ export function buildVehicle(root,build,T,find){
   const rotor=mesh(group('brakes'),'brake:rotor',new T.TorusGeometry(scooter?.055:.085,.008,8,40),'#bec6cb',[...a,.065]);for(let k=0;k<5;k++){const ang=k/5*Math.PI*2;rod(group('brakes'),'brake:rotorBolts',[a[0],a[1],.065],[a[0]+Math.cos(ang)*(scooter?.05:.08),a[1]+Math.sin(ang)*(scooter?.05:.08),.065],.003,'#b8c3cb');}rounded(group('brakes'),'brake:caliper',.04,.045,.03,'#384f58',[a[0]+.045,a[1]+.035,.075],.008);
  }
  if(p('pedals'))for(const side of [-1,1])rounded(group('pedals'),'pit:footpeg',.065,.018,.09,'#a4afb6',[...v.feet,side*.14],.004);
- if(p('chain')&&p('sprocket_f')&&p('sprocket_r')){const g=group('drive'),front=PM.sprocket(p('sprocket_f').teeth,'428','#77848e','sprocketF'),back=PM.sprocket(p('sprocket_r').teeth,'428','#77848e','sprocketR');front.position.set(...A.bb,.10);back.position.set(...A.rearAxle,.10);g.add(front,back);const chain=PM.chainAlong([[A.bb[0],A.bb[1]],[A.rearAxle[0],A.rearAxle[1]]],'428','#53595c',.10);chain.name='wk:model:chain';g.add(chain);}
+ if(p('chain')&&p('sprocket_f')&&p('sprocket_r')){const g=group('drive'),front=PM.sprocket(p('sprocket_f').teeth,'428','#77848e','sprocketF'),back=PM.sprocket(p('sprocket_r').teeth,'428','#77848e','sprocketR');front.position.set(...A.bb,.10);back.position.set(...A.rearAxle,.10);g.add(front,back);const chain=PM.chainAlong(chainRoute([{x:A.rearAxle[0],y:A.rearAxle[1],r:PM.sprocketR(p('sprocket_r').teeth)+.004},{x:A.bb[0],y:A.bb[1],r:PM.sprocketR(p('sprocket_f').teeth)+.004}]),'428','#53595c',.10);chain.name='wk:model:chain';g.add(chain);}
  if(p('lights')){rounded(group('lights'),'scooter:headlight',.025,.035,.055,'#e9f6ff',[.385,1.05,0],.006);rounded(group('lights'),'scooter:tailLight',.02,.025,.06,'#ed493e',[-.37,.26,0],.004);}
  root.userData.wkAnchors=A;root.userData.wkBuild={...build};root.userData.vehicleClass=v.vehicleClass;
  return true;

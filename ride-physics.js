@@ -33,8 +33,13 @@ export function bikeParams(stats = {}) {
     travelF: Math.max(0, stats.travel ?? 0), travelR: Math.max(0, stats.shock ?? 0), damp: stats.damp ?? 0.3, grip: stats.grip || 1,
     batteryWh: stats.batteryWh || 0,driveAxle:stats.driveAxle||'rear' };
 }
-export function makeState(p, x = 2, ter) { const y = ter.h(x) + p.R + p.comH * 0.75;
-  return { x, y, vx: 0, vy: 0, pitch: 0, w: 0, comp: [0, 0], ground: [false, false], air: 0, airRot: 0, wasAir: false, crashed: null, wheelieT: 0, stoppieT: 0, score: 0, trick: "", trickT: 0,
+export function makeState(p, x = 2, ter) {
+  // Spawn/recover with both round tyres clear of the sampled surface. A fixed
+  // fraction of COM height started small-wheel scooters inside the road.
+  const rear=-p.wb*p.comBack,front=p.wb*(1-p.comBack),h=p.comH-p.R;
+  const pitch=Math.atan2(ter.h(x+front)-ter.h(x+rear),p.wb),c=Math.cos(pitch),s=Math.sin(pitch);
+  const y=Math.max(...[rear,front].map(dx=>wheelContact(ter,x+dx*c+h*s,p.R).height-(dx*s-h*c)))+.012;
+  return { x, y, vx: 0, vy: 0, pitch, w: 0, comp: [0, 0], ground: [false, false], air: 0, airRot: 0, wasAir: false, crashed: null, wheelieT: 0, stoppieT: 0, score: 0, trick: "", trickT: 0,
     spin: 0, spinV: 0, wear: {}, events: [], battery: 1, odo: 0, wheelSpin: [0, 0] }; }
 const rot = (x, y, a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 // Sample the tyre footprint so sharp ledges meet the round tyre before its

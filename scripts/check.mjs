@@ -3,8 +3,8 @@ import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {root,stageRuntime} from './package.mjs';
 
-const profiles={static:[],scene:['scene-depth','terrain-ride'],vehicles:['vehicle-platforms'],builder:['simple-builder','workshop-batch','workshop-presentation','workshop-mobile'],ride:['ride-landings','ride-controls','crash-physics','crash-ride'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
-profiles.release=[...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles];
+const profiles={static:[],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['simple-builder','workshop-batch','workshop-presentation','workshop-mobile'],ride:['ride-landings','ride-controls','crash-physics','crash-ride'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
+profiles.release=[...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish];
 const requested=process.argv.slice(2);if(!requested.length)requested.push('static');
 for(const profile of requested)if(!Object.hasOwn(profiles,profile)){console.error(`Unknown check group: ${profile}. Choose ${Object.keys(profiles).join(', ')}.`);process.exit(1);}
 const out=join(root,'test-results','checks');mkdirSync(out,{recursive:true});
