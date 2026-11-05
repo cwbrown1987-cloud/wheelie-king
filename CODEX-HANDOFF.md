@@ -5,11 +5,11 @@ Updated 5 Nov 2026. This is the single current instruction page. Replace the res
 ## Resume
 
 - Branch: `wip/v18-detail`; completed releases also go to `main`.
-- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-modular-6`. Check Git for the current HEAD.
-- Working: nine compatible complete-bike kits; separate parts/colour variants (including actual grip removal/refitting); click-to-fit and separate info button; photo-based 20-inch TRAX; pivot/shock alignment; wheel/chain/crank/pedal motion; corrected landings and two-finger controls.
-- Last relevant checks passed: modular builds, 45 motion poses, TRAX mechanics, 36 flat/sloped landings and Chromium multi-touch. Actual Android/iPad behaviour and performance remain unverified.
-- Outstanding: device feedback on landings/touch; finer component detail; older tests still assuming frames include stock parts. Stickers/condition save per device, condition is global rather than per build, and decals have projection-depth limits.
-- Next: address Chris's device feedback first; stem clamp, pedal spindle, rear chain clearance and fork detail corrections are complete. Continue with seatpost/pedal platform detail if no further bugs are reported. Migrate only the older tests needed for that batch.
+- Live: https://wheelie-king.pages.dev. Runtime: `wk-v18-simple-1`. Check Git for the current HEAD.
+- Working: Simple (default) and Advanced modes; nine preset bikes; compatible automatic motor/battery/supporting-part plans; wider two-column wheel/style/colour choices; transactional bike previews with collapsed menus and ✓/✕; separate info button; TRAX geometry and shared drivetrain/suspension motion. Repairs/condition effects are paused. Motors show kW; fit messages overlay menus.
+- Riding: Flat endless practice (default) or Trials; up/W gas, down/S brake, left/A back, right/D forward, Space hop; separate touch lean buttons. Forgiving arcade/trials landing and upright-mono assists; simplified rigid-body physics, not an elastic frame simulation.
+- Last checks passed: builder preview/colour/wheel/motor flows, 5 km endless ground/camera, modular builds, 45 motion poses, TRAX mechanics, 36 landings, upright mono and Chromium multi-touch. Real Android/iPad behaviour/performance remains unverified.
+- Outstanding/next: Chris's device feedback on the new menus, controls and arcade balance; then finer component detail. Older pre-modular/pre-preview tests need migration when relevant. Decal projection limits remain. Do not re-enable repairs without Chris's request.
 
 ## Working rules
 
@@ -30,10 +30,11 @@ PowerShell in this checkout. Install dependencies: `npm ci`. Preview: `python -m
 | Command | Purpose |
 | --- | --- |
 | `npm run check` | Syntax and safe runtime packaging; no browser |
+| `npm run check -- builder` | Presets, compatible plans, colours/wheels, preview/apply/cancel, endless ride |
 | `npm run check -- ride` | Static checks, landings and multi-touch |
 | `npm run check -- mechanics` | Static checks, nine-bike motion and TRAX mechanics |
 | `npm run check -- modular` | Static checks, catalogue/fitment/colour/removal and ride smoke |
-| `npm run check -- release` | All five current integration checks, sequentially |
+| `npm run check -- release` | All six current integration checks, sequentially |
 | `npm run deploy` | Package, publish to production, verify served file hashes |
 | `npm run verify:live` | Compare current runtime files with production without publishing |
 

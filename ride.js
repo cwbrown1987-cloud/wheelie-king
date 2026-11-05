@@ -1,15 +1,16 @@
 // Wheelie King ride (v16). MotoX-Mayhem-style side-on 3D ride using the REAL garage bike (cloned, with its parts and stickers).
 // Physics: ride-physics.js (pure 2D, reusable for a later 3D mode). This file is only rendering, input, FX, HUD and saving condition.
 import * as T from "./vendor/three.module.js";
-import { makeTerrain, bikeParams, makeState, step } from "./ride-physics.js";
+import { makeTerrain, makeFlatTerrain, bikeParams, makeState, step } from "./ride-physics.js";
 import {createBikeMotion} from './bike-motion.js';
 const COND_KEY = "wk-condition";
-export const loadCond = () => { try { return JSON.parse(localStorage.getItem(COND_KEY)) || { dirt: 0, wear: {} }; } catch { return { dirt: 0, wear: {} }; } };
+export const loadCond = () => ({dirt:0,wear:{}}); // Repair/condition system paused at Chris's request.
 export const saveCond = (c) => localStorage.setItem(COND_KEY, JSON.stringify(c));
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 const DIRT = new T.Color("#5b4630");
 // dirt tint + damage look; used both in the ride (live) and in the garage build hook (carry-back)
 export function applyCondition(root, cond) {
+  return; // Keep every purchased part intact while repairs are disabled.
   const d = Math.min(1, cond.dirt || 0);
   root.traverse((o) => { if (!o.isMesh || !o.material || o.userData.wkFx) return; const ms = [].concat(o.material);
     const out = ms.map((m) => { const base = m.userData.wkBase || m; let c = m.userData.wkBase ? m : base.clone(); c.userData.wkBase = base;
@@ -52,22 +53,23 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   sky.position.set(0, 40, -120); scene.add(sky);
   const sunDisc = new T.Mesh(new T.CircleGeometry(9, 32), new T.MeshBasicMaterial({ color: "#fff3b0", fog: false })); sunDisc.position.set(40, 30, -110); scene.add(sunDisc);
   // terrain
-  const ter = makeTerrain((build.frame || "bmx").length * 7 + 3); const pts = ter.pts;
+  const flat=(localStorage.getItem('wk-level')||'flat')==='flat',ter=flat?makeFlatTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0], -30); pts.forEach(([x, y]) => shape.lineTo(x, y)); shape.lineTo(pts[pts.length - 1][0], -30); shape.closePath();
   const groundGeo = new T.ExtrudeGeometry(shape, { depth: 4, bevelEnabled: false }); groundGeo.translate(0, 0, -2);
   const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#a0522d", roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
   const strip = []; pts.forEach(([x, y]) => strip.push(x, y + 0.02, 2, x, y + 0.02, -2)); const sg = new T.BufferGeometry(); sg.setAttribute("position", new T.Float32BufferAttribute(strip, 3));
   const idx = []; for (let i = 0; i < pts.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } sg.setIndex(idx); sg.computeVertexNormals();
   const dirtTop = new T.Mesh(sg, new T.MeshStandardMaterial({ color: "#c9844a", roughness: 1, side: T.DoubleSide })); dirtTop.receiveShadow = true; scene.add(dirtTop);
+  let flatMarkers;if(flat){flatMarkers=new T.InstancedMesh(new T.BoxGeometry(2,.006,.055),new T.MeshStandardMaterial({color:'#efc895',roughness:1}),82);const marker=new T.Object3D();for(let i=0;i<82;i++){marker.position.set(-200+(i%41)*10,.028,i<41?-1.5:1.5);marker.updateMatrix();flatMarkers.setMatrixAt(i,marker.matrix)}scene.add(flatMarkers);}
   ter.puddles.forEach(([a, b]) => { const m = new T.Mesh(new T.PlaneGeometry(b - a, 3.6), new T.MeshStandardMaterial({ color: "#3d6f8f", roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.85 })); m.rotation.x = -Math.PI / 2; m.position.set((a + b) / 2, ter.h((a + b) / 2) + 0.04, 0); scene.add(m); });
   const flag = (x, col, label) => { const g = new T.Group(); const y = ter.h(x); const pole = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 2.6), new T.MeshStandardMaterial({ color: "#ddd" })); pole.position.set(x, y + 1.3, -1.6);
     const f = new T.Mesh(new T.PlaneGeometry(0.9, 0.55), new T.MeshStandardMaterial({ color: col, side: T.DoubleSide })); f.position.set(x + 0.45, y + 2.3, -1.6); g.add(pole, f); g.userData.label = label; scene.add(g); return g; };
-  ter.checkpoints.slice(1).forEach((x) => flag(x, "#39ff7a", "CP")); flag(ter.finish, "#ffffff", "FINISH"); flag(ter.finish, "#111111", "FINISH").position.z = 3.2;
+  ter.checkpoints.slice(1).forEach((x) => flag(x, "#39ff7a", "CP")); if(!flat){flag(ter.finish, "#ffffff", "FINISH"); flag(ter.finish, "#111111", "FINISH").position.z = 3.2;}
   // parallax hills (far layers move slower thanks to perspective) + scrub
   const rnd = ((r) => () => ((r = (r * 16807) % 2147483647) / 2147483647))(9);
-  [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= ter.finish + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(ter.finish + 120, -20); s.closePath();
+  [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= renderEnd + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(renderEnd + 120, -20); s.closePath();
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m); });
-  for (let x = -20; x < ter.finish + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b); }
+  for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b); }
   // the real garage bike, cloned
   const src = (() => { let r = null; globalThis.__WK_VIEW__?.scene.traverse((o) => { if (!r && o.getObjectByName?.("wk:frame") && o.children.some((c) => c.name === "wk:frame")) r = o; }); return r; })();
   const pivot = new T.Group(), body = new T.Group(); pivot.add(body); scene.add(pivot);
@@ -126,12 +128,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
    <div data-h="trick" style="position:absolute;top:22%;width:100%;text-align:center;font-size:34px;color:#39ff7a;text-shadow:0 0 14px #000"></div>
    <div data-h="msg" style="position:absolute;top:36%;width:100%;text-align:center;font-size:26px;text-shadow:0 0 10px #000"></div>
    <div style="position:absolute;left:10px;bottom:12px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto">
-     <div data-t="brake" style="${btnCss("#ff5468cc", 92, 92)}">BRAKE</div>
-     <div data-t="lean" style="${btnCss("#ffffff22", 170, 92)};position:relative;border:2px solid #fff6"><span style="position:absolute;left:8px;top:6px;font-size:11px">◀ LEAN BACK</span><span style="position:absolute;right:8px;bottom:6px;font-size:11px">FWD ▶</span><div data-knob style="position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px;border-radius:50%;background:#fff"></div></div></div>
+     <div data-t="brake" style="${btnCss("#ff5468cc", 72, 82)}">BRAKE</div>
+     <div data-t="leanBack" role="button" aria-label="Lean back" style="${btnCss("#ffffff33",72,82)}">◀ BACK</div><div data-t="leanForward" role="button" aria-label="Lean forward" style="${btnCss("#ffffff33",72,82)}">FWD ▶</div>
+     <div data-t="lean" style="display:none"><div data-knob></div></div></div>
    <div style="position:absolute;right:10px;bottom:12px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto">
      <div style="display:flex;flex-direction:column;gap:8px"><div data-t="trick" style="${btnCss("#c77dffcc", 72, 42)}">360</div><div data-t="whip" style="${btnCss("#3ab8ffcc", 72, 42)}">WHIP</div></div>
      <div data-t="hop" style="${btnCss("#ffd23dcc", 80, 80)};color:#222">HOP</div><div data-t="throttle" style="${btnCss("#39ff7acc", 110, 110)};color:#062">GAS</div></div>
-   <div style="position:absolute;bottom:2px;width:100%;text-align:center;font:11px sans-serif;opacity:.7">→/D gas · ←/A brake · ↑/W lean back · ↓/S lean fwd · Space hop · Q 360 · E whip · R reset</div>`;
+   <div style="position:absolute;bottom:2px;width:100%;text-align:center;font:11px sans-serif;opacity:.7">↑/W gas · ↓/S brake · ←/A lean back · →/D lean forward · Space hop · R reset</div>`;
   const $ = (q) => ui.querySelector(q), hud = Object.fromEntries([...ui.querySelectorAll("[data-h]")].map((e) => [e.dataset.h, e]));
   const held = new Map(); // pointerId -> control
   const leanPad = $('[data-t="lean"]'), knob = leanPad.querySelector("[data-knob]");
@@ -152,8 +155,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   const frame = (now) => { raf = requestAnimationFrame(frame); const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
-    inp.throttle = Math.max(touch.throttle, keys.arrowright || keys.d ? 1 : 0); inp.brake = Math.max(touch.brake, keys.arrowleft || keys.a ? 1 : 0);
-    inp.lean = Math.max(-1, Math.min(1, touch.lean + (keys.arrowdown || keys.s ? 1 : 0) - (keys.arrowup || keys.w ? 1 : 0) + (tilt ? tiltLean : 0))) * -1; // + = lean back (nose up)
+    inp.throttle = Math.max(touch.throttle, keys.arrowup || keys.w ? 1 : 0); inp.brake = Math.max(touch.brake, keys.arrowdown || keys.s ? 1 : 0);
+    inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0)+(tilt?tiltLean:0)))*-1;
     inp.hop = touch.hop || keys[" "] ? 1 : 0; inp.trick = touch.trick || keys.q ? 1 : 0; inp.whip = touch.whip || keys.e ? 1 : 0;
     if (!s.crashed && !finished) { const n = Math.ceil(dt * 480); for (let k = 0; k < n; k++) step(s, P, inp, dt / n, ter); }
     // events -> FX, wear, messages
@@ -170,12 +173,12 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     if (onRear && inp.throttle && Math.abs(s.vx) > 0.5 && Math.random() < 0.8) emit(rx - P.R * 0.6, ter.h(rx) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, ter.inPuddle(rx) ? "#7fb4d6" : "#a8693a", 0.7);
     if (ter.inPuddle(s.x) && (s.ground[0] || s.ground[1])) { dirt += dt * 0.05 * Math.min(10, Math.abs(s.vx)); if (Math.abs(s.vx) > 2 && Math.random() < 0.9) for (let i = 0; i < 3; i++) emit(s.x + (Math.random() - 0.5), ter.h(s.x) + 0.05, (Math.random() - 0.3) * s.vx * 0.4, 2 + Math.random() * 3, "#9fd0ef", 0.8); }
     else if (s.ground[0] || s.ground[1]) dirt += dt * 0.0015 * Math.abs(s.vx);
-    if ((fxT += dt) > 0.6) { fxT = 0; applyCondition(bike, { dirt: Math.min(1, dirt), wear: {} }); const fr = bike.getObjectByName("wk:part:fender_r"); if (fr) { const w = wear.fender_r || 0; fr.visible = w < 1; if (w >= 0.4 && w < 1) fr.rotation.z = -0.12; } }
+    if ((fxT += dt) > 0.6) { fxT = 0; applyCondition(bike, { dirt: Math.min(1, dirt), wear: {} }); const fr = bike.getObjectByName("wk:part:fender_r"); if (fr) { const w = 0; fr.visible = w < 1; if (w >= 0.4 && w < 1) fr.rotation.z = -0.12; } }
     // particles update
     for (let i = 0; i < NP; i++) { const p = parts[i]; if (p.life > 0) { p.life -= dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y < ter.h(p.x)) { p.y = ter.h(p.x); p.vy *= -0.2; p.vx *= 0.5; } o3.position.set(p.x, p.y, p.z); o3.scale.setScalar(Math.max(0.01, p.life / p.max) * p.sz); } else o3.scale.setScalar(0); o3.updateMatrix(); pm.setMatrixAt(i, o3.matrix); }
     pm.instanceMatrix.needsUpdate = true;
     // crash -> auto respawn at last checkpoint
-    if (s.crashed) { crashT += dt; pivot.rotation.z += dt * 2; pivot.position.y = Math.max(ter.h(s.x) + 0.3, pivot.position.y - dt * 2); if (crashT > 2.2) respawn(); }
+    if (s.crashed) { crashT += dt; pivot.rotation.z += dt * 2; pivot.position.y = Math.max(ter.h(s.x) + 0.3, pivot.position.y - dt * 2); if (crashT > 1.2) respawn(); }
     else { pivot.position.set(s.x, s.y, 0); pivot.rotation.z = s.pitch; }
     spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; pivot.rotation.y = spinVis;
     // suspension: wheels slide toward the frame by compression*travel
@@ -188,7 +191,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     maxScore = Math.max(maxScore, s.score);
     // camera: side-on follow, zooms out with speed
     const sp = Math.hypot(s.vx, s.vy), dist = 6.5 + Math.min(6, sp * 0.35), cx = (s.crashed ? pivot.position.x : s.x) + Math.min(3, s.vx * 0.15);
-    cam.position.lerp(new T.Vector3(cx, (s.crashed ? pivot.position.y : s.y) + 1.2 + dist * 0.12, dist), 0.12); cam.lookAt(cam.position.x, cam.position.y - 0.9 - dist * 0.08, 0);
+    const cameraTarget=new T.Vector3(cx,(s.crashed?pivot.position.y:s.y)+1.2+dist*.12,dist);if(cam.position.distanceTo(cameraTarget)>50)cam.position.copy(cameraTarget);else cam.position.lerp(cameraTarget,.12);cam.lookAt(cam.position.x,cam.position.y-.9-dist*.08,0);
     sun.position.set(s.x + 4, s.y + 10, 6); sun.target.position.set(s.x, s.y, 0);
     sky.position.x = cam.position.x; sunDisc.position.x = cam.position.x + 40;
     // HUD
@@ -197,9 +200,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose }) {
     hud.batt.textContent = P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
     if (s.trickT <= 0) hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; hud.msg.textContent = msgT > 0 ? msg : "";
     const w = W(), h = H(); if (R.domElement.width !== Math.round(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+    if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;hud.prog.style.display='none';hud.best.textContent='FLAT ENDLESS · '+Math.floor(s.odo)+' m';}
     R.render(scene, cam); };
   raf = requestAnimationFrame(frame);
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, mechanical:mechanical?.state });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, cameraX:cam.position.x,groundX:ground.position.x,mechanical:mechanical?.state });
   return () => { report(); cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface'); R.dispose(); el.innerHTML = ""; };
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }
@@ -222,4 +226,4 @@ function garagePanel() {
     box.querySelectorAll("[data-fix]").forEach((b) => b.addEventListener("click", () => { const c2 = loadCond(), k = b.dataset.fix; delete c2.wear[k]; saveCond(c2); globalThis.__WK_MONEY__?.((m) => m - (COST[k] || 100)); rebuild(); render(); })); };
   setInterval(render, 700); render();
 }
-if (!globalThis.__WK_COND_PANEL__) { globalThis.__WK_COND_PANEL__ = 1; garagePanel(); }
+// garagePanel is retained for later, but repair UI is currently disabled.

@@ -5,7 +5,7 @@ const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--
 try {
  const page=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/wk (modular|frame|hook|trax|detail)/.test(m.text()))errors.push(m.text())});
- await page.goto('http://127.0.0.1:8931/');await page.waitForFunction(()=>globalThis.__WK_VIEW__);
+ await page.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await page.goto('http://127.0.0.1:8931/');await page.waitForFunction(()=>globalThis.__WK_VIEW__);
  await page.locator('[data-cat="bars"]').click();await page.waitForFunction(()=>globalThis.__WK_EQUIP__);
  const frames=await page.evaluate(()=>__WK_CAT__().items.filter(p=>p.completeBike).map(p=>p.id));
  const report=[];

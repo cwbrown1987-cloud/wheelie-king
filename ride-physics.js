@@ -25,6 +25,7 @@ export function makeTerrain(seed = 1) {
   const inPuddle = (qx) => puddles.some(([a, b]) => qx >= a && qx <= b);
   return { pts, h, slope, puddles, checkpoints, kickers, finish, inPuddle };
 }
+export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
 export function bikeParams(stats = {}) {
   const motorW = stats.P || 0, pedal = motorW < 200;
   return {
@@ -66,7 +67,8 @@ export function step(s, p, inp, dt, ter) {
   }
   let onG = s.ground[0] || s.ground[1];
   Fx -= 0.32 * s.vx * Math.abs(s.vx);
-  if (onG) { T += inp.lean * p.mass * 2.4; if (s.ground[0] && !s.ground[1]) { const set = 0.55 + 0.6 * Math.max(0, inp.lean), rel1 = s.pitch - ter.slope(s.x); if (rel1 > set) T -= (rel1 - set) * p.mass * 16 + Math.max(0, s.w) * p.mass * 1.6; } } /* rider balance assist: rear brake + body at the balance point */ else s.w += inp.lean * 7 * dt; // rider body English / air control
+  if (onG) { T += inp.lean * p.mass * 2.4; if (s.ground[0] && !s.ground[1]) { const set = 1.50 + 0.08 * Math.max(0, inp.lean), rel1 = s.pitch - ter.slope(s.x); if (rel1 > set) T -= (rel1 - set) * p.mass * 16 + Math.max(0, s.w) * p.mass * 1.6; } } /* rider balance assist: rear brake + body at the balance point */ else s.w += inp.lean * 7 * dt; // rider body English / air control
+  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>1.2){const target=inp.brake>0||inp.lean<0?.85:1.50+.08*inp.lean;T=(target-rel)*p.mass*22-s.w*p.mass*3.5;}}
   s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : 0.999;
   s.x += s.vx * dt; s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
   // Hard travel stops prevent tunnelling. Cancel only velocity INTO the
@@ -92,7 +94,7 @@ export function step(s, p, inp, dt, ter) {
   else if (s.wasAir) {
     const rearX=s.x+rot(wl[0][0],wl[0][1],s.pitch)[0],frontX=s.x+rot(wl[1][0],wl[1][1],s.pitch)[0];
     const a=s.ground[0]&&s.ground[1]?Math.atan2(ter.h(frontX)-ter.h(rearX),frontX-rearX):ter.slope(s.ground[0]?rearX:frontX);
-    const offset=wrapAngle(s.pitch-a),off=Math.abs(offset),tol=(offset>=0?1.05:.85)+Math.min(.15,p.travelF*.6);
+    const offset=wrapAngle(s.pitch-a),off=Math.abs(offset),tol=(offset>=0?2.05:1.15)+Math.min(.15,p.travelF*.6);
     if (s.air>.08&&s.spinV) return crash(s, "LANDED MID-SPIN", "bars");
     if (s.air>.08&&off > tol) return crash(s, `BAD LANDING (${Math.round(off * 57)}° OFF)`, "suspension");
     const flips = Math.round(s.airRot / (2 * Math.PI)); let pts = Math.round(s.air * 120), name = "";
@@ -107,8 +109,9 @@ export function step(s, p, inp, dt, ter) {
   if (s.ground[0] && !s.ground[1] && rel > 0.12) { s.wheelieT += dt; s.score += (inp.throttle > 0 ? 70 : 100) * dt; s.balance = inp.throttle > 0 ? "WHEELIE" : "MANUAL"; }
   else if (s.ground[1] && !s.ground[0] && rel < -0.1) { s.stoppieT += dt; s.score += (inp.brake > 0 ? 120 : 140) * dt; s.balance = inp.brake > 0 ? "STOPPIE" : "NOSE MANUAL"; }
   else { if (s.balance && (s.wheelieT > 1 || s.stoppieT > 0.6)) pop(`${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s`, 0); s.balance = ""; if (onG && s.ground[0] && s.ground[1]) { s.bestWheelie = Math.max(s.bestWheelie || 0, s.wheelieT); s.wheelieT = 0; s.stoppieT = 0; } }
-  if (onG && (rel > 1.6)) return crash(s, "LOOPED OUT", "fender_r");
-  if (onG && (rel < -1.25)) return crash(s, "OVER THE BARS", "fender_f");
+  if(s.ground[0]&&!s.ground[1]&&rel>1.2&&rel<1.95&&inp.lean>=0&&!inp.brake&&rel>1.62){s.pitch=ter.slope(s.x)+1.62;s.w=Math.min(0,s.w);}
+  if (onG && (rel > 2.4)) return crash(s, "LOOPED OUT", "fender_r");
+  if (onG && (rel < -1.5)) return crash(s, "OVER THE BARS", "fender_f");
   // rear fender / tail scrape when the mono is too deep
   const [tx, ty] = rot(-p.wb * p.comBack - p.R * 0.95, -hC + p.R * 0.55, s.pitch);
   if (ter.h(s.x + tx) > s.y + ty) { s.events.push({ type: "scrape", x: s.x + tx, y: s.y + ty }); s.wear.fender_r = (s.wear.fender_r || 0) + dt * 0.35; s.wear.bash = (s.wear.bash || 0) + dt * 0.05; s.score += 40 * dt; }

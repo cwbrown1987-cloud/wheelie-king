@@ -5,14 +5,14 @@ const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--
 try {
  const p=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];
  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/wk (hook|frame|trax|spokes|detail)/.test(m.text()))errors.push(m.text())});
- await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
+ await p.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
  await p.locator('[data-cat="frame"]').click();await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
  await p.evaluate(()=>__WK_EQUIP__('bike_trax_lime'));await p.waitForFunction(()=>__WK_BUILD__.frame==='trax_lime');
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();
- await p.locator('[data-cat="rear_frame"]').click();await p.locator('[data-wk-part="trax_rear_black"]').click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_black');
+ await p.locator('[data-cat="rear_frame"]').click();await p.locator('[data-wk-part="trax_rear_black"]').click();await p.getByRole('button',{name:'Apply preview',exact:true}).click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_black');
  await p.locator('[data-wk-info="trax_rear_lime"]').click();await p.getByText('PART SHEET',{exact:true}).waitFor();
  assert.equal(await p.evaluate(()=>__WK_BUILD__.rear_frame),'trax_rear_black');await p.getByRole('button',{name:'‹',exact:true}).click();
- await p.locator('[data-wk-part="trax_rear_lime"]').click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_lime');
+ await p.locator('[data-wk-part="trax_rear_lime"]').click();await p.getByRole('button',{name:'Apply preview',exact:true}).click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_lime');
  const report=await p.evaluate(async()=>{
   const T=await import('/vendor/three.module.js'),{createBikeMotion}=await import('/bike-motion.js');
   let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});const A=root.userData.wkAnchors;

@@ -1,5 +1,13 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Simple/Advanced builder and arcade practice — 5 Nov 2026
+
+- New `builder-mode.js`: Simple is the default, with nine complete presets and wider two-column compatible motor, battery, suspension, wheel, style and colour choices. Matching controller/throttle/drivetrain/adapters are assembled automatically; electrical voltage/current, frame power limits and existing interface rules filter choices. Advanced preserves the full builder. Both modes have an explicit toggle and level selection.
+- Part and swatch choices preview on the actual bike while the menu collapses to ✓ Apply / ✕ Cancel. Supporting parts/ownership finalize only on Apply; Cancel restores the build. A session snapshot recovers the original build after reloading an unconfirmed preview. Information buttons remain separate. Simple SHOP navigation opens the simplified upgrade menu.
+- Motor names show kW. Fitment notifications now render above menus and wrap on small screens. Repair UI and condition effects are paused, including saved damage hiding fitted parts.
+- Added a genuinely endless flat terrain option with recycled ground and camera recovery at long distances; the original Trials course remains selectable. Keyboard controls now follow up/W gas, down/S brake, left/A lean back, right/D lean forward; touch has separate lean buttons. Easier upright wheelie balance, more forgiving touchdown angles and faster crash recovery preserve air control/momentum. This is assisted arcade rigid-body physics, not a simulated elastic frame.
+- Checks: Simple/Advanced preview/cancel/apply, presets, wheels/paint, 54 compatible automatic motor plans, flat ride beyond 5 km, all nine motion builds, TRAX mechanics, modular fit/removal/ride, 36 landings/upright mono and touch controls. Evidence: `wk-shots/simple-builder/`; real-device testing remains with Chris. Cache: `wk-v18-simple-1`.
+
 ## TRAX close-up corrections — 5 Nov 2026
 
 - Replaced the stem block with a bored, bevelled clamp and four face bolts; removed the overlapping bar-bundled clamp. Handlebars have a straight central clamping section instead of a kink.

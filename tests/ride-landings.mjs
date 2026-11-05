@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {bikeParams,makeState,step} from '../ride-physics.js';
+import {bikeParams,makeState,step,makeFlatTerrain} from '../ride-physics.js';
 const flat={h:()=>0,slope:()=>0},input={throttle:0,brake:0,lean:0};
 const report=[];
 for(const slope of [0,.2,-.2])for(const travel of [0,.06,.15,.23])for(const pitch of [0,.65,-.55]){
@@ -19,5 +19,7 @@ for(const r of report){assert.equal(r.crash,null,JSON.stringify(r));assert(r.lan
 const p=bikeParams({travel:.06,shock:.06});
 for(const type of ['inverted','midspin']){const s=makeState(p,2,flat);s.y+=1;s.vy=-4;s.pitch=type==='inverted'?Math.PI:0;s.spinV=type==='midspin'?1:0;for(let i=0;i<1200&&!s.crashed;i++)step(s,p,input,1/480,flat);assert(s.crashed,`${type} must still crash`);}
 const flip=makeState(p,2,flat);Object.assign(flip,{y:2,vy:-4,pitch:2*Math.PI+.05,airRot:2*Math.PI,air:.5,wasAir:true});for(let i=0;i<1200&&!flip.crashed;i++)step(flip,p,input,1/480,flat);assert.equal(flip.crashed,null);assert(Math.abs(flip.pitch)<.1);assert(flip.events.some(e=>e.t?.includes('BACKFLIP')));
+const endless=makeFlatTerrain(),monoP=bikeParams({travel:.06,shock:0}),mono=makeState(monoP,5000,endless);mono.pitch=1.56;mono.y=monoP.R+monoP.wb*monoP.comBack*Math.sin(mono.pitch)+(monoP.comH-monoP.R)*Math.cos(mono.pitch)-.003;mono.vx=3;
+for(let i=0;i<960&&!mono.crashed;i++)step(mono,monoP,{throttle:1,lean:1,brake:0},1/480,endless);assert.equal(mono.crashed,null);assert(mono.pitch>1.4&&mono.pitch<1.8);assert.equal(endless.h(1e9),0);assert.equal(endless.finish,Infinity);
 mkdirSync('test-results',{recursive:true});writeFileSync('test-results/ride-landings.json',JSON.stringify(report,null,2));
-console.log(JSON.stringify({landings:report.length,flatAndSloped:true,noFalseCrashes:true,travelStops:true,settles:true,genuineCrashes:true,fullFlip:true}));
+console.log(JSON.stringify({landings:report.length,flatAndSloped:true,noFalseCrashes:true,travelStops:true,settles:true,genuineCrashes:true,fullFlip:true,uprightMono:true,flatEndless:true}));

@@ -4,7 +4,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 try {
  const p=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/wk (modular|frame|hook|trax|detail)/.test(m.text()))errors.push(m.text())});
- await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);await p.locator('[data-cat="bars"]').click();await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
+ await p.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);await p.locator('[data-cat="bars"]').click();await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
  const kits=await p.evaluate(()=>__WK_CAT__().items.filter(p=>p.id.startsWith('bike_')).map(p=>p.id)),report=[];
  mkdirSync('wk-shots/modular',{recursive:true});
  for(const id of kits) {
@@ -26,7 +26,7 @@ try {
  assert(await p.evaluate(()=>__WK_EQUIP__('grip_std__blue')));await p.waitForTimeout(200);assert.equal(await gripCount(),2,'refitted grips must replace the pair');
  // Real UI swatch clicks must fit and colour the selected part, retaining the TRAX interfaces.
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();await p.locator('[data-cat="rear_frame"]').click();
- await p.locator('[data-wk-swatch="trax_rear_lime__blue"]').click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_lime__blue');
+ await p.locator('[data-wk-swatch="trax_rear_lime__blue"]').click();await p.getByRole('button',{name:'Apply preview',exact:true}).click();await p.waitForFunction(()=>__WK_BUILD__.rear_frame==='trax_rear_lime__blue');
  const color=await p.evaluate(()=>{let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});return root.getObjectByName('rearFrame:chainstay1').material.color.getHexString()});assert.equal(color,'287bc4');
  await p.locator('[data-wk-info="trax_rear_lime"]').click();await p.getByText('PART SHEET',{exact:true}).waitFor();assert.equal(await p.evaluate(()=>__WK_BUILD__.rear_frame),'trax_rear_lime__blue');await p.getByRole('button',{name:'‹',exact:true}).click();
  // Compatibility is unchanged by colour selection; physically mismatched interfaces stay rejected.
@@ -34,7 +34,7 @@ try {
  assert(Object.values(rejected).every(v=>v==='no'));
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();await p.evaluate(()=>{const v=__WK_VIEW__;v.controls.autoRotate=false;v.controls.target.set(.12,.52,0);v.camera.position.set(.5,.8,2.6);v.controls.update()});await p.waitForTimeout(2000);await p.screenshot({path:'wk-shots/modular/trax-blue-rear.png'});
  await p.getByRole('button',{name:'Test ride',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);
- await p.keyboard.down('ArrowRight');await p.waitForTimeout(900);await p.keyboard.up('ArrowRight');
+ await p.keyboard.down('ArrowUp');await p.waitForTimeout(900);await p.keyboard.up('ArrowUp');
  const ride=await p.evaluate(()=>{const {s,mechanical}=__WK_RIDE_STATE__();return {x:s.x,y:s.y,pitch:s.pitch,wheel:mechanical.wheelPhase,crank:mechanical.crankPhase}});assert(Object.values(ride).every(Number.isFinite));assert(ride.wheel<0&&ride.crank<0);
  assert.deepEqual(errors,[]);writeFileSync('wk-shots/modular/validation.json',JSON.stringify({report,bare,rejected,ride,errors},null,2));console.log(JSON.stringify({bikes:report.length,stockAndColoursFit:true,barePartsRemoved:true,uiColour:true,incompatibleRejected:true,ride:true,errors}));
 } finally {await browser.close();}
