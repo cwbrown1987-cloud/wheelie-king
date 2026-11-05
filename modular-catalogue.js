@@ -1,7 +1,9 @@
 // Catalog identity is independent of geometry identity: colour variants retain their interfaces.
 import {TRAX_PARTS,TRAX_STOCK} from './trax-bike.js';
+import {VEHICLE_PARTS,VEHICLE_BUILDS,prototypeFor} from './vehicle-platforms.js';
 export const PALETTE=[['black','Black','#20262b'],['white','White','#ebeeee'],['red','Red','#c82535'],['blue','Blue','#287bc4'],['lime','Lime','#c9e62c'],['chrome','Chrome','#bfc8d0']];
 export const MODULAR_PARTS=[
+ ...VEHICLE_PARTS,
  {id:'stem_quill',slot:'stem',name:'22.2mm BMX Quill Stem',interface:'quill',clamp:22.2,kg:.35,price:160,color:'#87949f',note:'Quill bicycle steerer, 22.2mm BMX bar clamp.'},
  {id:'stem_trax',slot:'stem',name:'TRAX 25.4mm Quill Stem',interface:'quill',clamp:25.4,kg:.35,price:160,color:'#87949f',note:'TRAX-style tall quill and 25.4mm bar clamp; photo-derived dimensions.'},
  {id:'stem_threadless',slot:'stem',name:'31.8mm Threadless MTB Stem',interface:'threadless',clamp:31.8,kg:.18,price:240,color:'#252c31',note:'Threadless bicycle steerer and 31.8mm riser-bar clamp.'},
@@ -45,6 +47,7 @@ export const STOCK_BUILDS={
 for(const frame of ['mtb_rigid','mtb_ht','mtb_fs','fat'])STOCK_BUILDS[frame].seat='seat_rail';
 for(const frame of ['moto','emoto'])STOCK_BUILDS[frame]={frame,motor:'mmid8k',battery:'moto72',controller:'sab',throttle:'thumb',suspension:'dnm',brakes:'zee',shock:'shk_moto230',rear_frame:'rear_'+frame,bars:'bar_moto',stem:'stem_moto',headset:'headset_moto',grips:'grip_std',seat:'seat_moto',pedals:'peg_moto',tyres:'moto19',rims:'rim_moto',hubs:'hubs_moto',chain:'chain_428',sprocket_f:'spf_428_14',sprocket_r:'spr_428_48',...(frame==='emoto'?{body_panels:'panels_emoto',number_plate:'plate_moto',lights:'light_moto'}:{})};
 
+Object.assign(STOCK_BUILDS,VEHICLE_BUILDS);
 export function prepareCatalogue(items) {
  const all=[...items,...MODULAR_PARTS];lookup=new Map(all.map(p=>[p.id,p]));variants=new Map();
  for(const p of all) {
@@ -82,7 +85,7 @@ export function prepareCatalogue(items) {
   kit.note='Complete matched system: '+kit.kit.map(id=>part(id).name).join(', ')+'. Mount adapters are fitted automatically when required.';
  }
  for(const [frame,build] of Object.entries(STOCK_BUILDS)) {
-  const f=lookup.get(frame),kit={id:'bike_'+frame,slot:'kit',completeBike:true,name:(f?.name||frame).replace(/Frame$/,'')+' Complete Bike',real:false,kit:Object.values(build),kg:0,price:Object.values(build).reduce((n,id)=>n+(lookup.get(id)?.price||0),0),note:'Complete compatible stock build. Every included component is also sold separately.'};
+  const f=lookup.get(frame),kit={id:'bike_'+frame,slot:'kit',completeBike:true,vehicleClass:prototypeFor(frame)?.vehicleClass||(['moto','emoto'].includes(frame)?'emoto':'bicycle'),name:prototypeFor(frame)?.name||((f?.name||frame).replace(/Frame$/,'')+' Complete Bike'),real:false,kit:Object.values(build),kg:0,price:Object.values(build).reduce((n,id)=>n+(lookup.get(id)?.price||0),0),note:'Complete compatible stock build. Every included component is also sold separately.'};
   all.push(kit);lookup.set(kit.id,kit);
  }
  globalThis.__WK_CATALOG_ITEMS__=[...lookup.values()];return all;

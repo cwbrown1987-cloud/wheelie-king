@@ -95,8 +95,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   bike.position.set(0, 0, 0); bike.rotation.set(0, 0, 0); bike.scale.set(1, 1, 1); bike.traverse((o) => { o.castShadow = true; if (o.name === "wk:stand" || o.name?.includes("platform")) o.visible = false; });
   bike.children.filter((c) => c.name === "wk:stand").forEach((c) => (c.visible = false));
   const cond = loadCond(); applyCondition(bike, cond);
-  const stOut = { ...stats, wheelR: A.wheelR, batteryWh: (() => { const b = find(build.battery); return b ? b.v * b.ah : 0; })() };
-  const P = bikeParams(stOut); P.wb = Math.max(0.6, A.frontAxle[0] - A.rearAxle[0]); P.R = A.wheelR; P.comH = Math.max(P.R + 0.45, P.comH);
+  const stOut = { ...stats, wheelR: A.wheelR, batteryWh: stats.powertrain==='petrol'?(stats.fuelLitres||3)*8900*.2:(() => { const b = find(build.battery); return b ? b.v * b.ah : 0; })() };
+  const P = bikeParams(stOut);if(A.vehicleClass)P.vmax=(stats.speed||35)/3.6; P.wb = Math.max(0.6, A.frontAxle[0] - A.rearAxle[0]); P.R = A.wheelR; P.comH = Math.max(P.R + 0.45, P.comH);
   P.driveAxle=find(build.motor)?.kind==='front'?'front':'rear';P.travelF=Math.max(0,find(build.suspension)?.travel||0);P.travelR=build.rear_frame&&build.shock?Math.min(.06,find(build.shock)?.travel||.045):0;
   P.forkAxis=bike.getObjectByName('wk:model:fork')?.userData.wkFork?.axis||[0,1,0];P.forkVertical=P.forkAxis[1];P.rearLink=A.swingPivot?[A.rearAxle[0]-A.swingPivot[0],A.rearAxle[1]-A.swingPivot[1]]:null;
   const hC = P.comH - P.R; bike.position.set(-P.wb * P.comBack - A.rearAxle[0], -hC - A.rearAxle[1], 0); body.add(bike);
@@ -201,7 +201,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     // HUD
     hud.score.textContent = Math.round(s.score).toLocaleString(); hud.best.textContent = "$ +" + Math.round(maxScore / 10).toLocaleString() + " · DIRT " + Math.round(Math.min(1, dirt) * 100) + "%";
     hud.speed.innerHTML = Math.round(sp * 3.6) + "<small style='font-size:14px'> km/h</small>"; hud.wheelie.textContent = s.balance ? `${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s` : s.bestWheelie ? `BEST MONO ${s.bestWheelie.toFixed(1)}s` : "";
-    hud.batt.textContent = P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
+    hud.batt.textContent = stats.powertrain==='petrol'?'FUEL '+Math.round(s.battery*100)+'% · '+stats.cc+'cc':P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
     if (s.trickT <= 0) hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; hud.msg.textContent = paused?"PAUSED":msgT > 0 ? msg : "";
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;ui.style.transformOrigin="top left";ui.style.transform=`scale(${1/screenScale})`;ui.style.width=(w*screenScale)+"px";ui.style.height=(h*screenScale)+"px";ui.style.right=ui.style.bottom="auto";const pixelRatio=Math.min(lowDetail?1:1.5,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     backdrop.repeat.set(Math.min(1,w/h*.3),.6);backdrop.offset.set(Math.max(0,Math.min(1-backdrop.repeat.x,(1-backdrop.repeat.x)/2+Math.sin(s.x*.001)*.08)),.4);

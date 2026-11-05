@@ -5,7 +5,7 @@ export function makeRider(T,body,bike,A,mechanical){
  const blue=material('#1676d8'),cuff=material('#095295'),pants=material('#252a31'),black=material('#131b20'),sole=material('#d6dedb'),skin=material('#c9916c'),lime=material('#71df21',.3),gloveMat=material('#d52d37',.55),shoeMat=material('#171c25');
  const mesh=(name,geometry,mat,parent=rider)=>{const m=new T.Mesh(geometry,mat);m.name='rider:'+name;m.castShadow=true;parent.add(m);return m};
  const off=p=>new T.Vector3(p[0]+bike.position.x,p[1]+bike.position.y,0);
- const hip=off([A.seatTop[0],A.seatTop[1]+.085]),hand=off([A.headTop[0]-.04,A.headTop[1]+.2]),foot=off(A.bb),shoulder=new T.Vector3(.20,.43,0);
+ const hip=off([A.seatTop[0],A.seatTop[1]+.085]),hand=off(A.hand||[A.headTop[0]-.04,A.headTop[1]+.2]),foot=off(A.feet||A.bb),shoulder=new T.Vector3(.20,.43,0);
  const torso=new T.Group();torso.name='rider:torso';torso.position.copy(hip);rider.add(torso);
  // Shaped shoulders, waist and hem instead of a single capsule body.
  const vertices=[],indices=[],rings=[[0,.085,.095],[.06,.095,.11],[.22,.105,.135],[.37,.09,.155],[.43,.075,.145],[.46,.06,.105]],segments=24;
@@ -40,7 +40,7 @@ export function makeRider(T,body,bike,A,mechanical){
  return {root:rider,update({lean=0,crashed=false,superman=0}={}){
   torso.position.copy(hip);torso.rotation.set(0,0,lean*.23+(crashed?.6:0)-superman*.9);headGroup.position.set(0,0,0);
   const localHand=hand.clone().sub(torso.position).applyAxisAngle(new T.Vector3(0,0,1),-torso.rotation.z);
-  for(const a of arms){const sh=shoulder.clone().setZ(a.side*.135),h=localHand.clone().setZ(a.side*.18),el=sh.clone().lerp(h,.5).add(new T.Vector3(-.045,-.07,a.side*.025));pose(a.upper,sh,el);pose(a.lower,el,h);a.elbow.position.copy(el);a.glove.position.copy(h);a.glove.rotation.set(0,0,0)}
+  for(const a of arms){const sh=shoulder.clone().setZ(a.side*.135),h=localHand.clone().setZ(a.side*(A.handWidth||.18)),el=sh.clone().lerp(h,.5).add(new T.Vector3(-.045,-.07,a.side*.025));pose(a.upper,sh,el);pose(a.lower,el,h);a.elbow.position.copy(el);a.glove.position.copy(h);a.glove.rotation.set(0,0,0)}
   const pedal=!!bike.getObjectByName('cranks:rotor'),angle=mechanical?.state.crankPhase||0;
   for(const l of legs){const h=hip.clone().setZ(l.side*.075),f=pedal?off([A.bb[0]+Math.cos(angle)*l.side*.14,A.bb[1]+Math.sin(angle)*l.side*.14]).setZ(l.side*.12):foot.clone().add(new T.Vector3(-.03,-.025,l.side*.145));f.lerp(new T.Vector3(hip.x-.55,hip.y+.03,l.side*.12),superman);const d=f.clone().sub(h),distance=d.length(),u=d.normalize(),k=h.clone().addScaledVector(u,distance/2).addScaledVector(new T.Vector3(-u.y,u.x,0),Math.sqrt(Math.max(.001,.31**2-(distance/2)**2))*(1-superman*.85));pose(l.thigh,h,k);pose(l.shin,k,f);l.knee.position.copy(k);l.shoe.position.copy(f);l.shoe.rotation.set(0,0,-superman*.35)}
  },joints(){rider.updateWorldMatrix(true,true);const point=(parent,p,radius,mass)=>({position:parent.localToWorld(p.clone()).toArray(),radius,mass}),j={pelvis:point(rider,hip,.10,12),chest:point(torso,shoulder,.11,15),head:point(torso,headCenter,.12,4)};for(const a of arms){const key=a.side<0?'L':'R';j['shoulder'+key]=point(torso,shoulder.clone().setZ(a.side*.135),.065,2);j['elbow'+key]=point(torso,a.elbow.position,.05,2);j['hand'+key]=point(torso,a.glove.position,.04,1)}for(const l of legs){const key=l.side<0?'L':'R';j['hip'+key]=point(rider,hip.clone().setZ(l.side*.075),.065,4);j['knee'+key]=point(rider,l.knee.position,.052,3);j['foot'+key]=point(rider,l.shoe.position,.05,1.5)}return j;

@@ -1,5 +1,6 @@
 // Simple assembly plans share the advanced catalogue and real fitment rules.
 import {part} from './modular-catalogue.js';
+import {prototypeFor} from './vehicle-platforms.js';
 import {categoryIcon} from './category-icons.js';
 let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null,menuStack=[],categoryToggle,rotationButton,lastControls,dock;
 let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{last='';globalThis.__WK_SETBUILD__?.(b=>({...b}))},160)});
@@ -9,6 +10,7 @@ const items=()=>globalThis.__WK_CAT__?.().items.filter(p=>!p.hidden)||[];
 export function upgradePlan(build,id){
  const p=part(id);if(!p)return null;const b={...build,[p.slot]:id},all=items(),m=p.slot==='motor'?p:part(b.motor);
  if(p.slot==='kit')return kitPlan(build,p);
+ if(prototypeFor(build.frame))return globalThis.__WK_BUILD_READY__(b).ready?b:null;
  if(m&&part(b.frame)?.maxW&&m.w>part(b.frame).maxW)return null;
  if(p.slot==='bars'){const current=part(b.stem);const stem=all.find(x=>x.slot==='stem'&&x.interface===current?.interface&&x.clamp===p.clamp);if(stem)b.stem=stem.id;}
  if(p.slot==='seat'&&b.seatpost&&part(b.seatpost)?.saddleMount!==p.saddleMount){const post=all.find(x=>x.slot==='seatpost'&&globalThis.__WK_FIT__(b,x.id).status!=='no');if(post)b.seatpost=post.id;}
@@ -85,7 +87,7 @@ function tick(){
  if(!globalThis.__WK_EQUIP__){document.querySelector('[data-cat="bars"]')?.click();return;}
  if(recovery){const original=recovery;recovery=null;sessionStorage.removeItem('wk-pending-build');globalThis.__WK_SETBUILD__(original);return;}
  const b=globalThis.__WK_BUILD__,key=mode+section+JSON.stringify(b)+!!pending;if(key===last)return;last=key;
- simpleRail.replaceChildren();for(const [key,label,icon]of [['bikes','BIKES','frame'],['kit','KITS','kit'],['motor','MOTORS · W','motor'],['battery','BATTERY','battery'],['wheels','WHEELS','tyres'],['suspension','SUSPENSION','suspension'],['style','STYLES / COLOURS','bars'],['accessories','ACCESSORIES · WIP','gear'],['stickers','STICKERS','sticker']]){const e=document.createElement('button');e.dataset.simpleCategory=key;e.append(categoryIcon(icon),document.createTextNode(label));e.onclick=()=>{globalThis.__WK_CLOSE_DRAWERS__?.();rail.dataset.expanded='false';menuStack=[];if(key==='stickers'){section='home';document.querySelector('[data-cat="sticker"]')?.click()}else section=section===key?'home':key;last='';tick()};simpleRail.append(e);}
+ simpleRail.replaceChildren();for(const [key,label,icon]of [['bikes','BIKES','frame'],['motorbikes','MOTORBIKES','frame'],['escooters','E-SCOOTERS','frame'],['kit','KITS','kit'],['motor','MOTORS · W','motor'],['battery','BATTERY','battery'],['wheels','WHEELS','tyres'],['suspension','SUSPENSION','suspension'],['style','STYLES / COLOURS','bars'],['accessories','ACCESSORIES · WIP','gear'],['stickers','STICKERS','sticker']]){const e=document.createElement('button');e.dataset.simpleCategory=key;e.append(categoryIcon(icon),document.createTextNode(label));e.onclick=()=>{globalThis.__WK_CLOSE_DRAWERS__?.();rail.dataset.expanded='false';menuStack=[];if(key==='stickers'){section='home';document.querySelector('[data-cat="sticker"]')?.click()}else section=section===key?'home':key;last='';tick()};simpleRail.append(e);}
  panel.replaceChildren();
  const button=(label,action,parent=panel)=>{const e=document.createElement('button');e.textContent=label;e.onclick=action;parent.append(e);return e};
  if(pending){const yes=button('✓',()=>finish(true));yes.setAttribute('aria-label','Apply preview');const no=button('✕',()=>finish(false));no.setAttribute('aria-label','Cancel preview');return;}
@@ -99,9 +101,11 @@ function tick(){
   button('‹ Back',()=>{section=menuStack.pop()||'home';last='';tick()});const title=document.createElement('h3');title.textContent=section.replaceAll('_',' ');panel.append(title,grid);
   if(section==='accessories'){for(const [key,label,tier]of [['helmet','Helmets','Rare'],['tops','Tops / Jackets','Epic'],['pants','Pants','Common'],['gloves','Gloves / Shoes','Rare'],['gear','Neon Starter Bundle','Epic'],['gear','Wheelie Champion Bundle','Legendary']]){const card=button(label,()=>{},grid);card.disabled=true;card.dataset.wkMock='accessories';const image=categoryIcon(key);image.setAttribute('width','64');image.setAttribute('height','64');const badge=document.createElement('small');badge.textContent=tier+' · COMING SOON';badge.style.cssText='display:block;color:#c5b6ef;margin-top:6px;font-size:10px';card.prepend(image);card.append(badge)}}else if(section==='style'){for(const [key,label]of [['paint_frame','Frame colour'],['paint_suspension','Fork colour'],['paint_rear_frame','Rear frame colour'],['paint_rims','Rim colour'],['bars','Handlebar styles'],['seat','Seat styles'],['paint_grips','Grip colour']])if(!key.startsWith('paint_')||b[key.slice(6)])nav(label,key,grid);}
   else {
-   let options;if(section==='bikes')options=all.filter(p=>p.completeBike);
+   let options;if(['bikes','motorbikes','escooters'].includes(section))options=all.filter(p=>p.completeBike&&(section==='bikes'?!['motorbike','escooter'].includes(p.vehicleClass):p.vehicleClass===(section==='motorbikes'?'motorbike':'escooter')));
+   else if(section==='platform_parts')options=all.filter(p=>p.family===globalThis.__WK_BASE_ID__(b.frame)&&p.slot!=='frame');
    else if(section.startsWith('paint_'))options=globalThis.__WK_VARIANTS__(b[section.slice(6)]);
    else {const slots=section==='wheels'?['rims','tyres']:section==='suspension'?['suspension','shock']:[section];options=all.filter(p=>slots.includes(p.slot)&&!p.completeBike);if(section==='wheels')options.push(...globalThis.__WK_VARIANTS__(b.rims),...globalThis.__WK_VARIANTS__(b.tyres));options=options.filter(p=>upgradePlan(b,p.id));}
+   if(['motorbikes','escooters'].includes(section)&&prototypeFor(b.frame))nav('Matching vehicle parts','platform_parts',panel);
    for(const p of new Map(options.map(p=>[p.id,p])).values()){
     const e=button('',()=>{let plan;if(p.completeBike){plan={};for(const id of p.kit)plan[part(id).slot]=id;}else plan=upgradePlan(globalThis.__WK_BUILD__,p.id);if(plan)preview(plan,p.id,true)},grid);e.dataset.simplePart=p.id;const name=document.createElement('span');name.className='part-name';name.textContent=p.name;const stats=document.createElement('small');stats.className='part-stats';stats.textContent=partStats(p);const price=document.createElement('small');price.className='part-price';price.textContent='$'+p.price;e.append(name,stats,price);
     if(b[p.slot]===p.id)e.classList.add('selected');

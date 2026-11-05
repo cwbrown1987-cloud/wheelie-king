@@ -2,6 +2,7 @@
 // fit(build, partId) -> { status: "ok" | "adapter" | "no", adapters: [adapterIds], reason }
 import {TRAX_RADIUS,traxGeometry} from './trax-bike.js';
 import {baseId,canonicalBuild} from './modular-catalogue.js';
+import {VEHICLES,prototypeFor,vehicleFit,vehicleReady} from './vehicle-platforms.js';
 export const FRAME_STD = {
   trax_lime: {bb:'68',drop:'135qr',head:'straight',seat:25.4,brake:['rim'],shock:'trax-short',batt:[],wheel:'20',alloy:false},
   bmx:       { bb: "bmx", drop: "110", head: "straight", seat: 25.4, brake: ["rim"], shock: null, batt: [], wheel: "20", alloy: false },
@@ -21,6 +22,7 @@ const GEO = {
   mtb_fs:    { R: 0.355, x: (R) => ({ rear: [-0.44, R], bb: [0, 0.33], seat: [-0.16, 0.86], htT: [0.6, 0.85], htB: [0.64, 0.67], front: [0.77, R], tr: 0.022 }) },
   fat:       { R: 0.37,  x: (R) => ({ rear: [-0.45, R], bb: [0, 0.32], seat: [-0.15, 0.86], htT: [0.6, 0.85], htB: [0.64, 0.68], front: [0.77, R], tr: 0.022 }) },
 };
+for(const [id,v]of Object.entries(VEHICLES)){FRAME_STD[id]={bb:id,drop:id,head:id,seat:0,brake:[id],shock:id,batt:v.powertrain==='electric'?['deck']:[],wheel:id};GEO[id]={R:v.wheelR,x:v.geometry};}
 const TYRE_R = { "24": .315, "27.5": 0.355, "29": 0.375, "26f": 0.37 };
 globalThis.__WK_FRAMEGEO__ = (frameId,R,build={})=>{
  const f=baseId(frameId),moto=['moto','emoto'].includes(f),x=GEO[f]?.x(R)||(moto?{rear:[-.52,R],bb:[0,.36],seat:[-.14,.86],htT:[.6,.93],htB:[.66,.7],front:[.82,R],tr:.03}:{rear:[-.37,R],bb:[0,R+.035],seat:[-.1,.7],htT:[.5,.74],htB:[.545,.58],front:[.63,R],tr:f==='rbmx'?.022:.017});
@@ -33,7 +35,7 @@ const P = (id) => cat().find((i) => i.id === id);
 const DUAL = new Set(["dnm", "fox40", "corro"]), TAPERED_FORK = new Set(["pike", "dnm", "fox40", "corro"]);
 export function fit(build, id) {
   build=canonicalBuild(build);id=baseId(id);
-  const p = P(id); if (!p) return { status: "ok", adapters: [] };
+  const p = P(id);const platform=vehicleFit(build,p);if(platform)return platform; if (!p) return { status: "ok", adapters: [] };
   const fid = p.slot === "frame" ? id : build.frame || "bmx", f = FRAME_STD[fid] || FRAME_STD.bmx, fr = P(fid);
   const no = (reason) => ({ status: "no", adapters: [], reason }), ad = [];
   const need = (a) => ad.push(a);
@@ -127,6 +129,7 @@ export function fit(build, id) {
 }
 globalThis.__WK_FIT__ = fit;
 globalThis.__WK_BUILD_READY__=build=>{
+ const platform=vehicleReady(build,P);if(platform)return platform;
  const b=canonicalBuild(build),f=FRAME_STD[b.frame]||FRAME_STD.bmx,m=P(b.motor),needed=['frame','suspension','headset','stem','bars','grips','seat','tyres','rims','hubs','brakes'];
  if(f.seat)needed.push('seatpost');if(f.shock)needed.push('rear_frame','shock');
  if(!m||m.kind==='mid'&&!m.nopedal)needed.push('cranks','pedals','chain','sprocket_f','sprocket_r');

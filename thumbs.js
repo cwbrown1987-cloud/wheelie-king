@@ -5,6 +5,7 @@ import * as PM from "./partmodels.js";
 import {TRAX_ID,traxPreview,traxGeometry,traxAnchors} from './trax-bike.js';
 import {rearFrameModel,traxShockModel} from './trax-suspension.js';
 import {part,baseId,canonicalBuild} from './modular-catalogue.js';
+import {prototypeFor} from './vehicle-platforms.js';
 import {componentModel,previewBuild,paintBuild} from './modular-render.js';
 import {makeRider} from './rider-model.js';
 PM.useThree(T);
@@ -26,6 +27,7 @@ function accessoryModel(p){
 }
 const makeModel = (p) => {
   if (!p) return null;
+  if(p.prototype&&p.slot!=='frame'){const root=previewBuild(T,p.family,{[p.slot]:p.id});const names={bars:'wk:cockpit',chain:'wk:part:drive',tyres:'wk:tyres',rims:'wheel:rim',hubs:'hub:shell',grips:'grips:R',motor:prototypeFor(p.family)?.vehicleClass==='escooter'?'scooter:hubMotor':'wk:motor',sprocket_f:'sprocketF',sprocket_r:'sprocketR'};const obj=root.getObjectByName(names[p.slot]||'wk:'+p.slot)||root.getObjectByName('wk:part:'+p.slot);obj?.removeFromParent();return obj;}
   if(p.id==='ui_helmet'){const body=new T.Group(),bike=new T.Group();makeRider(T,body,bike,{seatTop:[0,0],headTop:[.3,.3],bb:[0,0]},{});const head=body.getObjectByName('rider:head');head.removeFromParent();return head;}
   if(p.id==='ui_sticker'){const g=new T.Group(),card=new T.Mesh(new T.BoxGeometry(.2,.15,.006),new T.MeshStandardMaterial({color:'#edf6ff',roughness:.4}));g.add(card);const shape=new T.Shape();shape.moveTo(.015,.06);shape.lineTo(-.045,-.006);shape.lineTo(-.005,-.006);shape.lineTo(-.015,-.06);shape.lineTo(.045,.006);shape.lineTo(.005,.006);shape.closePath();const bolt=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.004,bevelEnabled:false}),new T.MeshStandardMaterial({color:'#69ed57'}));bolt.position.z=.004;g.add(bolt);return g;}
 

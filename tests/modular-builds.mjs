@@ -11,7 +11,7 @@ try {
   assert.equal(await p.evaluate(id=>__WK_EQUIP__(id),id),true,id);await p.waitForTimeout(200);
   const r=await p.evaluate(()=>{let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});const b={...__WK_BUILD__},bad=Object.entries(b).filter(([s,id])=>__WK_FIT__(b,id).status!=='ok');let duplicates=0;const groups=root.children.map(o=>o.name);for(const name of new Set(groups))if(name.startsWith('wk:part:')&&groups.filter(n=>n===name).length>1)duplicates++;
    const variants=Object.entries(b).flatMap(([s,id])=>__WK_VARIANTS__(id).map(v=>({slot:s,id:v.id,fit:__WK_FIT__({...b,[s]:v.id},v.id).status})));return {frame:b.frame,build:b,bad,duplicates,variantsBad:variants.filter(v=>v.fit!=='ok'),ready:__WK_BUILD_READY__(b).ready,rear:!!root.getObjectByName('wk:part:rear_frame'),stem:!!root.getObjectByName('wk:part:stem'),pedals:!!root.getObjectByName('wk:part:pedals')};});
-  assert.deepEqual(r.bad,[]);assert.deepEqual(r.variantsBad,[]);assert.equal(r.duplicates,0);assert(r.ready&&r.stem&&r.pedals,JSON.stringify(r));if(['trax_lime','mtb_fs','moto','emoto'].includes(r.frame))assert(r.rear);
+  assert.deepEqual(r.bad,[]);assert.deepEqual(r.variantsBad,[]);assert.equal(r.duplicates,0);assert(r.ready&&r.stem&&(r.frame==='kaiji_test'||r.pedals),JSON.stringify(r));if(['trax_lime','mtb_fs','moto','emoto'].includes(r.frame))assert(r.rear);
   report.push(r);
  }
  // Bare frames really have no hidden handlebars, fork, shock or drivetrain.

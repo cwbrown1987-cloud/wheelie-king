@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Motorbike and E-scooter test platforms — 6 Nov 2026
+
+- Added Motorbikes and E-scooters sections with an Outback 125 petrol test bike and provisional Kaiji rear-hub test scooter. Both are original procedural prototypes with estimated game specifications.
+- Separate component bills of materials, family-only fitment, colour variants, complete preset previews and Matching vehicle parts lists. Petrol uses tank/exhaust/chain/footpegs; scooter uses deck battery/controller/hub drive and a standing rider pose.
+- Reused the existing wheel, fork/swingarm, brake, chain, rider crash and instant-recovery systems. Added prototype camera framing and hand/foot mounting anchors. Data/model contracts are documented for adding future vehicles.
+- Cache: `wk-v18-vehicle-prototypes-1`. Exact Kaiji make/model and real phone behaviour remain unconfirmed.
+
 ## Cleaner sticker selection — 6 Nov 2026
 
 - Two larger sticker art cards per row, name search and clearer compact controls in a frosted drawer. Existing sticker info, upload/cutout, placement and content gates remain native.

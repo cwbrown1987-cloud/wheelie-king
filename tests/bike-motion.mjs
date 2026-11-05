@@ -63,7 +63,7 @@ try {
   });
   report.push(result);
  }
- assert.equal(report.length,9);assert.equal(report.filter(r=>r.suspended).length,4);assert(report.some(r=>r.rotorChecks>0));assert.deepEqual(errors,[]);
+ assert.equal(report.length,frames.length);assert.equal(report.filter(r=>r.suspended).length,6);assert(report.some(r=>r.rotorChecks>0));assert.deepEqual(errors,[]);
  mkdirSync('test-results',{recursive:true});writeFileSync('test-results/bike-motion.json',JSON.stringify({report,errors},null,2));
  console.log(JSON.stringify({bikes:report.length,compressionPoses:report.length*5,pivotsAndShockEyes:true,rigidFramesFixed:true,brakesAndFenders:true,errors}));
 }finally{await browser.close();}

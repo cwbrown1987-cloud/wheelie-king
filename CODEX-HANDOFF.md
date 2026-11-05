@@ -4,7 +4,7 @@ Updated 6 Nov 2026. This is the single current instruction page. Replace the res
 
 ## Resume
 
-- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-sticker-picker-1`.
+- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-vehicle-prototypes-1`.
 - Workshop: renamed builder, same layout. Full-screen neon static garage image behind editable 3D bike and frosted panels; old green turntable hidden. Compact top-right bike/stats card expands the existing glass panel. Sticker drawer does not resize the bike viewport. Parts replace the category rail; ✓/✕ preview keeps that rail visible. Bikes cards show complete assemblies, not just frames. More accessory categories now have rendered 3D pictures.
 - Navigation: primary menus are at the top; left parts layout retained. Garage/Browser are explicitly Coming Soon, Workshop and Race work; My Builds/Parts Shop/Challenges/Settings are under More. Future Garage ownership/trophies and simulated marketplace Browser remain deferred; see `docs/future-garage-browser.md`.
 - Builder: Simple default/Advanced, compatible plans, separate complete Bikes/conversion Kits, nested colours, preview recovery, rotation pause, quiet automatic removals. Infinite money on; repairs paused. TRAX wheel size is confirmed 20 inch; other photo dimensions remain estimates.
@@ -18,7 +18,8 @@ Updated 6 Nov 2026. This is the single current instruction page. Replace the res
 - Wall: higher, level cap/fence; wall top no longer follows/bends with track. Far building foundations extended below the wall.
 - Accessories: Simple-mode WIP category with six placeholder gear/bundle cards. Shared Common/Rare/Epic/Legendary and premium/themed bundles are design backlog only; no real payments or item locks added.
 - Mobile/decals: Race clones omit circular editor links while preserving rendered stickers and original Workshop metadata. Clone preflight runs before graphics allocation. Larger touch layout, actual 3D category pictures, banner and bottom-right Ride removed; compact Stickers and Simple/Advanced are docked at sidebar bottom and stay accessible beside drawers. Top Race is the ride entry. Automated desktop/touch checks cover layouts, source preservation and repeated sticker-equipped Race launches; physical iOS/Android confirmation remains outstanding.
-- Next: Chris tests the mobile Workshop and sticker-equipped Race startup. Further art/gear UI, public chase switching, Garage and Browser remain deferred. Keep repairs paused and rating/PIN gate intact.
+- Vehicles: Motorbikes and E-scooters sections now contain one playable prototype each: original Outback 125 petrol pit bike and provisional Kaiji rear-hub e-scooter (make/model unconfirmed). Matching vehicle parts list, family-only fitment, separate components/colour variants, seated/standing rider anchors, motion and existing crash/recovery. Specs/proportions are game estimates; no gearbox or detailed engine simulation. Architecture: `docs/vehicle-platforms.md`.
+- Next: Chris tests both prototype vehicles and confirms which scooter Kaiji means. Improve silhouettes/handling from that feedback; public chase switching, Garage and Browser remain deferred. Keep repairs paused and rating/PIN gate intact.
 
 ## Working rules
 
@@ -42,6 +43,7 @@ PowerShell in this checkout. Install dependencies: `npm ci`. Preview: `python -m
 | `npm run check -- builder` | Presets, compatible plans, colours/wheels, preview/apply/cancel, endless ride |
 | `npm run check -- ride` | Static checks, landings and multi-touch |
 | `npm run check -- mechanics` | Static checks, nine-bike motion and TRAX mechanics |
+| `npm run check -- vehicles` | Two prototype vehicle builds, fitment, colours, suspension and riding |
 | `npm run check -- modular` | Static checks, catalogue/fitment/colour/removal and ride smoke |
 | `npm run check -- release` | All six current integration checks, sequentially |
 | `npm run deploy` | Package, publish to production, verify served file hashes |

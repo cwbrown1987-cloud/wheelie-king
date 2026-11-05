@@ -3,6 +3,7 @@
 // so equipping a part always REPLACES the previous one: one group "wk:part:<slot>" per slot, never stacked).
 import * as PM from "./partmodels.js";
 import {canonicalBuild} from './modular-catalogue.js';
+import {buildVehicle} from './vehicle-models.js';
 import {modularAnchors,finishModular} from './modular-render.js';
 import { buildFrame as smoothFrame } from "./frame-geometry.js";
 export { buildFrame as smoothFrame } from "./frame-geometry.js";
@@ -21,6 +22,7 @@ export function anchors(x, R) { // named mount anchors per frame (x = frame geom
 function recolor(group, test, color, T) { if (!group) return 0; let n = 0; group.traverse((o) => { if (o.isMesh && test(o)) { o.material = o.material.clone(); o.material.color = new T.Color(color); n++; } }); return n; }
 globalThis.__WK_BUILD_HOOK__ = (root, { x, R, b }, T) => {
   const selectedBuild=b;b=canonicalBuild(b);
+  if(buildVehicle(root,selectedBuild,T,find))return;
   if (!x) return; const A = modularAnchors({...anchors(x, R), ...(b.frame === TRAX_ID ? traxAnchors(x) : {})},b), g = (n) => root.children.find((c) => c.name === "wk:" + n);
   const mat = (c, o = {}) => new T.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.2, ...o });
   const slotGroup = (slot) => { const old = root.children.find((c) => c.name === "wk:part:" + slot); old && root.remove(old); const G = new T.Group(); G.name = "wk:part:" + slot; G.userData.slot = slot; root.add(G); return G; };

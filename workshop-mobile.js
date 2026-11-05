@@ -25,7 +25,7 @@ function update(){
  const bike=all.find(p=>p.completeBike&&p.kit?.includes(b.frame))||all.find(p=>p.completeBike);
  for(const button of document.querySelectorAll('[data-simple-category],[data-cat],[data-wk-sticker-dock]')){
   const key=button.dataset.simpleCategory||button.dataset.cat;
-  const p=button.hasAttribute('data-wk-sticker-dock')?{id:'ui_sticker',slot:'sticker'}:key==='bikes'||key==='bike'?bike:key==='kit'?all.find(p=>p.slot==='kit'&&!p.completeBike):key==='accessories'?{id:'ui_helmet',slot:'helmet'}:select(({wheels:'tyres',style:'bars'})[key]||key);
+  const p=button.hasAttribute('data-wk-sticker-dock')?{id:'ui_sticker',slot:'sticker'}:key==='bikes'||key==='bike'?(all.find(p=>p.completeBike&&p.vehicleClass==='bicycle')||bike):key==='motorbikes'?all.find(p=>p.completeBike&&p.vehicleClass==='motorbike'):key==='escooters'?all.find(p=>p.completeBike&&p.vehicleClass==='escooter'):key==='kit'?all.find(p=>p.slot==='kit'&&!p.completeBike):key==='accessories'?{id:'ui_helmet',slot:'helmet'}:select(({wheels:'tyres',style:'bars'})[key]||key);
   picture(button,p);
  }
 }

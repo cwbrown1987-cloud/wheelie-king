@@ -11,7 +11,7 @@ try{
   const mode=p.getByRole('button',{name:'Simple / Advanced',exact:true}),sticker=p.getByRole('button',{name:'Stickers',exact:true});
   assert(await mode.isVisible());assert(await sticker.isVisible());assert.equal(await p.locator('[data-rail="right"]>[aria-label="Test ride"]').isVisible(),false);assert.equal(await p.locator('[data-wk-workshop-title]').isVisible(),false);
   const m=await mode.boundingBox(),s=await sticker.boundingBox();assert(m.y>=s.y+s.height);assert(m.x>=0&&m.x+m.width<=viewport.width&&m.y+m.height<=viewport.height);
-  if(viewport.width>viewport.height){const b=await p.locator('[data-simple-category="bikes"]').boundingBox();assert(b.height>=44,JSON.stringify(b));assert.equal(await p.locator('#wk-simple-rail .wk-category-picture').count(),8);}
+  if(viewport.width>viewport.height){const b=await p.locator('[data-simple-category="bikes"]').boundingBox();assert(b.height>=44,JSON.stringify(b));assert.equal(await p.locator('#wk-simple-rail .wk-category-picture').count(),10);}
   await p.screenshot({path:`wk-shots/workshop-mobile/${viewport.width}.png`});
   if(viewport.width===1280){
    const result=await p.evaluate(async()=>{
