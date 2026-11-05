@@ -34,3 +34,5 @@ Current immediate change: shaped hoodie/helmet/face/gloves/trousers/trainers wit
 ## Depth preparation delivered
 
 The track now has streamed 3D surroundings and a QA side/chase orbit for screenshots. Near and middle geometry supplies actual perspective, with a far sky image. Public camera switching, gentle turns/auto-steering, new biome transitions and full concept-image fidelity remain pending. Latest workshop glass drawer is live independently.
+
+Smooth-ragdoll follow-up: monotone-rounded terrain, terrain-following scenery/joins and suspension-aware wheel contacts are implemented and checked. Far skyline and repeated material motifs still need artistic polish; full photographic/concept fidelity is not claimed.

@@ -25,13 +25,13 @@
       "worldEnd": 120
     },
     "render": {
-      "calls": 252,
-      "triangles": 87926,
-      "geometries": 227,
-      "textures": 13
+      "calls": 263,
+      "triangles": 116138,
+      "geometries": 247,
+      "textures": 11
     },
     "x": 2,
-    "y": 0.9284921846123554
+    "y": 0.9290244341348773
   },
   "streams": [
     {
@@ -53,10 +53,10 @@
         "worldEnd": 192
       },
       "render": {
-        "calls": 256,
-        "triangles": 88090,
-        "geometries": 248,
-        "textures": 15
+        "calls": 268,
+        "triangles": 119778,
+        "geometries": 276,
+        "textures": 14
       }
     },
     {
@@ -78,10 +78,10 @@
         "worldEnd": 360
       },
       "render": {
-        "calls": 253,
-        "triangles": 88022,
-        "geometries": 226,
-        "textures": 13
+        "calls": 265,
+        "triangles": 119738,
+        "geometries": 247,
+        "textures": 11
       }
     },
     {
@@ -103,10 +103,10 @@
         "worldEnd": 5112
       },
       "render": {
-        "calls": 256,
-        "triangles": 88546,
-        "geometries": 230,
-        "textures": 13
+        "calls": 271,
+        "triangles": 127170,
+        "geometries": 250,
+        "textures": 12
       }
     },
     {
@@ -128,10 +128,10 @@
         "worldEnd": 10104
       },
       "render": {
-        "calls": 258,
-        "triangles": 89292,
-        "geometries": 230,
-        "textures": 13
+        "calls": 273,
+        "triangles": 128662,
+        "geometries": 250,
+        "textures": 12
       }
     }
   ],

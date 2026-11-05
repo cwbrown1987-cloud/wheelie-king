@@ -34,7 +34,7 @@ try {
  assert(Object.values(rejected).every(v=>v==='no'));
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();await p.evaluate(()=>{const v=__WK_VIEW__;v.controls.autoRotate=false;v.controls.target.set(.12,.52,0);v.camera.position.set(.5,.8,2.6);v.controls.update()});await p.waitForTimeout(2000);await p.screenshot({path:'wk-shots/modular/trax-blue-rear.png'});
  await p.getByRole('button',{name:'Test ride',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);
- await p.keyboard.down('ArrowUp');await p.waitForTimeout(900);await p.keyboard.up('ArrowUp');
- const ride=await p.evaluate(()=>{const {s,mechanical}=__WK_RIDE_STATE__();return {x:s.x,y:s.y,pitch:s.pitch,wheel:mechanical.wheelPhase,crank:mechanical.crankPhase}});assert(Object.values(ride).every(Number.isFinite));assert(ride.wheel<0&&ride.crank<0);
+ await p.keyboard.down('ArrowUp');await p.waitForFunction(()=>{const r=__WK_RIDE_STATE__();if(r.s.crashed)throw Error(r.s.crashed);return r.mechanical.wheelPhase<-.02&&r.mechanical.crankPhase<-.02},null,{timeout:15000});await p.keyboard.up('ArrowUp');
+ const ride=await p.evaluate(()=>{const {s,mechanical}=__WK_RIDE_STATE__();return {x:s.x,y:s.y,pitch:s.pitch,wheel:mechanical.wheelPhase,crank:mechanical.crankPhase}});assert(Object.values(ride).every(Number.isFinite));assert(ride.wheel<0&&ride.crank<0,JSON.stringify(ride));
  assert.deepEqual(errors,[]);writeFileSync('wk-shots/modular/validation.json',JSON.stringify({report,bare,rejected,ride,errors},null,2));console.log(JSON.stringify({bikes:report.length,stockAndColoursFit:true,barePartsRemoved:true,uiColour:true,incompatibleRejected:true,ride:true,errors}));
 } finally {await browser.close();}

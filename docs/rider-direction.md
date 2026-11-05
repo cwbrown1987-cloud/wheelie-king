@@ -14,3 +14,5 @@ Authorised crash behaviour: rider detaches from the bike with inherited momentum
 Use constrained physical motion and gravity for the ragdoll, not a fixed fall animation. Test separation, ground penetration/joint stability, energy settling, repeat recoveries and reattachment. Full photographic character fidelity remains a visual target; do not claim it from a primitive mesh update.
 
 Race polish added by Chris: smooth/seamless terrain and joins, grounded props instead of floating scenery, and prevention of map clipping. Use the same terrain surface for visuals and contacts.
+
+Implemented in the smooth-ragdoll batch: detached constrained rider/bike physics, inherited momentum and contacts, Recover/R, full-face helmet/red gloves and named appearance slots. Full gear selection UI, additional clothing mesh styles and concept-level character art remain future work.

@@ -1,5 +1,13 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Smooth Trials, grounded scenery and detached crash recovery — 5 Nov 2026
+
+- Replaced hard terrain joins/near-vertical short steps with a rounded monotone profile. Road visuals and collision heights use the same surface. Walls/caps/fences follow terrain continuously; terrain-following surroundings, planted stems, properly based props and smoother vegetation/rocks remove floating scenery. Floor coverage and endless tile UVs stay continuous.
+- Suspension contact allowance now follows the actual fork axis and swingarm arc relative to bike/road angle. A rendered-wheel Trials check measured a minimum gap of -0.000044 m; 1,104 ground/stem anchors and adjacent wall joins agreed with the terrain.
+- Rider detaches into constrained physical joint motion; bike falls independently. Ground/limb and rider/bike contacts replace the attached scripted spin. Added full-face helmet/visor, red gloves/fingers and clothing material slots for later gear styles.
+- Instant Recover or R restores bike/rider and clears controls while preserving score, battery and distance. Crash waits for player recovery. Four simulated fall orientations settle; five browser recoveries passed without geometry growth.
+- Release checks passed individually. The drivetrain smoke check now waits for actual wheel/crank movement rather than a fixed 900 ms under software rendering. Phone/iPad performance and further visual polish remain for follow-up. Cache: `wk-v18-smooth-ragdoll-1`.
+
 ## Neon Workshop and readable assembly previews — 5 Nov 2026
 
 - Renamed the builder Workshop. Added a generated static neon garage behind the editable 3D bike; hid the old green turntable. Kept the left parts layout, moved primary navigation to the top and extended the background across the whole screen with cleaner glass/slate panels.

@@ -14,5 +14,5 @@ export function roadLayers(T,scene,pts,topGeometry){
  pts.forEach(([x,y],i)=>{positions.push(x,y+.025,1.215,x,y-.36,1.215);coords.push(x/8,1,x/8,0);if(i<pts.length-1){const a=i*2;indices.push(a,a+1,a+2,a+1,a+3,a+2)}});
  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('uv',new T.Float32BufferAttribute(coords,2));geo.setIndex(indices);geo.computeVertexNormals();
  const edge=new T.Mesh(geo,new T.MeshStandardMaterial({map:texture(true),roughness:.85,side:T.DoubleSide}));edge.name='wk:near-concrete-edge';edge.receiveShadow=true;group.add(edge);scene.add(group);
- return {topMap,foreground:group};
+ let previousTile;return {topMap,foreground:group,update(tile){if(tile===previousTile)return;previousTile=tile;for(const g of [topGeometry,geo]){const uv=g.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setX(i,(pts[Math.floor(i/2)][0]+tile)/8);uv.needsUpdate=true;}}};
 }

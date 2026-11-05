@@ -1,3 +1,4 @@
+import {roundedProfile} from './terrain-profile.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
 // Units: metres, kg, seconds. x forward, y up. pitch: + = nose up (wheelie).
 export function makeTerrain(seed = 1) {
@@ -9,8 +10,8 @@ export function makeTerrain(seed = 1) {
   const section = (i) => {
     const t = i % 6;
     if (t === 0) { for (let k = 0; k < 6; k++) add(6, (rnd() - 0.5) * 2.2); }                                  // rolling hills
-    else if (t === 1) { add(8, 0); kickers.push(x); add(4, 1.4); add(0.4, -1.4 + 0.0); add(10, -0.3); add(10, 0); } // kicker
-    else if (t === 2) { add(6, 0); add(5, 2.2); const g0 = x; add(0.2, -3.2); add(6, 0); add(0.2, 1.0); add(7, 0.4); kickers.push(g0); add(8, -0.4); } // gap
+    else if (t === 1) { add(8, 0); kickers.push(x); add(4, 1.4); add(3, -1.4); add(10, -0.3); add(10, 0); } // kicker
+    else if (t === 2) { add(6, 0); add(5, 2.2); const g0 = x; add(3, -3.2); add(6, 0); add(3, 1.0); add(7, 0.4); kickers.push(g0); add(8, -0.4); } // gap
     else if (t === 3) { add(6, 0); puddles.push([x, x + 6]); add(6, 0); add(6, 0.2); }                          // puddle
     else if (t === 4) { for (let k = 0; k < 4; k++) { add(5, 1.6); add(5, -1.6); } }                           // whoops
     else { add(10, 3); add(6, 0.2); add(12, -3.2); add(6, 0); }                                                 // big step-down
@@ -18,12 +19,9 @@ export function makeTerrain(seed = 1) {
   };
   for (let i = 0; i < 14; i++) section(i);
   add(20, 0); const finish = x; add(60, 0);
-  const h = (qx) => { let lo = 0, hi = pts.length - 1; if (qx <= pts[0][0]) return pts[0][1]; if (qx >= pts[hi][0]) return pts[hi][1];
-    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m][0] <= qx) lo = m; else hi = m; }
-    const [x0, y0] = pts[lo], [x1, y1] = pts[hi]; return x1 === x0 ? Math.max(y0, y1) : y0 + (y1 - y0) * (qx - x0) / (x1 - x0); };
-  const slope = (qx) => Math.atan2(h(qx + 0.15) - h(qx - 0.15), 0.3);
+  const {pts:rounded,h,slope}=roundedProfile(pts);
   const inPuddle = (qx) => puddles.some(([a, b]) => qx >= a && qx <= b);
-  return { pts, h, slope, puddles, checkpoints, kickers, finish, inPuddle };
+  return { pts:rounded, h, slope, puddles, checkpoints, kickers, finish, inPuddle };
 }
 export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
 export function bikeParams(stats = {}) {
@@ -54,7 +52,11 @@ export function step(s, p, inp, dt, ter) {
   const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR, p.travelF];
   const k = (i) => p.mass * 9.8 / 2 / Math.max(travel[i] * 0.35, 0.012), c = (i) => 2 * (0.25 + p.damp) * Math.sqrt(k(i) * p.mass / 2);
   let Fx = 0, Fy = -9.8 * p.mass, T = 0, impactV = 0; const N = [0, 0];
-  const maxDeflection=i=>Math.max(.004,travel[i]*.8*(i?(p.forkVertical??1):1));
+  // Match the rendered fork axis / swingarm arc, including the bike and road
+  // angles. A fixed vertical travel value made tyres cut into sloping landings.
+  const lift=(i,compression)=>{let dx=0,dy=travel[i]*.8*compression;if(i){dx=(p.forkAxis?.[0]||0)*dy;dy*=p.forkAxis?.[1]??p.forkVertical??1;}else if(p.rearLink){const [x,y]=p.rearLink,L2=x*x+y*y;dx=Math.sign(x)*Math.sqrt(Math.max(0,L2-(y+dy)**2))-x;}const c=Math.cos(s.pitch),n=Math.sin(s.pitch),wx=s.x+rot(wl[i][0],wl[i][1],s.pitch)[0],grade=Math.tan(ter.slope(wx));return dx*n+dy*c-grade*(dx*c-dy*n);};
+  const maxDeflection=i=>Math.max(.004,lift(i,1));
+  const compression=(i,depth)=>{if(depth<=0||lift(i,1)<=.004)return 0;if(i||!p.rearLink)return Math.min(1,depth/maxDeflection(i));let lo=0,hi=1;for(let n=0;n<9;n++){const mid=(lo+hi)/2;if(lift(i,mid)<depth)lo=mid;else hi=mid}return (lo+hi)/2;};
   s.thr = (s.thr || 0) + Math.max(-dt * 6, Math.min(dt * 2.5, (inp.throttle || 0) - (s.thr || 0))); // throttle ramps like a real twist grip
   s.reverseHold=inp.brake>0&&!inp.throttle?(s.reverseHold||0)+dt:0;
   s.reversing=s.reverseHold>.4&&s.vx<.25&&inp.lean>=-.2;s.burnout=false;
@@ -67,7 +69,7 @@ export function step(s, p, inp, dt, ter) {
       // An arbitrarily stiff extra spring used to sink, then launch the bike.
       let f = k(i) * Math.min(d, maxDeflection(i)) - c(i) * vn;
       if(d>maxDeflection(i)&&vn<-5.5+travel[i]*10)s.events.push({type:'bottom',i});
-      f = Math.max(0, f); N[i] = f; s.comp[i] = Math.min(1,d/maxDeflection(i));
+      f = Math.max(0, f); N[i] = f; s.comp[i] = compression(i,d);
       Fx += f * nx; Fy += f * ny; T += ox * f * ny - (oy - 0) * f * nx; // r x F (z)
       const tx = Math.cos(a), ty = Math.sin(a), vt = s.vx * tx + s.vy * ty;
       let ft = -vt * 2.2 * (i ? 1 : 1); // rolling resistance
@@ -98,7 +100,7 @@ export function step(s, p, inp, dt, ter) {
       if(vn<0){const impulse=-vn/(1/p.mass+lever*lever/I);s.vx+=impulse*nx/p.mass;s.vy+=impulse*ny/p.mass;s.w+=impulse*lever/I;}
     }
   }
-  for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R).height-(s.y+oy);s.comp[i]=Math.max(0,Math.min(1,depth/maxDeflection(i)));}
+  for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R).height-(s.y+oy);s.comp[i]=compression(i,depth);}
   onG=s.ground[0]||s.ground[1];
   for (let i = 0; i < 2; i++) s.wheelSpin[i] += s.vx / p.R * dt;
   if(s.burnout)s.wheelSpin[driven]+=Math.min(18,4+p.power/1500)/p.R*dt;
