@@ -6,7 +6,7 @@ import {playerView} from './player-view3d.js';
 let gizmoStop;
 let host,view='',category='',selectedItem=null,history=[],rig,previewStop,selectedRide=null,arranging=false,placements=layout(),beforeArrange,wardrobeSlot='helmet';
 const style=document.createElement('style');style.textContent=`
-body[data-player-view="garage"],body[data-player-view="character"]{background-image:url('./icons/neon-garage-background.png')!important}
+body[data-player-view="garage"]{background-image:url('./icons/showroom-background.png')!important}body[data-player-view="character"]{background-image:url('./icons/neon-garage-background.png')!important}
 body[data-player-view="shop"]{background-image:url('./icons/rider-shop-background.png')!important}
 body[data-player-view] [data-wk-content]{visibility:hidden!important;pointer-events:none!important}
 body[data-player-view] [data-wk-nav="garage"]{color:#cddfe9!important;border-bottom-color:transparent!important;text-shadow:none!important}

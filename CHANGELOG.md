@@ -1,3 +1,10 @@
+# Full sticker studio and compact stats — 6 Nov 2026
+
+- Full middle-panel frosted sticker gallery with large previews, All/Mine, search and Custom.
+- Full-page upload/auto-crop and manual trace with zoom, pan, point refinement and fine tuning. Native rating/PIN/save/apply flow retained.
+- Smaller four-metric mini stats card; expanded stats retained, hidden during sticker selection.
+- Restored the selected static showroom background while retaining current independent object placement/camera/rotation controls.
+
 # Remove displayed rides — 6 Nov 2026
 
 - The on-object remove handle now removes rides as well as placed items.
