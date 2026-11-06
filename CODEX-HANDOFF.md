@@ -28,11 +28,13 @@ Updated 7 Nov 2026. This is the single current instruction page. Replace the res
 
 ## Current work boundary
 
-- This policy milestone is isolated in `C:/Users/cbrow/.codex/worktrees/wheelie-basic-crazy`, branch `fix/basic-crazy-builds`, based on live `e4b9693`. The original `Wheelie king` checkout retains unfinished fitment, moto-balance and shared-3D-room changes; they are not included in this deployment. Preserve and reconcile them against the policy commit before resuming those milestones. Earlier inventory/store work also remains stashed.
+- Active delivery checkout: `C:/Users/cbrow/.codex/worktrees/wheelie-basic-crazy`, branch `work/nov7-polish`, based on live `acd5e68`. See [docs/ROADMAP.md](docs/ROADMAP.md) for consolidated owner requirements and this round's checklist.
+- Owner's current delivery override: commit/push development checkpoints during this round, but do not update main or the live game until the final verified batch. Finish menu fixes first, then ride tweaks, improved shop previews and a couple of Basic-only crazy test parts. Keep unfinished riding 3D hidden and mechanical disassembly deferred.
+- Original checkout retains pending fitment, wheelie and true-3D-room changes; reconcile them here in their respective batches. Earlier inventory/store work remains stashed. Preserve both.
 
 ## Working rules
 
-- Batch related fixes, run relevant checks, commit/push both branches, then publish to the existing Cloudflare app. GitHub or localhost alone is not delivery. Fix a failing check before broadening work.
+- Batch related fixes and run relevant checks. For this round, push development checkpoints only; update main and publish the Cloudflare app after the final verified batch. GitHub or localhost alone is not delivery. Fix a failing check before broadening work.
 - Keep progress brief. Final: changed / tested / pushed / remaining. Explain more when asked.
 - Search specific files and changed sections. Reuse verified findings; repeat checks only for new changes, failures or unresolved concerns.
 - Overwrite stale resume notes here. Version detail belongs in CHANGELOG, test logs in ignored `test-results/`, selected visual evidence in `wk-shots/`.
