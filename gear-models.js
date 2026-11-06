@@ -1,6 +1,8 @@
+import {furnitureModel} from './garage-furniture.js';
 import {RIDER_SPEC} from './rider-spec.js';
 // Shared shop and worn geometry. All helmets face +X, centered on the head.
 export function gearModel(T,p,{single=false}={}){
+ if(['shelf','toolbox'].includes(p.style))return furnitureModel(T,p.style);
  const g=new T.Group();g.name='gear:'+p.id;g.userData.gearId=p.id;
  const material=(c,metal=.12,rough=.55)=>new T.MeshStandardMaterial({color:c,metalness:metal,roughness:rough});
  const primary=material(p.primary),accent=material(p.accent),dark=material('#14202a'),silver=material('#9daeb8',.8,.25);

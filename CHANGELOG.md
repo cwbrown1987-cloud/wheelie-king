@@ -1,3 +1,9 @@
+# Free garage editing and autosave — 6 Nov 2026
+
+- Select → Edit; no camera snap or grid snapping. Drag for floor movement, floor handles for continuous rotation, upper arrow for height.
+- No garage Save form/Save-Cancel toolbar; layouts autosave. Workshop drafts save on leaving tabs and restore after reload; custom sticker art/rating persist.
+- Detailed movable neon steel shelves and roller toolbox, with beveled fittings, lighting, drawers, handles, casters and fasteners.
+
 # Workshop opening view — 6 Nov 2026
 
 - Open and Reset View frame the whole bike larger and nearly side-on, matching the requested placement.

@@ -1,19 +1,18 @@
 import * as T from './vendor/three.module.js';
-// Screen-space handles follow the selected world object, never the camera target.
-export function garageGizmo(host,getRig,onRemove){
- const root=document.createElement('div');root.className='garage-gizmo';root.hidden=true;host.append(root);
- let drag=null,raf;
- const handle=(label,glyph,x,y,action)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',label);b.title=label;b.textContent=glyph;b.style.cssText=`left:${x}px;top:${y}px`;b.onclick=action;root.append(b);return b};
- const move=(side,forward)=>{const r=getRig(),d=r.camera.getWorldDirection(new T.Vector3());d.y=0;d.normalize();r.move((-d.z*side+d.x*forward)*.25,(d.x*side+d.z*forward)*.25)};
- handle('Move left','←',-100,0,()=>move(-1,0));handle('Move right','→',100,0,()=>move(1,0));
- handle('Move forward','↑',0,-85,()=>move(0,1));handle('Move backwards','↓',0,85,()=>move(0,-1));
- const rotate=handle('Rotate object','↻',75,-75,()=>{if(!rotate.dataset.dragged)getRig().rotate(Math.PI/12);delete rotate.dataset.dragged});
- rotate.onpointerdown=e=>{e.preventDefault();rotate.setPointerCapture(e.pointerId);drag={x:e.clientX}};
- rotate.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x;if(Math.abs(dx)>1){getRig().rotate(dx*.012);drag.x=e.clientX;rotate.dataset.dragged='true'}};
- rotate.onpointerup=rotate.onpointercancel=()=>{drag=null};
- handle('Raise object','⇡',-60,70,()=>getRig().move(0,0,.1));handle('Lower object','⇣',60,70,()=>getRig().move(0,0,-.1));
- const remove=handle('Remove placed item','⌫',-75,-75,onRemove);
- const update=()=>{raf=requestAnimationFrame(update);const r=getRig(),state=r?.state(),object=r?.objects.find(o=>o.key===state.selected);root.hidden=!state?.arrange||!object;if(root.hidden)return;const center=new T.Box3().setFromObject(object.holder).getCenter(new T.Vector3()).project(r.camera),w=host.clientWidth,h=host.clientHeight;
-  root.style.left=Math.max(122,Math.min(w-122,(center.x+1)*w/2))+'px';root.style.top=Math.max(128,Math.min(h-112,(-center.y+1)*h/2))+'px';remove.hidden=false;const label=object.ride?'Remove displayed ride':'Remove placed item';remove.setAttribute('aria-label',label);remove.title=label;
+export function garageGizmo(host,getRig,onRemove,onEdit){
+ const root=document.createElement('div');root.className='garage-gizmo';root.hidden=true;host.append(root);let drag,raf;
+ const handle=(label,glyph)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',label);b.title=label;b.textContent=glyph;root.append(b);return b};
+ const edit=handle('Edit object','✎');edit.className='object-edit';edit.onclick=()=>onEdit(!getRig().state().arrange);
+ const remove=handle('Remove placed item','⌫');remove.onclick=onRemove;
+ const lift=handle('Lift or lower object','↕');lift.className='object-lift';
+ const left=handle('Rotate object left','↺'),right=handle('Rotate object right','↻');left.className=right.className='floor-rotate';
+ const object=()=>{const r=getRig();return r?.objects.find(o=>o.key===r.state().selected)};
+ const floorAngle=e=>{const r=getRig(),o=object(),rect=r.controls.domElement.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),r.camera);const p=ray.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),0),new T.Vector3());return p?Math.atan2(p.x-o.holder.position.x,p.z-o.holder.position.z):null};
+ for(const b of [left,right,lift]){b.onpointerdown=e=>{e.preventDefault();e.stopPropagation();const o=object();if(!o)return;b.setPointerCapture(e.pointerId);drag={button:b,y:e.clientY,angle:floorAngle(e)};};b.onpointermove=e=>{if(drag?.button!==b)return;const r=getRig();if(b===lift){const rect=r.controls.domElement.getBoundingClientRect(),distance=r.camera.position.distanceTo(object().holder.position),scale=2*distance*Math.tan(r.camera.fov*Math.PI/360)/rect.height;r.move(0,0,(drag.y-e.clientY)*scale);drag.y=e.clientY;}else{const angle=floorAngle(e);if(angle!=null&&drag.angle!=null)r.rotate(Math.atan2(Math.sin(angle-drag.angle),Math.cos(angle-drag.angle)));drag.angle=angle;}};b.onpointerup=b.onpointercancel=()=>{drag=null};}
+ const place=(b,p)=>{const r=getRig(),v=p.clone().project(r.camera);b.style.left=(v.x+1)*host.clientWidth/2+'px';b.style.top=(-v.y+1)*host.clientHeight/2+'px';};
+ const update=()=>{raf=requestAnimationFrame(update);const r=getRig(),o=object();root.hidden=!o;if(!o)return;const bounds=new T.Box3().setFromObject(o.holder),center=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3()),editing=r.state().arrange,radius=Math.max(.46,Math.min(1.05,Math.max(size.x,size.z)*.58));
+  place(edit,new T.Vector3(center.x+.22,bounds.max.y+.05,center.z));edit.textContent=editing?'✓':'✎';edit.setAttribute('aria-label',editing?'Finish editing object':'Edit object');
+  for(const b of [left,right,lift,remove])b.hidden=!editing;
+  place(left,new T.Vector3(o.holder.position.x-radius,.025,o.holder.position.z));place(right,new T.Vector3(o.holder.position.x+radius,.025,o.holder.position.z));place(lift,new T.Vector3(center.x,bounds.max.y+.35,center.z));place(remove,new T.Vector3(center.x-.22,bounds.max.y+.05,center.z));remove.setAttribute('aria-label',o.ride?'Remove displayed ride':'Remove placed item');
  };update();return ()=>{cancelAnimationFrame(raf);root.remove()};
 }
