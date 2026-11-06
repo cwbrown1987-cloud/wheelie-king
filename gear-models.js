@@ -6,6 +6,7 @@ export function gearModel(T,p,{single=false}={}){
  const g=new T.Group();g.name='gear:'+p.id;g.userData.gearId=p.id;
  const material=(c,metal=.12,rough=.55)=>new T.MeshStandardMaterial({color:c,metalness:metal,roughness:rough});
  const primary=material(p.primary),accent=material(p.accent),dark=material('#14202a'),silver=material('#9daeb8',.8,.25);
+ const fabric=()=>material('#d7dfe2',.02,.85);
  const mesh=(name,geo,mat,pos=[0,0,0],parent=g)=>{const m=new T.Mesh(geo,mat);m.name='gear:'+name;m.position.set(...pos);m.castShadow=m.receiveShadow=true;parent.add(m);return m};
  const box=(name,size,mat,pos=[0,0,0],parent=g)=>{const [w,h,d]=size,b=Math.min(w,h,d)*.17,s=new T.Shape();s.moveTo(-w/2+b,-h/2);s.lineTo(w/2-b,-h/2);s.quadraticCurveTo(w/2,-h/2,w/2,-h/2+b);s.lineTo(w/2,h/2-b);s.quadraticCurveTo(w/2,h/2,w/2-b,h/2);s.lineTo(-w/2+b,h/2);s.quadraticCurveTo(-w/2,h/2,-w/2,h/2-b);s.lineTo(-w/2,-h/2+b);s.quadraticCurveTo(-w/2,-h/2,-w/2+b,-h/2);const geo=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:true,bevelSize:b*.3,bevelThickness:b*.3,bevelSegments:3,curveSegments:6});geo.translate(0,0,-d/2);return mesh(name,geo,mat,pos,parent)};
  const tube=(name,points,r,mat,parent=g)=>mesh(name,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(a=>new T.Vector3(...a))),32,r,10,false),mat,[0,0,0],parent);
@@ -32,16 +33,23 @@ export function gearModel(T,p,{single=false}={}){
   for(const side of single?[0]:[-1,1]){const shoe=new T.Group();shoe.position.set(single?0:side*.035,0,side*.075);g.add(shoe);const boot=p.style==='boot';
    box('shoe:sole',[.175,.017,.082],material('#d7dfe2'),[.035,-.044,0],shoe);box('shoe:tread',[.171,.007,.079],dark,[.035,-.055,0],shoe);
    const upper=mesh('shoe:upper',new T.CapsuleGeometry(.033,.094,6,20),primary,[.035,-.013,0],shoe);upper.rotation.z=Math.PI/2;upper.scale.z=1.05;
+   box('shoe:tongue',[.072,.009,.043],primary,[.013,.016,0],shoe);box('shoe:heel',[.012,.035,.066],accent,[-.045,-.020,0],shoe);
    if(boot)box('shoe:ankle',[.065,.095,.075],primary,[-.021,.027,0],shoe);
    box('shoe:toe',[.035,.026,.074],dark,[.107,-.026,0],shoe);
-   for(let i=0;i<5;i++)box('shoe:lace',[.007,.004,.049],material('#eaf2ed'),[-.018+i*.017,.020+i*.001,0],shoe);
+   const lace=fabric();for(let i=0;i<5;i++){const x=-.018+i*.017;tube('shoe:lace',[[x,.024+i*.001,-.022],[x+.012,.026+i*.001,.022]],.002,lace,shoe);}
+   for(const z of [-.037,.037])tube('shoe:soleSeam',[[-.037,-.036,z],[.02,-.034,z],[.10,-.036,z]],.0015,accent,shoe);
    for(const z of [-.037,.037]){const stripe=box('shoe:stripe',[.056,.012,.004],accent,[.025,-.004,z],shoe);stripe.rotation.z=.45;}
   }
  }else if(p.slot==='top'){
   const torso=new T.CapsuleGeometry(.135,.22,8,28);torso.scale(.75,1,1);mesh('top:body',torso,primary,[0,.25,0]);
   for(const side of [-1,1]){const sleeve=mesh('top:sleeve',new T.CapsuleGeometry(.05,p.style==='tee'?.07:.27,6,20),primary,[.015,.26,side*.20]);sleeve.rotation.x=side*.20;box('top:cuff',[.07,.04,.07],accent,[.015,.08,side*.23]);}
-  if(p.style==='hoodie')mesh('top:hood',new T.TorusGeometry(.082,.035,12,32),primary,[0,.46,0]).rotation.x=Math.PI/2;
+  if(p.style==='hoodie'){
+   mesh('top:hood',new T.TorusGeometry(.082,.035,12,32),primary,[0,.46,0]).rotation.x=Math.PI/2;
+   box('top:kangarooPocket',[.014,.075,.15],primary,[.101,.17,0]);
+   for(const side of [-1,1]){tube('top:pocketOpening',[[.111,.195,side*.065],[.114,.17,side*.043]],.0025,accent);const cord=fabric();tube('top:drawcord',[[.065,.44,side*.035],[.103,.37,side*.028],[.108,.32,side*.033]],.0025,cord);}
+  }
   box('top:chest',[.006,.06,.08],accent,[.106,.28,0]);
+  const hem=mesh('top:hem',new T.TorusGeometry(.106,.009,8,28),accent,[0,.10,0]);hem.rotation.x=Math.PI/2;hem.scale.x=.84;
  }else if(p.slot==='pants'){
   box('pants:waist',[.17,.12,.22],primary,[0,.57,0]);for(const side of [-1,1]){const leg=mesh('pants:leg',new T.CapsuleGeometry(.061,p.style==='shorts'?.16:.43,8,24),primary,[0,p.style==='shorts'?.42:.28,side*.073]);if(p.style==='cargo')box('pants:pocket',[.035,.10,.075],accent,[.047,.43,side*.099]);}
  }else if(p.slot==='accessory'){

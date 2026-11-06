@@ -1,3 +1,8 @@
+## 7 Nov 2026 - small shop model polish
+
+- Added product hoodie pockets/drawstrings and top hems; shared shop/rider shoes now include tongue, heel, crossed laces and sole seams. No catalogue, fitment or physics changes.
+- Product/purchase/equipped-rider and garage editing checks passed; real-device visual review remains pending.
+
 ## 7 Nov 2026 - wheelie balance delivery
 
 - Removed fixed-angle fender support. Rear-wheel pivot allows continuous lift, controlled balancing, front-wheel recovery, scrapes and genuine loop-outs.
