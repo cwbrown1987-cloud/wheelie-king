@@ -8,6 +8,7 @@ import {part,baseId,canonicalBuild} from './modular-catalogue.js';
 import {prototypeFor} from './vehicle-platforms.js';
 import {componentModel,previewBuild,paintBuild} from './modular-render.js';
 import {makeRider} from './rider-model.js';
+import {gearModel} from './gear-models.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame", "frame", "stem", "seatpost", "pedals", "headset", "hubs", "body_panels", "number_plate", "grips", "seat", "rims", "tyres"]);
@@ -27,6 +28,7 @@ function accessoryModel(p){
 }
 const makeModel = (p) => {
   if (!p) return null;
+  if(p.gear)return gearModel(T,p);
   if(p.prototype&&p.slot!=='frame'){const root=previewBuild(T,p.family,{[p.slot]:p.id});const names={bars:'wk:cockpit',chain:'wk:part:drive',tyres:'wk:tyres',rims:'wheel:rim',hubs:'hub:shell',grips:'grips:R',motor:prototypeFor(p.family)?.vehicleClass==='escooter'?'scooter:hubMotor':'wk:motor',sprocket_f:'sprocketF',sprocket_r:'sprocketR'};const obj=root.getObjectByName(names[p.slot]||'wk:'+p.slot)||root.getObjectByName('wk:part:'+p.slot);obj?.removeFromParent();return obj;}
   if(p.id==='ui_helmet'){const body=new T.Group(),bike=new T.Group();makeRider(T,body,bike,{seatTop:[0,0],headTop:[.3,.3],bb:[0,0]},{});const head=body.getObjectByName('rider:head');head.removeFromParent();return head;}
   if(p.id==='ui_sticker'){const g=new T.Group(),card=new T.Mesh(new T.BoxGeometry(.2,.15,.006),new T.MeshStandardMaterial({color:'#edf6ff',roughness:.4}));g.add(card);const shape=new T.Shape();shape.moveTo(.015,.06);shape.lineTo(-.045,-.006);shape.lineTo(-.005,-.006);shape.lineTo(-.015,-.06);shape.lineTo(.045,.006);shape.lineTo(.005,.006);shape.closePath();const bolt=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.004,bevelEnabled:false}),new T.MeshStandardMaterial({color:'#69ed57'}));bolt.position.z=.004;g.add(bolt);return g;}
@@ -73,14 +75,14 @@ export function thumb(p, size = 96) {
   const key = p.id + "@" + (size > 120 ? 2 : 1); if (cache.has(key)) return cache.get(key);
   let url = null; try { const obj = modelFor(p); if (!obj) { cache.set(key, null); return null; }
     ensure(); const w = size > 120 ? 240 : 128, h = Math.round(w * 0.75), prev = R.getSize(new T.Vector2()); R.setSize(w, h, false); cam.aspect = w / h;
-    holder.clear(); const pivot = new T.Group(); pivot.add(obj); holder.add(pivot); frame(obj); pivot.rotation.set(0.15, -0.35, 0); R.render(scene, cam); url = R.domElement.toDataURL("image/png");
-    holder.clear(); dispose(obj); if (live) { R.setSize(prev.x, prev.y, false); cam.aspect = prev.x / prev.y; }
+    const saved=[...holder.children],savedCamera=cam.clone(),exposure=R.toneMappingExposure;R.toneMappingExposure=p.gear?1:1.6;holder.clear(); const pivot = new T.Group(); pivot.add(obj); holder.add(pivot); frame(obj); pivot.rotation.set(0.15, -0.35, 0); R.render(scene, cam); url = R.domElement.toDataURL("image/png");
+    holder.clear(); dispose(obj);R.toneMappingExposure=exposure;if(live){saved.forEach(o=>holder.add(o));R.setSize(prev.x,prev.y,false);cam.copy(savedCamera);cam.updateProjectionMatrix();}
   } catch (e) { console.warn("thumb", p.id, e); url = null; }
   cache.set(key, url); return url;
 }
 let live = null;
 export function mount(el, p) { // big rotatable preview; returns cleanup
-  if (!el) return () => {}; ensure(); live?.stop(); const obj = modelFor(p); if (!obj) return () => {};
+  if (!el) return () => {}; ensure(); live?.stop();R.toneMappingExposure=p.gear?1:1.6; const obj = modelFor(p); if (!obj) return () => {};
   const pivot = new T.Group(); pivot.add(obj); holder.clear(); holder.add(pivot); frame(obj); pivot.rotation.set(0.15, -0.35, 0);
   const cv = R.domElement; cv.style.cssText = "width:100%;height:100%;display:block;touch-action:none;cursor:grab"; cv.dataset.wkPreview = p.id; el.appendChild(cv);
   let raf = 0, drag = null, idle = 0, zoom = 1; const base = cam.position.clone();

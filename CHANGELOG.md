@@ -1,5 +1,13 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Player garage, gear shop and character foundation — 6 Nov 2026
+
+- Added standalone Garage and Shop views under the existing top bar. Garage uses light glossy concrete in the game's existing industrial/neon style, with actual saved rides, owned gear displays, camera focus/orbit/pan/zoom and move/rotate/snap/stand placement with persistent layouts. My Builds now persists.
+- Shop categories, featured items/bundles, nested Back, details, try-on, purchases and owned equipment are functional. Quick procedural 3D art is intentional for setup; style/theme definitions are reusable. Eight starter wardrobe items and purchased gear appear in Garage Character and on the Race rider.
+- Shared reference proportions/mounts, smoother clothing limbs, four shaped helmet bases, glove/shoe geometry and per-vehicle poses. Developer infinite coins remains on; normal coin payment is checked, deducted once, and insufficient funds are refused. No real-money transactions.
+- App icons now render Jaxon's actual green TRAX bike. Fixed thumbnail rendering disturbing an open part preview. Generated room assets and prompts are documented.
+- Added player-room integration checks for save/layout persistence, focus, arrange/cancel, shop history, unowned try-on, purchases, wardrobe, currency and Race gear. Cache: `wk-v18-player-rooms-1`.
+
 ## Reclaim phone space and move Accessories into Shop — 6 Nov 2026
 
 - Capped excess horizontal safe-area padding to reclaim the unused landscape strip and give the Workshop more width.

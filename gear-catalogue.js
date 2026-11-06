@@ -1,0 +1,19 @@
+// Geometry styles and colour themes are independent: add a theme without a model fork.
+export const GEAR_CATEGORIES=[['helmets','Helmets'],['gloves','Gloves'],['tops','Tops'],['hoodies','Jumpers / Hoodies'],['pants','Pants / Shorts'],['shoes','Shoes'],['accessories','Accessories']];
+export const THEMES={lime:{name:'Lime',primary:'#76d82b',accent:'#19252c'},blue:{name:'Blue',primary:'#1676d8',accent:'#e1f1ff'},red:{name:'Red',primary:'#d83d44',accent:'#151c26'},neon:{name:'Neon Circuit',primary:'#202632',accent:'#71ff9a'},gold:{name:'Night Crown',primary:'#20232a',accent:'#eabb49'},storm:{name:'Electric Storm',primary:'#5c44b6',accent:'#72dcff'}};
+const bases=[
+ ['trail','helmet','helmets','Trail Full-face','mtb',500,['lime','neon','gold']],['mx','helmet','helmets','Full Send MX','mx',750,['blue','red','storm']],['street','helmet','helmets','City Full-face','street',600,['blue','neon','gold']],['open','helmet','helmets','Cruiser Open-face','open',280,['lime','red','gold']],
+ ['tee','top','tops','Charge Tee','tee',180,['blue','red','neon']],['jersey','top','tops','Trail Jersey','jersey',300,['blue','storm','gold']],
+ ['hoodie','top','hoodies','Throttle Hoodie','hoodie',350,['blue','neon','gold']],['jacket','top','hoodies','Night Ride Jacket','jacket',440,['red','storm','gold']],
+ ['joggers','pants','pants','Regen Joggers','joggers',250,['neon','blue','gold']],['cargo','pants','pants','Trail Cargos','cargo',340,['red','storm','gold']],['shorts','pants','pants','Session Shorts','shorts',190,['blue','neon','red']],
+ ['moto','gloves','gloves','Throttle Fingers','armoured',180,['red','neon','gold']],['trail','gloves','gloves','Trail Grip Gloves','light',120,['blue','storm','gold']],
+ ['skate','shoes','shoes','Silent Senders','skate',220,['neon','blue','gold']],['boot','shoes','shoes','Trail Lock Boots','boot',380,['red','storm','gold']],
+ ['pack','accessory','accessories','Day Ride Pack','backpack',300,['blue','neon','gold']]
+];
+export const GEAR= bases.flatMap(([base,slot,category,name,style,price,themes])=>themes.map((theme,i)=>({id:`gear_${base}_${slot}_${theme}`,gear:true,base,slot,category,style,theme,name:name+(i?' · '+THEMES[theme].name:''),primary:THEMES[theme].primary,accent:THEMES[theme].accent,rarity:theme==='gold'?'Legendary':i?'Epic':'Rare',price:Math.round(price*(i?1.35:1)),description:({helmet:'A shaped shell, padded liner and adjustable fit. Choose a style and colour theme.',top:'Rider clothing with a fitted cut and articulated sleeves.',pants:'A comfortable riding cut with room to move.',gloves:'Shaped fingers and a grippy palm for the bars.',shoes:'Flat soles, a shaped toe and secure lacing.',accessory:'A compact pack fitted to the rider’s back.'})[slot]})));
+export const DISPLAYS=[['floor','Bike Display Stand',180],['deck','Scooter Deck Stand',150],['lift','Moto Lift Stand',350],['wall','Wall Bike Mount',220],['podium','Neon Display Podium',600],['rack','Twin Ride Rack',420]].map(([style,name,price])=>({id:'display_'+style,gear:true,slot:'display',category:'accessories',style,name,price,primary:'#273743',accent:'#73ef9e',rarity:style==='podium'?'Epic':'Common',description:'A garage display item. Buy it here, then assign it to a saved ride in Arrange garage.'}));
+export const ITEMS=[...GEAR,...DISPLAYS];
+export const item=id=>ITEMS.find(i=>i.id===id);
+export const DEFAULT_OUTFIT={helmet:'gear_trail_helmet_lime',top:'gear_hoodie_top_blue',pants:'gear_joggers_pants_neon',gloves:'gear_moto_gloves_red',shoes:'gear_skate_shoes_neon'};
+export const STARTERS=[...Object.values(DEFAULT_OUTFIT),'gear_open_helmet_lime','gear_tee_top_blue','gear_shorts_pants_blue'];
+export const BUNDLES=[{id:'bundle_neon',name:'Neon Rider Bundle',price:850,rarity:'Epic',items:['gear_trail_helmet_neon','gear_hoodie_top_neon','gear_moto_gloves_neon']},{id:'bundle_trail',name:'Trail Starter Kit',price:700,rarity:'Rare',items:['gear_mx_helmet_blue','gear_skate_shoes_blue','gear_joggers_pants_blue']}];

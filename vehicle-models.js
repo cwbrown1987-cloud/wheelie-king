@@ -64,6 +64,7 @@ export function buildVehicle(root,build,T,find){
  if(p('pedals'))for(const side of [-1,1])rounded(group('pedals'),'pit:footpeg',.065,.018,.09,'#a4afb6',[...v.feet,side*.14],.004);
  if(p('chain')&&p('sprocket_f')&&p('sprocket_r')){const g=group('drive'),front=PM.sprocket(p('sprocket_f').teeth,'428','#77848e','sprocketF'),back=PM.sprocket(p('sprocket_r').teeth,'428','#77848e','sprocketR');front.position.set(...A.bb,.10);back.position.set(...A.rearAxle,.10);g.add(front,back);const chain=PM.chainAlong(chainRoute([{x:A.rearAxle[0],y:A.rearAxle[1],r:PM.sprocketR(p('sprocket_r').teeth)+.004},{x:A.bb[0],y:A.bb[1],r:PM.sprocketR(p('sprocket_f').teeth)+.004}]),'428','#53595c',.10);chain.name='wk:model:chain';g.add(chain);}
  if(p('lights')){rounded(group('lights'),'scooter:headlight',.025,.035,.055,'#e9f6ff',[.385,1.05,0],.006);rounded(group('lights'),'scooter:tailLight',.02,.025,.06,'#ed493e',[-.37,.26,0],.004);}
+ if(scooter)A.riderHip=[-.20,1.04];
  root.userData.wkAnchors=A;root.userData.wkBuild={...build};root.userData.vehicleClass=v.vehicleClass;
  return true;
 }
