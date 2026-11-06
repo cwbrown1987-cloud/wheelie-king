@@ -19,3 +19,11 @@ for(const fps of [30,60,90,120,144])for(const action of ['release','forward','br
  else {assert.equal(r.crash,null,`${fps} ${action}`);if(action==='balance')assert(Math.abs(r.pitch-1.3)<.15);else{assert(Math.abs(r.pitch)<.1);assert(r.ground.every(Boolean));}}
 }
 console.log('PASS: 25 moto balance/recovery/scrape scenarios at 30–144 Hz; existing adaptive stepping unchanged.');
+
+// A shallow rounded bump should release both tyres, rather than pin the rear axle.
+const bumpHeight=x=>x>2&&x<6?.24*Math.sin((x-2)*Math.PI/4)**2:0;
+const bump={h:bumpHeight,slope:x=>Math.atan((bumpHeight(x+.001)-bumpHeight(x-.001))/.002)};
+const rolling=makeState(params,0,bump);let air=0,maxAir=0;
+for(let i=0;i<960&&!rolling.crashed;i++){if(i<100)rolling.vx=9;step(rolling,params,{throttle:1,brake:0,lean:0},1/480,bump);air=rolling.ground.some(Boolean)?0:air+1/480;maxAir=Math.max(maxAir,air);}
+assert.equal(rolling.crashed,null);assert(maxAir>.15,`rounded bump must give air: ${maxAir}`);
+console.log(`PASS shallow bump release: ${maxAir.toFixed(3)}s airborne, clean landing`);

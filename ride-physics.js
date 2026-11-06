@@ -110,7 +110,11 @@ export function step(s, p, inp, dt, ter) {
     }
   }
   // Rear-wheel pivot: contact impulses must not undo the rider's recovery torque.
-  if(s.ground[0]&&((!s.ground[1]&&wrapAngle(startPitch-ter.slope(s.x))>.12)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
+  // Only constrain a loaded rear tyre. Positive separating speed over a crest
+  // must retain momentum rather than snapping the wheel back onto the road.
+  const rearOffset=rot(wl[0][0],wl[0][1],s.pitch),rearAngle=wheelContact(ter,s.x+rearOffset[0],p.R).angle;
+  const rearSeparating=-(s.vx-s.w*rearOffset[1])*Math.sin(rearAngle)+(s.vy+s.w*rearOffset[0])*Math.cos(rearAngle);
+  if(s.ground[0]&&N[0]>0&&rearSeparating<.2&&((!s.ground[1]&&wrapAngle(startPitch-ter.slope(s.x))>.12)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
     const rel=wrapAngle(startPitch-ter.slope(s.x)),throttle=s.thr||0,acc=balanceTorque(inp.lean||0,rel,throttle,inp.brake||0,startW)/.32;
     const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);s.x+=old[0]-next[0];const contact=wheelContact(ter,s.x+next[0],p.R);s.y=contact.height-next[1]-.003;s.vy=Math.tan(contact.angle)*s.vx-s.w*(wl[0][0]*Math.cos(s.pitch)-wl[0][1]*Math.sin(s.pitch));
   }

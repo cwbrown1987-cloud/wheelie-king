@@ -1,3 +1,8 @@
+## 7 Nov 2026 - bump release and settings
+
+- Rear-wheel balance assistance releases on unloaded/separating contacts, preserving natural airtime over bumps. No global gravity or jump boost change. Added a rounded-bump airborne/landing regression.
+- Moved Crazy Builds from Motor/Kits into More > Settings; Basic-only eligibility and mode preservation unchanged. Updated UI policy coverage.
+
 ## 7 Nov 2026 - small shop model polish
 
 - Added product hoodie pockets/drawstrings and top hems; shared shop/rider shoes now include tongue, heel, crossed laces and sole seams. No catalogue, fitment or physics changes.
