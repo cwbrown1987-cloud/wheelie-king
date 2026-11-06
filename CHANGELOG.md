@@ -1,3 +1,10 @@
+## 7 Nov 2026 - air control, downhill momentum and transition cover
+
+- Increased airborne lean authority with a tapered high rotation rate and gentler time-based damping. Controlled full backflip landings pass; ground balance unchanged.
+- Rear-contact correction now projects velocity instead of assigning slope-dependent vertical speed. An unpowered steep-descent regression no longer creates the previous 64 J/kg energy spike. Gravity-driven speed remains.
+- New Workshop scenes stay hidden until a correctly framed room render is ready; Race gets an immediate preparation cover while routing through Workshop.
+- Added focused air/energy and screen-transition checks. Archived the long resume and replaced it with a concise current handoff.
+
 ## 7 Nov 2026 - shared 3D room
 
 - Replaced Workshop/Garage photo backdrops with physical themed rooms sharing the vehicle camera, filling the window behind existing menus. Preserved object placements and controls; corrected editing-handle projection for full-screen canvases.

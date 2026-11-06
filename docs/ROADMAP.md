@@ -18,7 +18,7 @@ Build → modify → inspect → ride → test → improve. One authoritative in
 
 ## Next live-game milestones
 
-- Latest owner feedback: easier air rotation/backflips, remove downhill contact-energy spikes, and hide old-screen flashes during transitions.
+- Completed owner follow-up: easier air rotation/backflips, rear-contact energy projection to remove downhill spikes, and ready-render/Race preparation guards against old-screen flashes. Actual phone feel still needs owner feedback.
 
 - Vehicle parameter contract: explicit human/electric/petrol classification, W/Nm/kg/m/Wh units, installed effective speed, energy capacity and drive axle. No second wallet or divergent build state.
 - Owned Workshop inventory: starter BMX + scooter; owned/cheap parts; purchase entry to simulated stores; moto unlock at level 5 and one basic race reward. Preserve saves, upgrades and developer infinite money. Earlier partial work is stashed, not shipped.

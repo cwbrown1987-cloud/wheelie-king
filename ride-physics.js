@@ -91,12 +91,13 @@ export function step(s, p, inp, dt, ter) {
   let onG = s.ground[0] || s.ground[1];
   Fx -= 0.32 * s.vx * Math.abs(s.vx);
   if(s.burnout)Fx-=s.vx*p.mass*12;
-  if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*7*dt;
+  // Air control tapers near 9 rad/s; modest damping preserves takeoff momentum.
+  if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*11*dt*Math.max(0,1-Math.max(0,Math.sign(inp.lean)*s.w-6)/3);
   // Arcade balance: slow the response near vertical, but leave an unstable
   // balance point. Lean/throttle raise the front; brake/forward lean recover it.
   if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>.12)T=p.mass*balanceTorque(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w);}
   if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
-  s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : 0.999;
+  s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : Math.exp(-.22*dt);
   s.x += s.vx * dt; s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
   // Hard travel stops prevent tunnelling. Cancel only velocity INTO the
   // contact, including the wheel's angular velocity; do not add bounce energy.
@@ -110,13 +111,15 @@ export function step(s, p, inp, dt, ter) {
     }
   }
   // Rear-wheel pivot: contact impulses must not undo the rider's recovery torque.
+  // Project velocity onto contact instead of assigning vy=tan(slope)*vx,
+  // which injects translational energy as the road steepens.
   // Only constrain a loaded rear tyre. Positive separating speed over a crest
   // must retain momentum rather than snapping the wheel back onto the road.
   const rearOffset=rot(wl[0][0],wl[0][1],s.pitch),rearAngle=wheelContact(ter,s.x+rearOffset[0],p.R).angle;
   const rearSeparating=-(s.vx-s.w*rearOffset[1])*Math.sin(rearAngle)+(s.vy+s.w*rearOffset[0])*Math.cos(rearAngle);
   if(s.ground[0]&&N[0]>0&&rearSeparating<.2&&((!s.ground[1]&&wrapAngle(startPitch-ter.slope(s.x))>.12)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
     const rel=wrapAngle(startPitch-ter.slope(s.x)),throttle=s.thr||0,acc=balanceTorque(inp.lean||0,rel,throttle,inp.brake||0,startW)/.32;
-    const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);s.x+=old[0]-next[0];const contact=wheelContact(ter,s.x+next[0],p.R);s.y=contact.height-next[1]-.003;s.vy=Math.tan(contact.angle)*s.vx-s.w*(wl[0][0]*Math.cos(s.pitch)-wl[0][1]*Math.sin(s.pitch));
+    const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);s.x+=old[0]-next[0];const contact=wheelContact(ter,s.x+next[0],p.R);s.y=contact.height-next[1]-.003;const nx=-Math.sin(contact.angle),ny=Math.cos(contact.angle),vn=(s.vx-s.w*next[1])*nx+(s.vy+s.w*next[0])*ny;s.vx-=vn*nx;s.vy-=vn*ny;
   }
   for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R).height-(s.y+oy);s.comp[i]=compression(i,depth);}
   onG=s.ground[0]||s.ground[1];
