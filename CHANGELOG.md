@@ -1,3 +1,8 @@
+# Workshop opening view — 6 Nov 2026
+
+- Open and Reset View frame the whole bike larger and nearly side-on, matching the requested placement.
+- Fit uses actual vehicle bounds and viewport aspect, retaining stand-centred orbit and rotation preferences.
+
 # Full sticker studio and compact stats — 6 Nov 2026
 
 - Full middle-panel frosted sticker gallery with large previews, All/Mine, search and Custom.
