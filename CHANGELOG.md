@@ -1,3 +1,8 @@
+# Touch race quick fix — 6 Nov 2026
+
+- Hop above lean; tricks above accelerator, wrapping on narrow screens.
+- Short pedal-tap effort bursts and low-speed pedal hill assistance; electric drive unchanged.
+
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
 ## Player garage, gear shop and character foundation — 6 Nov 2026

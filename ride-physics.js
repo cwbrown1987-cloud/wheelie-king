@@ -63,6 +63,8 @@ export function step(s, p, inp, dt, ter) {
   const maxDeflection=i=>Math.max(.004,lift(i,1));
   const compression=(i,depth)=>{if(depth<=0||lift(i,1)<=.004)return 0;if(i||!p.rearLink)return Math.min(1,depth/maxDeflection(i));let lo=0,hi=1;for(let n=0;n<9;n++){const mid=(lo+hi)/2;if(lift(i,mid)<depth)lo=mid;else hi=mid}return (lo+hi)/2;};
   s.thr = (s.thr || 0) + Math.max(-dt * 6, Math.min(dt * 2.5, (inp.throttle || 0) - (s.thr || 0))); // throttle ramps like a real twist grip
+  // A fresh pedal press gives a short, non-stacking effort burst. Holding still climbs.
+  const pedalPress=inp.throttle>0;if(p.pedal&&pedalPress&&!s.pedalHeld&&(s.pedalTapCooldown||0)<=0){s.pedalEffort=.8;s.pedalTapCooldown=.18;}s.pedalHeld=pedalPress;s.pedalEffort=Math.max(0,(s.pedalEffort||0)-dt);s.pedalTapCooldown=Math.max(0,(s.pedalTapCooldown||0)-dt);
   s.reverseHold=inp.brake>0&&!inp.throttle?(s.reverseHold||0)+dt:0;
   s.reversing=s.reverseHold>.4&&s.vx<.25&&inp.lean>=-.2;s.burnout=false;
   s.ground = [false, false];
@@ -78,7 +80,7 @@ export function step(s, p, inp, dt, ter) {
       Fx += f * nx; Fy += f * ny; T += ox * f * ny - (oy - 0) * f * nx; // r x F (z)
       const tx = Math.cos(a), ty = Math.sin(a), vt = s.vx * tx + s.vy * ty;
       let ft = -vt * 2.2 * (i ? 1 : 1); // rolling resistance
-      if (i === driven && inp.throttle > 0 && s.battery > 0) { const v = Math.max(Math.abs(vt), 1.2); let drive = Math.min(p.torque * 4, p.power / v, p.mass * 9.8 * 0.4 * p.grip) * (s.thr || 0); { const rel0 = s.pitch - a; if (rel0 > 0.6 && !(inp.lean > 0)) drive *= Math.max(0.15, 1 - (rel0 - 0.6) * 3 - Math.max(0, s.w) * 0.25); } /* rider feathers the throttle at the balance point unless leaning back */ if (vt > p.vmax) drive *= Math.max(0, 1 - (vt - p.vmax)); drive = Math.min(drive, f * 1.15 * p.grip + 80);s.burnout=!p.pedal&&inp.brake>0&&Math.abs(s.vx)<3;ft+=s.burnout?0:drive; }
+      if (i === driven && (inp.throttle > 0 || (p.pedal&&s.pedalEffort>0)) && s.battery > 0) { const v = Math.max(Math.abs(vt), 1.2); const effort=p.pedal?Math.min(1,(s.pedalEffort||0)/.35):0; let drive = Math.min(p.torque * 4*(1+effort), p.power*(1+effort*.65) / v, p.mass * 9.8 * 0.4 * p.grip) * (p.pedal?Math.max(s.thr||0,effort*.85):(s.thr || 0)); if(p.pedal)drive+=Math.max(0,Math.sin(a))*p.mass*9.8*.95*Math.max(0,1-Math.max(0,vt-2)/3)*Math.max(s.thr||0,effort); { const rel0 = s.pitch - a; if (rel0 > 0.6 && !(inp.lean > 0)) drive *= Math.max(0.15, 1 - (rel0 - 0.6) * 3 - Math.max(0, s.w) * 0.25); } /* rider feathers the throttle at the balance point unless leaning back */ const speedLimit=p.vmax+(p.pedal?effort*.6:0); if (vt > speedLimit) drive *= Math.max(0, 1 - (vt - speedLimit)* (p.pedal?5:1)); drive = Math.min(drive, f * 1.15 * p.grip + 80);s.burnout=!p.pedal&&inp.brake>0&&Math.abs(s.vx)<3;ft+=s.burnout?0:drive; }
       if (inp.brake > 0&&!s.reversing) { const bias = i === 1 ? 0.45 + 0.45 * Math.max(0, -inp.lean) : 0.55 - 0.3 * Math.max(0, -inp.lean); ft -= Math.sign(vt) * Math.min(f * 0.9 * p.grip, p.mass * 9 * bias) * inp.brake * Math.min(1, Math.abs(vt) * 2); }
       if(i===driven&&s.reversing)ft-=Math.min(p.mass*1.4,p.torque*2,Math.max(40,f*.7))*inp.brake*Math.max(0,1-Math.max(0,-vt-2.5)*2);
       Fx += ft * tx; Fy += ft * ty; const rx = ox - nx * p.R, ry = oy - ny * p.R; T += rx * ft * ty - ry * ft * tx;
