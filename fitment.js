@@ -39,6 +39,8 @@ export function fit(build, id) {
   const fid = p.slot === "frame" ? id : build.frame || "bmx", f = FRAME_STD[fid] || FRAME_STD.bmx, fr = P(fid);
   const no = (reason) => ({ status: "no", adapters: [], reason }), ad = [];
   const need = (a) => ad.push(a);
+  if(['battery','controller'].includes(p.slot)){const motor=P(build.motor);if(motor&&motor.powertrain!=='petrol'&&motor.v){if(p.v!==motor.v)return no('electrical voltage does not match the motor system');if(!p.a||p.v*p.a<motor.w)return no('electrical current capacity is below this motor requirement');}}
+
   if (p.slot === "kit") { const kb = p.completeBike ? {} : { ...build, frame: fid }; for (const c of p.kit) kb[P(c)?.slot] = c; for (const c of p.kit) { const r = fit(kb, c); if (r.status === "no") return no(`${P(c)?.name}: ${r.reason}`); r.adapters.forEach((a) => !p.kit.includes(a) && need(a)); } }
   else if (p.slot === "motor") {
     if (p.kind === "rear") {

@@ -6,7 +6,7 @@ mkdirSync('wk-shots/vehicle-prototypes',{recursive:true});
 try{
  const p=await browser.newPage({viewport:{width:1400,height:820},serviceWorkers:'block'}),errors=[];
  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/^wk (hook|frame|modular)/.test(m.text()))errors.push(m.text())});
- await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_EQUIP__&&document.querySelector('[data-simple-category="escooters"] img'));
+ await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_EQUIP__&&document.querySelector('[data-simple-category="escooters"] img'));
  for(const [id,section]of [['pit125','motorbikes'],['kaiji_test','escooters']]){
   await p.locator(`[data-simple-category="${section}"]`).click();assert.equal(await p.locator('#wk-builder [data-simple-part]').count(),1);
   await p.locator(`[data-simple-part="bike_${id}"]`).click();await p.getByRole('button',{name:'Apply preview',exact:true}).click();await p.waitForFunction(id=>__WK_BUILD__.frame===id,id);

@@ -5,7 +5,7 @@ const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--
 try {
  const p=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];
  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/wk (hook|frame|trax|spokes|detail)/.test(m.text()))errors.push(m.text())});
- await p.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
+ await p.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
  await p.locator('[data-cat="frame"]').click();await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
  await p.evaluate(()=>__WK_EQUIP__('bike_trax_lime'));await p.waitForFunction(()=>__WK_BUILD__.frame==='trax_lime');
  await p.locator('[data-catpanel="1"]').getByRole('button',{name:/BACK/}).click();

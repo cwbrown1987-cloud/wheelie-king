@@ -5,7 +5,7 @@ const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--
 try {
  const ctx=await browser.newContext({viewport:{width:1200,height:780},serviceWorkers:'block'}),p=await ctx.newPage(),errors=[];
  p.on('pageerror',e=>errors.push(e.message));
- await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__&&globalThis.__WK_STK__);
+ await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__&&globalThis.__WK_STK__);
  await p.click('[data-cat="bars"]',{force:true});await p.waitForFunction(()=>globalThis.__WK_SETBUILD__);
  await p.evaluate(()=>{__WK_SETBUILD__({frame:'bmx'});[...document.querySelectorAll('button')].find(b=>/BACK/.test(b.textContent))?.click()});
  await p.waitForTimeout(300);

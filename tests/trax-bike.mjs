@@ -5,7 +5,7 @@ const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--
 try {
  const ctx=await browser.newContext({viewport:{width:1200,height:780},serviceWorkers:'block'}),p=await ctx.newPage(),errors=[];
  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/wk (frame|spokes|detail|trax|hook)/.test(m.text()))errors.push(m.text())});
- await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
+ await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
  await p.click('[data-cat="frame"]',{force:true});await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
  const preview=await p.evaluate(()=>{const item=__WK_CAT__().items.find(i=>i.id==='trax_lime');return {rotatable:__WK_PREVIEW__.has(item),thumb:__WK_THUMB__(item)?.startsWith('data:image/png')}});
  assert.deepEqual(preview,{rotatable:true,thumb:true});

@@ -1,3 +1,10 @@
+# Round menu and fitment checkpoint — 7 Nov 2026
+
+- Compatible lists and matching stems; preserve unrelated incomplete/faulty build visibility.
+- Validate battery/controller electrical matching. Add Basic-only original 18,000 W test motor and matched controller.
+- Add standalone part-authoring template/prompt; allow browser checks against WK_TEST_URL.
+- Development checkpoint only; main/live held until final batch.
+
 # Basic-only Crazy Builds — 7 Nov 2026
 
 - Optional Crazy Builds toggle in Basic Motor/Kits menus allows above-frame-rating power builds with matched parts.

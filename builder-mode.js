@@ -16,9 +16,9 @@ const items=()=>globalThis.__WK_CAT__?.().items.filter(p=>!p.hidden)||[];
 export function upgradePlan(build,id){
  const p=part(id);if(!p)return null;const b={...build,[p.slot]:id},all=items(),m=p.slot==='motor'?p:part(b.motor);
  if(p.slot==='kit')return kitPlan(build,p);
- if(prototypeFor(build.frame))return globalThis.__WK_BUILD_READY__(b).ready?b:null;
  if(!policy(build,b).allowed)return null;
- if(p.slot==='bars'){const current=part(b.stem);const stem=all.find(x=>x.slot==='stem'&&x.interface===current?.interface&&x.clamp===p.clamp);if(stem)b.stem=stem.id;}
+ if(prototypeFor(build.frame)){if(globalThis.__WK_FIT__(b,id).status==='no')return null;const r=globalThis.__WK_BUILD_READY__(b);return r.ready||r.reason?.startsWith('Fit ')?b:null;}
+ if(p.slot==='bars'){const stem=all.find(x=>x.id===b.stem&&x.clamp===p.clamp&&globalThis.__WK_FIT__(b,x.id).status!=='no')||all.find(x=>x.slot==='stem'&&x.clamp===p.clamp&&globalThis.__WK_FIT__(b,x.id).status!=='no');if(!stem)return null;b.stem=stem.id;}
  if(p.slot==='seat'&&b.seatpost&&part(b.seatpost)?.saddleMount!==p.saddleMount){const post=all.find(x=>x.slot==='seatpost'&&globalThis.__WK_FIT__(b,x.id).status!=='no');if(post)b.seatpost=post.id;}
  if(p.slot==='motor'||p.slot==='battery'){
   if(!m)return null;
@@ -33,10 +33,10 @@ export function upgradePlan(build,id){
   else if(m.kind==='mid'){b.cranks='crank_mid';b.chain='chain_std';for(const [slot,n]of [['sprocket_f',44],['sprocket_r',18]]){const gear=all.find(x=>x.slot===slot&&x.teeth===n&&x.std==='bicycle');if(gear)b[slot]=gear.id;}}
  }
  for(let pass=0;pass<3;pass++)for(const value of Object.values(b)){
-  if(!value)continue;const fit=globalThis.__WK_FIT__(b,value);if(fit.status==='no')return null;
+  if(!value)continue;const fit=globalThis.__WK_FIT__(b,value);if(fit.status==='no'){const slot=part(value)?.slot;if(slot&&slot!==p.slot&&build[slot]===value)continue;return null;}
   for(const adapter of fit.adapters||[])b[part(adapter).slot]=adapter;
  }
- return globalThis.__WK_BUILD_READY__(b).ready?b:null;
+ return b; // New/changed parts were validated above; existing unrelated faults stay visible for correction.
 }
 globalThis.__WK_SIMPLE_PLAN__=upgradePlan;
 function preview(plan,id,automatic=false){if(pending)return;const nativeCategory=mode==='advanced'&&document.querySelector('[data-catpanel][data-open="true"]')?part(id)?.slot:null;pending={scrollTop:panel?.scrollTop||0,original:{...globalThis.__WK_BUILD__},plan,id,automatic,nativeCategory};sessionStorage.setItem('wk-pending-build',JSON.stringify(pending.original));document.body.dataset.wkPreviewing='true';globalThis.__WK_SETBUILD__(plan);last='';tick();}
@@ -48,10 +48,10 @@ document.addEventListener('click',e=>{
  const swatch=e.target.closest('[data-wk-swatch]'),card=e.target.closest('[data-wk-part]');if(!swatch&&!card)return;
  if(e.target.closest('[data-wk-info]')||(!swatch&&e.target.closest('button')))return;
  const id=swatch?.dataset.wkSwatch||card.dataset.wkPart,p=part(id);if(!p||p.slot==='sticker'||pending)return;
- const b=globalThis.__WK_BUILD__;if(!policy(b,proposedBuild(b,id)).allowed||globalThis.__WK_FIT__(b,id).status==='no')return;
- let plan={...b,[p.slot]:id};if(p.slot==='kit'){plan=kitPlan(b,p);if(!plan)return;}
+ const b=globalThis.__WK_BUILD__,cockpit=['bars','motor','battery'].includes(p.slot);if(!policy(b,proposedBuild(b,id)).allowed||(!cockpit&&globalThis.__WK_FIT__(b,id).status==='no'))return;
+ let plan=cockpit?upgradePlan(b,id):{...b,[p.slot]:id};if(!plan)return;if(p.slot==='kit'){plan=kitPlan(b,p);if(!plan)return;}
  if(p.slot==='frame')for(const [slot,value]of Object.entries(plan))if(slot!=='frame'&&value&&globalThis.__WK_FIT__(plan,value).status==='no')delete plan[slot];
- e.preventDefault();e.stopImmediatePropagation();preview(plan,id,p.slot==='kit');
+ e.preventDefault();e.stopImmediatePropagation();preview(plan,id,p.slot==='kit'||cockpit);
 },true);
 globalThis.__WK_MODE__=value=>{globalThis.__WK_CLOSE_DRAWERS__?.();mode=value==='advanced'?'advanced':'simple';localStorage.setItem('wk-builder-mode',mode);document.body.dataset.wkMode=mode;section='home';menuStack=[];last='';};
 globalThis.__WK_MODE__(mode);
@@ -129,5 +129,5 @@ function tick(){
 globalThis.__WK_OPEN_ACCESSORIES__=()=>{if(pending)return;globalThis.__WK_CLOSE_DRAWERS__?.();section='accessories';menuStack=[];last='';document.querySelector('[data-wk-nav="garage"]')?.click();tick()};
 setInterval(tick,350);
 
-// Hide new over-rated power upgrades outside Basic Crazy Builds; keep installed builds intact.
-setInterval(()=>{const b=globalThis.__WK_BUILD__;if(!b)return;for(const card of document.querySelectorAll('[data-catpanel] [data-wk-part]')){const p=part(card.dataset.wkPart);if(!p||!['motor','kit'].includes(p.slot))continue;const hidden=!policy(b,proposedBuild(b,p.id)).allowed;if(card.hidden!==hidden)card.hidden=hidden;}},300);
+// One compatible candidate list for both modes, including matching supports and the Basic-only power policy.
+setInterval(()=>{const b=globalThis.__WK_BUILD__;if(!b)return;for(const card of document.querySelectorAll('[data-catpanel] [data-wk-part]')){const p=part(card.dataset.wkPart);if(!p||p.slot==='frame'||p.completeBike)continue;const hidden=!upgradePlan(b,p.id);if(card.hidden!==hidden)card.hidden=hidden;}},300);

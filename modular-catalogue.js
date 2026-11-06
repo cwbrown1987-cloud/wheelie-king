@@ -4,9 +4,14 @@ import {VEHICLE_PARTS,VEHICLE_BUILDS,prototypeFor} from './vehicle-platforms.js'
 export const PALETTE=[['black','Black','#20262b'],['white','White','#ebeeee'],['red','Red','#c82535'],['blue','Blue','#287bc4'],['lime','Lime','#c9e62c'],['chrome','Chrome','#bfc8d0']];
 export const MODULAR_PARTS=[
  ...VEHICLE_PARTS,
+ {id:'test_overdrive18k',slot:'motor',kind:'mid',name:'Overdrive Test Mid-Drive',real:false,nopedal:true,v:72,w:18000,nm:540,kg:10.6,price:19000,crazyOnly:true,testPart:true,note:'Original game test part: 72 V, 18,000 W and estimated output torque. Moto mid-drive mounts, matched 250 A supply and controller required. Basic Crazy Builds only.'},
+ {id:'test_foc250',slot:'controller',name:'Overdrive 72 V 250 A Test Controller',real:false,v:72,a:250,kg:3,price:5600,crazyOnly:true,testPart:true,color:'#323e49',note:'Original game test controller, 72 V and 250 A bus rating. Estimated game specifications. Basic Crazy Builds only.'},
  {id:'stem_quill',slot:'stem',name:'22.2mm BMX Quill Stem',interface:'quill',clamp:22.2,kg:.35,price:160,color:'#87949f',note:'Quill bicycle steerer, 22.2mm BMX bar clamp.'},
  {id:'stem_trax',slot:'stem',name:'TRAX 25.4mm Quill Stem',interface:'quill',clamp:25.4,kg:.35,price:160,color:'#87949f',note:'TRAX-style tall quill and 25.4mm bar clamp; photo-derived dimensions.'},
  {id:'stem_threadless',slot:'stem',name:'31.8mm Threadless MTB Stem',interface:'threadless',clamp:31.8,kg:.18,price:240,color:'#252c31',note:'Threadless bicycle steerer and 31.8mm riser-bar clamp.'},
+ {id:'stem_quill318',slot:'stem',name:'31.8mm Quill Riser Stem',interface:'quill',clamp:31.8,kg:.36,price:220,color:'#343b40',note:'Bicycle quill mount with a 31.8mm handlebar clamp.'},
+ {id:'stem_threadless222',slot:'stem',name:'22.2mm Threadless BMX Stem',interface:'threadless',clamp:22.2,kg:.22,price:210,color:'#343b40'},
+ {id:'stem_threadless254',slot:'stem',name:'25.4mm Threadless Riser Stem',interface:'threadless',clamp:25.4,kg:.22,price:210,color:'#343b40'},
  {id:'stem_moto',slot:'stem',name:'28.6mm Moto Bar Mounts',interface:'moto',clamp:28.6,kg:.3,price:280,color:'#343b40',note:'Bolts to the moto triple clamp; takes 28.6mm moto bars.'},
  {id:'post_254',slot:'seatpost',name:'25.4mm Seatpost',diameter:25.4,kg:.28,price:100,color:'#3b4145',note:'25.4mm bicycle seat tube.'},
  {id:'post_bmx',slot:'seatpost',name:'25.4mm Pivotal BMX Post',diameter:25.4,saddleMount:'pivotal',kg:.25,price:120,color:'#3b4145',note:'25.4mm seat tube with a pivotal BMX saddle mount.'},

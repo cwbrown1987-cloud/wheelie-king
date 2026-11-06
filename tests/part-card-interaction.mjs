@@ -6,7 +6,7 @@ try {
  for(const touch of [false,true]) {
   const ctx=await browser.newContext({viewport:touch?{width:900,height:420}:{width:1200,height:780},hasTouch:touch,serviceWorkers:'block'}),p=await ctx.newPage(),errors=[];
   p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/wk (frame|spokes|detail|trax|hook)/.test(m.text()))errors.push(m.text())});
-  await p.goto('http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
+  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_VIEW__);
   const click=async selector=>{const el=p.locator(selector);await el.scrollIntoViewIfNeeded();if(touch)await el.tap();else await el.click()};
   await click('[data-cat="bars"]');await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
   await click('[data-wk-part="bar_riser"]');await p.waitForFunction(()=>__WK_BUILD__.bars==='bar_riser');
