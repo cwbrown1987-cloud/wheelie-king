@@ -1,3 +1,10 @@
+# Garage handles and wheelie recovery — 6 Nov 2026
+
+- Dark industrial/neon garage; icon toolbar at top, owned-item picture drawer, on-object arrows and draggable rotation.
+- Fixed actual touch dragging: intersect the Raycaster ray with the floor plane; object drags leave the camera fixed. Empty space still orbits.
+- Rear-wheel pivot dynamics preserve recovery torque after contact solving. Throttle release, counterlean and brake lower the front without an abrupt slam.
+- Added six wheelie recovery checks and landscape touch drag/rotation coverage.
+
 # Independent garage placement — 6 Nov 2026
 
 - Shared 3D room/camera, separate ride and stand transforms.

@@ -53,6 +53,7 @@ function wheelContact(ter,x,r){
 }
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
+  const startPitch=s.pitch,startW=s.w;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles
   const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR, p.travelF];
   const k = (i) => p.mass * 9.8 / 2 / Math.max(travel[i] * 0.35, 0.012), c = (i) => 2 * (0.25 + p.damp) * Math.sqrt(k(i) * p.mass / 2);
@@ -92,7 +93,7 @@ export function step(s, p, inp, dt, ter) {
   if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*7*dt;
   // Arcade balance: slow the response near vertical, but leave an unstable
   // balance point. Lean/throttle raise the front; brake/forward lean recover it.
-  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>.65)T=p.mass*(inp.lean*4+(rel-1.5)*14-inp.brake*7-s.w*3);}
+  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>.55){const lean=inp.lean||0,throttle=s.thr||0;T=p.mass*(lean*4.5+(rel-1.46)*12+throttle*1.2-(1-throttle)*2.2-(inp.brake||0)*12-s.w*3.2);}}
   if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
   s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : 0.999;
   s.x += s.vx * dt; s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
@@ -106,6 +107,11 @@ export function step(s, p, inp, dt, ter) {
       impactV=Math.min(impactV,vn);
       if(vn<0){const impulse=-vn/(1/p.mass+lever*lever/I);s.vx+=impulse*nx/p.mass;s.vy+=impulse*ny/p.mass;s.w+=impulse*lever/I;}
     }
+  }
+  // Rear-wheel pivot: contact impulses must not undo the rider's recovery torque.
+  if(s.ground[0]&&!s.ground[1]&&wrapAngle(startPitch-ter.slope(s.x))>.55){
+    const rel=wrapAngle(startPitch-ter.slope(s.x)),throttle=s.thr||0,acc=((inp.lean||0)*4.5+(rel-1.46)*12+throttle*1.2-(1-throttle)*2.2-(inp.brake||0)*12-startW*3.2)/.32;
+    const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);s.x+=old[0]-next[0];s.y+=old[1]-next[1];
   }
   for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R).height-(s.y+oy);s.comp[i]=compression(i,depth);}
   onG=s.ground[0]||s.ground[1];
