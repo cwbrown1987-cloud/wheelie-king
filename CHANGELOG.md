@@ -1,3 +1,9 @@
+# Independent garage placement — 6 Nov 2026
+
+- Shared 3D room/camera, separate ride and stand transforms.
+- Multiple owned items can be placed, moved, rotated, raised, removed and saved independently.
+- Arrange Camera tool, directional nudges, legacy stand migration and placement persistence checks.
+
 # Touch race quick fix — 6 Nov 2026
 
 - Hop above lean; tricks above accelerator, wrapping on narrow screens.

@@ -22,3 +22,7 @@ After the current rooms/rider work, clean up Workshop inventory and add the simu
 - Motorbikes unlock at level 5; the first eligible race awards a basic motorbike once.
 - Purchased and prize builds are sensible stock builds, never automatically maxed out. Every stock/prize model needs compatible upgrade and mod paths, until the player deliberately reaches the top build.
 - Keep this progression distinct from the current developer infinite-money mode and preserve existing saves during migration.
+
+## Independent garage placements
+
+The garage room is physical geometry (`garage-room3d.js`) sharing the ride camera. Regular selection focuses the camera without changing any object transform. In Arrange, Move/Rotate edit the selected ride or prop; Camera temporarily returns to orbit controls. Direction and height buttons allow precise placement. Owned item designs can have multiple separately placed instances. Done saves, Cancel restores; Remove item removes only the selected prop. Legacy per-ride stand selections migrate into independent objects in the layout `$items` array. Camera focus/orbit invariance and multiple-instance reload persistence are covered by the player-room check.
