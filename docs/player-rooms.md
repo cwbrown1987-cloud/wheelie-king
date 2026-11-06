@@ -1,34 +1,15 @@
-# Garage, shop and rider foundation
+# Player rooms - current implementation
 
-The Garage displays the actual saved build list from My Builds. Saves and display layouts persist locally in separate versioned records. Selecting a ride focuses the camera; OrbitControls supplies orbit, pan and zoom. Arrange supports move, rotation, snapping, owned display stands, Done and Cancel. Display placement is a room editor, not a vehicle physics simulation.
+Garage, Workshop and Character now render a physical world-space room using garage-room3d.js. Walls, ceiling, lamps, cabinets, shelves, plants, floor and rides share one camera. Workshop has dark brick, an original tool board and bench; Garage has light brick and neon industrial accents. The 3D canvas fills the screen behind the existing glass menus. Shop retains its separate static shop image and existing layout.
 
-Shop is a separate room with the existing top navigation. Its clothing categories remain visible through category and item-detail screens; Back follows shop history. Prices are in-game coins. Buying grants ownership; equipping verifies ownership. Character customisation shows starter gear and purchased items. Try-on previews do not grant or equip an unowned item. The developer infinite-money switch remains enabled; the normal currency path deducts once and rejects insufficient funds.
+Selection leaves the camera stationary and reveals Edit. Edited objects drag freely without grid rounding; floor-projected arrows rotate continuously and the upper handle raises/lowers. Empty-space drags orbit the camera. Handles project using actual canvas bounds, including stage scaling. Layout changes autosave. Display removal hides a ride without deleting ownership; Ride options separately provides persistent rename and confirmed deletion. Furniture remains independent. Existing saves and placements are retained.
 
-Gear geometry styles and colour themes are independent in `gear-catalogue.js`. `gear-models.js` provides four helmet shells, glove and shoe models, garment placeholder previews, backpacks and display furniture. Product art is deliberately quick procedural placeholder art for this setup phase. Worn helmets, gloves and shoes reuse the product models; garment cuts/materials adapt the articulated rider. Add a theme to existing styles instead of duplicating geometry.
+gear-catalogue.js separates styles and themes; gear-models.js supplies product and worn models. Character shows starter/purchased gear. Preview does not grant ownership; purchases use the existing wallet. The shared rider-spec.js defines estimated game-art dimensions and mounts. Detailed sculpted clothing remains future work.
 
-`rider-spec.js` records the stylized adult reference dimensions and mount names. The reference is the supplied lime full-face helmet, blue hoodie, dark trousers, red gloves and trainers. Dimensions are game-art estimates, not measurements of the pictured person. Gear mounts are reused in standing, bike/scooter riding, stunts, ragdolls and recovery. A detailed sculpted/skinned character remains future art work.
+Room assets are original procedural geometry/textures. Ivy leaves and pegboard holes are instanced. Environment-lit concrete is the default; optional planar reflections are disabled, including on touch devices. Garage shadows update after object/outfit edits rather than every idle frame. Room disposal releases owned geometry, materials, textures and environment targets, restores prior scene state and removes the room group. Checks found constant geometry/texture counts over four create/dispose cycles; physical device FPS remains unverified.
 
-The game icon is rendered from Jaxon's in-game lime TRAX bike using `scripts/render-app-icon.mjs`. It exports regular, maskable and Apple icon sizes; the manifest's image revision prompts clients to refresh the image.
+The optional Reflector helper is Three.js r160 (MIT), matching the bundled renderer. Source: https://github.com/mrdoob/three.js/blob/r160/examples/jsm/objects/Reflector.js . Only its import points to local three.module.js. Licence: vendor/LICENSE-three.txt.
 
-Validation: `tests/player-rooms.mjs` covers persistence, focus, arrange/cancel, shop history, unowned try-on, purchases, wardrobe, real currency failure/success and Race equipment. Existing builder, ride and vehicle checks cover compatibility and the shared renderer/rig. Real-device performance still needs user testing.
+Validation: npm run check -- rooms covers camera parallax and fixed transforms, full-screen canvas, resource disposal, workshop previews/stickers/stats, touch dragging/rotation/lift, purchases/wardrobe, saved-ride management, mobile layouts and Race entry. Screenshots: wk-shots/world-room/ and existing player/workshop QA folders.
 
-## Next requested batch
-
-After the current rooms/rider work, clean up Workshop inventory and add the simulated vehicle shops:
-
-- New profiles receive a basic BMX and a basic scooter.
-- Workshop lists basic cheap starter components plus owned rides and purchased parts. Purchase opens the in-game stores.
-- A specialist bike/scooter/e-bike/moto web store sells complete models. Other simulated marketplaces can follow; no external checkout or real-money purchases.
-- Motorbikes unlock at level 5; the first eligible race awards a basic motorbike once.
-- Purchased and prize builds are sensible stock builds, never automatically maxed out. Every stock/prize model needs compatible upgrade and mod paths, until the player deliberately reaches the top build.
-- Keep this progression distinct from the current developer infinite-money mode and preserve existing saves during migration.
-
-## Independent garage placements
-
-The garage room is physical geometry (`garage-room3d.js`) sharing the ride camera. Regular selection focuses the camera without changing any object transform. In Arrange, Move/Rotate edit the selected ride or prop; Camera temporarily returns to orbit controls. Direction and height buttons allow precise placement. Owned item designs can have multiple separately placed instances. Done saves, Cancel restores; Remove item removes only the selected prop. Legacy per-ride stand selections migrate into independent objects in the layout `$items` array. Camera focus/orbit invariance and multiple-instance reload persistence are covered by the player-room check.
-
-The latest garage uses dark concrete and cyan/purple industrial accents. Arrange uses direct touch/mouse dragging plus selected-object arrow handles; dragging the rotate handle turns the object. The former bottom button/dropdown bar is removed. Top icons provide arrange, overview, ride, character and shop, or Done/Cancel/Place while arranging. Place opens owned-item picture cards. A Raycaster-to-ray intersection bug found by real touch-drag automation is fixed.
-
-At the user's request, Garage now uses the selected static `showroom-background.png` again; a transparent shadow receiver replaces the procedural room for this view. Current world placements, dragging, rotate handle and camera logic are retained. Character still uses the procedural room.
-
-Current editing: selecting leaves the camera stationary and reveals Edit. Edited objects drag freely without grid rounding; floor-projected arrows rotate continuously, and a top vertical handle raises/lowers. Layout changes persist immediately and on tab exit. The Save form and global Arrange/Done/Cancel bar are removed. Workshop build drafts restore after reload and save into the existing rides collection on exit. Custom sticker art/rating also persist. `garage-furniture.js` supplies the included movable beveled steel shelf and roller toolbox.
+Next: owned Workshop inventory and simulated stores; starter BMX + scooter; level-5 motorcycle unlock and one-time first eligible race reward. Preserve saves, infinite-money development mode and upgrade headroom. Earlier inventory/store work is stashed and must be reviewed before reuse. See ROADMAP.md.

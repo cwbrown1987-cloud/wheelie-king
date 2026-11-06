@@ -1,3 +1,9 @@
+## 7 Nov 2026 - shared 3D room
+
+- Replaced Workshop/Garage photo backdrops with physical themed rooms sharing the vehicle camera, filling the window behind existing menus. Preserved object placements and controls; corrected editing-handle projection for full-screen canvases.
+- Added original instanced foliage/tool-board detail, owned-resource disposal, mobile floor fallback and idle garage shadow caching. Live planar reflection remains disabled.
+- Added world-space parallax/transform and disposal regressions; updated presentation/mobile checks.
+
 ## 7 Nov 2026 - installed powertrain parameter audit
 
 - Added an explicit Workshop-to-Ride units/powertrain boundary, shared nominal speed and installed battery/fuel storage. Fixed petrol/low-output electric pedal misclassification, zero fuel defaulting to 3 L, and explicit zero torque/output fallbacks.

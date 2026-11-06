@@ -9,7 +9,7 @@ Owner decisions consolidated 7 Nov 2026 from both engineering notes and the subs
 - [x] Ride: remove indefinite assisted moto wheelies; allow recoverable scrapes and genuine loop-outs. Preserve hops, landings, stunts, ragdoll and instant recovery.
 - [x] Audit powertrain/stat transfer and make only justified small fixes; benchmark stepping before considering a timing rewrite.
 - [ ] Continue shop product models/previews (shoe/hoodie detail pass shipped), reusing the worn-item geometry and shared rider dimensions.
-- [ ] Finish the genuine 3D garage/workshop room: all room surfaces, rides, shelves and toolbox share one camera. Keep free Edit dragging, floor rotation handles, lift and autosave.
+- [x] Finish the genuine 3D garage/workshop room: all room surfaces, rides, shelves and toolbox share one camera. Keep free Edit dragging, floor rotation handles, lift and autosave.
 - [ ] Verify each batch and push development checkpoints. Update main and deploy the game only once, at the final verified checkpoint of this round.
 
 ## Product principles
@@ -17,6 +17,8 @@ Owner decisions consolidated 7 Nov 2026 from both engineering notes and the subs
 Build → modify → inspect → ride → test → improve. One authoritative installed configuration is shared by Basic/Advanced, garage, riding and eventual mechanics. Kits resolve into actual components. Preserve cloneForRide(), original assets and meaningful component effects. Standard Basic is accessible; extra-crazy builds are offered only through Basic's optional Crazy Builds setting. Advanced cannot create new extra-crazy builds, but existing bikes survive mode switches.
 
 ## Next live-game milestones
+
+- Latest owner feedback: easier air rotation/backflips, remove downhill contact-energy spikes, and hide old-screen flashes during transitions.
 
 - Vehicle parameter contract: explicit human/electric/petrol classification, W/Nm/kg/m/Wh units, installed effective speed, energy capacity and drive axle. No second wallet or divergent build state.
 - Owned Workshop inventory: starter BMX + scooter; owned/cheap parts; purchase entry to simulated stores; moto unlock at level 5 and one basic race reward. Preserve saves, upgrades and developer infinite money. Earlier partial work is stashed, not shipped.

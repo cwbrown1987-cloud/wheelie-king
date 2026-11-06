@@ -8,6 +8,7 @@ try{
   const p=await browser.newPage({viewport,hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}),errors=[];
   p.on('pageerror',e=>errors.push(e.message));await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
   await p.waitForFunction(()=>document.querySelector('[data-wk-sticker-dock] img')?.complete&&document.querySelector('[data-simple-category="style"] img')?.complete);
+  assert(await p.evaluate(()=>__WK_VIEW__.worldRoom.state().quality==='mobile'&&!__WK_VIEW__.worldRoom.state().reflection),'touch room uses mobile floor');
   const mode=p.getByRole('button',{name:'Simple / Advanced',exact:true}),sticker=p.getByRole('button',{name:'Stickers',exact:true});
   assert(await mode.isVisible());assert(await sticker.isVisible());assert.equal(await p.locator('[data-rail="right"]>[aria-label="Test ride"]').isVisible(),false);assert.equal(await p.locator('[data-wk-workshop-title]').isVisible(),false);
   const m=await mode.boundingBox(),s=await sticker.boundingBox();assert(m.y>=s.y+s.height);assert(m.x>=0&&m.x+m.width<=viewport.width&&m.y+m.height<=viewport.height);
@@ -20,7 +21,7 @@ try{
     globalThis.__TEST_DECAL__=decal;return {sourcePreserved:decal.userData===original&&decal.userData.wkDecal.mesh===decal,visualPreserved:d.geometry===decal.geometry&&d.material===decal.material,editorLinkRemoved:!d.userData.wkDecal,anchors:!!copy.userData.wkAnchors};
    });assert.deepEqual(result,{sourcePreserved:true,visualPreserved:true,editorLinkRemoved:true,anchors:true});
    for(let n=0;n<2;n++){
-    await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_SCENE__&&globalThis.__WK_RIDE_STATE__?.().backdropLoaded);
+    await p.evaluate(()=>globalThis.__OLD_MOBILE_RIDE__=globalThis.__WK_RIDE_STATE__);await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__!==globalThis.__OLD_MOBILE_RIDE__&&globalThis.__WK_RIDE_STATE__?.().backdropLoaded);
     assert(await p.evaluate(()=>!!__WK_RIDE_SCENE__().scene.getObjectByName('test:cycle-decal')));assert.equal(await p.getByText('Race could not start',{exact:true}).count(),0);
     await p.locator('[data-r="back"]').click();await p.locator('[data-ride="portal"]').waitFor({state:'detached'});assert(await p.evaluate(()=>__TEST_DECAL__.userData.wkDecal.mesh===__TEST_DECAL__));
    }

@@ -4,9 +4,10 @@ import {spawnSync} from 'node:child_process';
 import {root,stageRuntime} from './package.mjs';
 
 const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-landings','wheelie-balance','ride-controls','crash-physics','crash-ride'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
+profiles.rooms=['world-room','workshop-presentation','garage-drag','player-rooms','manage-rides','workshop-mobile'];
 profiles.powertrain=['ride-parameters','physics-cadence','ride-parameter-integration'];
 profiles.menus=['part-fitment','basic-crazy','simple-builder','sticker-picker','workshop-mobile','shop-space'];
-profiles.release=[...profiles.powertrain,...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
+profiles.release=[...profiles.rooms,...profiles.powertrain,...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
 const requested=process.argv.slice(2);if(!requested.length)requested.push('static');
 for(const profile of requested)if(!Object.hasOwn(profiles,profile)){console.error(`Unknown check group: ${profile}. Choose ${Object.keys(profiles).join(', ')}.`);process.exit(1);}
 const out=join(root,'test-results','checks');mkdirSync(out,{recursive:true});
