@@ -1,5 +1,12 @@
 # Wheelie King: Outback — CHANGELOG (live PWA at https://wheelie-king.pages.dev)
 
+## Reclaim phone space and move Accessories into Shop — 6 Nov 2026
+
+- Capped excess horizontal safe-area padding to reclaim the unused landscape strip and give the Workshop more width.
+- Added top Shop menu with Bike parts and Rider accessories WIP; removed the WIP category from the sidebar and made Styles/Colours span its final row. Accessories opens in Simple or Advanced without switching modes.
+- Widened the top-right stats and currency area. Preview retains the open parts drawer, its position and scroll, with separate ✓/✕ controls. Corrected the scooter display name to Kaabo; internal IDs remain compatible with saved builds.
+- Added a simulated 96px-inset regression and Shop/menu checks. Cache: `wk-v18-shop-space-1`.
+
 ## Ride and Workshop polish — 6 Nov 2026
 
 - Spawn/recover follows the road angle with both round tyres above the sampled surface, fixing small-wheel scooter starts inside the road. Nine wheel-size/slope settling cases and the existing 36 landing cases pass.

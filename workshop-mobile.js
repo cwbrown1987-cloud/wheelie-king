@@ -1,17 +1,25 @@
 // Responsive Workshop chrome and cached pictures rendered from the actual models.
 import {part} from './modular-catalogue.js';
 const style=document.createElement('style');style.textContent=`
+#root{--wk-safe-left:env(safe-area-inset-left,0px);--wk-safe-right:env(safe-area-inset-right,0px);padding-left:min(var(--wk-safe-left),12px)!important;padding-right:min(var(--wk-safe-right),12px)!important}
+[data-simple-category="style"]{grid-column:1/-1}
+body[data-wk-workshop] [data-rail="right"]{width:260px!important}
+#wk-summary{padding:12px;font-size:13px}#wk-summary header{gap:12px;margin-bottom:8px}#wk-summary header button{flex-shrink:0;min-height:34px;padding:5px 8px}
+#wk-summary .bike{gap:10px;padding-bottom:9px}#wk-summary img{flex-shrink:0;width:80px;height:58px}#wk-summary .name{flex:1;min-width:0;font-size:13px;line-height:1.35;overflow-wrap:normal}
+#wk-summary dl>div{gap:14px;margin:6px 0}#wk-summary dt{min-width:0}#wk-summary dd{flex-shrink:0;text-align:right}
+@media(pointer:coarse) and (orientation:landscape){body[data-wk-workshop] [data-rail="right"]{width:250px!important}}
+
 [data-wk-workshop-title],[data-wk-mode-toggle],[data-simple-category="stickers"],[data-cat="sticker"]{display:none!important}
 body[data-wk-workshop] [data-rail="right"]>[aria-label="Test ride"]{display:none!important}
-[data-wk-header]{top:4px!important;left:auto!important;right:12px!important;width:174px!important;height:54px!important;z-index:16;background:transparent!important;border:0!important;backdrop-filter:none!important;pointer-events:none}
+[data-wk-header]{top:4px!important;left:auto!important;right:12px!important;width:190px!important;height:54px!important;z-index:16;background:transparent!important;border:0!important;backdrop-filter:none!important;pointer-events:none}
 [data-wk-header]>div:last-child{pointer-events:auto;width:100%!important;min-width:0!important;padding:6px!important;box-sizing:border-box}
-[data-wk-nav-bar]{right:190px!important}[data-wk-content]{top:72px!important;bottom:12px!important}
+[data-wk-nav-bar]{right:206px!important}[data-wk-content]{top:72px!important;bottom:12px!important}
 [data-rail="left"]{bottom:116px!important}
 #wk-sidebar-dock{position:absolute;left:0;bottom:0;height:110px;z-index:8;display:grid;grid-template-rows:48px 52px;gap:5px;padding:3px;box-sizing:border-box;background:#12243db5;border:1px solid #9bc4dc55;border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 #wk-sidebar-dock button{display:flex;align-items:center;justify-content:center;gap:5px;background:#20374b99;border:1px solid #88b8cc66;border-radius:8px;color:#eefaff;font:800 12px system-ui;cursor:pointer;padding:3px}#wk-sidebar-dock .active{color:#60ff95}#wk-sidebar-dock .inactive{color:#91a699}
 .wk-category-picture{width:58px;height:36px;object-fit:contain;pointer-events:none}[data-cat]:has(.wk-category-picture)>svg,#wk-simple-rail>button:has(.wk-category-picture)>svg{display:none!important}
 #wk-sidebar-dock .wk-category-picture{width:44px;height:36px}
-body:not([data-wk-previewing]) #wk-builder,[data-catpanel],[data-stickers]{bottom:116px!important}
+ #wk-builder,[data-catpanel],[data-stickers]{bottom:116px!important}
 body[data-wk-workshop] [data-wk-bench],[data-scene]>button[data-wk-reset],[data-scene] [data-wk-rotate]{right:12px!important}
 @media(pointer:coarse){[data-rail="left"]{grid-auto-rows:64px!important;gap:2px!important;padding:4px!important}[data-rail="left"]>button,#wk-simple-rail>button{min-height:64px!important;font-size:12px!important;line-height:13px!important}.wk-category-picture{width:70px;height:38px}#wk-sidebar-dock button{font-size:13px}.wk-destination,[data-wk-nav-bar]>[data-wk-nav=garage]{font-size:15px!important}#wk-summary{font-size:13px}#wk-summary .name{font-size:12px}#wk-summary header button{min-height:34px;font-size:11px}#wk-builder .choices button{font-size:14px;min-height:100px}#wk-builder .part-stats,#wk-builder .part-price{font-size:12px}}
 @media(pointer:coarse){[data-simple-category="style"] .wk-category-picture,[data-simple-category="accessories"] .wk-category-picture{height:30px}}

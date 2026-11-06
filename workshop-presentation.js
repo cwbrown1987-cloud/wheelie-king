@@ -16,7 +16,7 @@ body[data-wk-workshop] [data-rail="right"]>[aria-label="Test ride"]{position:abs
 body:has([data-statspanel][data-open="true"]) #wk-summary{visibility:hidden}
 [data-statspanel]{background:linear-gradient(135deg,#192e429e,#0b1726ae)!important;backdrop-filter:blur(15px) saturate(1.2);-webkit-backdrop-filter:blur(15px) saturate(1.2);border:1px solid #a4dbed66!important;box-shadow:-8px 0 28px #0007!important}
 [data-statspanel]>div:nth-child(2)>div{background:#102033a6!important;border-color:#7392ae66!important}
-body[data-wk-previewing] [data-rail="left"]{visibility:visible!important;pointer-events:none!important;opacity:.9}
+
 body[data-wk-workshop] [data-wk-bench]{right:98px!important;background:#122037b9!important;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
 [data-scene]>button[data-wk-reset]{right:98px!important;background:#122037b9!important}
 [data-scene] [data-wk-rotate]{top:auto;bottom:140px;background:#122037b9;right:98px}[data-wk-compatibility]{left:14px!important;right:240px!important;top:46px!important;max-width:none!important;text-align:left!important;font-size:11px!important}
