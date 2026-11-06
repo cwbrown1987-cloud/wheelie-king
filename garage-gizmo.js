@@ -14,6 +14,6 @@ export function garageGizmo(host,getRig,onRemove){
  handle('Raise object','⇡',-60,70,()=>getRig().move(0,0,.1));handle('Lower object','⇣',60,70,()=>getRig().move(0,0,-.1));
  const remove=handle('Remove placed item','⌫',-75,-75,onRemove);
  const update=()=>{raf=requestAnimationFrame(update);const r=getRig(),state=r?.state(),object=r?.objects.find(o=>o.key===state.selected);root.hidden=!state?.arrange||!object;if(root.hidden)return;const center=new T.Box3().setFromObject(object.holder).getCenter(new T.Vector3()).project(r.camera),w=host.clientWidth,h=host.clientHeight;
-  root.style.left=Math.max(122,Math.min(w-122,(center.x+1)*w/2))+'px';root.style.top=Math.max(128,Math.min(h-112,(-center.y+1)*h/2))+'px';remove.hidden=!object.item;
+  root.style.left=Math.max(122,Math.min(w-122,(center.x+1)*w/2))+'px';root.style.top=Math.max(128,Math.min(h-112,(-center.y+1)*h/2))+'px';remove.hidden=false;const label=object.ride?'Remove displayed ride':'Remove placed item';remove.setAttribute('aria-label',label);remove.title=label;
  };update();return ()=>{cancelAnimationFrame(raf);root.remove()};
 }

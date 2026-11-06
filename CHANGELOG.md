@@ -1,3 +1,8 @@
+# Remove displayed rides — 6 Nov 2026
+
+- The on-object remove handle now removes rides as well as placed items.
+- Removed rides stay saved/owned; Place lets you display them again. Done/Cancel and reload preserve display choices.
+
 # Garage handles and wheelie recovery — 6 Nov 2026
 
 - Dark industrial/neon garage; icon toolbar at top, owned-item picture drawer, on-object arrows and draggable rotation.

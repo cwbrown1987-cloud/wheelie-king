@@ -19,7 +19,7 @@ export function playerView(el,{rides=[],placements={},character=false,onSelect=(
  let avatar,selected=null,arrange=false,tool='move',snap=true,transition=null,drag=null,down=null,raf,disposed=false;
  if(character){const body=new T.Group(),bike=new T.Group();scene.add(body);avatar=makeRider(T,body,bike,{seatTop:[0,.795],riderHip:[0,RIDER_SPEC.hipHeight],shoulder:[.02,RIDER_SPEC.shoulderRise,0],headTop:[0,1.1],hand:[.03,.80],handWidth:.20,bb:[0,.05],footTargets:[[0,.055,-.10],[.04,.055,.10]]},{state:{crankPhase:0}});avatar.update();}
  for(const [i,r]of rides.entries()){
-  if(!part(r.b.frame))continue;const key=rideKey(r,i),holder=new T.Group();holder.userData.savedRide=key;const model=previewBuild(T,r.b.frame,r.b);model.getObjectByName('wk:stand')?.removeFromParent();const config=placements[key]||{};
+  if(!part(r.b.frame)||placements[rideKey(r,i)]?.hidden)continue;const key=rideKey(r,i),holder=new T.Group();holder.userData.savedRide=key;const model=previewBuild(T,r.b.frame,r.b);model.getObjectByName('wk:stand')?.removeFromParent();const config=placements[key]||{};
   holder.add(model);holder.position.set(config.x??((i%3)-Math.min(2,rides.length-1)/2)*2.1,config.y??0,config.z??-Math.floor(i/3)*1.8);holder.rotation.y=config.yaw??-.15;scene.add(holder);objects.push({key,holder,model,ride:r});
  }
  for(const config of placements.$items||[]){const p=item(config.itemId);if(!p)continue;const holder=new T.Group(),model=gearModel(T,p);holder.userData.savedRide=config.uid;holder.add(model);model.updateMatrixWorld(true);model.position.y-=new T.Box3().setFromObject(model).min.y;holder.position.set(config.x||0,config.y||0,config.z||0);holder.rotation.y=config.yaw||0;scene.add(holder);objects.push({key:config.uid,holder,model,item:p});}
