@@ -51,6 +51,7 @@ function wheelContact(ter,x,r){
   for(const ratio of offsets){const dx=r*ratio,dy=r*Math.sqrt(Math.max(0,1-ratio*ratio)),y=ter.h(x+dx)+dy;if(y>height+1e-7){height=y;angle=Math.asin(ratio)}}
   return {height,angle};
 }
+const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8+throttle*1.2-(1-throttle)*2.2-brake*12-w*3.2;
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   const startPitch=s.pitch,startW=s.w;
@@ -93,7 +94,7 @@ export function step(s, p, inp, dt, ter) {
   if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*7*dt;
   // Arcade balance: slow the response near vertical, but leave an unstable
   // balance point. Lean/throttle raise the front; brake/forward lean recover it.
-  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>.55){const lean=inp.lean||0,throttle=s.thr||0;T=p.mass*(lean*4.5+(rel-1.46)*12+throttle*1.2-(1-throttle)*2.2-(inp.brake||0)*12-s.w*3.2);}}
+  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel>.12)T=p.mass*balanceTorque(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w);}
   if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-ter.slope(s.x));if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
   s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : 0.999;
   s.x += s.vx * dt; s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
@@ -109,9 +110,9 @@ export function step(s, p, inp, dt, ter) {
     }
   }
   // Rear-wheel pivot: contact impulses must not undo the rider's recovery torque.
-  if(s.ground[0]&&!s.ground[1]&&wrapAngle(startPitch-ter.slope(s.x))>.55){
-    const rel=wrapAngle(startPitch-ter.slope(s.x)),throttle=s.thr||0,acc=((inp.lean||0)*4.5+(rel-1.46)*12+throttle*1.2-(1-throttle)*2.2-(inp.brake||0)*12-startW*3.2)/.32;
-    const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);s.x+=old[0]-next[0];s.y+=old[1]-next[1];
+  if(s.ground[0]&&((!s.ground[1]&&wrapAngle(startPitch-ter.slope(s.x))>.12)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
+    const rel=wrapAngle(startPitch-ter.slope(s.x)),throttle=s.thr||0,acc=balanceTorque(inp.lean||0,rel,throttle,inp.brake||0,startW)/.32;
+    const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);s.x+=old[0]-next[0];const contact=wheelContact(ter,s.x+next[0],p.R);s.y=contact.height-next[1]-.003;s.vy=Math.tan(contact.angle)*s.vx-s.w*(wl[0][0]*Math.cos(s.pitch)-wl[0][1]*Math.sin(s.pitch));
   }
   for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R).height-(s.y+oy);s.comp[i]=compression(i,depth);}
   onG=s.ground[0]||s.ground[1];
@@ -151,15 +152,9 @@ export function step(s, p, inp, dt, ter) {
   const scrapeDepth=ter.h(s.x+tx)-(s.y+ty);
   if(scrapeDepth>0&&rel>.8&&rel<2.2){
     s.events.push({type:'scrape',x:s.x+tx,y:ter.h(s.x+tx)});s.wear.fender_r=(s.wear.fender_r||0)+dt*.35;s.score+=40*dt;
-    // A forgiving skid contact, rather than a fixed wheelie angle. Its response
-    // depends on actual ground clearance, so slopes and wheel sizes still matter.
-    if(s.ground[0]){
-      const oldRear=rot(wl[0][0],wl[0][1],s.pitch)[1],dx=-p.R*.95,dy=p.R*.55;
-      const clearanceRate=dx*Math.cos(s.pitch)-dy*Math.sin(s.pitch);
-      s.pitch-=Math.min(.08,scrapeDepth/Math.max(.08,-clearanceRate))*.7;
-      s.y+=oldRear-rot(wl[0][0],wl[0][1],s.pitch)[1];
-      if(s.w>0)s.w*=Math.exp(-35*dt);
-    }
+    // A scrape is a glancing skid, not an invisible support holding a fixed angle.
+    if(rel>1.92)return crash(s,'LOOPED OUT','fender_r');
+    if(s.w>0)s.w=Math.max(0,s.w-dt*.7);
     s.vx*=Math.max(0,1-dt*.6);
   }
   // head

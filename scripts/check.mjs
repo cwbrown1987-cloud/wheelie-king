@@ -3,7 +3,7 @@ import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {root,stageRuntime} from './package.mjs';
 
-const profiles={static:[],player:['player-rooms','garage-drag'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-landings','ride-controls','crash-physics','crash-ride'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
+const profiles={static:[],player:['player-rooms','garage-drag'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-landings','wheelie-balance','ride-controls','crash-physics','crash-ride'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
 profiles.menus=['part-fitment','basic-crazy','simple-builder','sticker-picker','workshop-mobile','shop-space'];
 profiles.release=[...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
 const requested=process.argv.slice(2);if(!requested.length)requested.push('static');

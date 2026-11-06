@@ -1,3 +1,9 @@
+## 7 Nov 2026 - wheelie balance delivery
+
+- Removed fixed-angle fender support. Rear-wheel pivot allows continuous lift, controlled balancing, front-wheel recovery, scrapes and genuine loop-outs.
+- Preserved adaptive stepping, landings, stunts and crash/recovery. Added 25 moto scenarios at 30-144 Hz; ride and prototype vehicle checks passed.
+- Includes compatible-menu and Basic-only crazy test parts checkpoint. Powertrain/stat and room/shop graphics work deferred.
+
 # Round menu and fitment checkpoint — 7 Nov 2026
 
 - Compatible lists and matching stems; preserve unrelated incomplete/faulty build visibility.

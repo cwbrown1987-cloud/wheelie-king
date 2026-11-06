@@ -6,7 +6,7 @@ Owner decisions consolidated 7 Nov 2026 from both engineering notes and the subs
 
 - [x] Menus: one compatible parts list, correct matching stems/adapters, incomplete-build visibility and dependable Back/preview flow.
 - [x] Basic-only Crazy Builds: add a couple of original test components; physical/electrical fit remains required; mode changes preserve installed parts.
-- [ ] Ride: remove indefinite assisted moto wheelies; allow recoverable scrapes and genuine loop-outs. Preserve hops, landings, stunts, ragdoll and instant recovery.
+- [x] Ride: remove indefinite assisted moto wheelies; allow recoverable scrapes and genuine loop-outs. Preserve hops, landings, stunts, ragdoll and instant recovery.
 - [ ] Audit powertrain/stat transfer and make only justified small fixes; benchmark stepping before considering a timing rewrite.
 - [ ] Improve shop product models/previews, reusing the worn-item geometry and shared rider dimensions.
 - [ ] Finish the genuine 3D garage/workshop room: all room surfaces, rides, shelves and toolbox share one camera. Keep free Edit dragging, floor rotation handles, lift and autosave.
