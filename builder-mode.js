@@ -1,17 +1,23 @@
 // Simple assembly plans share the advanced catalogue and real fitment rules.
+import {powerPolicy,proposedBuild} from './build-policy.js';
 import {part} from './modular-catalogue.js';
 import {prototypeFor} from './vehicle-platforms.js';
 import {categoryIcon} from './category-icons.js';
+let crazy=localStorage.getItem('wk-basic-crazy')==='1';
+const policy=(before,next)=>powerPolicy(before,next,{mode,crazy});
+globalThis.__WK_POWER_BUILD_OK__=(before,next)=>policy(before,next).allowed;
+globalThis.__WK_POWER_POLICY__=(before,id)=>policy(before,proposedBuild(before,id));
+globalThis.__WK_CRAZY_BUILDS__={get enabled(){return mode==='simple'&&crazy},set(value){if(mode!=='simple'||pending)return false;crazy=!!value;localStorage.setItem('wk-basic-crazy',crazy?'1':'0');last='';tick();return true}};
 let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null,menuStack=[],categoryToggle,rotationButton,lastControls,dock,previewActions;
 let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{last='';globalThis.__WK_SETBUILD__?.(b=>({...b}))},160)});
-function kitPlan(build,p){const b=p.completeBike?{}:{...build};for(const id of p.kit||[])b[part(id).slot]=id;if(mode==='simple'&&part(b.frame)?.maxW&&part(b.motor)?.w>part(b.frame).maxW)return null;for(let pass=0;pass<3;pass++)for(const id of Object.values(b)){if(!id)continue;const f=globalThis.__WK_FIT__(b,id);if(f.status==='no')return null;for(const a of f.adapters||[])b[part(a).slot]=a;}return globalThis.__WK_BUILD_READY__(b).ready?b:null;}
+function kitPlan(build,p){const b=p.completeBike?{}:{...build};for(const id of p.kit||[])b[part(id).slot]=id;if(!policy(build,b).allowed)return null;for(let pass=0;pass<3;pass++)for(const id of Object.values(b)){if(!id)continue;const f=globalThis.__WK_FIT__(b,id);if(f.status==='no')return null;for(const a of f.adapters||[])b[part(a).slot]=a;}return globalThis.__WK_BUILD_READY__(b).ready?b:null;}
 let recovery;try{recovery=JSON.parse(sessionStorage.getItem('wk-pending-build')||'null')}catch{}
 const items=()=>globalThis.__WK_CAT__?.().items.filter(p=>!p.hidden)||[];
 export function upgradePlan(build,id){
  const p=part(id);if(!p)return null;const b={...build,[p.slot]:id},all=items(),m=p.slot==='motor'?p:part(b.motor);
  if(p.slot==='kit')return kitPlan(build,p);
  if(prototypeFor(build.frame))return globalThis.__WK_BUILD_READY__(b).ready?b:null;
- if(m&&part(b.frame)?.maxW&&m.w>part(b.frame).maxW)return null;
+ if(!policy(build,b).allowed)return null;
  if(p.slot==='bars'){const current=part(b.stem);const stem=all.find(x=>x.slot==='stem'&&x.interface===current?.interface&&x.clamp===p.clamp);if(stem)b.stem=stem.id;}
  if(p.slot==='seat'&&b.seatpost&&part(b.seatpost)?.saddleMount!==p.saddleMount){const post=all.find(x=>x.slot==='seatpost'&&globalThis.__WK_FIT__(b,x.id).status!=='no');if(post)b.seatpost=post.id;}
  if(p.slot==='motor'||p.slot==='battery'){
@@ -42,12 +48,12 @@ document.addEventListener('click',e=>{
  const swatch=e.target.closest('[data-wk-swatch]'),card=e.target.closest('[data-wk-part]');if(!swatch&&!card)return;
  if(e.target.closest('[data-wk-info]')||(!swatch&&e.target.closest('button')))return;
  const id=swatch?.dataset.wkSwatch||card.dataset.wkPart,p=part(id);if(!p||p.slot==='sticker'||pending)return;
- const b=globalThis.__WK_BUILD__;if(globalThis.__WK_FIT__(b,id).status==='no')return;
+ const b=globalThis.__WK_BUILD__;if(!policy(b,proposedBuild(b,id)).allowed||globalThis.__WK_FIT__(b,id).status==='no')return;
  let plan={...b,[p.slot]:id};if(p.slot==='kit'){plan=kitPlan(b,p);if(!plan)return;}
  if(p.slot==='frame')for(const [slot,value]of Object.entries(plan))if(slot!=='frame'&&value&&globalThis.__WK_FIT__(plan,value).status==='no')delete plan[slot];
  e.preventDefault();e.stopImmediatePropagation();preview(plan,id,p.slot==='kit');
 },true);
-globalThis.__WK_MODE__=value=>{mode=value==='advanced'?'advanced':'simple';localStorage.setItem('wk-builder-mode',mode);document.body.dataset.wkMode=mode;last='';};
+globalThis.__WK_MODE__=value=>{globalThis.__WK_CLOSE_DRAWERS__?.();mode=value==='advanced'?'advanced':'simple';localStorage.setItem('wk-builder-mode',mode);document.body.dataset.wkMode=mode;section='home';menuStack=[];last='';};
 globalThis.__WK_MODE__(mode);
 const style=document.createElement('style');style.textContent=`
 body[data-wk-mode="simple"] [data-cat]{display:none!important}body[data-wk-mode="simple"] [data-catpanel],body[data-wk-mode="simple"] [data-wk-advanced-tools]{visibility:hidden!important;pointer-events:none!important}
@@ -55,7 +61,7 @@ body[data-wk-mode="simple"] [data-cat]{display:none!important}body[data-wk-mode=
 [data-wk-mode-toggle]{width:132px!important;min-width:94px!important;font:11px system-ui!important;font-weight:800!important;padding:5px!important;line-height:1.4!important}[data-wk-mode-toggle] .active{color:#60ff95}[data-wk-mode-toggle] .inactive{color:#91a699}
 #wk-builder{position:absolute;left:0;top:0;bottom:0;z-index:9;width:min(600px,60vw);overflow:auto;background:#0d1612fa;border:2px solid #526c5b;border-radius:14px;padding:10px;color:#edf7ef;font:13px system-ui;box-sizing:border-box}#wk-builder[hidden]{display:none!important}
 #wk-builder button{background:#243d52;color:#d9ffe3;border:1px solid #72a683;border-radius:6px;padding:7px;cursor:pointer}
-#wk-builder .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}#wk-builder .choices button{min-height:64px;white-space:normal;font-size:13px}#wk-builder .choices img{width:100%;height:74px;object-fit:contain;display:block}#wk-builder .selected{border:2px solid #5aff91;background:#305d40}#wk-builder .modes{display:flex;gap:6px;justify-content:space-between}#wk-builder h3{margin:8px 0;font-size:15px}
+#wk-builder [data-wk-crazy][aria-pressed="true"]{border-color:#67f8ab;background:#245440;color:#c5ffda}#wk-builder .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}#wk-builder .choices button{min-height:64px;white-space:normal;font-size:13px}#wk-builder .choices img{width:100%;height:74px;object-fit:contain;display:block}#wk-builder .selected{border:2px solid #5aff91;background:#305d40}#wk-builder .modes{display:flex;gap:6px;justify-content:space-between}#wk-builder h3{margin:8px 0;font-size:15px}
 #wk-builder label{display:block;margin-top:9px}#wk-builder select{display:block;width:100%;margin-top:4px;background:#182820;color:white;border:1px solid #72917d;border-radius:5px;padding:6px}
 #wk-builder p{font:12px system-ui;margin:8px 0 0;color:#b8cbbb}
 #wk-preview-actions{position:absolute;bottom:12px;left:55%;transform:translateX(-50%);z-index:20;display:flex;gap:12px;padding:8px;border-radius:12px;background:#11243ad9;border:1px solid #a6d7e666;backdrop-filter:blur(12px)}#wk-preview-actions[hidden]{display:none}#wk-preview-actions button{font:30px system-ui;color:#e8fff0;background:#275143b9;border:1px solid #a7e2b9;border-radius:9px;min-width:66px;min-height:60px;cursor:pointer}
@@ -89,7 +95,7 @@ function tick(){
  if(!globalThis.__WK_EQUIP__){document.querySelector('[data-cat="bars"]')?.click();return;}
  if(recovery){const original=recovery;recovery=null;sessionStorage.removeItem('wk-pending-build');globalThis.__WK_SETBUILD__(original);return;}
  if(pending)return;
- const b=globalThis.__WK_BUILD__,key=mode+section+JSON.stringify(b)+!!pending;if(key===last)return;last=key;
+ const b=globalThis.__WK_BUILD__,key=mode+section+crazy+JSON.stringify(b)+!!pending;if(key===last)return;last=key;
  simpleRail.replaceChildren();for(const [key,label,icon]of [['bikes','BIKES','frame'],['motorbikes','MOTORBIKES','frame'],['escooters','E-SCOOTERS','frame'],['kit','KITS','kit'],['motor','MOTORS · W','motor'],['battery','BATTERY','battery'],['wheels','WHEELS','tyres'],['suspension','SUSPENSION','suspension'],['style','STYLES / COLOURS','bars'],['stickers','STICKERS','sticker']]){const e=document.createElement('button');e.dataset.simpleCategory=key;e.append(categoryIcon(icon),document.createTextNode(label));e.onclick=()=>{globalThis.__WK_CLOSE_DRAWERS__?.();rail.dataset.expanded='false';menuStack=[];if(key==='stickers'){section='home';document.querySelector('[data-cat="sticker"]')?.click()}else section=section===key?'home':key;last='';tick()};simpleRail.append(e);}
  panel.replaceChildren();
  const button=(label,action,parent=panel)=>{const e=document.createElement('button');e.textContent=label;e.onclick=action;parent.append(e);return e};
@@ -101,7 +107,7 @@ function tick(){
  if(section==='home'){
   return;
  }else{
-  button('‹ Back',()=>{section=menuStack.pop()||'home';last='';tick()});const title=document.createElement('h3');title.textContent=section==='accessories'?'Rider accessories · Coming soon':section.replaceAll('_',' ');panel.append(title,grid);
+  button('‹ Back',()=>{section=menuStack.pop()||'home';last='';tick()});const title=document.createElement('h3');title.textContent=section==='accessories'?'Rider accessories · Coming soon':section.replaceAll('_',' ');panel.append(title);if(mode==='simple'&&['motor','kit'].includes(section)){const toggle=button('Crazy builds: '+(crazy?'On':'Off'),()=>globalThis.__WK_CRAZY_BUILDS__.set(!crazy));toggle.dataset.wkCrazy='';toggle.setAttribute('aria-label','Extra-crazy builds');toggle.setAttribute('aria-pressed',String(crazy));toggle.title='Allows exceeding frame power ratings. Mounts and electrical parts still have to match.';}panel.append(grid);
   if(section==='accessories'){for(const [key,label,tier]of [['helmet','Helmets','Rare'],['tops','Tops / Jackets','Epic'],['pants','Pants','Common'],['gloves','Gloves / Shoes','Rare'],['gear','Neon Starter Bundle','Epic'],['gear','Wheelie Champion Bundle','Legendary']]){const card=button(label,()=>{},grid);card.disabled=true;card.dataset.wkMock='accessories';const image=categoryIcon(key);image.setAttribute('width','64');image.setAttribute('height','64');const badge=document.createElement('small');badge.textContent=tier+' · COMING SOON';badge.style.cssText='display:block;color:#c5b6ef;margin-top:6px;font-size:10px';card.prepend(image);card.append(badge)}}else if(section==='style'){for(const [key,label]of [['paint_frame','Frame colour'],['paint_suspension','Fork colour'],['paint_rear_frame','Rear frame colour'],['paint_rims','Rim colour'],['bars','Handlebar styles'],['seat','Seat styles'],['paint_grips','Grip colour']])if(!key.startsWith('paint_')||b[key.slice(6)])nav(label,key,grid);}
   else {
    let options;if(['bikes','motorbikes','escooters'].includes(section))options=all.filter(p=>p.completeBike&&(section==='bikes'?!['motorbike','escooter'].includes(p.vehicleClass):p.vehicleClass===(section==='motorbikes'?'motorbike':'escooter')));
@@ -122,3 +128,6 @@ function tick(){
 }
 globalThis.__WK_OPEN_ACCESSORIES__=()=>{if(pending)return;globalThis.__WK_CLOSE_DRAWERS__?.();section='accessories';menuStack=[];last='';document.querySelector('[data-wk-nav="garage"]')?.click();tick()};
 setInterval(tick,350);
+
+// Hide new over-rated power upgrades outside Basic Crazy Builds; keep installed builds intact.
+setInterval(()=>{const b=globalThis.__WK_BUILD__;if(!b)return;for(const card of document.querySelectorAll('[data-catpanel] [data-wk-part]')){const p=part(card.dataset.wkPart);if(!p||!['motor','kit'].includes(p.slot))continue;const hidden=!policy(b,proposedBuild(b,p.id)).allowed;if(card.hidden!==hidden)card.hidden=hidden;}},300);

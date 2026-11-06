@@ -1,3 +1,11 @@
+# Basic-only Crazy Builds — 7 Nov 2026
+
+- Optional Crazy Builds toggle in Basic Motor/Kits menus allows above-frame-rating power builds with matched parts.
+- Hard mount and electrical fitment rules remain. Advanced single-part/kit/batch installs cannot introduce over-rated power builds.
+- Mode switches retain every installed part and allow existing over-rated builds to be inspected/coloured.
+- Close/reset old drawers on mode switches so Basic controls remain accessible.
+- Isolated from unfinished room, fitment and physics changes.
+
 # Free garage editing and autosave — 6 Nov 2026
 
 - Select → Edit; no camera snap or grid snapping. Drag for floor movement, floor handles for continuous rotation, upper arrow for height.

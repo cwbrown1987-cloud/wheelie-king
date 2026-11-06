@@ -1,13 +1,14 @@
 # Wheelie King — current instructions and resume
 
-Updated 6 Nov 2026. This is the single current instruction page. Replace the resume when work changes; do not append checkpoints. Consult history only for a specific question.
+Updated 7 Nov 2026. This is the single current instruction page. Replace the resume when work changes; do not append checkpoints. Consult history only for a specific question.
 
 ## Resume
 
-- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-garage-free-edit-1`.
+- Branch: `wip/v18-detail`; completed batches also go to `main` and https://wheelie-king.pages.dev. Runtime: `wk-v18-basic-crazy-1`.
 - Autosave: `workshop-autosave.js` keeps the current build draft, restores it after reload and updates saved rides when leaving Workshop. Pending previews are excluded. Custom sticker art/rating now persist locally; existing adult gates remain.
 - Workshop: opening and Reset View now use a larger near-side-on framing fitted to full vehicle bounds, centred around the stand anchor. Drag/pan/zoom and rotation preference remain. Renamed builder, same layout. Full-screen neon static garage image behind editable 3D bike and frosted panels; old green turntable hidden. Compact top-right bike/stats card expands the existing glass panel. Sticker drawer does not resize the bike viewport. Parts replace the category rail; ✓/✕ preview retains the open parts drawer and adds separate confirmation controls. Bikes cards show complete assemblies, not just frames. More accessory categories now have rendered 3D pictures.
 - Navigation: Garage and Shop now open standalone player rooms under the existing top bar. Workshop and Race remain available; Browser is still Coming Soon. Shop has persistent clothing categories, featured gear/bundles, item details, try-on, purchases and equipping. More contains My Builds/Challenges/Settings.
+- Crazy Builds policy: optional toggle in Basic/Simple Motor and Kits menus only. It relaxes frame power-rating limits while retaining mechanical/electrical compatibility. Advanced cannot create new over-rated builds; existing builds survive mode changes and permit cosmetic/non-power edits. Single-part, kit and batch equip paths share the policy. See `build-policy.js`.
 - Builder: Simple default/Advanced, compatible plans, separate complete Bikes/conversion Kits, nested colours, preview recovery, rotation pause, quiet automatic removals. Infinite money on; repairs paused. TRAX wheel size is confirmed 20 inch; other photo dimensions remain estimates.
 - Sticker picker: full middle-panel frosted gallery with large responsive art cards, All/Mine, search and Custom. Selection clears gallery for bike placement; info and content gates retained. Mini stats reduced to four small labelled metrics plus expand; gallery hides it.
 - Stickers: `sticker-editor.js` is the full-page custom studio, using the existing processor and native rating/save/apply callback. Upload auto-crops, Trace draws a polygon, Adjust points drags vertices; zoom/pan, undo/reset and collapsible fine tuning (edge/softness/trim/border/rating). Adult PIN/rating rules remain. Desktop and landscape-touch flow checks pass.
@@ -24,6 +25,10 @@ Updated 6 Nov 2026. This is the single current instruction page. Replace the res
 - Polish: spawn/recover aligns to the terrain and clears both tyre footprints (including scooter wheels); staggered scooter feet sit inside the deck and pit-bike feet on the pegs. Prototype headset bearings follow the head axis, front axle nuts travel with the fork, and chain thumbnails use the proper sprocket loop. Ten Simple categories fit the landscape touch sidebar, including narrow phones; sticker search has useful empty results and a 16px touch field to avoid iOS focus zoom.
 - Phone space: horizontal safe-area padding capped at 12px to reclaim the unused landscape strip; vertical safe areas unchanged. Sidebar Accessories moved under top Shop; Styles/Colours spans the last sidebar row. Shop accessories preserves Simple/Advanced mode.
 - Next requested batch (after rooms): Workshop should list cheap starter parts plus owned/purchased rides and parts, with Purchase opening simulated online vehicle/parts stores. New players get basic BMX + scooter. Motorbikes unlock at level 5; first eligible race gives one basic moto once. Bought/won vehicles must remain stock with compatible upgrade/mod headroom, not arrive maxed. Keep existing saves and developer infinite money; see `docs/player-rooms.md`. Detailed art and further Kaabo reference refinement follow functional setup. Browser's earlier deferral is superseded for this requested store flow.
+
+## Current work boundary
+
+- This policy milestone is isolated in `C:/Users/cbrow/.codex/worktrees/wheelie-basic-crazy`, branch `fix/basic-crazy-builds`, based on live `e4b9693`. The original `Wheelie king` checkout retains unfinished fitment, moto-balance and shared-3D-room changes; they are not included in this deployment. Preserve and reconcile them against the policy commit before resuming those milestones. Earlier inventory/store work also remains stashed.
 
 ## Working rules
 
