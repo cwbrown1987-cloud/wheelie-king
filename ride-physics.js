@@ -25,10 +25,10 @@ export function makeTerrain(seed = 1) {
 }
 export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
 export function bikeParams(stats = {}) {
-  const motorW = stats.P || 0, pedal = motorW < 200;
+  const motorW=Math.max(0,stats.P??0),pedal=stats.powertrain?stats.powertrain==='human':motorW<200;
   return {
     mass: (stats.kg || 15) + 75, wb: stats.wb || 1.0, comBack: stats.comBack || 0.42, comH: stats.comH || 0.95,
-    R: stats.wheelR || 0.3, power: pedal ? 250 : motorW, torque: pedal ? 40 : (stats.nm || 60), pedal,
+    R: stats.wheelR || 0.3, power: pedal ? 250 : motorW, torque: pedal ? 40 : Math.max(0,stats.nm??60), pedal, powertrain:stats.powertrain||(pedal?'human':'electric'),
     vmax: pedal ? 8 : Math.min(40, 6 + Math.sqrt(motorW) * 0.35),
     travelF: Math.max(0, stats.travel ?? 0), travelR: Math.max(0, stats.shock ?? 0), damp: stats.damp ?? 0.3, grip: stats.grip || 1,
     batteryWh: stats.batteryWh || 0,driveAxle:stats.driveAxle||'rear' };
@@ -122,7 +122,7 @@ export function step(s, p, inp, dt, ter) {
   onG=s.ground[0]||s.ground[1];
   for (let i = 0; i < 2; i++) s.wheelSpin[i] += s.vx / p.R * dt;
   if(s.burnout)s.wheelSpin[driven]+=Math.min(18,4+p.power/1500)/p.R*dt;
-  if (inp.throttle > 0 && s.ground[driven] && !p.pedal) s.battery = Math.max(0, s.battery - inp.throttle * p.power * dt / 3600 / Math.max(50, p.batteryWh));
+  if (inp.throttle > 0 && s.ground[driven] && !p.pedal) s.battery = Math.max(0, s.battery - inp.throttle * p.power * dt / 3600 / (p.energyType?Math.max(.000001,p.batteryWh):Math.max(50,p.batteryWh)));
   // tricks & scoring
   if (s.trickT > 0) s.trickT -= dt;
   if (s.spinV) { s.spin += s.spinV * dt; if (Math.abs(s.spin) >= Math.PI * 2) { s.spin = 0; s.spinV = 0; s.pendingSpin = (s.pendingSpin || 0) + 1; } }

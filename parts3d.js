@@ -61,7 +61,7 @@ export const driveType = (m) => !m ? "none" : m.kind === "mid" ? (m.nopedal || (
 const DEF = { none: [{ teeth: 25, std: "bicycle" }, { teeth: 9, std: "bicycle" }, "bicycle"], hub: [{ teeth: 25, std: "bicycle" }, { teeth: 9, std: "bicycle" }, "bicycle"],
   pmid: [{ teeth: 44, std: "bicycle" }, { teeth: 18, std: "bicycle" }, "bicycle"], mmid: [{ teeth: 14, std: "428" }, { teeth: 48, std: "428" }, "428"] };
 export function gearing(b) { const dt = driveType(find(b.motor)), d = DEF[dt], f = find(b.sprocket_f) || d[0], r = find(b.sprocket_r) || d[1], ch = find(b.chain), cstd = ch?.std || d[2];
-  const ratio = r.teeth / f.teeth, base = d[1].teeth / d[0].teeth, g = ratio / base, w = dt === "hub" ? 0.25 : 1, warn = [];
+  const ratio = r.teeth / f.teeth, base = d[1].teeth / d[0].teeth, g = ratio / base, w = dt === "hub" ? 0 : 1, warn = [];
   for (const [nm, sp] of [["front", f], ["rear", r]]) if (sp.std !== cstd) warn.push({ t: `${cstd} chain won't run on the ${sp.std} ${nm} sprocket: swap chain or sprocket`, bad: true });
   if (dt === "mmid" && f.std === "bicycle") warn.push({ t: "Moto mid needs a 420/428 front sprocket", bad: true });
   if (Math.abs(g - 1) > 0.04) warn.push({ t: `Gearing ${f.teeth}T/${r.teeth}T = ${ratio.toFixed(2)}:1: ${g > 1 ? "more wheelie pull, lower top speed" : "higher top speed, less pull"}`, bad: false });

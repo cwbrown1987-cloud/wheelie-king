@@ -1,7 +1,8 @@
 // Wheelie King ride (v16). MotoX-Mayhem-style side-on 3D ride using the REAL garage bike (cloned, with its parts and stickers).
 // Physics: ride-physics.js (pure 2D, reusable for a later 3D mode). This file is only rendering, input, FX, HUD and saving condition.
 import * as T from "./vendor/three.module.js";
-import { makeTerrain, makeFlatTerrain, bikeParams, makeState, step } from "./ride-physics.js";
+import { makeTerrain, makeFlatTerrain, makeState, step } from "./ride-physics.js";
+import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
 import {rideControlsMarkup,mountLeanControls} from './ride-controls.js';
 import {makeStuntRig} from './ride-tricks.js';
@@ -95,9 +96,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   bike.position.set(0, 0, 0); bike.rotation.set(0, 0, 0); bike.scale.set(1, 1, 1); bike.traverse((o) => { o.castShadow = true; if (o.name === "wk:stand" || o.name?.includes("platform")) o.visible = false; });
   bike.children.filter((c) => c.name === "wk:stand").forEach((c) => (c.visible = false));
   const cond = loadCond(); applyCondition(bike, cond);
-  const stOut = { ...stats, wheelR: A.wheelR, batteryWh: stats.powertrain==='petrol'?(stats.fuelLitres||3)*8900*.2:(() => { const b = find(build.battery); return b ? b.v * b.ah : 0; })() };
-  const P = bikeParams(stOut);if(A.vehicleClass)P.vmax=(stats.speed||35)/3.6; P.wb = Math.max(0.6, A.frontAxle[0] - A.rearAxle[0]); P.R = A.wheelR; P.comH = Math.max(P.R + 0.45, P.comH);
-  P.driveAxle=find(build.motor)?.kind==='front'?'front':'rear';P.travelF=Math.max(0,find(build.suspension)?.travel||0);P.travelR=build.rear_frame&&build.shock?Math.min(.06,find(build.shock)?.travel||.045):0;
+  const P=rideParameters(stats,build,A,find);
   P.forkAxis=bike.getObjectByName('wk:model:fork')?.userData.wkFork?.axis||[0,1,0];P.forkVertical=P.forkAxis[1];P.rearLink=A.swingPivot?[A.rearAxle[0]-A.swingPivot[0],A.rearAxle[1]-A.swingPivot[1]]:null;
   const hC = P.comH - P.R; bike.position.set(-P.wb * P.comBack - A.rearAxle[0], -hC - A.rearAxle[1], 0); body.add(bike);
   // wheels move with their suspension (visible travel); find the wheel groups at each axle
@@ -114,6 +113,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   for (let i = 0; i < NP; i++) pm.setColorAt(i, col.set("#fff"));
   // state + input
   let crashRig=null;let s = makeState(P, 2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
+  if(!P.pedal&&P.batteryWh<=0)s.battery=0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0 }; let tilt = false, tiltLean = 0,paused=false;
   const kd = (e) => { const k = e.key.toLowerCase(); if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;const action=({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); if (k === "escape") close(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
@@ -201,7 +201,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     // HUD
     hud.score.textContent = Math.round(s.score).toLocaleString(); hud.best.textContent = "$ +" + Math.round(maxScore / 10).toLocaleString() + " · DIRT " + Math.round(Math.min(1, dirt) * 100) + "%";
     hud.speed.innerHTML = Math.round(sp * 3.6) + "<small style='font-size:14px'> km/h</small>"; hud.wheelie.textContent = s.balance ? `${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s` : s.bestWheelie ? `BEST MONO ${s.bestWheelie.toFixed(1)}s` : "";
-    hud.batt.textContent = stats.powertrain==='petrol'?'FUEL '+Math.round(s.battery*100)+'% · '+stats.cc+'cc':P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
+    hud.batt.textContent = P.powertrain==='petrol'?'FUEL '+Math.round(s.battery*100)+'% · '+(stats.cc??find(build.motor)?.cc??'')+'cc':P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"; hud.prog.firstChild.style.width = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%";
     if (s.trickT <= 0) hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; hud.msg.textContent = paused?"PAUSED":msgT > 0 ? msg : "";
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;ui.style.transformOrigin="top left";ui.style.transform=`scale(${1/screenScale})`;ui.style.width=(w*screenScale)+"px";ui.style.height=(h*screenScale)+"px";ui.style.right=ui.style.bottom="auto";const pixelRatio=Math.min(lowDetail?1:1.5,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     backdrop.repeat.set(Math.min(1,w/h*.3),.6);backdrop.offset.set(Math.max(0,Math.min(1-backdrop.repeat.x,(1-backdrop.repeat.x)/2+Math.sin(s.x*.001)*.08)),.4);

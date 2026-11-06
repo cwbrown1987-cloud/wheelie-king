@@ -1,3 +1,9 @@
+## 7 Nov 2026 - installed powertrain parameter audit
+
+- Added an explicit Workshop-to-Ride units/powertrain boundary, shared nominal speed and installed battery/fuel storage. Fixed petrol/low-output electric pedal misclassification, zero fuel defaulting to 3 L, and explicit zero torque/output fallbacks.
+- Mid-drive and pedal gearing affect torque; hub motor drive speed no longer follows pedal sprockets. Prototype electrical readiness now checks voltage/current; installed petrol sprocket ratios affect torque/speed.
+- Existing balance/contacts, adaptive stepping, recovery energy and real build geometry retained. See docs/powertrain-audit.md for approximations and validation.
+
 ## 7 Nov 2026 - manage saved rides
 
 - Added selected-ride options for renaming and confirmed deletion in Garage. Names persist; deletion removes the saved ride and its room placement.

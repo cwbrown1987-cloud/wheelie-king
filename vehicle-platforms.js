@@ -32,11 +32,14 @@ export function vehicleReady(build,find){
  const v=prototypeFor(build.frame);if(!v)return null;const missing=Object.keys(v.components).filter(slot=>!build[slot]);
  if(missing.length)return {ready:false,reason:'Fit '+missing.join(', ')};
  for(const id of Object.values(build)){const p=find(id);if(!p)return {ready:false,reason:'Unknown component'};const f=vehicleFit(build,p);if(f?.status==='no')return {ready:false,reason:f.reason}}
+ if(v.powertrain==='electric'){const motor=find(build.motor),battery=find(build.battery),controller=find(build.controller);if(battery.v!==motor.v||controller.v!==motor.v)return {ready:false,reason:'Electrical voltage mismatch'};if(!(battery.v*battery.a>=motor.w&&controller.v*controller.a>=motor.w))return {ready:false,reason:'Electrical current capacity below motor requirement'};}
  return {ready:true};
 }
 export function vehicleStats(build){
  const v=prototypeFor(build.frame);if(!v)return null;
  const find=globalThis.__WK_PART__,ready=vehicleReady(build,find),mass=Object.values(build).reduce((n,id)=>n+(find(id)?.kg||0),0),motor=find(build.motor),fork=find(build.suspension),shock=find(build.shock),power=ready.ready?(motor?.w||0):0;
- return {P:power,nm:power?motor.nm:0,speed:power?v.speed:0,range:power?v.range:0,kg:mass,wheelie:power?65:0,air:55,trick:v.vehicleClass==='escooter'?65:48,wb:v.wb,comH:v.comH,comBack:v.comBack,travel:fork?.travel||0,shock:shock?.travel||0,damp:fork?.damp||.3,grip:find(build.tyres)?.grip||1,warn:ready.ready?[]:[{t:ready.reason,bad:true}],powertrain:v.powertrain,cc:v.cc,fuelLitres:find(build.fuel_tank)?.litres||0};
+ const front=find(build.sprocket_f)?.teeth,rear=find(build.sprocket_r)?.teeth,g=front>0&&rear>0?(rear/front)/(41/14):1;
+ const gear=front&&rear?{front,rear,ratio:rear/front,g,dt:'mmid',speedF:Math.pow(g,-.6),wheelF:Math.pow(g,.7)}:null;
+ return {gear,P:power,nm:power?(motor.nm??0)*g:0,speed:power?v.speed*Math.pow(g,-.6):0,range:power?v.range:0,kg:mass,wheelie:power?65:0,air:55,trick:v.vehicleClass==='escooter'?65:48,wb:v.wb,comH:v.comH,comBack:v.comBack,travel:fork?.travel||0,shock:shock?.travel||0,damp:fork?.damp||.3,grip:find(build.tyres)?.grip||1,warn:ready.ready?[]:[{t:ready.reason,bad:true}],powertrain:v.powertrain,cc:v.cc,fuelLitres:find(build.fuel_tank)?.litres||0};
 }
 globalThis.__WK_VEHICLE_STATS__=vehicleStats;
