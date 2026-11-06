@@ -1,6 +1,6 @@
 import {GEAR_CATEGORIES,GEAR,ITEMS,DISPLAYS,item,BUNDLES,STARTERS} from './gear-catalogue.js';
 import {gearState,outfit,equip,purchase,ownedItems,unequipAccessory} from './gear-state.js';
-import {layout,saveLayout,rideKey} from './garage-state.js';
+import {layout,saveLayout,rideKey,renameRide,deleteRide} from './garage-state.js';
 import {garageGizmo} from './garage-gizmo.js';
 import {playerView} from './player-view3d.js';
 let gizmoStop;
@@ -36,15 +36,22 @@ function renderGarage(){const editing=arranging;clear();placements.$items??=[];i
  for(const [key,config]of Object.entries(placements)){if(config?.display){placements.$items.push({uid:crypto.randomUUID(),itemId:config.display,x:config.x||0,z:config.z||0,yaw:config.yaw||0});delete config.display;}}
 const canvas=el('div','room-canvas');host.append(canvas);const title=el('header','room-title');title.append(el('h1','', 'MY GARAGE'),el('p','',rides().length+' saved rides · select one to inspect'));host.append(title);
  const names=el('div','room-rides');host.append(names);const tools=el('div','room-tools glass');host.append(tools);
- rig=playerView(canvas,{rides:rides(),placements,onSelect:key=>{selectedRide=key;arranging=rig?.state().arrange||false;for(const b of names.children)b.classList.toggle('active',b.dataset.rideKey===key);},onMove:(key,p)=>{const prop=placements.$items.find(o=>o.uid===key);if(prop)Object.assign(prop,p);else placements[key]={...placements[key],...p};saveLayout(placements)}});
+ rig=playerView(canvas,{rides:rides(),placements,onSelect:key=>{selectedRide=key;arranging=rig?.state().arrange||false;for(const b of names.children)b.classList.toggle('active',b.dataset.rideKey===key);const manage=tools.querySelector('[aria-label="Ride options"]');if(manage)manage.disabled=!rig?.objects.find(o=>o.key===key)?.ride;},onMove:(key,p)=>{const prop=placements.$items.find(o=>o.uid===key);if(prop)Object.assign(prop,p);else placements[key]={...placements[key],...p};saveLayout(placements)}});
  for(const [i,r]of rides().entries()){const key=rideKey(r,i);if(placements[key]?.hidden)continue;const b=button(r.name,()=>rig.select(key));b.dataset.rideKey=key;b.classList.toggle('active',selectedRide===key);names.append(b)}
  if(selectedRide&&rig.objects.some(o=>o.key===selectedRide))rig.select(selectedRide,false);
- const standard=()=>{tools.replaceChildren(button('Overview',()=>rig.overview()),button('Use selected ride',()=>{const r=rig.objects.find(o=>o.key===selectedRide)?.ride;if(!r)return;globalThis.__WK_SETBUILD__?.({...r.b});globalThis.__WK_ACTIVE_RIDE__=selectedRide;close();document.querySelector('[data-wk-nav="garage"]')?.click()}),button('Character',()=>open('character')),button('Place owned item',()=>placeItems()));for(const [i,b]of [...tools.children].entries()){b.setAttribute('aria-label',b.textContent);b.title=b.textContent;b.textContent=['⌖','▶','♟','＋'][i]}};
+ const standard=()=>{tools.replaceChildren(button('Overview',()=>rig.overview()),button('Use selected ride',()=>{const r=rig.objects.find(o=>o.key===selectedRide)?.ride;if(!r)return;globalThis.__WK_SETBUILD__?.({...r.b});globalThis.__WK_ACTIVE_RIDE__=selectedRide;close();document.querySelector('[data-wk-nav="garage"]')?.click()}),button('Character',()=>open('character')),button('Place owned item',()=>placeItems()),button('Ride options',()=>rideOptions()));for(const [i,b]of [...tools.children].entries()){b.setAttribute('aria-label',b.textContent);b.title=b.textContent;b.textContent=['⌖','▶','♟','＋','⋯'][i]}};
 
+ const rideOptions=()=>{
+  const ride=rig.objects.find(o=>o.key===selectedRide)?.ride;if(!ride)return;
+  host.querySelector('[data-ride-options]')?.remove();const dialog=el('form','glass');dialog.dataset.rideOptions='';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-label','Ride options');dialog.style.cssText='position:absolute;top:65px;right:8px;z-index:7;width:min(300px,90%);display:grid;gap:9px';
+  dialog.append(el('strong','',ride.name));const input=el('input');input.value=ride.name;input.maxLength=40;input.required=true;input.setAttribute('aria-label','Ride name');dialog.append(input);
+  const save=button('Rename',()=>{});save.type='submit';dialog.onsubmit=e=>{e.preventDefault();const key=renameRide(selectedRide,input.value);if(key){selectedRide=key;placements=layout();renderGarage();}};dialog.append(save);
+  const remove=button('Delete ride',()=>{remove.textContent='Confirm delete';remove.onclick=()=>{if(deleteRide(selectedRide)){placements=layout();selectedRide=null;arranging=false;renderGarage();}}});remove.style.color='#ffb5b5';dialog.append(remove,button('Cancel',()=>dialog.remove()));host.append(dialog);input.focus();input.select();
+ };
  const removeItem=()=>{const o=rig.objects.find(o=>o.key===selectedRide);if(!o)return;if(o.ride)placements[selectedRide]={...placements[selectedRide],hidden:true};else placements.$items=placements.$items.filter(o=>o.uid!==selectedRide);selectedRide=null;arranging=false;saveLayout(placements);renderGarage()};
  const icon=(glyph,label,fn)=>{const b=button(glyph,fn);b.setAttribute('aria-label',label);b.title=label;return b};
  const placeItems=()=>{host.querySelector('.garage-items')?.remove();const drawer=el('aside','garage-items glass');drawer.append(icon('✕','Close owned items',()=>drawer.remove()));for(const [i,r]of rides().entries()){const key=rideKey(r,i);if(!placements[key]?.hidden)continue;const card=button('🚲 '+r.name,()=>{delete placements[key].hidden;selectedRide=key;arranging=true;saveLayout(placements);renderGarage()});card.setAttribute('aria-label','Display '+r.name);drawer.append(card)}for(const p of ownedItems()){const card=button('',()=>{const uid=crypto.randomUUID();placements.$items.push({uid,itemId:p.id,x:0,z:1,y:0,yaw:0});selectedRide=uid;arranging=true;saveLayout(placements);renderGarage()});card.append(image(p),el('span','',p.name));drawer.append(card)}host.append(drawer)};
- gizmoStop=garageGizmo(host,()=>rig,removeItem,value=>{arranging=value;rig.arrange(value)});if(editing){arranging=true;rig.arrange(true)}standard();saveLayout(placements);
+ gizmoStop=garageGizmo(host,()=>rig,removeItem,value=>{arranging=value;rig.arrange(value)});if(editing){arranging=true;rig.arrange(true)}standard();tools.querySelector('[aria-label="Ride options"]').disabled=!rig.objects.find(o=>o.key===selectedRide)?.ride;saveLayout(placements);
 
 
 }

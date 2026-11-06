@@ -1,3 +1,9 @@
+## 7 Nov 2026 - manage saved rides
+
+- Added selected-ride options for renaming and confirmed deletion in Garage. Names persist; deletion removes the saved ride and its room placement.
+- Migrates legacy saves to stable IDs without moving other rides; independent furniture is retained. Stops unchanged Workshop drafts from immediately recreating deleted rides.
+- Rename/reload, delete cancellation/confirmation, deletion persistence, autosave suppression and legacy placement checks passed.
+
 ## 7 Nov 2026 - bump release and settings
 
 - Rear-wheel balance assistance releases on unloaded/separating contacts, preserving natural airtime over bumps. No global gravity or jump boost change. Added a rounded-bump airborne/landing regression.

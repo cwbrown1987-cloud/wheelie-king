@@ -5,6 +5,7 @@ function save(){
  if(!restored&&restore())return;
  if(globalThis.__WK_ROOM__?.view||globalThis.__WK_PREVIEW_BUILD__?.pending)return;
  const b=globalThis.__WK_BUILD__;if(!b||!globalThis.__WK_CAT__?.().items.some(p=>p.id===b.frame&&p.slot==='frame'))return;
+ const deleted=localStorage.getItem('wk-deleted-draft-v1');if(deleted===JSON.stringify(b))return;if(deleted)localStorage.removeItem('wk-deleted-draft-v1');
  localStorage.setItem(KEY,JSON.stringify(b));
  const rides=globalThis.__WK_SAVED_BUILDS__||[],active=globalThis.__WK_ACTIVE_RIDE__;
  let index=rides.findIndex((r,i)=>rideKey(r,i)===active&&r.b.frame===b.frame);if(index<0)index=rides.findIndex(r=>r.b.frame===b.frame);
