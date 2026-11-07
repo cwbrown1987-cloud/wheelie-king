@@ -28,7 +28,7 @@ export function makeRider(T,body,bike,A,mechanical){
  let wornHelmet,wornPack;
 
  function segment(name,r1,r2,mat,parent=rider){const points=[[-.5,.86],[-.46,.98],[-.25,1.04],[0,1],[.22,1.03],[.42,.97],[.5,.86]].map(([y,k])=>new T.Vector2((r2+(r1-r2)*(y+.5))*k,y));return mesh(name,new T.LatheGeometry(points,24),mat,parent)}
- function pose(m,a,b){const d=b.clone().sub(a);m.position.copy(a).addScaledVector(d,.5);m.scale.y=d.length();m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize())}
+ const _pd=new T.Vector3(),_pu=new T.Vector3(0,1,0);function pose(m,a,b){const d=_pd.copy(b).sub(a);m.position.copy(a).addScaledVector(d,.5);m.scale.y=d.length();m.quaternion.setFromUnitVectors(_pu,d.normalize())}
  const arms=[],legs=[];
  for(const side of [-1,1]){
   const upper=segment('sleeve-upper'+side,.061,.05,blue,torso),lower=segment('sleeve-lower'+side,.049,.034,blue,torso),elbow=mesh('elbow'+side,new T.SphereGeometry(.049,10,8),blue,torso),glove=new T.Group();glove.name='rider:glove'+side;glove.userData.wearable='gloves';torso.add(glove);arms.push({side,upper,lower,elbow,glove});
