@@ -9,6 +9,7 @@ import {prototypeFor} from './vehicle-platforms.js';
 import {componentModel,previewBuild,paintBuild} from './modular-render.js';
 import {makeRider} from './rider-model.js';
 import {gearModel} from './gear-models.js';
+import {RoomEnvironment} from './vendor/RoomEnvironment.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame", "frame", "stem", "seatpost", "pedals", "headset", "hubs", "body_panels", "number_plate", "grips", "seat", "rims", "tyres"]);
@@ -59,31 +60,61 @@ const makeModel = (p) => {
 };
 export const modelFor=p=>{if(!p)return null;const selected=p,p0=part(baseId(p.id))||p;const obj=makeModel({...p0,color:p.color||p0.color});if(obj&&selected.color){const root=new T.Group(),holder=new T.Group();holder.name='wk:'+p.slot;root.add(holder);holder.add(obj);paintBuild(root,{[p.slot]:selected.id},T);obj.removeFromParent();}return obj;};
 let R = null, scene, cam, holder;
+// Tunables for shop renders. Exposure was 1.6 before reflections were added; env light now does part of that job.
+export const STUDIO = { env: 0.9, hemi: 1.6, exposure: 1.2, gearExposure: 0.9, retina: 2, fit: 0.88 };
+let contact = null;
+function makeContact() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), g = x.createRadialGradient(64, 64, 2, 64, 64, 64);
+  g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(.45, 'rgba(0,0,0,.22)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace;
+  const m = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = -1; m.name = 'thumb:contact'; return m;
+}
+function placeContact(pivot) { // soft shadow just under whatever is in the pivot, after it has been posed
+  if (!contact) return; pivot.updateMatrixWorld(true); const b = new T.Box3().setFromObject(pivot), sz = b.getSize(new T.Vector3());
+  contact.position.set((b.min.x + b.max.x) / 2, b.min.y - sz.y * .01, (b.min.z + b.max.z) / 2); contact.scale.set(sz.x * 1.25 + 1e-3, sz.z * 1.6 + sz.x * .25 + 1e-3, 1);
+}
 function ensure() {
   if (R) return R;
   R = new T.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); R.setPixelRatio(1); R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.6;
   scene = new T.Scene(); cam = new T.PerspectiveCamera(30, 4 / 3, 0.01, 50);
-  scene.add(new T.HemisphereLight("#e8f4ff", "#505048", 3)); const f2 = new T.DirectionalLight("#cfe0ff", 1.5); f2.position.set(-1, 0.5, 4); scene.add(f2); const k = new T.DirectionalLight("#ffffff", 3.5); k.position.set(2, 3, 4); scene.add(k);
+  // Product-shot studio: soft room reflections so metal and paint read properly, plus a contact shadow.
+  try { const pm = new T.PMREMGenerator(R); const env=new RoomEnvironment(R);scene.environment = pm.fromScene(env, 0.04).texture;env.dispose(); pm.dispose(); } catch (e) { console.warn('thumb env', e); }
+  contact = makeContact(); scene.add(contact);
+  scene.add(new T.HemisphereLight("#e8f4ff", "#505048", STUDIO.hemi)); const f2 = new T.DirectionalLight("#cfe0ff", 1.5); f2.position.set(-1, 0.5, 4); scene.add(f2); const k = new T.DirectionalLight("#ffffff", 3.5); k.position.set(2, 3, 4); scene.add(k);
   const rim = new T.DirectionalLight("#39ff7a", 0.8); rim.position.set(-3, 1, -2); scene.add(rim);
   holder = new T.Group(); scene.add(holder); return R;
 }
-function frame(obj) { const box = new T.Box3().setFromObject(obj), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()); obj.position.sub(c);
-  const r = Math.max(sz.x, sz.y, sz.z) * 0.5 || 0.2; cam.position.set(r * 1.5, r * 0.9, r * 2.6); cam.near = r / 50; cam.far = r * 30; cam.updateProjectionMatrix(); cam.lookAt(0, 0, 0); }
+const VIEW_DIR = new T.Vector3(1.5, 0.9, 2.6).normalize();
+// Fit the part to the picture as it will actually be shown (already turned to the 3/4 view), so nothing gets cropped.
+function frame(obj) {
+  obj.traverse(m=>{if(m.material)for(const material of [].concat(m.material))if('envMapIntensity' in material)material.envMapIntensity=STUDIO.env});
+  const pivot = obj.parent; if (pivot) { pivot.rotation.set(0.15, -0.35, 0); pivot.updateMatrixWorld(true); }
+  let box = new T.Box3().setFromObject(obj); const c = box.getCenter(new T.Vector3());
+  obj.position.sub(pivot ? pivot.worldToLocal(c.clone()).sub(pivot.position) : c); obj.updateMatrixWorld(true);
+  box = new T.Box3().setFromObject(obj);
+  // exact fit: every box corner must land inside the frame (with a margin)
+  const fwd = VIEW_DIR, right = new T.Vector3(0, 1, 0).cross(fwd).normalize(), up = fwd.clone().cross(right), tv = Math.tan(cam.fov * Math.PI / 360) * STUDIO.fit, th = tv * cam.aspect;
+  let d = 0.05; const p = new T.Vector3(), fit = () => { const z = p.dot(fwd); d = Math.max(d, z + Math.abs(p.dot(right)) / th, z + Math.abs(p.dot(up)) / tv); };
+  obj.traverse(m => { if (!m.visible) return; const pos = m.geometry?.attributes?.position; if (!pos) return;
+    if (m.isInstancedMesh || m.isSkinnedMesh) { const b = new T.Box3().setFromObject(m); for (let i = 0; i < 8; i++) { p.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z); fit(); } return; }
+    const step = Math.max(1, Math.ceil(pos.count / 1500)); for (let i = 0; i < pos.count; i += step) { p.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld); fit(); } });
+  cam.position.copy(VIEW_DIR).multiplyScalar(d); cam.near = d / 100; cam.far = d * 10; cam.updateProjectionMatrix(); cam.lookAt(0, 0, 0); }
 function dispose(o) { o.traverse((m) => { m.geometry?.dispose(); m.material && [].concat(m.material).forEach((x) => x.dispose()); }); }
 const cache = new Map();
 export function thumb(p, size = 96) {
-  const key = p.id + "@" + (size > 120 ? 2 : 1); if (cache.has(key)) return cache.get(key);
+  const key = p.id + "@" + (size > 120 ? 2 : 1) + "x" + Math.min(STUDIO.retina, Math.max(1, Math.ceil(globalThis.devicePixelRatio || 1))); if (cache.has(key)) return cache.get(key);
   let url = null; try { const obj = modelFor(p); if (!obj) { cache.set(key, null); return null; }
-    ensure(); const w = size > 120 ? 240 : 128, h = Math.round(w * 0.75), prev = R.getSize(new T.Vector2()); R.setSize(w, h, false); cam.aspect = w / h;
-    const saved=[...holder.children],savedCamera=cam.clone(),exposure=R.toneMappingExposure;R.toneMappingExposure=p.gear?1:1.6;holder.clear(); const pivot = new T.Group(); pivot.add(obj); holder.add(pivot); frame(obj); pivot.rotation.set(0.15, -0.35, 0); R.render(scene, cam); url = R.domElement.toDataURL("image/png");
-    holder.clear(); dispose(obj);R.toneMappingExposure=exposure;if(live){saved.forEach(o=>holder.add(o));R.setSize(prev.x,prev.y,false);cam.copy(savedCamera);cam.updateProjectionMatrix();}
+    ensure(); const q = Math.min(STUDIO.retina, Math.max(1, Math.ceil(globalThis.devicePixelRatio || 1))), w = (size > 120 ? 240 : 128) * q, h = Math.round(w * 0.75), prev = R.getSize(new T.Vector2()); R.setSize(w, h, false); cam.aspect = w / h;
+    const saved=[...holder.children],savedCamera=cam.clone(),savedContact={position:contact.position.clone(),scale:contact.scale.clone()},exposure=R.toneMappingExposure;R.toneMappingExposure=p.gear?STUDIO.gearExposure:STUDIO.exposure;holder.clear(); const pivot = new T.Group(); pivot.add(obj); holder.add(pivot); frame(obj); pivot.rotation.set(0.15, -0.35, 0); placeContact(pivot); R.render(scene, cam); url = R.domElement.toDataURL("image/png");
+    holder.clear(); dispose(obj);R.toneMappingExposure=exposure;if(live){contact.position.copy(savedContact.position);contact.scale.copy(savedContact.scale);saved.forEach(o=>holder.add(o));R.setSize(prev.x,prev.y,false);cam.copy(savedCamera);cam.updateProjectionMatrix();}
   } catch (e) { console.warn("thumb", p.id, e); url = null; }
   cache.set(key, url); return url;
 }
 let live = null;
 export function mount(el, p) { // big rotatable preview; returns cleanup
-  if (!el) return () => {}; ensure(); live?.stop();R.toneMappingExposure=p.gear?1:1.6; const obj = modelFor(p); if (!obj) return () => {};
-  const pivot = new T.Group(); pivot.add(obj); holder.clear(); holder.add(pivot); frame(obj); pivot.rotation.set(0.15, -0.35, 0);
+  if (!el) return () => {}; ensure(); live?.stop();R.toneMappingExposure=p.gear?STUDIO.gearExposure:STUDIO.exposure; const obj = modelFor(p); if (!obj) return () => {};
+  const pivot = new T.Group(); pivot.add(obj); holder.clear(); holder.add(pivot); cam.aspect=(el.clientWidth||300)/(el.clientHeight||220);frame(obj); pivot.rotation.set(0.15, -0.35, 0); placeContact(pivot);
   const cv = R.domElement; cv.style.cssText = "width:100%;height:100%;display:block;touch-action:none;cursor:grab"; cv.dataset.wkPreview = p.id; el.appendChild(cv);
   let raf = 0, drag = null, idle = 0, zoom = 1; const base = cam.position.clone();
   const size = () => { const w = el.clientWidth || 300, h = el.clientHeight || 220; R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
@@ -95,7 +126,7 @@ export function mount(el, p) { // big rotatable preview; returns cleanup
   const up = (e) => { pts.delete(e.pointerId); if (!pts.size) drag = null; };
   const wheel = (e) => { zoom = Math.max(0.5, Math.min(2.2, zoom * (e.deltaY > 0 ? 1.1 : 0.9))); e.preventDefault(); };
   cv.addEventListener("pointerdown", down); cv.addEventListener("pointermove", move); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up); cv.addEventListener("wheel", wheel, { passive: false });
-  const loop = () => { raf = requestAnimationFrame(loop); size(); if (!drag && ++idle > 90) pivot.rotation.y += 0.006; cam.position.copy(base).multiplyScalar(zoom); cam.lookAt(0, 0, 0); R.render(scene, cam); };
+  const loop = () => { raf = requestAnimationFrame(loop); size(); if (!drag && ++idle > 90) pivot.rotation.y += 0.006; cam.position.copy(base).multiplyScalar(zoom); cam.lookAt(0, 0, 0); if (drag || idle > 90) placeContact(pivot); R.render(scene, cam); };
   loop();
   const stop = () => { cancelAnimationFrame(raf); cv.removeEventListener("pointerdown", down); cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); cv.removeEventListener("wheel", wheel);
     cv.remove(); holder.clear(); dispose(obj); live = null; };

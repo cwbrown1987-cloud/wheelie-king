@@ -6,8 +6,8 @@ import {playerView} from './player-view3d.js';
 let gizmoStop;
 let host,view='',category='',selectedItem=null,history=[],rig,previewStop,selectedRide=null,arranging=false,placements=layout(),wardrobeSlot='helmet';
 const style=document.createElement('style');style.textContent=`
-body[data-player-view="garage"]{background-image:none!important;background-color:#202430!important}body[data-player-view="character"]{background-image:url('./icons/neon-garage-background.png')!important}
-body[data-player-view="shop"]{background-image:url('./icons/rider-shop-background.png')!important}
+body[data-player-view="garage"]{background-image:none!important;background-color:#202430!important}body[data-player-view="character"]{background-image:url('./icons/neon-garage-background.webp')!important}
+body[data-player-view="shop"]{background-image:url('./icons/rider-shop-background.webp')!important}
 body[data-player-view] [data-wk-content]{visibility:hidden!important;pointer-events:none!important}
 body[data-player-view] [data-wk-nav="garage"]{color:#cddfe9!important;border-bottom-color:transparent!important;text-shadow:none!important}
 body[data-player-view="garage"] [data-destination="garage"],body[data-player-view="character"] [data-destination="garage"],body[data-player-view="shop"] [data-destination="shop"]{color:#69ff98!important;border-bottom:3px solid #69ff98!important;background:#24523966}
