@@ -46,7 +46,10 @@ export function createSideCamera(overrides = {}) {
     const f = i.focus, speed = f?.speed ?? i.speed ?? Math.hypot(i.vx || 0, i.vy || 0);
     const vx = i.vx || 0, vy = i.vy || 0;
     const tx = f?.x ?? i.x + clamp(vx * C.leadTime, -C.leadBack, C.leadMax);
-    const ty = f?.y ?? i.y;
+    const road = Math.min(i.groundY ?? i.y, i.landingY ?? i.groundY ?? i.y);
+    const clearance = i.y - road;
+    const frameRoad = !f && (!i.grounded || i.inLoop) && clearance > 2.3;
+    const ty = f?.y ?? (frameRoad ? i.y - (clearance - 2.3) * .5 : i.y);
 
     if (!ready || Math.abs(i.x - lastX) > C.teleport) {
       ready = true; fx = tx; fy = ty; fxv = fyv = 0; kick = kickV = 0; bobAmp = 0; dist = C.baseDist; takeoffY = i.y;
@@ -86,6 +89,13 @@ export function createSideCamera(overrides = {}) {
     if (phase > 1e6) phase -= 1e6;
     const k = i.reduceMotion ? 0 : 1;
 
+    out.bobY = (Math.sin(phase) * C.bobY * bobAmp + kick) * k;
+    if (frameRoad) {
+      // Match the render camera's vertical FOV and leave margins for the rider and landing surface.
+      const lookY = fy + .45 + dist * .025 - .65 + out.bobY * .6;
+      const extent = Math.max(i.y + 1.05 - lookY, lookY - road + .35);
+      dist = Math.max(dist, extent / (Math.tan(20 * Math.PI / 180) * .88));
+    }
     out.x = fx; out.y = fy; out.dist = dist;
     out.bobY = (Math.sin(phase) * C.bobY * bobAmp + kick) * k;
     out.bobX = Math.sin(phase * 0.5 + 1.3) * C.bobX * bobAmp * k;

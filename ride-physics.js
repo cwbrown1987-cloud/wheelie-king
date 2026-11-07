@@ -1,3 +1,4 @@
+import { stepLoop } from './ride-loop.js';
 import {roundedProfile} from './terrain-profile.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
 // Units: metres, kg, seconds. x forward, y up. pitch: + = nose up (wheelie).
@@ -7,6 +8,13 @@ export function makeTerrain(seed = 1) {
   const pts = [[-30, 0], [0, 0], [30, 0]]; const puddles = [], checkpoints = [0], kickers = [];
   let x = 30, y = 0;
   const add = (dx, dy) => { x += dx; y += dy; pts.push([x, y]); };
+  // A smooth downhill approach and flat runout feed the Trials loop.
+  checkpoints.push(x - 3);
+  add(28, -12);
+  add(5, 0);
+  const loop = { x, y, radius: 2.4, exitOffset: 2, minSpeed: 9 };
+  add(10, 0);
+  checkpoints.push(x - 1);
   const section = (i) => {
     const t = i % 6;
     if (t === 0) { for (let k = 0; k < 6; k++) add(6, (rnd() - 0.5) * 2.2); }                                  // rolling hills
@@ -21,7 +29,7 @@ export function makeTerrain(seed = 1) {
   add(20, 0); const finish = x; add(60, 0);
   const {pts:rounded,h,slope}=roundedProfile(pts);
   const inPuddle = (qx) => puddles.some(([a, b]) => qx >= a && qx <= b);
-  return { pts:rounded, h, slope, puddles, checkpoints, kickers, finish, inPuddle };
+  return { pts:rounded, h, slope, puddles, checkpoints, kickers, finish, inPuddle, loop };
 }
 export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
 export function bikeParams(stats = {}) {
@@ -54,6 +62,7 @@ function wheelContact(ter,x,r){
 const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8+throttle*1.2-(1-throttle)*2.2-brake*12-w*3.2;
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
+  if (ter.loop && stepLoop(s, p, inp, dt, ter.loop)) return s;
   const startPitch=s.pitch,startW=s.w;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles
   const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR, p.travelF];
