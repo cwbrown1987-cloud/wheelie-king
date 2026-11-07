@@ -4,7 +4,7 @@ Updated 7 Nov 2026. Read this first. Archived checkpoints are historical, not cu
 
 ## Resume
 
-- Work here: `C:/Users/cbrow/.codex/worktrees/wheelie-basic-crazy`, branch `work/nov7-polish`. The original `C:/Users/cbrow/Documents/ChatGPT/Wheelie king` checkout is old and dirty; do not deploy/reset it or apply its old pending files wholesale. Its handoff points here.
+- Work here: `C:/Users/cbrow/.codex/worktrees/wheelie-basic-crazy`, branch `work/claude-batch`. The original `C:/Users/cbrow/Documents/ChatGPT/Wheelie king` checkout is old and dirty; do not deploy/reset it or apply its old pending files wholesale. Its handoff points here.
 - Production: https://wheelie-king.pages.dev . Main/wip/development branches receive verified batches. Shared-room batch `72e489f` and riding/transition follow-up `469e06d` are deployed; 82 production file hashes matched (`wk-v18-air-momentum-1`).
 - Current owner batch is finished and published; conserve usage through focused tests and brief updates. Room, ride and transition checks passed for these batches. Next is owned Workshop inventory/progression, after owner riding feedback.
 - Room: physical Garage/Workshop/Character geometry shares the vehicle camera; full-screen background under existing glass menus. Garage is light brick/neon; Workshop dark brick/tools/bench. Camera movement does not move objects. Free Edit dragging, floor rotation/lift arrows, independent furniture, placement autosave and persistent rename/confirmed deletion work. PBR floor is default; planar reflection is off. Resources dispose cleanly; instanced foliage reduces calls. Real-device FPS remains unverified.
@@ -13,6 +13,11 @@ Updated 7 Nov 2026. Read this first. Archived checkpoints are historical, not cu
 - Builder: Simple default/Advanced share installed configuration. Compatible plans resolve adapters/supporting parts; kits are complete component bundles. Preview keeps its menu, with apply/cancel. Colours are under Styles. Crazy Builds is in More > Settings, usable only in Basic; relax frame power ratings, never hard mounts/electrical limits. Existing crazy builds survive mode changes. Original 18,000 W motor + 250 A controller test parts are Basic-only.
 - Workshop drafts, custom sticker art/rating, wardrobe, wallet, saved rides and layouts persist locally. Deleted unchanged drafts do not immediately recreate a ride. Full-page sticker gallery/editor supports automatic cutout, tracing/adjustment and gates. Shop has category/detail/back, preview/purchase/equip; product geometry is shared with worn helmets/gloves/shoes. Further art/detail remains future work.
 - Vehicles: confirmed 20-inch lime TRAX (other photo measurements estimated), bicycle/e-moto builds, one original Outback 125 petrol prototype and a Kaabo electric scooter prototype (exact model unconfirmed). Prototype mounts stay family-specific. Repairs/condition/washing remain disabled. Chase preview remains developer-only; no public steering/camera switch yet.
+
+## Current Claude batch override
+
+- Integrating CLAUDE-HANDOFF.md/changes.diff from the attached ZIP onto committed 1ca2605. The chase prototype is preserved in stash `Paused experimental chase prototype before Claude batch`; QA image changes are separately stashed. Do not apply either stash here. Public chase remains off.
+- Push only `work/claude-batch`. Do not merge/push main or wip and do not run the production deploy script. Run the full sequential release suite against http://127.0.0.1:8932/ . Deploy only with `node scripts/make-beta.mjs --deploy` to the NEW `wheelie-king-beta` project after checks. Owner must test beta before live changes.
 
 ## Rules
 
@@ -33,8 +38,8 @@ PowerShell in the active checkout. Dependencies already installed through a junc
 - `npm run check -- rooms`: room camera/lifecycle, Workshop presentation, touch editing, saved rides, shop/wardrobe and mobile layouts.
 - `npm run check -- powertrain vehicles`: parameter/energy/gearing/cadence audit and prototype integration.
 - Other groups: menus, player, scene, polish, mechanics, modular. `release` combines groups; an old `workshop-batch` sticker-editor test has stale labels, so inspect it before using the entire legacy builder/release profile.
-- Bump `sw.js` cache and precache new runtime imports. Update CHANGELOG/current resume. Commit, then `git push origin HEAD:work/nov7-polish HEAD:wip/v18-detail HEAD:main`; `npm run deploy` publishes and verifies hashes. Use only development branch for deliberately unfinished work.
-- Cloudflare: Pages project `wheelie-king`, account `7f9b89a42182a51327a119efb6cf949e`; deploy script pins Wrangler 4.157.0. OAuth worked. Upload only staged `dist/`; packager excludes tests/history/private photos/dependencies. `npm run verify:live` compares without publishing.
+- Current beta batch: push only `git push origin HEAD:work/claude-batch`. Build/deploy with `node scripts/make-beta.mjs --deploy`. Do not run `npm run deploy`, push main/wip, or publish the live project until owner tests and approves beta.
+- Cloudflare: current target is Pages project `wheelie-king-beta`; live `wheelie-king` is forbidden for this batch. Account `7f9b89a42182a51327a119efb6cf949e`; deploy script pins Wrangler 4.157.0. OAuth worked. Upload only staged `dist/`; packager excludes tests/history/private photos/dependencies. `npm run verify:live` compares without publishing.
 
 ## Map and backlog
 
