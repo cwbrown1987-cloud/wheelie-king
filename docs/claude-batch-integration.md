@@ -26,3 +26,5 @@ Hardware command: node tests/claude-gpu.mjs. Images: wk-shots/claude-gpu/. Detai
 Run npm run check -- release sequentially with WK_TEST_URL=http://127.0.0.1:8932/ (this branch's source server). The initial partial preflight was cancelled for the confirmed integration fixes above; only the complete final run counts. Final results and beta URL are recorded after verification. Do not merge to main or deploy the live project before owner testing.
 
 The final sequential release run passed all 34 checks plus syntax and runtime packaging.
+
+Published build 6c82603 at https://wheelie-king-beta.pages.dev/ with 90 matching served file hashes. Production still serves wk-v18-air-momentum-1. Main remains at 1ca2605.
