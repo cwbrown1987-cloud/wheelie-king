@@ -1,0 +1,65 @@
+name: Wheelie King Beta
+
+on:
+  push:
+    branches: [work/claude-batch]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheelie-king-beta
+
+jobs:
+  release-checks:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Run release checks sequentially
+        shell: pwsh
+        env:
+          WK_TEST_URL: http://127.0.0.1:8932/
+        run: |
+          $server = Start-Process python -ArgumentList '-m http.server 8932 --bind 127.0.0.1' -WindowStyle Hidden -PassThru
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 20; $i++) {
+              try {
+                $ready = (Invoke-WebRequest $env:WK_TEST_URL -TimeoutSec 2).StatusCode -eq 200
+                if ($ready) { break }
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (!$ready) { throw 'Preview server did not start.' }
+            npm run check -- release
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Stop-Process -InputObject $server -ErrorAction SilentlyContinue
+          }
+
+  publish:
+    needs: release-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: beta
+      url: https://wheelie-king-beta.pages.dev/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Publish and verify beta
+        run: node scripts/make-beta.mjs --deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
