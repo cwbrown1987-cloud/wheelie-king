@@ -1,12 +1,14 @@
 import {RoomEnvironment} from './vendor/RoomEnvironment.js';
 import {Reflector} from './vendor/Reflector.js';
 // Every wall, lamp and floor belongs to this world-space room, alongside the placed rides.
-export function garageRoom(T,scene,renderer,{workshop=false,reflections=false}={}){
- const previousBackground=scene.background,previousFog=scene.fog;scene.background=new T.Color('#202430');scene.fog=new T.Fog('#202430',25,55);
+export function garageRoom(T,scene,renderer,{workshop=false,reflections=false,asSecondary=false,origin=null}={}){
+ const previousBackground=scene.background,previousFog=scene.fog;
  const previous={environment:scene.environment,background:previousBackground,fog:previousFog};
+ if(!asSecondary){scene.background=new T.Color('#202430');scene.fog=new T.Fog('#202430',25,55);}
  const coarse=matchMedia('(pointer:coarse)').matches;
- const room=new T.Group();room.name='garage:fixed-room';scene.add(room);
- const pmrem=new T.PMREMGenerator(renderer),environment=new RoomEnvironment(renderer);for(const [x,color]of [[-3,'#b04cff'],[0,'#52daff'],[3,'#b04cff']]){const strip=new T.Mesh(new T.BoxGeometry(2,.025,.12),new T.MeshBasicMaterial({color:new T.Color(color).multiplyScalar(4)}));strip.position.set(x,3.8,0);environment.add(strip);}const target=pmrem.fromScene(environment,.04);scene.environment=target.texture;environment.dispose?.();pmrem.dispose();
+ const room=new T.Group();room.name='garage:fixed-room';if(origin)room.position.set(...origin);scene.add(room);
+ let target=null;
+ if(!asSecondary){const pmrem=new T.PMREMGenerator(renderer),environment=new RoomEnvironment(renderer);for(const [x,color]of [[-3,'#b04cff'],[0,'#52daff'],[3,'#b04cff']]){const strip=new T.Mesh(new T.BoxGeometry(2,.025,.12),new T.MeshBasicMaterial({color:new T.Color(color).multiplyScalar(4)}));strip.position.set(x,3.8,0);environment.add(strip);}target=pmrem.fromScene(environment,.04);scene.environment=target.texture;environment.dispose?.();pmrem.dispose();}
  const textures=[],mat=(color,roughness=.55,metalness=.1)=>new T.MeshStandardMaterial({color,roughness,metalness,envMapIntensity:.35});
  const mesh=(name,geo,m,p)=>{const o=new T.Mesh(geo,m);o.name='garage:'+name;o.position.set(...p);o.castShadow=o.receiveShadow=true;room.add(o);return o};
  const box=(name,w,h,d,m,p)=>mesh(name,new T.BoxGeometry(w,h,d),m,p);
@@ -57,5 +59,6 @@ export function garageRoom(T,scene,renderer,{workshop=false,reflections=false}={
  if(reflectSupported){const size=matchMedia('(pointer:coarse)').matches?384:512;reflector=new Reflector(new T.PlaneGeometry(40,40),{textureWidth:size,textureHeight:size,color:'#a6a6af',clipBias:.003,multisample:0});reflector.name='garage:floor-reflection';reflector.rotation.x=-Math.PI/2;reflector.position.y=-.018;room.add(reflector);}
  const concrete=mat('#e1e1e5',.24,.14);concrete.map=grain;concrete.bumpMap=grain;concrete.bumpScale=.004;if(reflector){concrete.transparent=true;concrete.opacity=.88;concrete.depthWrite=false;}
  const floor=mesh('floor',new T.PlaneGeometry(40,40),concrete,[0,0,0]);floor.rotation.x=-Math.PI/2;floor.castShadow=false;floor.renderOrder=1;
- return {room,state:()=>({worldRoom:true,reflection:!!reflector,quality:coarse?'mobile':'desktop',theme:workshop?'workshop':'showroom'}),dispose(){const geometries=new Set(),materials=new Set();room.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material&&o!==reflector)for(const m of [].concat(o.material))materials.add(m);});room.removeFromParent();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();for(const t of textures)t.dispose();if(scene.environment===target.texture){scene.environment=previous.environment;scene.background=previous.background;scene.fog=previous.fog;}target.dispose();reflector?.dispose()}};
+ const lights=[];room.traverse(o=>{if(o.isLight)lights.push(o);});
+ return {room,lights,state:()=>({worldRoom:true,reflection:!!reflector,quality:coarse?'mobile':'desktop',theme:workshop?'workshop':'showroom'}),setActive(on){room.visible=!!on;for(const l of lights)l.visible=!!on;},dispose(){const geometries=new Set(),materials=new Set();room.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material&&o!==reflector)for(const m of [].concat(o.material))materials.add(m);});room.removeFromParent();for(const g of geometries)g.dispose();for(const m of materials)m.dispose();for(const t of textures)t.dispose();if(target&&scene.environment===target.texture){scene.environment=previous.environment;scene.background=previous.background;scene.fog=previous.fog;}target?.dispose();reflector?.dispose()}};
 }
