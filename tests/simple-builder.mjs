@@ -21,8 +21,11 @@ try{
  assert.equal(await p.locator('#wk-cond').count(),0);
  await p.getByRole('button',{name:'Simple / Advanced',exact:true}).click();assert.equal(await p.locator('[data-r="level"]').count(),0);
  mkdirSync('wk-shots/simple-builder',{recursive:true});await p.screenshot({path:'wk-shots/simple-builder/menu.png'});
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);await p.waitForFunction(()=>__WK_RIDE_STATE__().backdropLoaded);assert(await p.evaluate(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().ter.h(1e6)===0));
- await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish!==Infinity);await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().backdropLoaded);
+ await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);await p.waitForFunction(()=>__WK_RIDE_STATE__().backdropLoaded);assert(await p.evaluate(()=>Number.isFinite(__WK_RIDE_STATE__().ter.finish)&&__WK_RIDE_STATE__().ter.finish>0));
+ // Default is Trials; toggle to flat endless, then exercise far ground.
+ await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().backdropLoaded);
+ assert(await p.evaluate(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().ter.h(1e6)===0));
  await p.evaluate(()=>{__WK_RIDE_STATE__().s.x=5000});await p.keyboard.down('ArrowUp');await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().cameraX-__WK_RIDE_STATE__().s.x)<10);await p.waitForTimeout(600);await p.keyboard.up('ArrowUp');assert(await p.evaluate(()=>Number.isFinite(__WK_RIDE_STATE__().s.y)&&!__WK_RIDE_STATE__().finished&&Math.abs(__WK_RIDE_STATE__().groundX-__WK_RIDE_STATE__().s.x)<200));await p.screenshot({path:'wk-shots/simple-builder/flat-endless.png'});
+ await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish!==Infinity&&__WK_RIDE_STATE__().backdropLoaded);
  assert.deepEqual(errors,[]);console.log(JSON.stringify({presets:9,modes:true,sharedWideRail:true,headerToggle:true,completeIcons:true,noGreenStandBlock:true,twoColumns:true,previewApplyCancel:true,reloadRestoresUnconfirmed:true,colours:true,wheels:true,watts:true,automaticMotorPlans:plans,repairsHidden:true,inRideLevelToggle:true,pictureBackdrop:true,flatBeyond5km:true,errors}));
 }finally{await browser.close()}
