@@ -16,7 +16,11 @@ function applyZoomLimits(controls,limits){
  else{controls.minDistance=limits.min;controls.maxDistance=limits.max;}
 }
 function applyAllZoomLimits(){
- applyZoomLimits(globalThis.__WK_VIEW__?.controls,WORKSHOP_ZOOM);
+ const room=globalThis.__WK_SHARED_WORLD__?.state?.()?.active;
+ const lim=room&&globalThis.__WK_SHARED_WORLD__?null:WORKSHOP_ZOOM;
+ if(lim)applyZoomLimits(globalThis.__WK_VIEW__?.controls,lim);
+ else if(!unlimitedZoom&&globalThis.__WK_SHARED_WORLD__){/* shared-world tick applies room locks */}else applyZoomLimits(globalThis.__WK_VIEW__?.controls,WORKSHOP_ZOOM);
+ if(unlimitedZoom)applyZoomLimits(globalThis.__WK_VIEW__?.controls,{min:.001,max:1e6});
  dispatchEvent(new CustomEvent('wk-unlimited-zoom',{detail:{enabled:unlimitedZoom}}));
 }
 globalThis.__WK_UNLIMITED_ZOOM__={get enabled(){return unlimitedZoom},set(value){unlimitedZoom=!!value;localStorage.setItem('wk-unlimited-zoom',unlimitedZoom?'1':'0');applyAllZoomLimits();last='';tick();return true}};

@@ -60,12 +60,16 @@ await runBootSequence({
     await import("./fitment.js");
     await import("./thumbs.js");
     progress?.(0.2);
+    await import("./workshop-room3d.js");
+    await import("./world-rooms.js");
+    await import("./shared-world.js");
     await import("./builder-mode.js");
     await import("./workshop-presentation.js");
     await import("./workshop-navigation.js");
     await import("./workshop-mobile.js");
     await import("./garage-state.js");
     await import("./workshop-autosave.js");
+    await import("./player-lounge.js");
     progress?.(0.4);
     await import("./sticker-trace.js");
     await import("./sticker-editor.js");
@@ -85,15 +89,17 @@ await runBootSequence({
       try {
         const imgs = ['./icons/neon-garage-background.webp', './icons/icon-512.png'];
         await Promise.all(imgs.map(src => new Promise(res => { const i = new Image(); i.onload = i.onerror = () => res(); i.src = src; })));
-        view.renderer.compile(view.scene, view.camera);
-        view.renderer.render(view.scene, view.camera);
+        await Promise.race([
+          Promise.resolve().then(()=>{view.renderer.compile(view.scene, view.camera);view.renderer.render(view.scene, view.camera);}),
+          new Promise(r=>setTimeout(r,1200))
+        ]);
       } catch {}
     }
     progress?.(1);
   },
   async lazyLoad() {
-    // Other rooms / shop / ride payloads after first paint.
-    try { await import("./player-lounge.js"); } catch {}
+    // Garage + other rooms / shop / ride payloads after first paint.
+    try { await import("./garage-room3d.js"); } catch {}
     try { await import("./ride.js"); } catch {}
     try { await import("./ride-controls.js"); } catch {}
     try { await import("./modular-catalogue.js"); } catch {}
