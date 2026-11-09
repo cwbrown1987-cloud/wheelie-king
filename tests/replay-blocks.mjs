@@ -17,6 +17,7 @@ const replay = readFileSync(new URL('../ride-replay.js', import.meta.url), 'utf8
 assert(replay.includes('createBlockRing'));
 assert(replay.includes('blockMs: 30000') || replay.includes('blockMs:30'));
 assert(replay.includes('setCaptureActive'));
-assert(replay.includes('captureStream(15)') || replay.includes('captureStream(15)'));
-assert(replay.includes('700000'));
+// 30 fps capture (15 fps was choppy) and the container header is kept so trimmed clips still decode.
+assert(replay.includes('captureStream(REC.fps)') && /fps:\s*30/.test(replay));
+assert(replay.includes('initSegment') && replay.includes('blobs.unshift(rolling.init)'));
 console.log(JSON.stringify({ maxBlocks: 2, blockMs: 30000, pauseWhileMenus: true, freezeOnReplay: true }));

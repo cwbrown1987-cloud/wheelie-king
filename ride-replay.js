@@ -27,11 +27,22 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   let latestState = null; // optional state snapshot for Drop In on latest / saved-with-state
   const buffer = createRideBuffer(20);
   const supported = typeof MediaRecorder !== 'undefined' && !!canvas.captureStream;
+  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer:coarse)').matches;
+  // iPad/iPhone Safari records and plays MP4 (H.264) reliably; Chrome/Android get VP8 WebM (cheap to encode on phones).
+  const apple = /Apple/.test(navigator.vendor || '');
+  const recMime = (() => {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return undefined;
+    const webm = ['video/webm;codecs=vp8', 'video/webm'], mp4 = ['video/mp4;codecs=avc1', 'video/mp4'];
+    return (apple ? [...mp4, ...webm] : [...webm, ...mp4]).find(t => MediaRecorder.isTypeSupported(t));
+  })();
+  // 30 fps capture (15 fps looked choppy); bitrate sized for phones vs desktop.
+  const REC = { fps: 30, bps: coarse ? 2000000 : 3000000 };
+  let start0 = 0; // media timeline start of the presented clip (non-zero when early blocks were trimmed)
 
   const fmt = s => { s = Math.max(0, +s || 0); const m = Math.floor(s / 60), sec = Math.floor(s % 60); return m + ':' + String(sec).padStart(2, '0'); };
   const syncTime = () => {
-    const total = +scrub.max || video.duration || latestDuration || 0;
-    const text = fmt(video.currentTime) + ' / ' + fmt(total);
+    const total = (+scrub.max || video.duration || latestDuration || 0) - start0;
+    const text = fmt(video.currentTime - start0) + ' / ' + fmt(total);
     if (timeLbl) timeLbl.textContent = text;
     if (theatreTime) theatreTime.textContent = text;
     if (theatreScrub && scrub) theatreScrub.value = scrub.value;
@@ -53,7 +64,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     ring.unfreeze();
     setCaptureActive(true);
     setReviewing(false);
-    video.pause(); video.removeAttribute('src'); video.load();
+    prepId++; start0 = 0; video.pause(); video.removeAttribute('src'); video.load();
     if (download) { download.removeAttribute('href'); download.hidden = true; }
     if (url) URL.revokeObjectURL(url); url = null;
     if (capture) { capture.discard = true; capture.chunks.length = 0; capture = null; }
@@ -86,8 +97,40 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     if (source === 'latest') { latestBlob = blob; latestDuration = +scrub.max; latestBtn?.setAttribute('aria-pressed', 'true'); }
     else latestBtn?.setAttribute('aria-pressed', 'false');
     syncDrop(); syncTime();
-    if (autoplay) video.play().catch(() => {});
+    const token = prepareVideo();
+    if (autoplay) token.then(ok => { if (ok && video.src === url) video.play().catch(() => {}); });
     else { video.pause(); syncPlayIcon(); }
+  }
+  // MediaRecorder WebM has no duration/cues (duration = Infinity), so seeking, the scrub bar and theatre
+  // rew/ff misbehave and Safari/Chrome can stall. Force the browser to index the clip once, then rewind.
+  let prepId = 0;
+  function prepareVideo() {
+    const id = ++prepId;
+    video.preload = 'auto';
+    video.playsInline = true; video.setAttribute('playsinline', ''); video.muted = true;
+    return new Promise(resolve => {
+      const done = ok => { video.removeEventListener('error', fail); resolve(ok && id === prepId); };
+      const fail = () => done(false);
+      video.addEventListener('error', fail, { once: true });
+      const ready = () => {
+        if (id !== prepId) return done(false);
+        const settle = () => {
+          start0 = video.seekable?.length ? video.seekable.start(0) : 0;
+          if (!Number.isFinite(start0) || start0 < 0) start0 = 0;
+          const end = Number.isFinite(video.duration) ? video.duration : (+scrub.max || 1);
+          scrub.min = String(start0); scrub.max = String(Math.max(start0 + .1, end));
+          if (theatreScrub) { theatreScrub.min = scrub.min; theatreScrub.max = scrub.max; }
+          scrub.value = String(start0); video.currentTime = start0;
+          const shown = () => { syncTime(); done(true); };
+          if (video.readyState >= 2) shown(); else video.addEventListener('loadeddata', shown, { once: true });
+        };
+        if (Number.isFinite(video.duration) && video.duration > 0) return settle();
+        const fixed = () => { if (Number.isFinite(video.duration)) { video.removeEventListener('durationchange', fixed); video.removeEventListener('timeupdate', fixed); settle(); } };
+        video.addEventListener('durationchange', fixed); video.addEventListener('timeupdate', fixed);
+        video.currentTime = 1e101;
+      };
+      if (video.readyState >= 1) ready(); else video.addEventListener('loadedmetadata', ready, { once: true });
+    });
   }
 
   function start() {
@@ -95,8 +138,8 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     clear();
     const clip = capture = { chunks: [], discard: false };
     try {
-      stream = canvas.captureStream(30);
-      recorder = new MediaRecorder(stream, { videoBitsPerSecond: 1800000 });
+      stream = canvas.captureStream(REC.fps);
+      recorder = new MediaRecorder(stream, { videoBitsPerSecond: REC.bps, ...(recMime ? { mimeType: recMime } : {}) });
       const recording = recorder;
       recording.ondataavailable = event => { if (!clip.discard && event.data.size) clip.chunks.push(event.data); };
       recording.onstop = () => {
@@ -138,12 +181,21 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     if (!supported || rolling) return;
     try {
       // Phone-friendly: 15 fps, modest bitrate. Blocks roll every 30s; ring keeps at most 2.
-      const stream = canvas.captureStream(15);
-      const recorder = new MediaRecorder(stream, { videoBitsPerSecond: 700000, mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : undefined });
+      const stream = canvas.captureStream(REC.fps);
+      const recorder = new MediaRecorder(stream, { videoBitsPerSecond: REC.bps, ...(recMime ? { mimeType: recMime } : {}) });
       const startedAt = performance.now();
-      rolling = { recorder, stream, chunks: [], startedAt, blockStarted: startedAt, capturePaused: false };
+      rolling = { recorder, stream, chunks: [], startedAt, blockStarted: startedAt, capturePaused: false, first: null, init: null, head: [] };
       recorder.ondataavailable = event => {
         if (!event.data?.size || !rolling) return;
+        // Only the very first chunk carries the WebM/MP4 header. Keep a copy of just the header so clips still
+        // decode after the ring drops the first block (this was the black-screen replay bug).
+        // Chrome can split the header over the first couple of chunks (the first is often 1 byte), so collect
+        // leading chunks until the first media cluster/fragment shows up.
+        if (!rolling.first) rolling.first = event.data;
+        if (!rolling.init && rolling.head.length < 8) {
+          const r = rolling; r.head.push(event.data);
+          initSegment(new Blob(r.head, { type: event.data.type }), true).then(init => { if (init && !r.init) r.init = init; });
+        }
         rolling.chunks.push({ t: performance.now(), blob: event.data });
         if (!ring.frozen && performance.now() - rolling.blockStarted >= ring.blockMs) finalizeCurrentBlock();
       };
@@ -160,12 +212,29 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
       }
     } catch {}
   }
+  async function initSegment(blob, strict = false) {
+    try {
+      const bytes = new Uint8Array(await blob.slice(0, Math.min(blob.size, 1 << 20)).arrayBuffer());
+      for (let i = 4; i < bytes.length - 4; i++) {
+        // WebM: first Cluster element (1F 43 B6 75). MP4: first 'moof' box (size field starts 4 bytes earlier).
+        if (bytes[i] === 0x1F && bytes[i + 1] === 0x43 && bytes[i + 2] === 0xB6 && bytes[i + 3] === 0x75) return blob.slice(0, i, blob.type);
+        if (bytes[i] === 0x6D && bytes[i + 1] === 0x6F && bytes[i + 2] === 0x6F && bytes[i + 3] === 0x66) return blob.slice(0, i - 4, blob.type);
+      }
+      if (!strict) return blob; // header-only chunk: it is the init segment
+    } catch {}
+    return null;
+  }
   function assembleFrozenBlob() {
     finalizeCurrentBlock(true);
     const blocks = ring.snapshot();
     const blobs = blocks.flatMap(b => b.blobs);
     if (!blobs.length) return null;
-    return new Blob(blobs, { type: blobs[0].type || 'video/webm' });
+    const type = blobs[0].type || recMime || 'video/webm';
+    if (rolling?.first && blobs[0] !== rolling.first) {
+      if (!rolling.init) return null; // header not parsed yet: never hand the player a headless clip
+      blobs.unshift(rolling.init);
+    }
+    return new Blob(blobs, { type });
   }
 
   async function refreshLibrary() {
@@ -231,10 +300,16 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
 
   function recordStep(s, dt, meta) { if (dt > 0) buffer.push(s, dt, meta); }
 
+  // The video can hold more than the 20s state buffer; map the playhead onto the buffer's tail.
+  function dropFraction() {
+    const end = +scrub.max || 0, at = +scrub.value || 0, span = Math.max(.1, buffer.duration || end - start0 || 1);
+    if (end <= 0) return 1;
+    return Math.max(0, Math.min(1, 1 - (end - at) / span));
+  }
   function dropIn() {
     if (!canDropIn()) return null;
     const frame = activeSource === 'latest'
-      ? buffer.at(scrub.max > 0 ? (+scrub.value) / (+scrub.max) : 1)
+      ? buffer.at(dropFraction())
       : activeSaved?.state;
     if (!frame) return null;
     panel.classList.add('is-dropping');
@@ -275,7 +350,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     const blob = await currentVideoBlob();
     if (!blob) return;
     const meta = hooks.getMeta?.() || {};
-    const duration = +scrub.max || latestDuration || video.duration || 1;
+    const duration = Math.max(.1, (Number.isFinite(video.duration) ? video.duration : +scrub.max || latestDuration || 1) - start0);
     const thumb = thumbFromVideo(video);
     await saveReplay({
       blob, thumb,
@@ -318,8 +393,8 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   // Wire controls
   button.onclick = () => {
     clearTimeout(expiry); button.hidden = true; panel.hidden = false; setReviewing(true);
-    scrub.value = 0; if (url) video.src = url;
-    video.play().catch(() => {}); syncPlayIcon(); refreshLibrary();
+    scrub.value = 0; if (url && video.src !== url) { video.src = url; prepareVideo().then(ok => ok && video.play().catch(() => {})); } else video.play().catch(() => {});
+    syncPlayIcon(); refreshLibrary();
   };
   scrub.oninput = () => { video.currentTime = +scrub.value; if (theatreScrub) theatreScrub.value = scrub.value; syncPlayIcon(); syncTime(); };
   theatreScrub?.addEventListener('input', () => { scrub.value = theatreScrub.value; video.currentTime = +theatreScrub.value; syncTime(); });
@@ -329,7 +404,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   playBtn?.addEventListener('click', () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
   overlayPlay?.addEventListener('click', () => enterTheatre());
   panel.querySelector('[data-r="theatre-play"]')?.addEventListener('click', () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
-  panel.querySelector('[data-r="theatre-rew"]')?.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 5); syncTime(); });
+  panel.querySelector('[data-r="theatre-rew"]')?.addEventListener('click', () => { video.currentTime = Math.max(start0, video.currentTime - 5); syncTime(); });
   panel.querySelector('[data-r="theatre-ff"]')?.addEventListener('click', () => { video.currentTime = Math.min(+scrub.max || video.duration || 0, video.currentTime + 5); syncTime(); });
   panel.querySelector('[data-r="theatre-close"]')?.addEventListener('click', () => exitTheatre());
   panel.querySelector('[data-r="theatre-drop"]')?.addEventListener('click', () => dropIn());
@@ -397,6 +472,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     dispose() { disposed = true; clear(); stopRolling(); rolling = null; ring.clear(); buffer.clear(); },
     buffer, recordStep, openFromPause, dropIn, restoreRideState, armRolling, setCaptureActive, ring, openGallery, refreshGallery,
     // test helpers
+    _debug: () => ({ blocks: ring.snapshot().map(b => b.blobs.map(x => x.size)), first: rolling?.first?.size || 0, init: rolling?.init?.size || 0, mime: recMime, state: rolling?.recorder?.state, src: video.currentSrc, err: video.error?.message || '' }),
     _saveToLibrary: saveVideoToGallery, _refreshLibrary: refreshLibrary, _enterTheatre: enterTheatre, _saveFrame: saveFrameToGallery,
   };
 }

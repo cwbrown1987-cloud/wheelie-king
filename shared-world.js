@@ -223,7 +223,6 @@ export function attach(v) {
  v.worldRoom = workshop;
  v.sharedRoomId = 'workshop';
  applyCameraLock('workshop');
- if(v.camera&&v.camera.far<120){v.camera.far=120;v.camera.updateProjectionMatrix();}
  // Hide stock stage floor/ring
  if (v.stage) {
   if (v.stage.floor) v.stage.floor.visible = false;

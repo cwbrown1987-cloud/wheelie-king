@@ -31,8 +31,11 @@ try{
   return {min:c.minDistance,max:c.maxDistance,unlimited:!!__WK_UNLIMITED_ZOOM__?.enabled,active:__WK_SHARED_WORLD__.getActive()};
  });
  assert.equal(locked.active,'workshop');
- assert(locked.max<=4.2+1e-6,JSON.stringify(locked));
- assert(locked.min>=0.12-1e-6);
+ // Chris's original workshop zoom (81b7512 / app.js): exactly 0.12..4.2, polar 0.53π, far 50.
+ assert.equal(locked.max,4.2,JSON.stringify(locked));
+ assert.equal(locked.min,0.12,JSON.stringify(locked));
+ const cam=await p.evaluate(()=>({pol:__WK_VIEW__.controls.maxPolarAngle,far:__WK_VIEW__.camera.far,fov:__WK_VIEW__.camera.fov}));
+ assert(Math.abs(cam.pol-Math.PI*.53)<1e-9&&cam.far===50&&cam.fov===32,JSON.stringify(cam));
 
  // Workshop props present
  const props=await p.evaluate(()=>{
@@ -40,14 +43,14 @@ try{
   return {
    floor:!!s.getObjectByName('garage:floor'),
    tools:!!s.getObjectByName('garage:tool-board'),
-   turntable:!!s.getObjectByName('workshop:turntable'),
-   blueprint:!!s.getObjectByName('workshop:blueprint-screen'),
-   compressor:!!s.getObjectByName('workshop:compressor-tank'),
-   door:!!s.getObjectByName('workshop:roller-door'),
+   turntable:!!s.getObjectByName('workshop:turntable')||!!s.getObjectByName('workshop:turn-base'),
+   procedural:s.children.some(o=>o.name==='workshop:room'||o.name?.startsWith('workshop:')),
+   bench:!!s.getObjectByName('garage:bench-chest'),
    theme:__WK_VIEW__.worldRoom.state().theme,
   };
  });
- assert(props.floor&&props.tools&&props.turntable&&props.blueprint&&props.compressor&&props.door);
+ // Restored original workshop: original tool board + red bench, no turntable circle, no replacement scene.
+ assert(props.floor&&props.tools&&props.bench&&!props.turntable&&!props.procedural,JSON.stringify(props));
  assert.equal(props.theme,'workshop');
 
  // Warm garage lazily, then transition workshop -> garage

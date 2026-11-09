@@ -3,7 +3,6 @@
  * Each room declares bounds, camera anchor/limits, doors, asset loader, and lights.
  * Adding a room later (skate park, shop 3D, browser) is one module entry.
  */
-import {workshopRoom} from './workshop-room3d.js';
 import {garageRoom} from './garage-room3d.js';
 
 /** @typedef {{id:string,label:string,preload?:boolean,stub?:boolean,offset:number[],bounds:{min:number[],max:number[]},camera:{anchor:number[],minDistance:number,maxDistance:number,maxPolarAngle:number},doors:Array<{id:string,target:string,from:string,stub?:boolean,position:number[]}>,load:(T:any,scene:any,renderer:any,ctx:any)=>any}} RoomDef */
@@ -21,8 +20,9 @@ export const ROOMS = {
    { id: 'workshop-to-garage', target: 'garage', from: 'workshop', position: [0, 1.5, 6.15] },
    { id: 'workshop-to-outside', target: 'outside', from: 'workshop', stub: true, position: [-5.95, 1.2, 4.2] },
   ],
+  // Chris's original workshop room (as at 81b7512): same garageRoom({workshop:true}) build, lights and look.
   load(T, scene, renderer) {
-   return workshopRoom(T, scene, renderer, { reflections: true, origin: [0, 0, 0] });
+   return garageRoom(T, scene, renderer, { workshop: true });
   },
  },
  garage: {

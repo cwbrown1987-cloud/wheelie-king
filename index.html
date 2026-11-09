@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0d1110">
 <meta name="description" content="Build a BMX into an e-bike in the outback garage, then wheelie it.">
 <link rel="manifest" href="./manifest.webmanifest">
+<script type="module" src="./panel-scroll.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -60,7 +61,6 @@ await runBootSequence({
     await import("./fitment.js");
     await import("./thumbs.js");
     progress?.(0.2);
-    await import("./workshop-room3d.js");
     await import("./world-rooms.js");
     await import("./shared-world.js");
     await import("./builder-mode.js");
