@@ -1,7 +1,6 @@
-import {createServer} from 'node:http';
-import {mkdirSync,readdirSync,writeFileSync,readFileSync,existsSync,statSync} from 'node:fs';
-import {join,extname,normalize,relative,isAbsolute} from 'node:path';
-import {spawnSync} from 'node:child_process';
+import {mkdirSync,readdirSync,writeFileSync,existsSync} from 'node:fs';
+import {join} from 'node:path';
+import {spawn,spawnSync} from 'node:child_process';
 import {root,stageRuntime} from './package.mjs';
 
 const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-camera','ride-loop','ride-finish','ride-lod','ride-quality','ride-themes','quality-lifecycle','ride-landings','wheelie-balance','air-control','ride-controls','crash-physics','crash-ride','race-balance','ride-pause-replay','check-update','replay-blocks','ride-gallery','boot-loader','replay-playback','panel-scroll'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
@@ -12,39 +11,6 @@ profiles.powertrain=['ride-parameters','physics-cadence','ride-parameter-integra
 profiles.menus=['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','sticker-picker','workshop-mobile','shop-space'];
 profiles.release=[...profiles.transitions,...profiles.rooms,...profiles.powertrain,...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
 profiles.changed=[]; // filled below when requested
-
-const MIME={
- '.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8',
- '.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png',
- '.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.wasm':'application/wasm',
- '.mp4':'video/mp4','.webm':'video/webm','.ico':'image/x-icon','.map':'application/json','.txt':'text/plain; charset=utf-8',
- '.woff':'font/woff','.woff2':'font/woff2',
-};
-
-function startStaticServer(){
- return new Promise((resolve,reject)=>{
-  const server=createServer((req,res)=>{
-   try{
-    const u=new URL(req.url||'/', 'http://127.0.0.1');
-    let rel=decodeURIComponent(u.pathname);
-    if(rel.endsWith('/')) rel+='index.html';
-    if(rel.startsWith('/')) rel=rel.slice(1);
-    const full=normalize(join(root,rel));
-    const relPath=relative(root,full);
-    if(!relPath||isAbsolute(relPath)||relPath.split(/[/\\]/).includes('..')){res.writeHead(403);res.end('forbidden');return;}
-    if(!existsSync(full)||statSync(full).isDirectory()){res.writeHead(404);res.end('not found');return;}
-    const body=readFileSync(full);
-    res.writeHead(200,{'Content-Type':MIME[extname(full).toLowerCase()]||'application/octet-stream','Cache-Control':'no-store'});
-    res.end(body);
-   }catch(e){res.writeHead(500);res.end(String(e&&e.message||e));}
-  });
-  server.once('error',reject);
-  server.listen(0,'127.0.0.1',()=>{
-   const {port}=server.address();
-   resolve({server,url:`http://127.0.0.1:${port}/`});
-  });
- });
-}
 
 function testExists(name){
  return existsSync(join(root,'tests',name+'.mjs'));
@@ -88,17 +54,30 @@ function resolveChangedTests(){
    continue;
   }
   const baseName=f.includes('/')?f.slice(f.lastIndexOf('/')+1):f;
-  const pathForMatch=f.replace(/^.*\//,'')===baseName&&!f.includes('/')?f:f;
-  // Match against basename for root js, full path otherwise
-  const candidate=f.startsWith('scripts/')?null:baseName;
-  if(!candidate) continue;
+  if(f.startsWith('scripts/')) continue;
   for(const rule of rules){
-   if(rule.re.test(candidate)||rule.re.test(f)){
+   if(rule.re.test(baseName)||rule.re.test(f)){
     for(const t of rule.tests) if(testExists(t)) tests.add(t);
    }
   }
  }
  return [...tests];
+}
+
+function startStaticServerChild(){
+ return new Promise((resolve,reject)=>{
+  const child=spawn(process.execPath,[join(root,'scripts','static-server.mjs')],{cwd:root,stdio:['ignore','pipe','pipe']});
+  let buf='';
+  const timer=setTimeout(()=>{child.kill();reject(new Error('static server start timeout'));},10000);
+  child.stdout.on('data',d=>{
+   buf+=d.toString();
+   const m=buf.match(/WK_SERVING (http:\/\/127\.0\.0\.1:\d+\/)/);
+   if(m){clearTimeout(timer);resolve({child,url:m[1]});}
+  });
+  child.stderr.on('data',d=>{buf+=d.toString();});
+  child.on('error',e=>{clearTimeout(timer);reject(e);});
+  child.on('exit',code=>{clearTimeout(timer);reject(new Error('static server exited early: '+code+' '+buf));});
+ });
 }
 
 const requested=process.argv.slice(2);if(!requested.length)requested.push('static');
@@ -119,10 +98,10 @@ function run(label,args){
 }
 
 async function main(){
- let server;
+ let child;
  if(!process.env.WK_TEST_URL){
-  const started=await startStaticServer();
-  server=started.server;
+  const started=await startStaticServerChild();
+  child=started.child;
   process.env.WK_TEST_URL=started.url;
   console.log(`Serving ${started.url}`);
  }
@@ -130,7 +109,7 @@ async function main(){
   for(const dir of [root,join(root,'scripts'),join(root,'tests')]){
    if(!existsSync(dir)) continue;
    for(const e of readdirSync(dir,{withFileTypes:true})){
-    if(e.isFile()&&/\.(?:m?js)$/.test(e.name)) run('syntax-'+e.name,['--check',join(dir,e.name)]);
+    if(e.isFile()&&!e.name.startsWith('.')&&/\.(?:m?js)$/.test(e.name)) run('syntax-'+e.name,['--check',join(dir,e.name)]);
    }
   }
   const pack=stageRuntime();console.log(`PASS static: syntax and ${pack.files.length} packaged files (${pack.cache})`);
@@ -138,7 +117,7 @@ async function main(){
   for(const name of new Set(requested.flatMap(p=>profiles[p]))){run(name,[join('tests',name+'.mjs')]);console.log(`PASS ${name}`);}
   console.log(`CHECKS PASSED: ${requested.join(', ')}. Logs: test-results/checks/`);
  }finally{
-  if(server) await new Promise(r=>server.close(r));
+  if(child&&!child.killed){child.kill(); try{child.kill('SIGKILL');}catch{}}
  }
 }
 
