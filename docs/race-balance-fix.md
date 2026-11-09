@@ -11,9 +11,10 @@ Small scoring/physics/UI audit on top of `work/claude-batch`.
 6. **Graffiti wall** (`ride-environment.js`): restored terrain-following ~1.7 m wall height (no fixed `wallTop` stretch that hid the backdrop in valleys).
 7. **Slow-mo toggle** (`ride.js`): SLOW MO is press-once to start, press-again to stop. No hold-to-run and no 15 s timeout. Still requires a jump/air window to arm, and still ends on crash/finish.
 8. **Pause menu** (`ride-pause.js` + `ride.js`): prominent top-centre Pause opens Respawn / Restart / Mode / Replay / Resume. Esc or P toggles it.
-9. **Replay buffer** (`ride-buffer.js` + `ride-replay.js`): rolling last-20s state (every physics step) and rolling canvas capture. Pause → Replay opens scrubber + Play, Drop In (full state restore, mid-trick stays mid-trick), Save screenshot / Save video. Existing slow-mo clip replay kept.
+9. **Replay buffer / library / theatre** (`ride-buffer.js` + `ride-replay.js`): rolling last-20s state (every physics step) and rolling canvas capture. Pause → YouTube-style glass player (latest 20s + IndexedDB library). Overlay play enters theatre (hide library; Play/Pause, Rewind, FF, scrubber, Drop In). Drop In for live buffer and saved clips with state. Never clears localStorage.
 10. **Unlimited zoom** (`builder-mode.js` + `player-view3d.js`): Settings toggle (off by default, `wk-unlimited-zoom`). On → workshop/garage orbit has no min/max zoom; Off → normal limits.
-11. **SW cache**: `wk-v19-trials-finish-1-racefix3`.
+11. **Check for update** (Settings): fetches `sw.js` (`cache: no-store`), compares build id, can force via long-press or second tap; unregisters SW + deletes caches (keeps localStorage), then cache-bust reload. Offline → "Can't reach server".
+12. **SW cache**: `wk-v19-trials-finish-1-racefix4`.
 
 ## Intentional non-goals
 No rewrite of longitudinal physics, stunts, Three.js, or `cloneForRide`. `DEV_INFINITE_MONEY` stays true. Workshop neon-background rebuild deferred (`/workspace/wk-workshop-bg-wip.patch`).

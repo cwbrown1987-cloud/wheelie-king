@@ -41,8 +41,10 @@ assert(ride.includes("k === \"escape\" || k === \"p\""));
 assert(ride.includes('recordStep'));
 assert(pause.includes('menu-respawn') && pause.includes('menu-replay'));
 assert(replay.includes('openFromPause') && replay.includes('dropIn'));
+assert(replay.includes('is-theatre') || readFileSync(new URL('../ride-controls.js',import.meta.url),'utf8').includes('is-theatre'));
+assert(readFileSync(new URL('../ride-gallery.js',import.meta.url),'utf8').includes('indexedDB'));
 assert(replay.includes('data-r="replay-play"') || ride.includes('data-r="replay-play"'));
-assert(sw.includes('racefix3') && sw.includes('ride-buffer.js') && sw.includes('ride-pause.js'));
+assert(sw.includes('racefix4') && sw.includes('ride-buffer.js') && sw.includes('ride-pause.js'));
 
 console.log(JSON.stringify({
   bufferSeconds: +buf.duration.toFixed(2),

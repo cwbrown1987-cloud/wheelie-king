@@ -62,6 +62,7 @@ export function cloneForRide(src) {
 }
 
 export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDetail=false, quality=null, theme=null, qualityManual=false, pixelRatioCap=null }) {
+  let disposed=false;
   const TH=typeof theme==='object'&&theme?theme:getTheme(theme);
   const picked=pickTier(),qualityPick=lowDetail||picked.manual?{name:'low',manual:true}:quality&&TIERS[quality]?{name:quality,manual:qualityManual}:picked,Q=TIERS[qualityPick.name],qualityMon=createQualityMonitor(qualityPick);let maxPR=Math.min(Q.maxPR,Number.isFinite(pixelRatioCap)&&pixelRatioCap>0?pixelRatioCap:Q.maxPR),qualityLog=[];lowDetail=Q.envLow;
   const src=(()=>{let root=null;globalThis.__WK_VIEW__?.scene.traverse(o=>{if(!root&&o.name==='wk:frame')root=o.parent});return root})(),preparedBike=src?cloneForRide(src):null;if(Q.trimTiny&&preparedBike)trimTinyMeshes(preparedBike);
@@ -128,7 +129,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   for (let i = 0; i < NP; i++) pm.setColorAt(i, col.set("#fff"));
   const slowKey = 'wk-trials-completed';
   let slowUnlocked = !flat && localStorage.getItem(slowKey) === '1';
-  let slowMo = false, reviewing = false, replayTail = 0;
+  let slowMo = false, reviewing = false, replayTail = 0, dropInEase = 0;
   let finishTime = 0, finishSpeed = 0, finishHeight = 0, finishFall = false, finishTumble = false;
   let photoDelay = -1, photoCount = 0;
   // state + input
@@ -149,7 +150,50 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
    <div data-h="trick" style="position:absolute;top:22%;width:100%;text-align:center;font-size:34px;color:#39ff7a;text-shadow:0 0 14px #000"></div>
    <div data-h="msg" style="position:absolute;top:36%;width:100%;text-align:center;font-size:26px;text-shadow:0 0 10px #000"></div>
    <button class="ride-replay-alert ride-glass" data-r="replay" hidden>● REPLAY</button>
-   <section class="ride-replay ride-glass" hidden><video playsinline></video><input type="range" min="0" step=".05" aria-label="Scrub replay"><div class="ride-replay-play"><button type="button" data-r="replay-play">Play</button></div><div><button type="button" data-r="drop-in">Drop In</button><button type="button" data-r="save-shot">Save screenshot</button><a data-r="save-video">Save video</a><button type="button" data-r="replay-close">Close</button></div></section>
+   <section class="ride-replay ride-glass" hidden role="dialog" aria-label="Replay">
+    <header class="ride-replay-head"><strong>REPLAY</strong><button type="button" class="ride-replay-x" data-r="replay-close" aria-label="Close">✕</button></header>
+    <div class="ride-replay-layout">
+      <div class="ride-replay-main">
+        <div class="ride-replay-stage">
+          <video playsinline></video>
+          <button type="button" class="ride-replay-overlay-play" data-r="overlay-play" aria-label="Play theatre">▶</button>
+        </div>
+        <div class="ride-replay-scrub"><label>Seek <input type="range" min="0" step=".05" aria-label="Scrub replay"></label><span data-r="replay-time">0:00 / 0:00</span></div>
+        <div class="ride-replay-actions">
+          <button type="button" class="ride-replay-playbtn" data-r="replay-play" aria-label="Play">▶</button>
+          <button type="button" class="ride-replay-drop" data-r="drop-in"><span aria-hidden="true">⤵</span> Drop In</button>
+          <button type="button" class="ride-save-btn" data-r="save-shot-gallery" title="Save frame to Gallery">🖼 Screenshot</button>
+          <button type="button" class="ride-save-btn" data-r="save-video-gallery" title="Save video to Gallery">💾 Save to Gallery</button>
+          <button type="button" class="ride-save-btn" data-r="save-video-device" title="Save video to device">⬇ Save to Device</button>
+          <a data-r="download-video" download="wheelie-king.webm" hidden>Save clip</a>
+        </div>
+      </div>
+      <aside class="ride-replay-library" aria-label="Saved replays">
+        <h3>Library</h3>
+        <button type="button" class="ride-replay-latest" data-r="latest-run" aria-pressed="true">
+          <span class="ride-replay-thumb ride-replay-thumb-live" aria-hidden="true">LIVE</span>
+          <span class="ride-replay-meta"><strong>Latest run</strong><small data-r="latest-meta">Last 20s · Drop In ready</small></span>
+        </button>
+        <div class="ride-replay-list" data-r="replay-list"></div>
+      </aside>
+    </div>
+    <div class="ride-replay-theatre">
+      <button type="button" class="ride-theatre-close" data-r="theatre-close" aria-label="Exit theatre">✕</button>
+      <div class="ride-theatre-bar">
+        <button type="button" data-r="theatre-rew" aria-label="Rewind 5 seconds">⏪ Rewind</button>
+        <button type="button" data-r="theatre-play" aria-label="Play">▶ Play</button>
+        <button type="button" data-r="theatre-ff" aria-label="Fast forward 5 seconds">Fast forward ⏩</button>
+        <label class="ride-theatre-seek">Scrub <input type="range" min="0" step=".05" data-r="theatre-scrub" aria-label="Scrub replay"></label>
+        <span data-r="theatre-time">0:00 / 0:00</span>
+        <button type="button" class="ride-replay-drop" data-r="theatre-drop"><span aria-hidden="true">⤵</span> Drop In</button>
+      </div>
+    </div>
+   </section>
+   <section class="ride-gallery ride-glass" hidden role="dialog" aria-label="Gallery">
+    <header class="ride-replay-head"><strong>GALLERY</strong><button type="button" class="ride-replay-x" data-r="gallery-close" aria-label="Close">✕</button></header>
+    <div class="ride-gallery-grid" data-r="gallery-grid"></div>
+    <p class="ride-gallery-empty" data-r="gallery-empty">No saves yet — capture screenshots or save replays.</p>
+   </section>
    <section class="ride-finish ride-glass" hidden><strong>TRIALS COMPLETE</strong><p></p><div class="ride-finish-photos"></div><div><button data-r="menu">MAIN MENU</button><button data-r="restart">RESTART RACE</button></div></section>
    ${rideControlsMarkup()}`;
   const $ = (q) => ui.querySelector(q), hud = Object.fromEntries([...ui.querySelectorAll("[data-h]")].map((e) => [e.dataset.h, e]));
@@ -161,6 +205,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     el.toggleAttribute('data-wk-reviewing', value);
     if (value) releaseControls();
   }, {
+    getMeta: () => ({
+      bike: find(build.frame)?.name || build.frame || 'Bike',
+      title: (flat ? 'Endless' : 'Trials') + ' run',
+    }),
     onClose() { pauseUi?.showMenu(); },
     onDropIn(frame) {
       const meta = restoreRideState(s, frame) || {};
@@ -172,7 +220,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       crashRig?.restore(); crashRig = null;
       delete el.dataset.wkCrashed;
       const recoverBtn = $('[data-r="recover"]'); if (recoverBtn) recoverBtn.hidden = true;
+      const crashReplayBtn = $('[data-r="crash-replay"]'); if (crashReplayBtn) crashReplayBtn.hidden = true;
       endSlow();
+      dropInEase = 1; // ~1s ease from slow-mo into live speed
       paused = false;
       el.removeAttribute('data-wk-paused');
       pauseUi?.syncFab(false);
@@ -212,7 +262,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
   $('[data-r="back"]').onclick = () => close(); $('[data-r="reset"]').onclick = () => respawn();
   const restartRun=()=>{finished=true;respawn();};
-  let replacementStop=null,disposed=false;const switchLevel=()=>{localStorage.setItem('wk-level',flat?'trials':'flat');stop(false);replacementStop=mountRide(el,{stats,build,onResult,onClose,lowDetail:qualityPick.manual,quality:qualityMon.state().tier,qualityManual:qualityPick.manual,pixelRatioCap:maxPR,theme:TH});};$('[data-r="level"]').onclick=switchLevel;
+  let replacementStop=null;const switchLevel=()=>{localStorage.setItem('wk-level',flat?'trials':'flat');stop(false);replacementStop=mountRide(el,{stats,build,onResult,onClose,lowDetail:qualityPick.manual,quality:qualityMon.state().tier,qualityManual:qualityPick.manual,pixelRatioCap:maxPR,theme:TH});};$('[data-r="level"]').onclick=switchLevel;
   pauseUi = mountRidePause(ui, {
     getPaused: () => paused,
     setPaused: (v) => { paused = v; },
@@ -220,8 +270,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     onRestart: () => restartRun(),
     onMode: () => switchLevel(),
     onReplay: () => { paused = true; el.toggleAttribute('data-wk-paused', true); replay.openFromPause(); },
+    onGallery: () => { paused = true; el.toggleAttribute('data-wk-paused', true); pauseUi?.syncFab(true); replay.openGallery?.(); },
     releaseControls,
     rootEl: el,
+    flat,
   });
   $('[data-r="tilt"]').onclick = async (e) => { try { if (!tilt && typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {} tilt = !tilt; tiltLean = 0; e.target.textContent = "TILT: " + (tilt ? "ON" : "OFF"); };
   function respawn() {
@@ -262,15 +314,23 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     msg = restarting ? "GO!" : "RECOVERED";
     msgT = restarting ? 2 : .7;
   }
-  const recover=document.createElement('button');recover.dataset.r='recover';recover.hidden=true;recover.textContent='↻ RECOVER';recover.setAttribute('aria-label','Instant recover');recover.style.cssText=btnCss('#65ee6b',170,48)+';position:absolute;left:50%;bottom:130px;transform:translateX(-50%);pointer-events:auto;font-weight:900;color:#092015;z-index:10';recover.onclick=respawn;ui.append(recover);
+  const crashActions=document.createElement('div');crashActions.className='ride-crash-actions';crashActions.hidden=true;
+  const recover=document.createElement('button');recover.dataset.r='recover';recover.textContent='↻ RECOVER';recover.setAttribute('aria-label','Instant recover');recover.style.cssText=btnCss('#65ee6b',170,48)+';pointer-events:auto;font-weight:900;color:#092015';recover.onclick=respawn;
+  const crashReplay=document.createElement('button');crashReplay.dataset.r='crash-replay';crashReplay.textContent='● REPLAY';crashReplay.setAttribute('aria-label','Replay last 20 seconds');crashReplay.style.cssText=btnCss('#1e3d32',150,48)+';pointer-events:auto;font-weight:900;color:#d9ffe8;border:2px solid #7dffb0';crashReplay.onclick=()=>{paused=true;el.toggleAttribute('data-wk-paused',true);releaseControls();pauseUi?.syncFab(true);replay.openFromPause();};
+  crashActions.append(recover,crashReplay);ui.append(crashActions);
+  Object.defineProperty(recover,'hidden',{configurable:true,get(){return crashActions.hidden},set(v){crashActions.hidden=!!v;}});
   function report() { if (reported) return; reported = true; saveCond({ dirt: Math.min(1, dirt), wear }); try { onResult?.({ score: Math.round(maxScore), flips, wheelieT: s.bestWheelie || 0, finished, money: Math.round(maxScore / 10) }); } catch (e) { console.warn(e); } }
   function close() { report(); onClose?.(); }
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   const viewLabel=ui.querySelector('.ride-view-label'),hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
   const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),realDt = paused || reviewing ? 0 : Math.min(0.05,cameraDt);
-    const dt = realDt * (slowMo ? .62 : 1);
+    let timeScale = 1;
+    if (slowMo) timeScale = .62;
+    else if (dropInEase > 0) { timeScale = 0.5 + (1 - dropInEase) * 0.5; dropInEase = Math.max(0, dropInEase - cameraDt); }
+    const dt = realDt * timeScale;
     last = now;
+    replay.setCaptureActive?.(!paused && !reviewing && !finished);
     const activeTime = realDt > 0 ? cameraDt : 0;
     if (replayTail > 0 && (replayTail -= activeTime) <= 0) replay.finish();
     if (finished && realDt > 0) {

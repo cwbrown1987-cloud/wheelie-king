@@ -90,7 +90,7 @@ const anchors={wheelR:.3,frontAxle:[.7,.3],rearAxle:[-.5,.3]};
   assert(!ride.includes('slowRemaining'));
   assert(env.includes('wallH=x=>1.7+.3*Math.cos'));
   assert(!env.includes('wallTop=2.4'));
-  assert(sw.includes('racefix3'));
+  assert(sw.includes('racefix4'));
   const builder=readFileSync(new URL('../builder-mode.js',import.meta.url),'utf8');
   const rooms=readFileSync(new URL('../player-view3d.js',import.meta.url),'utf8');
   assert(builder.includes('__WK_UNLIMITED_ZOOM__'));

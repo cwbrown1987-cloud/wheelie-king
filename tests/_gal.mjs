@@ -1,0 +1,23 @@
+import {chromium} from 'playwright';
+const b=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const p=await b.newPage({viewport:{width:1280,height:720},serviceWorkers:'block'});
+const err=[]; p.on('pageerror',e=>err.push(e.message));
+await p.goto('http://127.0.0.1:8766/');
+await p.waitForFunction(()=>globalThis.__WK_EQUIP__&&globalThis.__WK_GALLERY__);
+await p.evaluate(()=>__WK_EQUIP__('bike_trax_lime'));
+await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded,{timeout:60000});
+await p.evaluate(async()=>{
+  const thumb=c=>{const el=document.createElement('canvas');el.width=320;el.height=180;const g=el.getContext('2d');g.fillStyle=c;g.fillRect(0,0,320,180);g.fillStyle='#fff';g.font='bold 22px sans-serif';g.fillText('GAL',14,40);return el.toDataURL('image/jpeg',.7)};
+  const u=thumb('#2a6'); const png=await(await fetch(u)).blob();
+  await __WK_GALLERY__.add({type:'image',blob:png,thumb:u,title:'Landing shot',bike:'Trax Lime'});
+  await __WK_GALLERY__.add({type:'video',blob:new Blob([new Uint8Array(24)],{type:'video/webm'}),thumb:thumb('#1b4'),title:'Trials clip',bike:'Trax Lime',duration:11});
+  await __WK_GALLERY__.add({type:'video',blob:new Blob([new Uint8Array(24)],{type:'video/webm'}),thumb:thumb('#248'),title:'Endless clip',bike:'Moto 8k',duration:17});
+});
+await p.locator('[data-r=pause]').click();
+await p.getByRole('button',{name:/Gallery/i}).click();
+await p.waitForSelector('.ride-gallery:not([hidden])');
+await p.waitForFunction(()=>document.querySelectorAll('.ride-gallery-card').length>=2);
+await p.screenshot({path:'/workspace/wk-gallery.png'});
+console.log(JSON.stringify({ok:true,cards:await p.locator('.ride-gallery-card').count(),err}));
+await b.close();

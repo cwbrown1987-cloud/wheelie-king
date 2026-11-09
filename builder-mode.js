@@ -20,6 +20,39 @@ function applyAllZoomLimits(){
  dispatchEvent(new CustomEvent('wk-unlimited-zoom',{detail:{enabled:unlimitedZoom}}));
 }
 globalThis.__WK_UNLIMITED_ZOOM__={get enabled(){return unlimitedZoom},set(value){unlimitedZoom=!!value;localStorage.setItem('wk-unlimited-zoom',unlimitedZoom?'1':'0');applyAllZoomLimits();last='';tick();return true}};
+function shortBuild(id){const s=String(id||'');const m=s.match(/racefix\d+|wk-[\w.-]+$/);return m?m[0]:(s.slice(-24)||'unknown')}
+async function currentBuildId(){
+ if(globalThis.__WK_BUILD_ID__)return globalThis.__WK_BUILD_ID__;
+ try{const keys=await caches.keys();const hit=keys.find(k=>/wk-/i.test(k))||keys[0];if(hit){globalThis.__WK_BUILD_ID__=hit;return hit}}catch{}
+ return globalThis.__WK_BUILD_ID__||'local';
+}
+async function applyUpdate(remoteLabel){
+ const regs=navigator.serviceWorker?await navigator.serviceWorker.getRegistrations():[];
+ await Promise.all(regs.map(async r=>{try{await r.update()}catch{} try{await r.unregister()}catch{}}));
+ try{const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)))}catch{}
+ // localStorage / saves / garage / settings intentionally untouched
+ const u=new URL(location.href);u.searchParams.set('wkcb',String(Date.now()));
+ location.replace(u.href);
+}
+globalThis.__WK_CHECK_UPDATE__=async({force=false,onStatus}={})=>{
+ const status=msg=>{try{onStatus?.(msg)}catch{}};
+ status('Checking…');
+ let remote;
+ try{
+  const res=await fetch(`sw.js?wkcb=${Date.now()}`,{cache:'no-store'});
+  if(!res.ok)throw new Error('http');
+  const text=await res.text();
+  remote=(text.match(/const\s+CACHE\s*=\s*["']([^"']+)["']/)||[])[1];
+  if(!remote)throw new Error('parse');
+ }catch{ status("Can't reach server"); return {ok:false,reason:'offline'}; }
+ const local=await currentBuildId();
+ const same=shortBuild(local)===shortBuild(remote)||local===remote;
+ if(!force&&same){ status(`You're on the latest (${shortBuild(local)})`); return {ok:true,latest:true,local,remote}; }
+ status(`Updating to build ${shortBuild(remote)}…`);
+ await applyUpdate(shortBuild(remote));
+ return {ok:true,latest:false,local,remote};
+};
+
 
 let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null,menuStack=[],categoryToggle,rotationButton,lastControls,dock,previewActions;
 let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{last='';globalThis.__WK_SETBUILD__?.(b=>({...b}))},160)});
@@ -104,6 +137,17 @@ function tick(){
   let zoom=settings.querySelector('[data-wk-unlimited-zoom]');
   if(!zoom){zoom=document.createElement('button');zoom.type='button';zoom.dataset.wkUnlimitedZoom='';zoom.setAttribute('aria-label','Unlimited zoom');zoom.style.cssText=btnCss;zoom.onclick=()=>globalThis.__WK_UNLIMITED_ZOOM__.set(!unlimitedZoom);settings.append(zoom);}
   zoom.textContent='Unlimited zoom: '+(unlimitedZoom?'On':'Off');zoom.setAttribute('aria-pressed',String(unlimitedZoom));
+  let upd=settings.querySelector('[data-wk-check-update]');
+  if(!upd){
+   upd=document.createElement('button');upd.type='button';upd.dataset.wkCheckUpdate='';upd.setAttribute('aria-label','Check for update');upd.style.cssText=btnCss;
+   let pressTimer=null,forced=false;
+   const run=force=>globalThis.__WK_CHECK_UPDATE__({force,onStatus:msg=>{upd.textContent=msg}});
+   upd.addEventListener('pointerdown',e=>{if(e.button&&e.button!==0)return;forced=false;pressTimer=setTimeout(()=>{forced=true;run(true)},650)});
+   const clear=()=>{clearTimeout(pressTimer);pressTimer=null};
+   upd.addEventListener('pointerup',clear);upd.addEventListener('pointerleave',clear);upd.addEventListener('pointercancel',clear);
+   upd.onclick=()=>{if(forced){forced=false;return} const latest=/You're on the latest/.test(upd.textContent||''); run(latest);};
+   upd.textContent='Check for update';settings.append(upd);
+  }
  }
  const riding=!!document.querySelector('[data-ride]'),garage=!!globalThis.__WK_VIEW__?.renderer?.domElement?.isConnected&&!riding;
  if(!panel){panel=document.createElement('section');panel.id='wk-builder';panel.setAttribute('aria-label','Builder mode');document.body.append(panel);}
