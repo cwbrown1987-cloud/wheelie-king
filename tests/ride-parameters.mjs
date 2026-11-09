@@ -7,7 +7,9 @@ const parts={motor:{w:8000,nm:140,v:72,kind:'mid',nopedal:true},battery:{v:72,ah
 const find=id=>parts[id];
 const anchors={wheelR:.265,frontAxle:[.72,.265],rearAxle:[-.53,.265]};
 let p=rideParameters({kg:15,speed:18},{},anchors,find);assert(p.pedal);assert.equal(p.power,250);assert.equal(p.vmax,5);assert.equal(p.wb,1.25);assert.equal(p.batteryWh,0);
-p=rideParameters({P:8000,nm:140,speed:72,kg:68},{motor:'motor',battery:'battery',suspension:'fork',rear_frame:'arm',shock:'shock'},anchors,find);assert(!p.pedal);assert.equal(p.mass,143);assert.equal(p.power,8000);assert.equal(p.vmax,20);assert.equal(p.batteryWh,3600);assert.equal(p.travelF,.15);assert.equal(p.travelR,.06);assert.equal(p.requestedTravelR,.12);
+p=rideParameters({P:8000,nm:140,speed:72,kg:68},{motor:'motor',battery:'battery',suspension:'fork',rear_frame:'arm',shock:'shock'},anchors,find);assert(!p.pedal);assert.equal(p.mass,143);assert.equal(p.power,8000);assert.equal(p.vmax,20);assert.equal(p.batteryWh,3600);assert.equal(p.travelF,.15);assert.equal(p.travelR,.12);assert.equal(p.requestedTravelR,.12);
+p=rideParameters({P:8000,nm:140,speed:72,kg:68},{motor:'motor',battery:'battery',suspension:'fork',rear_frame:'arm',shock:'shock'},anchors,id=>id==='shock'?{travel:.23}:find(id));assert.equal(p.requestedTravelR,.23);assert.equal(p.travelR,.14);
+
 p=rideParameters({P:100,nm:0,speed:20},{motor:'front'},anchors,find);assert(!p.pedal);assert.equal(p.driveAxle,'front');assert.equal(p.power,100);assert.equal(p.torque,0);
 p=rideParameters({speed:72},{motor:'petrol',fuel_tank:'tank'},anchors,find);assert(!p.pedal);assert.equal(p.powertrain,'petrol');assert.equal(p.power,7500);assert.equal(p.batteryWh,5340);
 parts.empty={litres:0};p=rideParameters({P:0,nm:0,speed:0},{motor:'petrol',fuel_tank:'empty'},anchors,find);assert(!p.pedal);assert.equal(p.power,0);assert.equal(p.vmax,0);assert.equal(p.batteryWh,0);

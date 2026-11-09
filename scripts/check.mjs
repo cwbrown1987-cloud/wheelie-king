@@ -3,11 +3,11 @@ import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {root,stageRuntime} from './package.mjs';
 
-const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-camera','ride-loop','ride-finish','ride-lod','ride-quality','ride-themes','quality-lifecycle','ride-landings','wheelie-balance','air-control','ride-controls','crash-physics','crash-ride'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
+const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-camera','ride-loop','ride-finish','ride-lod','ride-quality','ride-themes','quality-lifecycle','ride-landings','wheelie-balance','air-control','ride-controls','crash-physics','crash-ride','race-balance'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
 profiles.gpu=['claude-gpu'];
 profiles.transitions=['screen-transitions'];
 profiles.rooms=['world-room','workshop-presentation','garage-drag','player-rooms','manage-rides','workshop-mobile'];
-profiles.powertrain=['ride-parameters','physics-cadence','ride-parameter-integration'];
+profiles.powertrain=['ride-parameters','physics-cadence','ride-parameter-integration','race-balance'];
 profiles.menus=['part-fitment','basic-crazy','simple-builder','sticker-picker','workshop-mobile','shop-space'];
 profiles.release=[...profiles.transitions,...profiles.rooms,...profiles.powertrain,...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
 const requested=process.argv.slice(2);if(!requested.length)requested.push('static');

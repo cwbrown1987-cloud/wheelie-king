@@ -155,10 +155,14 @@ export function step(s, p, inp, dt, ter) {
     if (s.air > 0.45 || name) { if (off < 0.15) { pts += 150; name = (name || "AIR " + s.air.toFixed(1) + "s") + " · PERFECT"; } pop(name || "AIR " + s.air.toFixed(1) + "s", pts); }
     if(s.air>.08)s.events.push({ type: "land", v: impactV, air: s.air }); s.pitch=wrapAngle(s.pitch);s.air=0;s.airRot=0;
   }
-  // ground balance tricks
+  // ground balance tricks — scale by forward speed so a near-stationary manual earns little.
+  // Driven distance adds a modest provisional score (landed/finish still owns the payout).
   const rel = wrapAngle(s.pitch - ter.slope(s.x));
-  if (s.ground[0] && !s.ground[1] && rel > 0.12) { s.wheelieT += dt; s.score += (inp.throttle > 0 ? 70 : 100) * dt; s.balance = inp.throttle > 0 ? "WHEELIE" : "MANUAL"; }
-  else if (s.ground[1] && !s.ground[0] && rel < -0.1) { s.stoppieT += dt; s.score += (inp.brake > 0 ? 120 : 140) * dt; s.balance = inp.brake > 0 ? "STOPPIE" : "NOSE MANUAL"; }
+  const speedFactor = Math.min(1, Math.max(0.12, Math.abs(s.vx) / 6));
+  const driving = inp.throttle > 0 && s.vx > 0.2 && s.ground[driven] && (p.pedal || s.battery > 0);
+  if (driving) s.score += 4 * s.vx * dt;
+  if (s.ground[0] && !s.ground[1] && rel > 0.12) { s.wheelieT += dt; s.score += (inp.throttle > 0 ? 70 : 100) * speedFactor * dt; s.balance = inp.throttle > 0 ? "WHEELIE" : "MANUAL"; }
+  else if (s.ground[1] && !s.ground[0] && rel < -0.1) { s.stoppieT += dt; s.score += (inp.brake > 0 ? 120 : 140) * speedFactor * dt; s.balance = inp.brake > 0 ? "STOPPIE" : "NOSE MANUAL"; }
   else { if (s.balance && (s.wheelieT > 1 || s.stoppieT > 0.6)) pop(`${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s`, 0); s.balance = ""; if (onG && s.ground[0] && s.ground[1]) { s.bestWheelie = Math.max(s.bestWheelie || 0, s.wheelieT); s.wheelieT = 0; s.stoppieT = 0; } }
   if(s.ground[1]&&!s.ground[0]&&rel< -1.15&&rel> -1.5&&inp.brake>0&&inp.lean<0){s.pitch=ter.slope(s.x)-1.15;s.w=Math.max(0,s.w);}
   if (onG && (rel > 2.4)) return crash(s, "LOOPED OUT", "fender_r");
