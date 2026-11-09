@@ -1,4 +1,6 @@
 import { mountRideReplay } from './ride-replay.js';
+import { pauseMenuMarkup, mountRidePause } from './ride-pause.js';
+import { restoreRideState } from './ride-buffer.js';
 import { makeLoopMesh } from './ride-loop.js';
 // Wheelie King ride (v16). MotoX-Mayhem-style side-on 3D ride using the REAL garage bike (cloned, with its parts and stickers).
 // Physics: ride-physics.js (pure 2D, reusable for a later 3D mode). This file is only rendering, input, FX, HUD and saving condition.
@@ -126,27 +128,28 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   for (let i = 0; i < NP; i++) pm.setColorAt(i, col.set("#fff"));
   const slowKey = 'wk-trials-completed';
   let slowUnlocked = !flat && localStorage.getItem(slowKey) === '1';
-  let slowRemaining = 0, reviewing = false, replayTail = 0;
+  let slowMo = false, reviewing = false, replayTail = 0;
   let finishTime = 0, finishSpeed = 0, finishHeight = 0, finishFall = false, finishTumble = false;
   let photoDelay = -1, photoCount = 0;
   // state + input
   let crashRig=null;let s = makeState(P, 2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
-  const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0 }; let tilt = false, tiltLean = 0,paused=false;
-  const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") replay.clear(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;const action=({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); if (k === "escape") close(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
+  const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0 }; let tilt = false, tiltLean = 0,paused=false; let pauseUi=null;
+  const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;const action=({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   const ori = (e) => { if (tilt && e.gamma != null) { const land = Math.abs(window.orientation || screen.orientation?.angle || 0) === 90; const v = land ? (e.beta || 0) * Math.sign(window.orientation || screen.orientation?.angle || 1) : e.gamma; tiltLean = Math.max(-1, Math.min(1, -v / 25)); } };
   addEventListener("deviceorientation", ori);
   // HUD + touch controls (DOM over the canvas)
   const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none"; el.appendChild(ui);
   ui.innerHTML = `<div class="ride-view-label">▣ SIDE VIEW (2.5D)</div><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
-    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="pause" aria-label="Pause ride" style="${btnCss("#222", 48, 44)}">Ⅱ</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">ENDLESS ${flat?"∞":"OFF"}</button></div>
+    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">ENDLESS ${flat?"∞":"OFF"}</button></div>
+   ${pauseMenuMarkup(flat)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
    <div style="position:absolute;top:96px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
    <div data-h="trick" style="position:absolute;top:22%;width:100%;text-align:center;font-size:34px;color:#39ff7a;text-shadow:0 0 14px #000"></div>
    <div data-h="msg" style="position:absolute;top:36%;width:100%;text-align:center;font-size:26px;text-shadow:0 0 10px #000"></div>
    <button class="ride-replay-alert ride-glass" data-r="replay" hidden>● REPLAY</button>
-   <section class="ride-replay ride-glass" hidden><video playsinline controls></video><input type="range" min="0" step=".05" aria-label="Scrub replay"><div><a>Save clip</a><button type="button">Close</button></div></section>
+   <section class="ride-replay ride-glass" hidden><video playsinline></video><input type="range" min="0" step=".05" aria-label="Scrub replay"><div class="ride-replay-play"><button type="button" data-r="replay-play">Play</button></div><div><button type="button" data-r="drop-in">Drop In</button><button type="button" data-r="save-shot">Save screenshot</button><a data-r="save-video">Save video</a><button type="button" data-r="replay-close">Close</button></div></section>
    <section class="ride-finish ride-glass" hidden><strong>TRIALS COMPLETE</strong><p></p><div class="ride-finish-photos"></div><div><button data-r="menu">MAIN MENU</button><button data-r="restart">RESTART RACE</button></div></section>
    ${rideControlsMarkup()}`;
   const $ = (q) => ui.querySelector(q), hud = Object.fromEntries([...ui.querySelectorAll("[data-h]")].map((e) => [e.dataset.h, e]));
@@ -157,21 +160,41 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     reviewing = value;
     el.toggleAttribute('data-wk-reviewing', value);
     if (value) releaseControls();
+  }, {
+    onClose() { pauseUi?.showMenu(); },
+    onDropIn(frame) {
+      const meta = restoreRideState(s, frame) || {};
+      if (meta.dirt != null) dirt = meta.dirt;
+      if (meta.wear) wear = { ...meta.wear };
+      if (meta.flips != null) flips = meta.flips;
+      if (meta.maxScore != null) maxScore = meta.maxScore;
+      if (meta.lastCP != null) lastCP = meta.lastCP;
+      crashRig?.restore(); crashRig = null;
+      delete el.dataset.wkCrashed;
+      const recoverBtn = $('[data-r="recover"]'); if (recoverBtn) recoverBtn.hidden = true;
+      endSlow();
+      paused = false;
+      el.removeAttribute('data-wk-paused');
+      pauseUi?.syncFab(false);
+      releaseControls();
+      return meta;
+    },
   });
   function endSlow() {
-    if (!slowRemaining) return;
-    slowRemaining = 0;
+    if (!slowMo) return;
+    slowMo = false;
     slowButton.setAttribute('aria-pressed', 'false');
     replayTail = 2.5;
   }
+  // Toggle: press once to start slow-mo, press again to stop. No hold, no timeout.
   slowButton.onclick = () => {
-    if (slowRemaining) return endSlow();
+    if (slowMo) return endSlow();
     if (!slowUnlocked || paused || reviewing || finished || s.crashed || s.loopRide || s.ground.some(Boolean)) return;
     const clearance = s.y - ter.h(s.x) - hC - P.R;
     const rise = Math.max(0, s.vy) ** 2 / (2 * 9.8);
     if (!s.wasAir || clearance + rise < 1.25) return;
     replayTail = 0;
-    slowRemaining = 15;
+    slowMo = true;
     slowButton.setAttribute('aria-pressed', 'true');
     replay.start();
   };
@@ -188,8 +211,18 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const visibility=()=>{if(document.hidden)releaseControls()};
   addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
   $('[data-r="back"]').onclick = () => close(); $('[data-r="reset"]').onclick = () => respawn();
-  $('[data-r="pause"]').onclick=()=>{paused=!paused;el.toggleAttribute('data-wk-paused',paused);releaseControls();const b=$('[data-r="pause"]');b.textContent=paused?'▶':'Ⅱ';b.setAttribute('aria-label',paused?'Resume ride':'Pause ride');};
+  const restartRun=()=>{finished=true;respawn();};
   let replacementStop=null,disposed=false;const switchLevel=()=>{localStorage.setItem('wk-level',flat?'trials':'flat');stop(false);replacementStop=mountRide(el,{stats,build,onResult,onClose,lowDetail:qualityPick.manual,quality:qualityMon.state().tier,qualityManual:qualityPick.manual,pixelRatioCap:maxPR,theme:TH});};$('[data-r="level"]').onclick=switchLevel;
+  pauseUi = mountRidePause(ui, {
+    getPaused: () => paused,
+    setPaused: (v) => { paused = v; },
+    onRespawn: () => respawn(),
+    onRestart: () => restartRun(),
+    onMode: () => switchLevel(),
+    onReplay: () => { paused = true; el.toggleAttribute('data-wk-paused', true); replay.openFromPause(); },
+    releaseControls,
+    rootEl: el,
+  });
   $('[data-r="tilt"]').onclick = async (e) => { try { if (!tilt && typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {} tilt = !tilt; tiltLean = 0; e.target.textContent = "TILT: " + (tilt ? "ON" : "OFF"); };
   function respawn() {
     const restarting = finished;
@@ -217,9 +250,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     releaseControls();
     paused = false;
     el.removeAttribute('data-wk-paused');
-    const pause = $('[data-r="pause"]');
-    pause.textContent = "Ⅱ";
-    pause.setAttribute('aria-label', 'Pause ride');
+    pauseUi?.close(true);
+    pauseUi?.syncFab(false);
     delete el.dataset.wkCrashed;
     recover.hidden = true;
     s = Object.assign(makeState(P, lastCP, ter), keep);
@@ -237,12 +269,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   const viewLabel=ui.querySelector('.ride-view-label'),hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
   const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),realDt = paused || reviewing ? 0 : Math.min(0.05,cameraDt);
-    const dt = realDt * (slowRemaining ? .62 : 1);
+    const dt = realDt * (slowMo ? .62 : 1);
     last = now;
     const activeTime = realDt > 0 ? cameraDt : 0;
     if (replayTail > 0 && (replayTail -= activeTime) <= 0) replay.finish();
-    if (slowRemaining > 0 && slowRemaining <= activeTime) endSlow();
-    else if (slowRemaining > 0) slowRemaining -= activeTime;
     if (finished && realDt > 0) {
       finishTime += activeTime;
       if (finishTime >= 1) finishPanel.hidden = false;
@@ -266,7 +296,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });
     if (!s.crashed && !finished) {
       const n = Math.ceil(dt * 480);
-      for (let k = 0; k < n; k++) step(s, P, inp, dt / n, ter);
+      for (let k = 0; k < n; k++) {
+        step(s, P, inp, dt / n, ter);
+        if (dt > 0) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
+      }
     }
     if (s.crashed) endSlow();
     // events -> FX, wear, messages

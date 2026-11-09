@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const builder=readFileSync(new URL('../builder-mode.js',import.meta.url),'utf8');
+const rooms=readFileSync(new URL('../player-view3d.js',import.meta.url),'utf8');
+assert(builder.includes("localStorage.getItem('wk-unlimited-zoom')==='1'"));
+assert(builder.includes('__WK_UNLIMITED_ZOOM__'));
+assert(builder.includes('data-wk-unlimited-zoom') || builder.includes('dataset.wkUnlimitedZoom'));
+assert(builder.includes('WORKSHOP_ZOOM') && builder.includes('min:.12') && builder.includes('max:4.2'));
+assert(builder.includes('controls.minDistance=.001') && builder.includes('controls.maxDistance=1e6'));
+assert(rooms.includes("localStorage.getItem('wk-unlimited-zoom')==='1'"));
+assert(rooms.includes('character?1.1:.75'));
+assert(rooms.includes('character?5:15'));
+assert(!builder.includes("localStorage.getItem('wk-unlimited-zoom')!=='0'"), 'must default off (===1 only)');
+console.log(JSON.stringify({unlimitedZoomDefaultOff:true,workshopLimits:[.12,4.2],garageLimits:[.75,15],settingsToggle:true}));

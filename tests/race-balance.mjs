@@ -74,16 +74,46 @@ const anchors={wheelR:.3,frontAxle:[.7,.3],rearAxle:[-.5,.3]};
 }
 
 
-// 6) Source contracts: Trials default + post-gear 110 cap (app.js is a minified bundle).
+// 6) Source contracts: Trials default, no hard speed caps, slow-mo toggle, unstretched ride wall.
 {
   const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
   const ride=readFileSync(new URL('../ride.js',import.meta.url),'utf8');
+  const phys=readFileSync(new URL('../ride-physics.js',import.meta.url),'utf8');
+  const env=readFileSync(new URL('../ride-environment.js',import.meta.url),'utf8');
   const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
   assert(ride.includes("(localStorage.getItem('wk-level')||'trials')==='flat'"));
-  assert(app.includes('I+=MOD.speed,I=Math.min(110,I),he=cl0'));
-  assert(!app.includes('I=E?Math.min(110,18+Math.sqrt(E)*1.15*C):18'));
-  assert(sw.includes('racefix1'));
+  assert(!app.includes('Math.min(110'));
+  assert(!phys.includes('Math.min(40, 6 + Math.sqrt(motorW)'));
+  assert(phys.includes('vmax: pedal ? 8 : 6 + Math.sqrt(motorW) * 0.35'));
+  assert(ride.includes('let slowMo = false'));
+  assert(ride.includes('// Toggle: press once to start slow-mo'));
+  assert(!ride.includes('slowRemaining'));
+  assert(env.includes('wallH=x=>1.7+.3*Math.cos'));
+  assert(!env.includes('wallTop=2.4'));
+  assert(sw.includes('racefix3'));
+  const builder=readFileSync(new URL('../builder-mode.js',import.meta.url),'utf8');
+  const rooms=readFileSync(new URL('../player-view3d.js',import.meta.url),'utf8');
+  assert(builder.includes('__WK_UNLIMITED_ZOOM__'));
+  assert(builder.includes('wk-unlimited-zoom'));
+  assert(builder.includes('Unlimited zoom'));
+  assert(rooms.includes('wk-unlimited-zoom'));
+  assert(rooms.includes('limits.min'));
 }
+
+// 7) Uncapped crazy power can exceed former 110 / 40 clamps via physics vmax path.
+{
+  const p=bikeParams({P:18000,nm:540,kg:40,travel:.2});
+  assert(p.vmax > 40, 'physics vmax uncapped, got '+p.vmax);
+}
+
+// 8) Slow-mo flag is boolean toggle semantics (no duration field).
+{
+  const ride=readFileSync(new URL('../ride.js',import.meta.url),'utf8');
+  assert(ride.includes('if (slowMo) return endSlow()'));
+  assert(ride.includes('slowMo = true'));
+  assert(!/slowMo\s*=\s*\d/.test(ride));
+}
+
 
 console.log(JSON.stringify({
   drivenDistance:true,
@@ -91,5 +121,4 @@ console.log(JSON.stringify({
   speedScaledBalance:true,
   trialsFinishFinite:true,
   rearTravelDifferentiates:true,
-  farmBeatsTrials:false, trialsDefault:true, speedCapAfterGear:true, cacheBumped:true
-}));
+  farmBeatsTrials:false, trialsDefault:true, noSpeedCap:true, slowMoToggle:true, wallFollowsTerrain:true, cacheBumped:true}));

@@ -37,7 +37,7 @@ export function bikeParams(stats = {}) {
   return {
     mass: (stats.kg || 15) + 75, wb: stats.wb || 1.0, comBack: stats.comBack || 0.42, comH: stats.comH || 0.95,
     R: stats.wheelR || 0.3, power: pedal ? 250 : motorW, torque: pedal ? 40 : Math.max(0,stats.nm??60), pedal, powertrain:stats.powertrain||(pedal?'human':'electric'),
-    vmax: pedal ? 8 : Math.min(40, 6 + Math.sqrt(motorW) * 0.35),
+    vmax: pedal ? 8 : 6 + Math.sqrt(motorW) * 0.35,
     travelF: Math.max(0, stats.travel ?? 0), travelR: Math.max(0, stats.shock ?? 0), damp: stats.damp ?? 0.3, grip: stats.grip || 1,
     batteryWh: stats.batteryWh || 0,driveAxle:stats.driveAxle||'rear' };
 }

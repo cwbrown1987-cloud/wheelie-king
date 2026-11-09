@@ -8,6 +8,19 @@ const policy=(before,next)=>powerPolicy(before,next,{mode,crazy});
 globalThis.__WK_POWER_BUILD_OK__=(before,next)=>policy(before,next).allowed;
 globalThis.__WK_POWER_POLICY__=(before,id)=>policy(before,proposedBuild(before,id));
 globalThis.__WK_CRAZY_BUILDS__={get enabled(){return mode==='simple'&&crazy},set(value){if(mode!=='simple'||pending)return false;crazy=!!value;localStorage.setItem('wk-basic-crazy',crazy?'1':'0');last='';tick();return true}};
+let unlimitedZoom=localStorage.getItem('wk-unlimited-zoom')==='1';
+const WORKSHOP_ZOOM={min:.12,max:4.2};
+function applyZoomLimits(controls,limits){
+ if(!controls)return;
+ if(unlimitedZoom){controls.minDistance=.001;controls.maxDistance=1e6;}
+ else{controls.minDistance=limits.min;controls.maxDistance=limits.max;}
+}
+function applyAllZoomLimits(){
+ applyZoomLimits(globalThis.__WK_VIEW__?.controls,WORKSHOP_ZOOM);
+ dispatchEvent(new CustomEvent('wk-unlimited-zoom',{detail:{enabled:unlimitedZoom}}));
+}
+globalThis.__WK_UNLIMITED_ZOOM__={get enabled(){return unlimitedZoom},set(value){unlimitedZoom=!!value;localStorage.setItem('wk-unlimited-zoom',unlimitedZoom?'1':'0');applyAllZoomLimits();last='';tick();return true}};
+
 let mode=localStorage.getItem('wk-builder-mode')||'simple',panel,modeToggle,simpleRail,last='',section='home',pending=null,menuStack=[],categoryToggle,rotationButton,lastControls,dock,previewActions;
 let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{last='';globalThis.__WK_SETBUILD__?.(b=>({...b}))},160)});
 function kitPlan(build,p){const b=p.completeBike?{}:{...build};for(const id of p.kit||[])b[part(id).slot]=id;if(!policy(build,b).allowed)return null;for(let pass=0;pass<3;pass++)for(const id of Object.values(b)){if(!id)continue;const f=globalThis.__WK_FIT__(b,id);if(f.status==='no')return null;for(const a of f.adapters||[])b[part(a).slot]=a;}return globalThis.__WK_BUILD_READY__(b).ready?b:null;}
@@ -83,7 +96,15 @@ body:has(#wk-builder:not([hidden])) [data-rail="left"],body:has([data-stickers][
 function partStats(p){const values=[];if(p.w)values.push(p.w+' W');if(p.v)values.push(p.v+' V');if(p.ah)values.push(p.ah+' Ah');if(p.travel!=null)values.push(Math.round(p.travel*1000)+' mm travel');if(p.teeth)values.push(p.teeth+'T');if(p.size)values.push(p.size==='moto'?'Moto':p.size+' inch');if(p.kg)values.push(p.kg.toFixed(1)+' kg');if(p.slot==='kit')values.push(p.kit.length+' matched parts');return values.slice(0,3).join(' · ')||p.finish||'Compatible fit';}
 function tick(){
  const settings=document.querySelector('[data-wk-crazy-settings]');
- if(settings){let toggle=settings.querySelector('button');if(!toggle){toggle=document.createElement('button');toggle.type='button';toggle.dataset.wkCrazy='';toggle.setAttribute('aria-label','Extra-crazy builds');toggle.style.cssText='width:100%;padding:14px;text-align:left;background:#203749aa;border:1px solid #81bcac66;border-radius:10px;color:#eefaff;font:inherit';toggle.onclick=()=>globalThis.__WK_CRAZY_BUILDS__.set(!crazy);settings.append(toggle);}toggle.textContent='Crazy builds: '+(crazy?'On':'Off')+(mode==='simple'?'':' · Basic mode only');toggle.setAttribute('aria-pressed',String(crazy));toggle.disabled=mode!=='simple'||!!pending;}
+ if(settings){
+  const btnCss='width:100%;padding:14px;text-align:left;background:#203749aa;border:1px solid #81bcac66;border-radius:10px;color:#eefaff;font:inherit;margin-top:8px';
+  let toggle=settings.querySelector('[data-wk-crazy]');
+  if(!toggle){toggle=document.createElement('button');toggle.type='button';toggle.dataset.wkCrazy='';toggle.setAttribute('aria-label','Extra-crazy builds');toggle.style.cssText=btnCss+';margin-top:0';toggle.onclick=()=>globalThis.__WK_CRAZY_BUILDS__.set(!crazy);settings.append(toggle);}
+  toggle.textContent='Crazy builds: '+(crazy?'On':'Off')+(mode==='simple'?'':' · Basic mode only');toggle.setAttribute('aria-pressed',String(crazy));toggle.disabled=mode!=='simple'||!!pending;
+  let zoom=settings.querySelector('[data-wk-unlimited-zoom]');
+  if(!zoom){zoom=document.createElement('button');zoom.type='button';zoom.dataset.wkUnlimitedZoom='';zoom.setAttribute('aria-label','Unlimited zoom');zoom.style.cssText=btnCss;zoom.onclick=()=>globalThis.__WK_UNLIMITED_ZOOM__.set(!unlimitedZoom);settings.append(zoom);}
+  zoom.textContent='Unlimited zoom: '+(unlimitedZoom?'On':'Off');zoom.setAttribute('aria-pressed',String(unlimitedZoom));
+ }
  const riding=!!document.querySelector('[data-ride]'),garage=!!globalThis.__WK_VIEW__?.renderer?.domElement?.isConnected&&!riding;
  if(!panel){panel=document.createElement('section');panel.id='wk-builder';panel.setAttribute('aria-label','Builder mode');document.body.append(panel);}
  if(!pending)panel.hidden=!garage||((mode==='advanced'&&section!=='accessories')||section==='home');else if(!garage)panel.hidden=true;if(!garage){if(pending)finish(false);return;}
@@ -91,7 +112,7 @@ function tick(){
  if(panel.parentElement!==rail.parentElement)rail.parentElement.append(panel);panel.style.left='0px';
  if(!categoryToggle){categoryToggle=document.createElement('button');categoryToggle.id='wk-all-categories';categoryToggle.setAttribute('aria-label','All categories');categoryToggle.innerHTML='▦<span>ALL PARTS</span>';categoryToggle.onclick=()=>{const r=categoryToggle.parentElement;r.setAttribute('data-expanded',String(r.getAttribute('data-expanded')!=='true'));categoryToggle.setAttribute('aria-expanded',r.dataset.expanded)};}if(categoryToggle.parentElement!==rail)rail.prepend(categoryToggle);
  if(!dock){dock=document.createElement('div');dock.id='wk-sidebar-dock';dock.innerHTML='<button data-wk-sticker-dock aria-label="Stickers"><span>STICKERS</span></button><button data-wk-mode-proxy aria-label="Simple / Advanced"></button>';dock.querySelector('[data-wk-sticker-dock]').onclick=()=>{section='home';menuStack=[];last='';globalThis.__WK_CLOSE_DRAWERS__?.();document.querySelector('[data-cat="sticker"]')?.click();tick()};dock.querySelector('[data-wk-mode-proxy]').onclick=()=>modeToggle?.click()}if(dock.parentElement!==rail.parentElement)rail.parentElement.append(dock);dock.style.width=rail.style.width;for(const button of dock.querySelectorAll('button'))button.disabled=!!pending;
- const view=globalThis.__WK_VIEW__;if(lastControls!==view.controls){lastControls=view.controls;view.controls.autoRotate=localStorage.getItem('wk-rotation-paused')!=='1';}if(!rotationButton){rotationButton=document.createElement('button');rotationButton.dataset.wkRotate='';rotationButton.onclick=()=>{const c=globalThis.__WK_VIEW__.controls;c.autoRotate=!c.autoRotate;if(c.autoRotate){const v=globalThis.__WK_VIEW__,a=v.orbitAnchor;if(a){v.camera.position.x+=a.x-c.target.x;v.camera.position.z+=a.z-c.target.z;c.target.x=a.x;c.target.z=a.z;c.update()}}localStorage.setItem('wk-rotation-paused',c.autoRotate?'0':'1')}}const scene=document.querySelector('[data-scene]');if(scene&&rotationButton.parentElement!==scene)scene.append(rotationButton);rotationButton.textContent=view.controls.autoRotate?'Ⅱ ROTATION':'▶ ROTATION';rotationButton.setAttribute('aria-label',view.controls.autoRotate?'Pause workshop rotation':'Resume workshop rotation');
+ const view=globalThis.__WK_VIEW__;if(lastControls!==view.controls){lastControls=view.controls;view.controls.autoRotate=localStorage.getItem('wk-rotation-paused')!=='1';applyZoomLimits(view.controls,WORKSHOP_ZOOM);}if(!rotationButton){rotationButton=document.createElement('button');rotationButton.dataset.wkRotate='';rotationButton.onclick=()=>{const c=globalThis.__WK_VIEW__.controls;c.autoRotate=!c.autoRotate;if(c.autoRotate){const v=globalThis.__WK_VIEW__,a=v.orbitAnchor;if(a){v.camera.position.x+=a.x-c.target.x;v.camera.position.z+=a.z-c.target.z;c.target.x=a.x;c.target.z=a.z;c.update()}}localStorage.setItem('wk-rotation-paused',c.autoRotate?'0':'1')}}const scene=document.querySelector('[data-scene]');if(scene&&rotationButton.parentElement!==scene)scene.append(rotationButton);rotationButton.textContent=view.controls.autoRotate?'Ⅱ ROTATION':'▶ ROTATION';rotationButton.setAttribute('aria-label',view.controls.autoRotate?'Pause workshop rotation':'Resume workshop rotation');
  modeToggle=document.querySelector('#root button');if(modeToggle){modeToggle.dataset.wkModeToggle='';modeToggle.setAttribute('aria-label','Simple / Advanced');const html=`<span class="${mode==='simple'?'active':'inactive'}">SIMPLE</span> / <span class="${mode==='advanced'?'active':'inactive'}">ADVANCED</span>`;if(modeToggle.innerHTML!==html)modeToggle.innerHTML=html;dock.querySelector('[data-wk-mode-proxy]').innerHTML=html;}
  if(!simpleRail){simpleRail=document.createElement('div');simpleRail.id='wk-simple-rail';}if(simpleRail.parentElement!==rail)rail.append(simpleRail);simpleRail.hidden=mode!=='simple';
  if(!globalThis.__WK_EQUIP__){document.querySelector('[data-cat="bars"]')?.click();return;}
