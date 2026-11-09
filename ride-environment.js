@@ -34,8 +34,9 @@ export function makeEnvironment(T,scene,terrain,{lowDetail=false,theme=null}={})
   const floorGeo=new T.BufferGeometry(),v=[],uv=[],indices=[];for(let x=0,i=0;x<=span;x+=.5,i++){const y=height(x)-.38;v.push(x,y,-32,x,y,32);uv.push((start+x)/5,0,(start+x)/5,12.8);if(x<span){const a=i*2;indices.push(a,a+1,a+2,a+1,a+3,a+2)}}floorGeo.setAttribute('position',new T.Float32BufferAttribute(v,3));floorGeo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));floorGeo.setIndex(indices);floorGeo.computeVertexNormals();ownGeo.push(floorGeo);add(floorGeo,ground,0,0,0).name='environment:ground';
   const vertical=(bottom,top,z)=>{const geo=new T.BufferGeometry(),p=[],uv=[],idx=[];for(let x=0,i=0;x<=span;x+=.5,i++){p.push(x,bottom(x),z,x,top(x),z);uv.push(x/span,0,x/span,1);if(x<span){const a=i*2;idx.push(a,a+2,a+1,a+1,a+2,a+3)}}geo.setAttribute('position',new T.Float32BufferAttribute(p,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();ownGeo.push(geo);return geo};
   const wallTex=wallTexture(index),wallMat=mat(P.wall,{map:wallTex,roughness:.93});sharedMaterials.pop();ownTex.push(wallTex);ownMat.push(wallMat);
-  const wallTop=2.4,wallH=x=>wallTop-height(x)+.3;
-  const wall=add(vertical(x=>Math.min(height(x)-.38,wallTop-.25),x=>height(x)+wallH(x)-.3,-2.74),wallMat,0,0,0);wall.name='environment:graffiti-wall';
+  // Keep a ~constant wall height that follows the ground so the backdrop stays visible (no valley-stretched wall).
+  const wallH=x=>1.7+.3*Math.cos((start+x)*.035);
+  const wall=add(vertical(x=>height(x)-.38,x=>height(x)+wallH(x)-.3,-2.74),wallMat,0,0,0);wall.name='environment:graffiti-wall';
   const capPoints=[];for(let x=0;x<=span;x+=.5)capPoints.push(new T.Vector3(x,height(x)+wallH(x)-.3,0));const capGeo=new T.TubeGeometry(new T.CatmullRomCurve3(capPoints),span*4,.065,8,false);capGeo.scale(1,1,3.6);ownGeo.push(capGeo);add(capGeo,concrete,0,0,-2.9);
   const f=add(vertical(x=>height(x)+wallH(x)-.3,x=>height(x)+wallH(x)+.75,-2.9),fenceMat,0,0,0);f.name='environment:chain-fence';
   const supports=new T.InstancedMesh(boxGeo,metal,7),dummy=new T.Object3D();for(let i=0;i<7;i++){dummy.position.set(i*4,height(i*4)+wallH(i*4)+.2,-2.9);dummy.scale.set(.04,1.2,.04);dummy.updateMatrix();supports.setMatrixAt(i,dummy.matrix)}g.add(supports);

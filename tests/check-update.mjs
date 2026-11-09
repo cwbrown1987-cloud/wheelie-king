@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const builder = readFileSync(new URL('../builder-mode.js', import.meta.url), 'utf8');
+const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+assert(sw.includes('racefix4'));
+assert(!sw.includes('racefix3'));
+assert(builder.includes('__WK_CHECK_UPDATE__'));
+assert(builder.includes("Can't reach server"));
+assert(builder.includes("You're on the latest"));
+assert(builder.includes('Updating to build'));
+assert(builder.includes('no-store'));
+assert(builder.includes('caches.delete'));
+assert(builder.includes('unregister'));
+assert(builder.includes('wkcb'));
+assert(builder.includes('dataset.wkCheckUpdate') || builder.includes('data-wk-check-update'));
+assert(!builder.includes('localStorage.clear'));
+console.log(JSON.stringify({checkUpdateWired:true,cacheRacefix4:true,keepsLocalStorage:true}));

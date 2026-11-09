@@ -14,7 +14,8 @@ export function rideParameters(stats={},build={},anchors={},find=()=>null){
  if(p.pedal&&stats.gear?.g>0)p.torque*=stats.gear.g;
  p.travelF=Math.max(0,find(build.suspension)?.travel??stats.travel??0);
  p.requestedTravelR=build.rear_frame&&build.shock?Math.max(0,find(build.shock)?.travel??stats.shock??0):0;
- p.travelR=Math.min(.06,p.requestedTravelR); // Preserve existing rear-linkage simulation limit.
+ // Soft-map requested rear travel into the 2D linkage range so better shocks matter without tunnelling.
+ p.travelR=Math.min(.14,p.requestedTravelR);
  p.fuelLitres=fuelLitres;p.energyType=powertrain;p.vehicleClass=anchors.vehicleClass||stats.vehicleClass||(motor?.nopedal?'emoto':motor?'ebike':'bicycle');
  return p;
 }
