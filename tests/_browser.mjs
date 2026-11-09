@@ -19,7 +19,7 @@ export function getLaunchOptions({extraArgs = [], forceGpu = false} = {}) {
     channel: process.env.WK_BROWSER || 'chrome',
     args,
   };
-  if (gpu) opts.headless = 'new';
+  if (gpu) opts.headless = true;
   return opts;
 }
 
