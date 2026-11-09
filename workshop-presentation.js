@@ -47,4 +47,4 @@ function update(){
  summary.querySelector('.name').textContent=prototypeFor(b.frame)?.name||part(b.frame)?.name||'Your bike';const image=globalThis.__WK_THUMB__?.({id:'summary:'+JSON.stringify(b),slot:'kit',completeBike:true,kit:Object.values(b).filter(id=>part(id))},180);if(image)summary.querySelector('img').src=image;
  const rows=[['Power',metrics.get('W')+' W'],[prototypeFor(b.frame)?.powertrain==='petrol'?'Fuel':'Battery',prototypeFor(b.frame)?.powertrain==='petrol'?`${part(b.fuel_tank)?.litres||0} L · Petrol`:battery?`${battery.v} V · ${battery.ah} Ah`:'Not fitted'],['Top speed',metrics.get('km/h')+' km/h'],['Range',metrics.get('km')+' km'],['Torque',metrics.get('Nm')+' Nm']];const dl=summary.querySelector('dl');dl.replaceChildren();for(const [label,value]of rows){const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;row.append(dt,dd);dl.append(row)}
 }
-setInterval(update,350);
+setInterval(update,350);update();

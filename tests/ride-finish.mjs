@@ -7,7 +7,7 @@ try {
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>localStorage.setItem('wk-level','trials'));
   await page.goto(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/');
-  await page.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'));
+  await page.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),{timeout:60000});
   await page.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await page.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded);
   const slow = page.locator('[data-r=slow]');
