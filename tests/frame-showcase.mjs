@@ -1,9 +1,9 @@
-import { chromium } from 'playwright';
+import {launchBrowser} from './_browser.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const label = process.argv[2] || 'after';
 const out = `wk-shots/${label}`;
 mkdirSync(out, {recursive:true});
-const browser = await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser = await launchBrowser();
 try {
  const ctx=await browser.newContext({viewport:{width:1200,height:780},serviceWorkers:'block'});
  const p=await ctx.newPage();

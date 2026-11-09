@@ -1,8 +1,9 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
-const browser = await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+
+const browser = await launchBrowser();
 try {
-  const page = await browser.newPage({viewport:{width:844,height:390},hasTouch:true,serviceWorkers:'block'});
+  const page = await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,serviceWorkers:'block'}));
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>localStorage.setItem('wk-level','trials'));

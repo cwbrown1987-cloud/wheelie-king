@@ -1,11 +1,12 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+
 // Real recording -> Replay playback: no black screen, plays smoothly, scrub/theatre work, saved clips play.
-const browser = await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--autoplay-policy=no-user-gesture-required']});
+const browser = await launchBrowser({extraArgs:['--autoplay-policy=no-user-gesture-required']});
 const shot = process.env.WK_REPLAY_SHOT;
 const T0=Date.now(),step=m=>process.env.WK_DEBUG&&console.log('['+((Date.now()-T0)/1000).toFixed(1)+'s] '+m);
 try {
-  const page = await browser.newPage({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'});
+  const page = await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>localStorage.setItem('wk-level','trials'));
   await page.goto(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/');

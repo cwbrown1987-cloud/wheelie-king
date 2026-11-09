@@ -1,9 +1,10 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 try{
- const p=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ const p=await browser.newPage(pageOptions({viewport:{width:1200,height:780},serviceWorkers:'block'})),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_BUILD__&&document.querySelector('#wk-simple-rail button'));
  const panel=p.locator('#wk-builder'),choose=id=>panel.locator(`[data-simple-part="${id}"]`).click(),apply=()=>p.getByRole('button',{name:'Apply preview',exact:true}).click(),cancel=()=>p.getByRole('button',{name:'Cancel preview',exact:true}).click();
  assert.equal(await p.evaluate(()=>document.body.dataset.wkMode),'simple');

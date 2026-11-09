@@ -1,8 +1,8 @@
-import { chromium } from "playwright";
+import {launchBrowser} from './_browser.mjs';
 import { mkdirSync } from "node:fs";
 const URL_ = process.argv[2] || "http://localhost:8931/", OUT = "test-results/slots" + (process.argv[3]||"") + "-";
 mkdirSync("test-results", { recursive: true });
-const b = await chromium.launch({ channel: process.env.WK_BROWSER || "chrome", args: ["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"] });
+const b = await launchBrowser();
 const ctx = await b.newContext({ viewport: { width: 900, height: 420 }, deviceScaleFactor: 1.5, hasTouch: true, serviceWorkers: "block" });
 const p = await ctx.newPage(); p.setDefaultTimeout(30000); const errs = []; p.on("pageerror", (e) => errs.push(e.message)); p.on("console", m => /wk (hook|frame|spokes|detail|cond)/.test(m.text()) && errs.push(m.text()));
 await p.goto(URL_ + "?v=" + Date.now()); await p.waitForFunction(() => globalThis.__WK_VIEW__, null, { timeout: 40000 });

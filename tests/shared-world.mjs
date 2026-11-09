@@ -1,10 +1,11 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 mkdirSync('wk-shots/shared-world',{recursive:true});
 try{
- const p=await browser.newPage({viewport:{width:1280,height:720},serviceWorkers:'block'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ const p=await browser.newPage(pageOptions({viewport:{width:1280,height:720},serviceWorkers:'block'})),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
  await p.waitForFunction(()=>globalThis.__WK_VIEW__?.worldRoom&&globalThis.__WK_SHARED_WORLD__);
  await p.getByRole('button',{name:'Pause workshop rotation',exact:true}).click().catch(()=>{});

@@ -1,8 +1,9 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+
+const browser=await launchBrowser();
 try{
- const p=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
+ const p=await browser.newPage(pageOptions({viewport:{width:1200,height:780},serviceWorkers:'block'})),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_EQUIP__);
  await p.getByRole('button',{name:'Pause workshop rotation',exact:true}).click();assert(await p.evaluate(()=>!__WK_VIEW__.controls.autoRotate));await p.getByRole('button',{name:'Resume workshop rotation',exact:true}).click();assert(await p.evaluate(()=>__WK_VIEW__.controls.autoRotate));
  assert.equal(await p.locator('[data-simple-category^="paint_"]').count(),0);
  const kits=await p.evaluate(async()=>{const list=__WK_CAT__().items.filter(p=>p.slot==='kit'&&!p.completeBike&&!p.hidden),{modelFor}=await import('/thumbs.js');return list.map(p=>{const parts=p.kit.map(__WK_PART__),m=parts.find(p=>p.slot==='motor'),b=parts.find(p=>p.slot==='battery'),c=parts.find(p=>p.slot==='controller');return {id:p.id,matched:!!m&&b?.v===m.v&&c?.v===m.v&&b.v*b.a>=m.w&&c.v*c.a>=m.w,slots:modelFor(p).children.map(o=>o.name)}})});assert(kits.length>=6);for(const k of kits){assert(k.matched,k.id);assert.deepEqual(k.slots,['kit:motor','kit:battery','kit:controller','kit:throttle'])}

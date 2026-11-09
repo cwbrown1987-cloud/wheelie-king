@@ -1,7 +1,8 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
+
 // Every menu/panel must fit the phone screen and scroll by touch when its content is taller.
-const browser = await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser = await launchBrowser();
 const shot = process.env.WK_SCROLL_SHOT;
 // Panels taller than the screen that cannot scroll (overflow visible/hidden) = bug.
 const audit = () => [...document.querySelectorAll('body *')].filter(e => {
@@ -28,7 +29,7 @@ async function swipe(page, sel) {
 const results = {};
 try {
   for (const [name, vp] of [['portrait', {width:390,height:844}], ['landscape', {width:844,height:390}]]) {
-    const page = await browser.newPage({viewport:vp,hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'});
+    const page = await browser.newPage(pageOptions({viewport:vp,hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.addInitScript(() => localStorage.setItem('wk-level', 'trials'));
     await page.goto(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/');

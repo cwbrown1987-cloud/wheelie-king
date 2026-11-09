@@ -1,10 +1,11 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 mkdirSync('wk-shots/vehicle-prototypes',{recursive:true});
 try{
- const p=await browser.newPage({viewport:{width:1400,height:820},serviceWorkers:'block'}),errors=[];
+ const p=await browser.newPage(pageOptions({viewport:{width:1400,height:820},serviceWorkers:'block'})),errors=[];
  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(/^wk (hook|frame|modular)/.test(m.text()))errors.push(m.text())});
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_EQUIP__&&document.querySelector('[data-simple-category="escooters"] img'));
  for(const [id,section]of [['pit125','motorbikes'],['kaiji_test','escooters']]){

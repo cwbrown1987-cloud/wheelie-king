@@ -1,6 +1,6 @@
-import { chromium } from 'playwright';
+import {launchBrowser} from './_browser.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
-const browser=await chromium.launch({channel:process.env.WK_BROWSER||'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 const errors=[],results=[];
 try {
  const ctx=await browser.newContext({viewport:{width:1100,height:750},serviceWorkers:'block'}), p=await ctx.newPage();
