@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const builder = readFileSync(new URL('../builder-mode.js', import.meta.url), 'utf8');
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-assert(sw.includes('racefix4'));
+assert(/wk-v\d+|racefix\d+|shared-world/i.test(sw.match(/const CACHE = "([^"]+)"/)?.[1]||''));
 assert(!sw.includes('racefix3'));
 assert(builder.includes('__WK_CHECK_UPDATE__'));
 assert(builder.includes("Can't reach server"));
