@@ -47,27 +47,43 @@ try{
     gapTitle:barBox.top-msgBox.bottom,
     fromBottom:innerHeight-barBox.bottom,
     overflowX:barBox.right>innerWidth+1||barBox.left<-1||boxes.some(b=>b.right>innerWidth+1||b.left<-1),
-    wrap:getComputedStyle(bar).flexWrap
+    wrap:getComputedStyle(bar).flexWrap,
+    rewind:(()=>{const e=document.querySelector('[data-r=rewind]');if(!e)return null;const c=getComputedStyle(e),b=e.getBoundingClientRect();return {font:c.font,fontFamily:c.fontFamily,fontSize:c.fontSize,color:c.color,bg:c.backgroundColor,bgImage:c.backgroundImage,radius:c.borderRadius,box:b,hidden:e.hidden||c.display==='none'}})(),
+    throttle:document.querySelector('.ride-drive.throttle')?.getBoundingClientRect()||null,
+    brake:document.querySelector('.ride-drive.brake')?.getBoundingClientRect()||null
    };
   });
-  assert.deepEqual(lay.labels.map(s=>s.replace(/^[^\w]*/,'').trim()),['REWIND','RECOVER','REPLAY'],name+' labels '+JSON.stringify(lay.labels));
-  assert.equal(lay.wrap,'nowrap',name+' stays on one row (no wrap)');
-  assert(lay.oneRow,name+' buttons share one row '+JSON.stringify(lay));
-  assert(!lay.overflowX,name+' fits the viewport '+JSON.stringify({bar:lay.bar,vw:lay.vw}));
-  assert(lay.gapTitle>8,name+' sits clear of the CRASH title '+JSON.stringify({gap:lay.gapTitle,msg:lay.msg,bar:lay.bar}));
-  assert(lay.fromBottom<=24,name+' sits low on the screen '+JSON.stringify({fromBottom:lay.fromBottom,vh:lay.vh,bar:lay.bar}));
-  assert(lay.bar.top>lay.vh*0.55,name+' is below mid-screen, clear of the bike '+JSON.stringify(lay.bar));
+  assert.deepEqual(lay.labels.map(s=>s.replace(/^[^\w]*/,'').trim()),['RECOVER','REPLAY'],name+' bottom labels '+JSON.stringify(lay.labels));
+  assert.equal(lay.wrap,'nowrap',name+' recover/replay stay on one row (no wrap)');
+  assert(lay.oneRow,name+' recover/replay share one row '+JSON.stringify(lay));
+  assert(!lay.overflowX,name+' bottom bar fits the viewport '+JSON.stringify({bar:lay.bar,vw:lay.vw}));
+  assert(lay.gapTitle>8,name+' bottom bar sits clear of the CRASH title '+JSON.stringify({gap:lay.gapTitle,msg:lay.msg,bar:lay.bar}));
+  assert(lay.fromBottom<=24,name+' recover/replay sit low on the screen '+JSON.stringify({fromBottom:lay.fromBottom,vh:lay.vh,bar:lay.bar}));
+  assert(lay.bar.top>lay.vh*0.55,name+' recover/replay are below mid-screen '+JSON.stringify(lay.bar));
   const fonts=new Set(lay.styles.map(s=>`${s.fontFamily}|${s.fontSize}|${s.fontWeight}`));
-  assert.equal(fonts.size,1,name+' same font and size '+JSON.stringify(lay.styles.map(s=>({font:s.font,h:s.height}))));
-  for(const s of lay.styles){
+  assert.equal(fonts.size,1,name+' recover/replay same font and size '+JSON.stringify(lay.styles.map(s=>({font:s.font,h:s.height}))));
+  const styleB=s=>{
    const bg=parseColor(s.bg);
    const col=parseColor(s.color);
-   const brightGreen=/#3cf08a|#65ee6b|#13b45c|#6edc84/i.test(s.bgImage+' '+s.bg);
+   const brightGreen=/#3cf08a|#65ee6b|#13b45c|#6edc84/i.test((s.bgImage||'')+' '+(s.bg||''));
    assert(!brightGreen,name+' is not a filled green block '+JSON.stringify(s));
-   // Style B dock: dark navy fill, cyan/mint text
    if(bg)assert(isDark(bg),name+' dark dock fill '+JSON.stringify(s));
    if(col)assert(isCyanOrMint(col),name+' style B text '+JSON.stringify(s));
    assert(/system-ui/i.test(s.fontFamily),name+' system-ui font '+s.fontFamily);
+  };
+  for(const s of lay.styles)styleB(s);
+  assert(lay.rewind&&!lay.rewind.hidden,name+' REWIND is visible after a crash');
+  styleB(lay.rewind);
+  const rb=lay.rewind.box,tb=lay.throttle,bb=lay.brake;
+  const radius=parseFloat(lay.rewind.radius);
+  assert(radius>=rb.width*0.45,name+' REWIND is round '+JSON.stringify({radius:lay.rewind.radius,box:rb}));
+  assert(rb.left>lay.vw*0.55,name+' REWIND sits on the right '+JSON.stringify(rb));
+  assert(rb.bottom<lay.bar.top-4,name+' REWIND sits above recover/replay '+JSON.stringify({rewind:rb,bar:lay.bar}));
+  if(tb){
+   assert(rb.bottom<=tb.top+4,name+' REWIND sits just above the throttle '+JSON.stringify({rewind:rb,throttle:tb}));
+   const overlap=(a,b)=>!(a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom);
+   assert(!overlap(rb,tb),name+' REWIND does not cover the throttle '+JSON.stringify({rewind:rb,throttle:tb}));
+   if(bb)assert(!overlap(rb,bb),name+' REWIND does not cover the brake '+JSON.stringify({rewind:rb,brake:bb}));
   }
   if(shots)await p.screenshot({path:`${shots}/after-${name}-crash.png`});
   assert.deepEqual(errors,[],'page errors '+errors.join(' | '));

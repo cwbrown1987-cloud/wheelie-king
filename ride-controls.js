@@ -6,15 +6,27 @@ const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label
 export const rideControlsMarkup=()=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks">${trickButton('hop','HOP')}</div>
  <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back">‹</button><button type="button" data-t="leanForward" aria-label="Lean forward">›</button></div>
- <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button>${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div>
+ <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button><div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div></div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
 </div>`;
 export function mountLeanControls(ui,touch){
  const release=()=>{touch.lean=0;touch.leanBack=0;touch.leanForward=0};release();return {update(){},release,state:()=>({active:!!(touch.leanBack||touch.leanForward),value:(touch.leanForward||0)-(touch.leanBack||0)})};
 }
+export function mountTricksMenu(ui){
+ const root=ui.querySelector('.ride-tricks:not(.ride-hop)');
+ const toggle=root?.querySelector('[data-r=tricks]');
+ if(!root||!toggle)return {close(){},state:()=>({open:false})};
+ let timer=null;
+ const close=()=>{root.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');clearTimeout(timer);timer=null};
+ const arm=()=>{clearTimeout(timer);timer=setTimeout(close,2000)};
+ const open=()=>{root.classList.add('is-open');toggle.setAttribute('aria-expanded','true');arm()};
+ toggle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(root.classList.contains('is-open'))close();else open()});
+ root.querySelector('.ride-tricks-fan')?.addEventListener('pointerdown',arm,true);
+ return {close,state:()=>({open:root.classList.contains('is-open')})};
+}
 if(typeof document!=='undefined'){
  const style=document.createElement('style');style.textContent=`
- [data-wk-ride-surface] .ride-controls{position:absolute;left:14px;right:14px;bottom:18px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;align-items:end;gap:16px;pointer-events:auto;font:900 11px system-ui;--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}
+ [data-wk-ride-surface]{--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}[data-wk-ride-surface] .ride-controls{position:absolute;left:14px;right:14px;bottom:18px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;align-items:end;gap:16px;pointer-events:auto;font:900 11px system-ui;--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}
  [data-wk-paused] [data-h="msg"]{top:12px!important;font-size:18px!important}[data-r="recover"][hidden]{display:none!important}[data-wk-crashed] .ride-controls{opacity:.35;pointer-events:none}[data-wk-crashed] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-controls{opacity:.4}[data-wk-paused] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-pause-fab,[data-wk-paused] .ride-pause-menu{pointer-events:auto} .ride-lean-buttons,.ride-drive-buttons{display:flex;align-items:end;gap:clamp(7px,1vw,14px)}.ride-drive-buttons{justify-self:end}.ride-lean-buttons button,.ride-drive{border:3px solid #c8c9c6;border-radius:50%;background:linear-gradient(145deg,#424743d9,#121616df);color:#f8f9f4;box-shadow:0 5px 12px #0009,inset 0 1px 2px #fff4;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
  .ride-lean-buttons button{width:var(--lean-size);height:var(--lean-size);font:700 calc(var(--lean-size)*.95) system-ui;line-height:.7;padding-bottom:9px;text-shadow:0 2px 3px #000}.ride-drive.brake{width:var(--lean-size);height:var(--lean-size)}.ride-drive.throttle{width:calc(var(--lean-size)*1.3);height:calc(var(--lean-size)*1.3);border-color:#a8e600;color:#b5f300;background:radial-gradient(circle at 40% 30%,#344028ed,#10170bed);box-shadow:0 0 17px #a4ff0033,0 5px 12px #0009}.ride-drive svg{width:70%;height:70%;filter:drop-shadow(0 3px 1px #0009)}
  .ride-glass{background:linear-gradient(135deg,#1c2d478f,#0a1428c4);border:1px solid #c7f4df66;border-radius:16px;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 10px 28px #000a,inset 0 1px #ffffff22;color:#edfdf4;pointer-events:auto}
@@ -89,6 +101,13 @@ if(typeof document!=='undefined'){
  .ride-crash-actions[hidden]{display:none!important}
  .ride-crash-actions .ride-crash-btn{flex:0 1 auto;box-sizing:border-box;min-width:0;height:42px;padding:0 14px;border-radius:12px;border-width:1px;font:800 13px system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
  .ride-rewind.is-held,.ride-crash-actions .ride-crash-btn:active{transform:translateY(1px) scale(.98)}
+ .ride-rewind{position:absolute;z-index:13;right:14px;bottom:calc(18px + var(--lean-size)*1.3 + 22px);width:56px;height:56px;box-sizing:border-box;border-radius:50%;padding:0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font:800 9px system-ui,sans-serif;letter-spacing:.05em;line-height:1.05;text-align:center;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;border-width:1px}
+ .ride-rewind[hidden]{display:none!important}
+ .ride-tricks:not(.ride-hop){display:flex;flex-direction:column;align-items:flex-end;justify-self:end;align-self:end;grid-column:2;grid-row:1;position:relative;margin-bottom:12px}
+ .ride-tricks-toggle{height:42px;min-width:76px;padding:0 14px;border-radius:12px;border-width:1px;font:800 13px system-ui,sans-serif;letter-spacing:.06em;cursor:pointer;pointer-events:auto;white-space:nowrap}
+ .ride-tricks-fan{position:absolute;right:0;bottom:calc(100% + 6px);display:flex;flex-direction:row;flex-wrap:nowrap;gap:5px;z-index:11}
+ .ride-tricks:not(.is-open) .ride-tricks-fan{visibility:hidden;opacity:0;pointer-events:none}
+ @media(max-width:650px){.ride-rewind{right:8px;bottom:calc(12px + 48px * 1.3 + 18px);width:52px;height:52px}}
  .ride-replay.is-dropping{opacity:0;transform:translate(-50%,-46%) scale(.98);filter:blur(2px);transition:opacity .32s ease,transform .32s ease,filter .32s ease;pointer-events:none}
  .ride-replay{transition:opacity .28s ease,transform .28s ease,filter .28s ease}
  .ride-save-btn{font-size:12px!important;padding:10px 12px!important}

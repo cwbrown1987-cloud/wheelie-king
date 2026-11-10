@@ -12,7 +12,7 @@ import { getTheme } from "./ride-themes.js";
 import { makeTerrain, makeFlatTerrain, makeState, step } from "./ride-physics.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
-import {rideControlsMarkup,mountLeanControls} from './ride-controls.js';
+import {rideControlsMarkup,mountLeanControls,mountTricksMenu} from './ride-controls.js';
 import {makeStuntRig} from './ride-tricks.js';
 import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
@@ -265,7 +265,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   $('[data-r="menu"]').onclick = () => close();
   $('[data-r="restart"]').onclick = () => respawn();
   const held = new Map(); // pointerId -> control
-  const leanControls=mountLeanControls(ui,touch);
+  const leanControls=mountLeanControls(ui,touch);const tricksMenu=mountTricksMenu(ui);
   ui.querySelectorAll('[data-t]').forEach(b=>{const c=b.dataset.t;
     b.addEventListener('pointerdown',e=>{e.preventDefault();if (reviewing || finished) return;b.setPointerCapture?.(e.pointerId);held.set(e.pointerId,c);touch[c]=1;if(c==='hop')hopQueued=true;if(['tailwhip','barspin','superman'].includes(c))s.stuntRequest={name:c,expires:.7};b.dataset.pressed='true';b.style.filter='brightness(1.5)'});
     const up=e=>{if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if([...held.values()].includes(c))return;touch[c]=0;delete b.dataset.pressed;b.style.filter=''};
@@ -338,7 +338,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const crashActions=document.createElement('div');crashActions.className='ride-crash-actions';crashActions.hidden=true;
   const recover=document.createElement('button');recover.dataset.r='recover';recover.type='button';recover.className='ride-crash-btn';recover.textContent='↻ RECOVER';recover.setAttribute('aria-label','Instant recover');recover.onclick=respawn;
   const crashReplay=document.createElement('button');crashReplay.dataset.r='crash-replay';crashReplay.type='button';crashReplay.className='ride-crash-btn';crashReplay.textContent='● REPLAY';crashReplay.setAttribute('aria-label','Replay last 20 seconds');crashReplay.onclick=()=>{paused=true;el.toggleAttribute('data-wk-paused',true);releaseControls();pauseUi?.syncFab(true);replay.openFromPause();};
-  const rewind=document.createElement('button');rewind.dataset.r='rewind';rewind.type='button';rewind.className='ride-crash-btn ride-rewind';rewind.setAttribute('aria-label','Rewind. Hold to rewind the ride');rewind.setAttribute('aria-pressed','false');rewind.textContent='⏪ REWIND';
+  const rewind=document.createElement('button');rewind.dataset.r='rewind';rewind.type='button';rewind.className='ride-rewind';rewind.hidden=true;rewind.setAttribute('aria-label','Rewind. Hold to rewind the ride');rewind.setAttribute('aria-pressed','false');rewind.innerHTML='<span aria-hidden="true">⏪</span><span>REWIND</span>';
   function applyRideSnapshot(frame,{ease=true,clearCrash=false}={}){
     const meta=restoreRideState(s,frame)||{};
     if(meta.dirt!=null)dirt=meta.dirt;
@@ -405,8 +405,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }
   rewind.addEventListener('pointerdown',startRewind);
   for(const type of ['pointerup','pointercancel','lostpointercapture'])rewind.addEventListener(type,endRewind);
-  crashActions.append(rewind,recover,crashReplay);ui.append(crashActions);
-  Object.defineProperty(recover,'hidden',{configurable:true,get(){return crashActions.hidden},set(v){crashActions.hidden=!!v;}});
+  crashActions.append(recover,crashReplay);ui.append(crashActions,rewind);
+  Object.defineProperty(recover,'hidden',{configurable:true,get(){return crashActions.hidden},set(v){crashActions.hidden=!!v;rewind.hidden=!!v;if(!v)tricksMenu.close();}});
   function report() { if (reported) return; reported = true; saveCond({ dirt: Math.min(1, dirt), wear }); try { onResult?.({ score: Math.round(maxScore), flips, wheelieT: s.bestWheelie || 0, finished, money: Math.round(maxScore / 10) }); } catch (e) { console.warn(e); } }
   function close() { report(); onClose?.(); }
   // loop
@@ -563,7 +563,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam});globalThis.__WK_REPLAY__=replay;
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
   function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }
