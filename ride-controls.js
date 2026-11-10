@@ -91,7 +91,7 @@ if(typeof document!=='undefined'){
  .ride-pause-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
  .ride-pause-mode{display:flex;flex-direction:column;gap:6px;text-align:left}
  .ride-pause-mode-label{font:800 11px system-ui;color:#9be7bc;letter-spacing:.4px}
- .ride-pause-seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #80fbb285;border-radius:11px;overflow:hidden}
+ .ride-pause-seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid #80fbb285;border-radius:11px;overflow:hidden}
  .ride-pause-seg button{border:0;border-radius:0;margin:0;background:#162820}
  .ride-pause-seg button[aria-pressed=true]{background:linear-gradient(180deg,#3d6b55,#245440);color:#d9ffe8}
  .ride-pause-replay{margin-top:2px}

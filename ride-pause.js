@@ -1,5 +1,8 @@
 // Pause FAB + centred frosted-glass menu (matches ride-glass / lounge .glass).
-export function pauseMenuMarkup(flat) {
+export function pauseMenuMarkup(level) {
+  const flat = level === true || level === 'flat';
+  const sample = level === 'sample3d';
+  const trials = !flat && !sample;
   return `
 <button class="ride-pause-fab ride-glass" data-r="pause" aria-label="Pause ride" aria-expanded="false">
   <span class="ride-pause-fab-ico" aria-hidden="true">Ⅱ</span><span>PAUSE</span>
@@ -17,7 +20,8 @@ export function pauseMenuMarkup(flat) {
   <div class="ride-pause-mode" role="group" aria-label="Race mode">
     <span class="ride-pause-mode-label">Mode</span>
     <div class="ride-pause-seg">
-      <button type="button" data-r="mode-trials" aria-pressed="${flat ? 'false' : 'true'}">Trials</button>
+      <button type="button" data-r="mode-trials" aria-pressed="${trials ? 'true' : 'false'}">Trials</button>
+      <button type="button" data-r="mode-sample3d" aria-pressed="${sample ? 'true' : 'false'}">SAMPLE 3D</button>
       <button type="button" data-r="mode-endless" aria-pressed="${flat ? 'true' : 'false'}">Endless</button>
     </div>
   </div>
@@ -26,18 +30,27 @@ export function pauseMenuMarkup(flat) {
 </section>`;
 }
 
-export function mountRidePause(ui, {
-  getPaused, setPaused, onRespawn, onRestart, onMode, onReplay, onGallery, releaseControls, rootEl, flat = false,
-}) {
+function levelOf(opts) {
+  if (opts?.level === 'flat' || opts?.level === 'sample3d' || opts?.level === 'trials') return opts.level;
+  if (opts?.flat) return 'flat';
+  return 'trials';
+}
+
+export function mountRidePause(ui, opts) {
+  const {
+    getPaused, setPaused, onRespawn, onRestart, onMode, onReplay, onGallery, releaseControls, rootEl,
+  } = opts;
   const fab = ui.querySelector('[data-r="pause"]');
   const menu = ui.querySelector('.ride-pause-menu');
   const trialsBtn = ui.querySelector('[data-r="mode-trials"]');
+  const sampleBtn = ui.querySelector('[data-r="mode-sample3d"]');
   const endlessBtn = ui.querySelector('[data-r="mode-endless"]');
-  let isFlat = !!flat;
+  let current = levelOf(opts);
 
   function syncMode() {
-    trialsBtn?.setAttribute('aria-pressed', String(!isFlat));
-    endlessBtn?.setAttribute('aria-pressed', String(isFlat));
+    trialsBtn?.setAttribute('aria-pressed', String(current === 'trials'));
+    sampleBtn?.setAttribute('aria-pressed', String(current === 'sample3d'));
+    endlessBtn?.setAttribute('aria-pressed', String(current === 'flat'));
   }
 
   function syncFab(paused) {
@@ -71,6 +84,12 @@ export function mountRidePause(ui, {
     else if (getPaused()) { menu.hidden = false; syncFab(true); }
     else open();
   }
+  function pick(next) {
+    if (current === next) return;
+    current = next;
+    syncMode();
+    onMode?.(next);
+  }
 
   fab.onclick = () => toggle();
   ui.querySelector('[data-r="menu-resume"]').onclick = () => close(true);
@@ -78,19 +97,14 @@ export function mountRidePause(ui, {
   ui.querySelector('[data-r="menu-restart"]').onclick = () => { close(true); onRestart?.(); };
   ui.querySelector('[data-r="menu-replay"]').onclick = () => { menu.hidden = true; onReplay?.(); };
   ui.querySelector('[data-r="menu-gallery"]')?.addEventListener('click', () => { menu.hidden = true; onGallery?.(); });
-  trialsBtn?.addEventListener('click', () => {
-    if (!isFlat) return;
-    isFlat = false; syncMode(); onMode?.();
-  });
-  endlessBtn?.addEventListener('click', () => {
-    if (isFlat) return;
-    isFlat = true; syncMode(); onMode?.();
-  });
+  trialsBtn?.addEventListener('click', () => pick('trials'));
+  sampleBtn?.addEventListener('click', () => pick('sample3d'));
+  endlessBtn?.addEventListener('click', () => pick('flat'));
   syncMode();
 
   return {
     open, close, toggle, syncFab, showMenu,
-    setModeLabel(nextFlat) { isFlat = !!nextFlat; syncMode(); },
+    setModeLabel(next) { current = next === true ? 'flat' : next === false ? 'trials' : (next || current); syncMode(); },
     get menu() { return menu; },
     get fab() { return fab; },
   };

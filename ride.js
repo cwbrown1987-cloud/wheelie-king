@@ -9,7 +9,7 @@ import { createSideCamera } from "./ride-camera.js";
 import { lightenForRide } from "./ride-lod.js";
 import { TIERS, pickTier, createQualityMonitor } from "./ride-quality.js";
 import { getTheme } from "./ride-themes.js";
-import { makeTerrain, makeFlatTerrain, makeState, step } from "./ride-physics.js";
+import { makeTerrain, makeFlatTerrain, makeSampleTerrain, makeState, step } from "./ride-physics.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
 import {rideControlsMarkup,mountLeanControls,mountTricksMenu} from './ride-controls.js';
@@ -17,6 +17,7 @@ import {makeStuntRig} from './ride-tricks.js';
 import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
 import {makeEnvironment} from './ride-environment.js';
+import {makeSampleWorld} from './ride-sample3d.js';
 import {makeCrashRig} from './crash-rig.js';
 const COND_KEY = "wk-condition";
 export const loadCond = () => ({dirt:0,wear:{}}); // Repair/condition system paused at Chris's request.
@@ -37,6 +38,22 @@ export function applyCondition(root, cond) {
 }
 export const condLabel = (w) => (w >= 1 ? "BROKEN" : w >= 0.4 ? "CRACKED" : w > 0.05 ? "WORN" : "OK");
 globalThis.__WK_COND__ = { load: loadCond, save: saveCond, apply: applyCondition, label: condLabel };
+
+export function readRideLevel(){
+  try{
+    const q=new URLSearchParams(location.search).get('track');
+    if(q==='sample3d'||q==='sample-3d'||q==='flat'||q==='endless'||q==='trials'){
+      const level=q==='sample-3d'?'sample3d':q==='endless'?'flat':q;
+      if(!globalThis.__WK_TRACK_QUERY_APPLIED__){
+        globalThis.__WK_TRACK_QUERY_APPLIED__=true;
+        try{localStorage.setItem('wk-level',level)}catch{}
+        return level;
+      }
+    }
+  }catch{}
+  try{const v=localStorage.getItem('wk-level');if(v==='flat'||v==='sample3d'||v==='trials')return v}catch{}
+  return 'trials';
+}
 
 // Three.js clones userData through JSON. Editor decal records contain live mesh
 // references; omit those runtime links while retaining the rendered decal mesh.
@@ -121,7 +138,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }
   const backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
   // terrain
-  const flat=(localStorage.getItem('wk-level')||'trials')==='flat',ter=flat?makeFlatTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat?500:ter.finish;const pts=ter.pts;
+  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',ter=flat?makeFlatTerrain():sample3d?makeSampleTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0],pts[0][1]-.45);pts.forEach(([x,y])=>shape.lineTo(x,y));[...pts].reverse().forEach(([x,y])=>shape.lineTo(x,y-.45));shape.closePath();
   const groundGeo = new T.ExtrudeGeometry(shape, { depth: 2.4, bevelEnabled: false }); groundGeo.translate(0, 0, -1.2);
   const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
@@ -141,7 +158,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= renderEnd + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(renderEnd + 120, -20); s.closePath();
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }};
-  const environment=makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;
+  const environment=sample3d?makeSampleWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;
   // the real garage bike, cloned
   const pivot = new T.Group(), body = new T.Group(); pivot.add(body); scene.add(pivot);
   let bike = preparedBike, A = src?.userData.wkAnchors;
@@ -180,8 +197,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   // HUD + touch controls (DOM over the canvas)
   const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none"; el.appendChild(ui);
   ui.innerHTML = `<div class="ride-review-scrim" aria-hidden="true"></div><div class="ride-view-label">▣ SIDE VIEW (2.5D)</div><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
-    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">ENDLESS ${flat?"∞":"OFF"}</button></div>
-   ${pauseMenuMarkup(flat)}
+    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
+   ${pauseMenuMarkup(level)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
    <div style="position:absolute;top:96px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
    <div data-h="trick" style="position:absolute;top:22%;width:100%;text-align:center;font-size:34px;color:#39ff7a;text-shadow:0 0 14px #000"></div>
@@ -231,7 +248,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     <div class="ride-gallery-grid" data-r="gallery-grid"></div>
     <p class="ride-gallery-empty" data-r="gallery-empty">No saves yet — capture screenshots or save replays.</p>
    </section>
-   <section class="ride-finish ride-glass" hidden><strong>TRIALS COMPLETE</strong><p></p><div class="ride-finish-photos"></div><div><button data-r="menu">MAIN MENU</button><button data-r="restart">RESTART RACE</button></div></section>
+   <section class="ride-finish ride-glass" hidden><strong>${sample3d?"SAMPLE 3D COMPLETE":"TRIALS COMPLETE"}</strong><p></p><div class="ride-finish-photos"></div><div><button data-r="menu">MAIN MENU</button><button data-r="restart">RESTART RACE</button></div></section>
    ${rideControlsMarkup()}`;
   const $ = (q) => ui.querySelector(q), hud = Object.fromEntries([...ui.querySelectorAll("[data-h]")].map((e) => [e.dataset.h, e]));
   const finishPanel = $('.ride-finish'), photos = $('.ride-finish-photos');
@@ -288,17 +305,18 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
   $('[data-r="back"]').onclick = () => close(); $('[data-r="reset"]').onclick = () => respawn();
   const restartRun=()=>{finished=true;respawn();};
-  let replacementStop=null;const switchLevel=()=>{localStorage.setItem('wk-level',flat?'trials':'flat');stop(false);replacementStop=mountRide(el,{stats,build,onResult,onClose,lowDetail:qualityPick.manual,quality:qualityMon.state().tier,qualityManual:qualityPick.manual,pixelRatioCap:maxPR,theme:TH});};$('[data-r="level"]').onclick=switchLevel;
+  let replacementStop=null;const switchLevel=(next)=>{const dest=typeof next==='string'?next:(level==='flat'?'trials':'flat');if(dest===level)return;localStorage.setItem('wk-level',dest);stop(false);replacementStop=mountRide(el,{stats,build,onResult,onClose,lowDetail:qualityPick.manual,quality:qualityMon.state().tier,qualityManual:qualityPick.manual,pixelRatioCap:maxPR,theme:TH});};$('[data-r="level"]').onclick=()=>switchLevel();
   pauseUi = mountRidePause(ui, {
     getPaused: () => paused,
     setPaused: (v) => { paused = v; },
     onRespawn: () => respawn(),
     onRestart: () => restartRun(),
-    onMode: () => switchLevel(),
+    onMode: (next) => switchLevel(next),
     onReplay: () => { paused = true; el.toggleAttribute('data-wk-paused', true); replay.openFromPause(); },
     onGallery: () => { paused = true; el.toggleAttribute('data-wk-paused', true); pauseUi?.syncFab(true); replay.openGallery?.(); },
     releaseControls,
     rootEl: el,
+    level,
     flat,
   });
   $('[data-r="tilt"]').onclick = async (e) => { try { if (!tilt && typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {} tilt = !tilt; tiltLean = 0; e.target.textContent = "TILT: " + (tilt ? "ON" : "OFF"); };
@@ -574,7 +592,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam});globalThis.__WK_REPLAY__=replay;
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
   function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }

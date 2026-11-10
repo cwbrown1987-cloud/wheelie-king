@@ -32,6 +32,11 @@ export function makeTerrain(seed = 1) {
   return { pts:rounded, h, slope, puddles, checkpoints, kickers, finish, inPuddle, loop };
 }
 export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
+export function makeSampleTerrain(){
+  const pts=[[-20,0],[0,0],[36,0],[48,0],[56,1.15],[64,0],[78,0],[96,0],[108,1.5],[116,.25],[128,0],[144,0],[154,1.9],[162,.35],[176,0],[196,0],[246,0]];
+  const {pts:rounded,h,slope}=roundedProfile(pts);
+  return {pts:rounded,h,slope,puddles:[],checkpoints:[0,64,128],kickers:[48,108,154],finish:196,inPuddle:()=>false};
+}
 export function bikeParams(stats = {}) {
   const motorW=Math.max(0,stats.P??0),pedal=stats.powertrain?stats.powertrain==='human':motorW<200;
   return {
