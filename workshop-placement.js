@@ -113,7 +113,7 @@ addEventListener('pointerup', e => {
 
 // ---- UI: place button, centred glass catalogue panel, edit toolbar (game style)
 const css = document.createElement('style'); css.textContent = `
-[data-wk-place]{position:absolute;right:98px;bottom:186px;z-index:5;min-height:34px;padding:6px 12px;border-radius:9px;border:1px solid #7affc699;background:#122037b9;color:#e9fff4;font:800 12px system-ui;letter-spacing:.06em;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 0 14px #30e9bd33;cursor:pointer}
+[data-wk-place]{position:absolute;right:12px;top:182px;z-index:5;min-height:34px;padding:6px 12px;border-radius:9px;border:1px solid #7affc699;background:#122037b9;color:#e9fff4;font:800 12px system-ui;letter-spacing:.06em;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 0 14px #30e9bd33;cursor:pointer}
 [data-wk-place]:hover{background:#18304ad0}[data-wk-place][hidden]{display:none}
 #wk-place-panel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#03060c66}
 #wk-place-panel[hidden]{display:none}

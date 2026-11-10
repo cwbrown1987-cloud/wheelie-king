@@ -70,7 +70,7 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  const outline = [[corner.x, BACKZ], [RIGHTX, BACKZ], [RIGHTX, FRONTZ], [LEFTX, FRONTZ], [LEFTX, chamferEnd.z]];
  const planes = halfPlanes(outline);
  const zone = (name, x0, x1, z0, z1, y1 = 2.6) => ({ name, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hx: (x1 - x0) / 2, hz: (z1 - z0) / 2, yaw: 0, y0: 0, y1 });
- const zones = [zone('bike-stand', -.98, .94, -.42, .42, 1.6), zone('door:garage', -1.75, 1.75, 5.55, FRONTZ, 3), zone('door:outside', LEFTX, LEFTX + 1.0, 3.45, 4.95, 2.4)];
+ const zones = [zone('bike-stand', -.98, .94, -.9, .42, 1.6), zone('door:garage', -1.75, 1.75, 5.55, FRONTZ, 3), zone('door:outside', LEFTX, LEFTX + 1.0, 3.45, 4.95, 2.4)];
  const placed = new T.Group(); placed.name = 'workshop:placed'; room.add(placed);
  const placement = { kit, planes, outline, ceil: CEIL, colliders, zones, slots: roomSlots(R), group: placed, room: R, chamferEnd, chamferDir: R.chamferDir };
  const allLights = []; room.traverse(o => { if (o.isLight) allLights.push(o); });

@@ -11,6 +11,7 @@ import { createTextures } from './textures.js';
 import { registerParts } from './parts.js';
 import { registerAssemblies } from './assemblies.js';
 import { registerRoomParts } from './parts-room.js';
+import { registerStandParts } from './parts-stand.js';
 import { SLOTS } from './slots.js';
 import { bakeStatic } from './bake.js';
 
@@ -47,6 +48,6 @@ export function createKit(T) {
   },
   dispose() { materials.dispose(); geo.dispose(); tex.dispose(); for (const t of textures) t.dispose(); textures.clear(); },
  };
- registerParts(kit); registerAssemblies(kit); registerRoomParts(kit);
+ registerParts(kit); registerAssemblies(kit); registerRoomParts(kit); registerStandParts(kit);
  return kit;
 }

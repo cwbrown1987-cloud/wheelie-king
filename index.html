@@ -58,6 +58,7 @@ await runBootSequence({
   async warmWorkshop(progress) {
     progress?.(0.05);
     await import("./parts3d.js");
+    await import("./src/rooms/workstand.js");
     await import("./fitment.js");
     await import("./thumbs.js");
     progress?.(0.2);
