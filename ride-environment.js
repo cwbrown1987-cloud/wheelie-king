@@ -26,6 +26,23 @@ export function makeEnvironment(T,scene,terrain,{lowDetail=false,theme=null}={})
  const palmGeometry=(()=>{const v=[],idx=[];const ribbon=(points,width)=>{const start=v.length/3;for(let j=0;j<points.length;j++){const p=points[j],q=points[Math.min(j+1,points.length-1)],before=points[Math.max(0,j-1)],dx=q[0]-before[0],dz=q[2]-before[2],len=Math.hypot(dx,dz)||1,w=width*Math.sin(Math.PI*j/(points.length-1))+.001;for(const side of [-1,1])v.push(p[0]-dz/len*w*side,p[1],p[2]+dx/len*w*side);if(j<points.length-1){const n=start+j*2;idx.push(n,n+2,n+1,n+1,n+2,n+3)}}};for(let i=0;i<9;i++){const a=i/9*Math.PI*2,axis=[Math.cos(a),Math.sin(a)],center=t=>[axis[0]*t*1.5,.35*Math.sin(t*Math.PI)-.5*t,axis[1]*t*1.5],stem=[];for(let j=0;j<=12;j++)stem.push(center(j/12));ribbon(stem,.009);for(let j=1;j<12;j++)for(const side of [-1,1]){const t=j/12,p=center(t),length=.32*Math.sin(t*Math.PI),points=[];for(let k=0;k<=4;k++){const q=k/4;points.push([p[0]+axis[0]*q*.13-axis[1]*q*length*side,p[1]-.09*q*q,p[2]+axis[1]*q*.13+axis[0]*q*length*side])}ribbon(points,.035)}}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(idx);g.computeVertexNormals();sharedGeometry.push(g);return g})();leaf.side=T.DoubleSide;
  const grassGeometry=(()=>{const v=[],indices=[];for(let i=0;i<7;i++){const a=i/7*Math.PI*2;for(let j=0;j<=5;j++){const t=j/5,lean=t*t*.13,width=.022*(1-t)+.001,x=Math.cos(a)*(.07+lean),z=Math.sin(a)*(.07+lean);for(const side of [-1,1])v.push(x+Math.sin(a)*width*side,t*(.19+Math.sin(i)*.04),z-Math.cos(a)*width*side);if(j<5){const n=i*12+j*2;indices.push(n,n+2,n+1,n+1,n+2,n+3)}}}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(indices);g.computeVertexNormals();sharedGeometry.push(g);return g})();
  const flowerGeo=new T.SphereGeometry(.026,8,6),stemGeo=new T.CylinderGeometry(.003,.004,1,5);sharedGeometry.push(flowerGeo,stemGeo);
+ const dirt=mat('#8a6a4a',{roughness:.96}),asphalt=mat('#3c3c48',{roughness:.88}),sand=mat('#c4a06a',{roughness:.97}),carPaint=mat('#c44c4c',{metalness:.25,roughness:.42}),carGlass=mat('#8fb4d8',{metalness:.6,roughness:.2}),carWheel=mat('#1a1a1e',{roughness:.7}),benchWood=mat('#6b4a32',{roughness:.9}),binMat=mat('#3e4650',{metalness:.4,roughness:.55});
+ const mergeGeos=geos=>{const v=[],n=[],idx=[];for(const g of geos){const pos=g.getAttribute('position'),nor=g.getAttribute('normal'),ind=g.index,base=v.length/3;for(let i=0;i<pos.count;i++){v.push(pos.getX(i),pos.getY(i),pos.getZ(i));if(nor)n.push(nor.getX(i),nor.getY(i),nor.getZ(i))}if(ind)for(let i=0;i<ind.count;i++)idx.push(ind.getX(i)+base);g.dispose()}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));if(n.length)g.setAttribute('normal',new T.Float32BufferAttribute(n,3));else g.computeVertexNormals();g.setIndex(idx);return g};
+ const boxAt=(sx,sy,sz,x,y,z)=>{const g=new T.BoxGeometry(sx,sy,sz);g.translate(x,y,z);return g};
+ const carBodyGeo=mergeGeos([boxAt(1.85,.38,.82,0,.22,0),boxAt(1.05,.28,.78,-.12,.48,0)]);
+ const carCabinGeo=boxAt(.9,.28,.74,-.08,.62,0);
+ const wheelGeo=new T.CylinderGeometry(.16,.16,.14,10);wheelGeo.rotateZ(Math.PI/2);
+ const qpShape=new T.Shape();qpShape.moveTo(0,0);qpShape.lineTo(.16,0);qpShape.absarc(.16,1.05,1.05,-Math.PI/2,0,true);qpShape.lineTo(0,1.21);qpShape.closePath();
+ const qpGeo=new T.ExtrudeGeometry(qpShape,{depth:2.4,bevelEnabled:false,steps:1,curveSegments:9});qpGeo.translate(0,0,-1.2);qpGeo.computeVertexNormals();
+ const bowlPts=[new T.Vector2(1.85,0),new T.Vector2(1.85,.06),new T.Vector2(1.72,.08)];for(let i=0;i<=8;i++){const a=i/8*Math.PI/2;bowlPts.push(new T.Vector2(1.72*Math.cos(a),.08+1.05*Math.sin(a)))}
+ const bowlGeo=new T.LatheGeometry(bowlPts,16);bowlGeo.computeVertexNormals();
+ const moundGeo=new T.SphereGeometry(.9,10,7);moundGeo.scale(1.35,.55,1);moundGeo.computeVertexNormals();
+ const railGeo=new T.CylinderGeometry(.035,.035,2.2,8);railGeo.rotateZ(Math.PI/2);
+ const binGeo=new T.CylinderGeometry(.16,.18,.42,10);
+ const benchGeo=mergeGeos([boxAt(1.15,.06,.32,0,.28,0),boxAt(.06,.28,.28,-.48,.14,0),boxAt(.06,.28,.28,.48,.14,0)]);
+ const lampPoleGeo=new T.CylinderGeometry(.035,.05,2.6,6);
+ const lampHeadGeo=new T.BoxGeometry(.28,.08,.18);
+ sharedGeometry.push(carBodyGeo,carCabinGeo,wheelGeo,qpGeo,bowlGeo,moundGeo,railGeo,binGeo,benchGeo,lampPoleGeo,lampHeadGeo);
  function build(index){const r=rand(index),start=index*span,g=new T.Group();g.name='environment:section:'+index;g.position.x=start;const ownGeo=[],ownMat=[],ownTex=[];
   const add=(geo,m,x,y,z,sx=1,sy=1,sz=1)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=o.receiveShadow=true;g.add(o);return o};
   const box=(m,x,y,z,sx,sy,sz)=>add(boxGeo,m,x,y,z,sx,sy,sz);
@@ -38,11 +55,32 @@ export function makeEnvironment(T,scene,terrain,{lowDetail=false,theme=null}={})
   const wallH=x=>1.7+.3*Math.cos((start+x)*.035);
   const wall=add(vertical(x=>height(x)-.38,x=>height(x)+wallH(x)-.3,-2.74),wallMat,0,0,0);wall.name='environment:graffiti-wall';
   const capPoints=[];for(let x=0;x<=span;x+=.5)capPoints.push(new T.Vector3(x,height(x)+wallH(x)-.3,0));const capGeo=new T.TubeGeometry(new T.CatmullRomCurve3(capPoints),span*4,.065,8,false);capGeo.scale(1,1,3.6);ownGeo.push(capGeo);add(capGeo,concrete,0,0,-2.9);
-  const f=add(vertical(x=>height(x)+wallH(x)-.3,x=>height(x)+wallH(x)+.75,-2.9),fenceMat,0,0,0);f.name='environment:chain-fence';
-  const supports=new T.InstancedMesh(boxGeo,metal,7),dummy=new T.Object3D();for(let i=0;i<7;i++){dummy.position.set(i*4,height(i*4)+wallH(i*4)+.2,-2.9);dummy.scale.set(.04,1.2,.04);dummy.updateMatrix();supports.setMatrixAt(i,dummy.matrix)}g.add(supports);
+  const dummy=new T.Object3D();
   for(const x of [4,16]){const y=height(x);box(darkMetal,x,y+wallH(x)-.78,-2.61,.045,.4,.06);box(darkMetal,x,y+wallH(x)-.61,-2.37,.045,.045,.53);box(darkMetal,x,y+wallH(x)-.65,-2.1,.27,.09,.22);box(warm,x,y+wallH(x)-.705,-2.1,.22,.014,.17)}
-  const blue=mat(new T.Color().setHSL(.55+.13*r(),.3,.28),{map:containerTexture});sharedMaterials.pop();ownMat.push(blue);const containerX=5+r()*13,containerW=5+r()*2,foundation=Math.min(...Array.from({length:13},(_,i)=>height(containerX-containerW/2+i*containerW/12)))-.38;box(blue,containerX,foundation+1.2,-6,containerW,2.4,2.5);
-  for(let i=0;i<2;i++){const x=3+i*14+r()*3,base=height(x)-.38,length=3.5+r()*1.5,y=base+length,z=-5.5-r()*2;add(poleGeo,trunk,x,base+length/2,z,2,length,2);const top=add(palmGeometry,leaf,x,y,z);top.rotation.y=r()*6.28;top.scale.setScalar(.85+r()*.4)}
+  // Mid-ground park sits on the wall cap, between the graffiti wall and the far city. The chain fence moves to the back of this terrace.
+  const mid=new T.Group();mid.name='environment:midground';g.add(mid);
+  const deckY=x=>height(x)+wallH(x)-.3,zNear=-3.15,zFar=-10.35;
+  const deckGeo=new T.BufferGeometry(),dv=[],duv=[],didx=[];for(let x=0,i=0;x<=span;x+=.5,i++){const y=deckY(x);dv.push(x,y,zNear,x,y,zFar);duv.push((start+x)/5,0,(start+x)/5,2.6);if(x<span){const a=i*2;didx.push(a,a+2,a+1,a+1,a+2,a+3)}}
+  deckGeo.setAttribute('position',new T.Float32BufferAttribute(dv,3));deckGeo.setAttribute('uv',new T.Float32BufferAttribute(duv,2));deckGeo.setIndex(didx);deckGeo.computeVertexNormals();ownGeo.push(deckGeo);
+  const deck=new T.Mesh(deckGeo,dirt);deck.name='environment:midground-deck';deck.receiveShadow=true;mid.add(deck);
+  const f=add(vertical(x=>deckY(x),x=>deckY(x)+.85,zFar),fenceMat,0,0,0);f.name='environment:chain-fence';
+  const supports=new T.InstancedMesh(boxGeo,metal,7);for(let i=0;i<7;i++){dummy.position.set(i*4,deckY(i*4)+.42,zFar);dummy.scale.set(.04,1.2,.04);dummy.updateMatrix();supports.setMatrixAt(i,dummy.matrix)}g.add(supports);
+  const place=(geo,m,x,y,z,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.scale.set(sx,sy,sz);o.castShadow=o.receiveShadow=true;mid.add(o);return o};
+  const band=Math.abs(index*3+7)%3,zMid=(zNear+zFar)/2;
+  // Asphalt pads under parked cars; seeded so neighbouring chunks don't tile the same lot.
+  if(!lowDetail||band!==1){const padX=band===2?15.5:4.8,pad=place(boxGeo,asphalt,padX,deckY(padX)+.02,zMid,.0,0,0,7.2,.04,5.6);pad.name='environment:midground-lot';
+    const colours=['#3a7bd5','#c94a3c','#e0a125','#d8dde3','#2f8f6b'];const nCar=lowDetail?2:4;
+    for(let i=0;i<nCar;i++){const x=padX-2.6+i*1.85+(r()-.5)*.1,z=zMid-1.4+(i%2)*2.6,y=deckY(x),col=new T.Color(colours[(index+i)%colours.length]);const bodyMat=carPaint.clone();ownMat.push(bodyMat);bodyMat.color.copy(col);const body=place(carBodyGeo,bodyMat,x,y,z,0,i%2?Math.PI:0,0);body.name='environment:midground-car';place(carCabinGeo,carGlass,x,y,z,0,i%2?Math.PI:0,0);for(const [wx,wz] of [[.55,.38],[-.55,.38],[.55,-.38],[-.55,-.38]])place(wheelGeo,carWheel,x+wx,y+.16,z+wz,0,i%2?Math.PI:0,0)}}
+  // Skate bowl, quarter-pipes and a rail occupy one stretch of the terrace.
+  if(band!==2||!lowDetail){const bx=band===0?16.5:band===1?8:6.5,bz=zMid-.4,by=deckY(bx);place(bowlGeo,concrete,bx,by,bz).name='environment:midground-bowl';
+    place(qpGeo,concrete,bx+2.6,by,bz+.8,0,Math.PI/2,0,.9,.9,.85);place(qpGeo,concrete,bx-2.4,by,bz-1.1,0,-Math.PI/2,0,.85,.9,.8);
+    place(railGeo,metal,bx+.4,by+.42,bz+1.6,0,.2,0);place(benchGeo,benchWood,bx-1.8,by,zNear-1.9,0,0,0);place(binGeo,binMat,bx-2.5,by+.21,zNear-2.1)}
+  // Dirt jumps on the remaining stretch.
+  if(band!==0||!lowDetail){const dx=band===0?17.5:band===2?6:16.2;for(let i=0;i<(lowDetail?2:3);i++){const x=dx-2.2+i*2.1,z=zMid+((i%2)?1.2:-1.1),y=deckY(x);place(moundGeo,sand,x,y,z,0,r()*6,0,1.1+r()*.4,1+r()*.35,1.05).name='environment:midground-jump'}}
+  // Park lamps along the back fence.
+  const nLamp=lowDetail?2:3;for(let i=0;i<nLamp;i++){const x=3+i*(span-6)/(nLamp-1||1),y=deckY(x);place(lampPoleGeo,darkMetal,x,y+1.3,zFar+.25);place(lampHeadGeo,warm,x,y+2.62,zFar+.15)}
+  const blue=mat(new T.Color().setHSL(.55+.13*r(),.3,.28),{map:containerTexture});sharedMaterials.pop();ownMat.push(blue);const containerX=5+r()*13,containerW=5+r()*2,foundation=Math.min(...Array.from({length:13},(_,i)=>height(containerX-containerW/2+i*containerW/12)))-.38;box(blue,containerX,foundation+1.2,-13.2,containerW,2.4,2.5);
+  for(let i=0;i<2;i++){const x=3+i*14+r()*3,base=height(x)-.38,length=3.5+r()*1.5,y=base+length,z=-12.6-r()*3;add(poleGeo,trunk,x,base+length/2,z,2,length,2);const top=add(palmGeometry,leaf,x,y,z);top.rotation.y=r()*6.28;top.scale.setScalar(.85+r()*.4)}
   // Sparse, low kit towers behind the wall, with real gaps so the painted skyline and sunset show through.
   const skyLayers=lowDetail?[{n:2,z:-62,zs:22,h0:2.8,hs:3.0,w0:1.0,ws:1.2,d0:1.2,ds:1.5,l:.7},{n:3,z:-94,zs:28,h0:4.0,hs:4.2,w0:1.3,ws:1.5,d0:1.5,ds:1.9,l:.52},{n:3,z:-136,zs:34,h0:5.2,hs:5.5,w0:1.5,ws:1.8,d0:1.7,ds:2.2,l:.4}]:[{n:3,z:-64,zs:22,h0:3.0,hs:3.4,w0:1.0,ws:1.3,d0:1.2,ds:1.6,l:.7},{n:4,z:-96,zs:30,h0:4.2,hs:4.6,w0:1.3,ws:1.7,d0:1.5,ds:2.0,l:.5},{n:4,z:-138,zs:36,h0:5.5,hs:6.0,w0:1.5,ws:2.0,d0:1.8,ds:2.3,l:.38}];
   const buildings=new T.InstancedMesh(boxGeo,windowMat,skyLayers.reduce((n,L)=>n+L.n,0));let ti=0;
@@ -62,5 +100,5 @@ export function makeEnvironment(T,scene,terrain,{lowDetail=false,theme=null}={})
  function update(x){lastX=x;const center=Math.floor(x/span);for(const [index,c]of chunks)if(index<center-(lowDetail?2:3)||index>center+(lowDetail?3:4)){remove(c);chunks.delete(index)}for(let i=center-(lowDetail?2:3);i<=center+(lowDetail?3:4);i++)if(!chunks.has(i))chunks.set(i,build(i));}
  update(2);
  const photo=new Image();photo.onload=()=>{if(disposed)return;sourceArt=photo;const c=paving.image,x=c.getContext('2d');x.drawImage(photo,photo.width*.24,photo.height*.79,photo.width*.34,photo.height*.205,0,0,c.width,c.height);paving.needsUpdate=true;for(const chunk of chunks.values())remove(chunk);chunks.clear();update(lastX)};photo.src=artSource;
- return {roadMap:paving,update,view(blend){for(const c of chunks.values()){c.front.visible=blend>.01;for(const m of c.frontMaterials)m.opacity=Math.min(1,blend*1.2)}},state:()=>({sections:[...chunks.keys()],near:true,middle:true,far:true,worldStart:Math.min(...chunks.keys())*span,worldEnd:(Math.max(...chunks.keys())+1)*span}),dispose(){disposed=true;photo.onload=null;for(const c of chunks.values())remove(c);chunks.clear();sharedTextures.forEach(t=>t.dispose());sharedMaterials.forEach(m=>m.dispose());sharedGeometry.forEach(g=>g.dispose());scene.remove(root)}};
+ return {roadMap:paving,update,view(blend){for(const c of chunks.values()){c.front.visible=blend>.01;for(const m of c.frontMaterials)m.opacity=Math.min(1,blend*1.2)}},state:()=>({sections:[...chunks.keys()],near:true,middle:true,far:true,midground:true,worldStart:Math.min(...chunks.keys())*span,worldEnd:(Math.max(...chunks.keys())+1)*span}),dispose(){disposed=true;photo.onload=null;for(const c of chunks.values())remove(c);chunks.clear();sharedTextures.forEach(t=>t.dispose());sharedMaterials.forEach(m=>m.dispose());sharedGeometry.forEach(g=>g.dispose());scene.remove(root)}};
 }
