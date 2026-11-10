@@ -78,7 +78,50 @@ function begin(id) {
  const def = placeable(id); if (!def || !inst) return null;
  if (selected) finishEdit(false);
  const it = makeItem(def, uidOf(), { x: 0, z: 1.6 }); it.pending = true; items.push(it);
- spawnSpot(it); selected = it.uid; arrange = true; original = null; paint(it); refresh(); return it.uid;
+ if (place) dropAt(it); else spawnSpot(it); selected = it.uid; arrange = true; original = null; paint(it); refresh(); return it.uid;
+}
+
+// ---- place mode: camera eases out to a wide room overview, bike + workstand hide, new items drop into the
+// middle of the room (nearest free spot if blocked). Only while placing; normal camera/zoom are restored on exit.
+const WIDE = { pos: new T.Vector3(3.9, 3.3, 5.6), tgt: new T.Vector3(-.6, .15, -1.2), fov: 52 }, CENTRE = { x: -.3, z: -.2 }, EASE_MS = 700, DROP_H = .75, DROP_MS = 420;
+let place = null;
+const ease = t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// the bike build (it carries the workstand) and its floor shadow/turntable meshes at the scene root
+const bikeBits = v => v.scene.children.filter(c => c.userData?.wkWorkstand || c.getObjectByName?.('wk:stand') || (c.isMesh && c.position.y < .1 && Math.hypot(c.position.x, c.position.z) < 1.5));
+function hideBike(v) { for (const o of bikeBits(v)) if (!place.hidden.has(o)) { place.hidden.set(o, o.visible); o.visible = false; } }
+function showBike() { for (const [o, vis] of place.hidden) o.visible = vis; place.hidden.clear(); }
+function tweenTo(v, to, done) { place.tw = { from: { pos: v.camera.position.clone(), tgt: v.controls.target.clone(), fov: v.camera.fov }, to, t0: performance.now(), done }; v.controls.enabled = false; }
+function stepTween(v) {
+ const tw = place?.tw; if (!tw) return; const k = Math.min(1, (performance.now() - tw.t0) / EASE_MS), e = ease(k);
+ v.camera.position.lerpVectors(tw.from.pos, tw.to.pos, e); v.controls.target.lerpVectors(tw.from.tgt, tw.to.tgt, e);
+ v.camera.fov = tw.from.fov + (tw.to.fov - tw.from.fov) * e; v.camera.updateProjectionMatrix(); v.controls.update();
+ if (k >= 1) { place.tw = null; v.controls.enabled = true; tw.done?.(); }
+}
+function enterPlace() {
+ const v = view(); if (place || !v?.controls || !active()) return false;
+ place = { pos: v.camera.position.clone(), tgt: v.controls.target.clone(), fov: v.camera.fov, max: v.controls.maxDistance, auto: v.controls.autoRotate, damp: v.controls.enableDamping, hidden: new Map(), tw: null, leaving: false };
+ v.controls.autoRotate = false; v.controls.enableDamping = false; v.controls.maxDistance = Math.max(place.max, 14); hideBike(v);
+ tweenTo(v, WIDE); refresh(); return true;
+}
+function restoreView(v) { v.camera.position.copy(place.pos); v.controls.target.copy(place.tgt); v.camera.fov = place.fov; v.camera.updateProjectionMatrix(); v.controls.maxDistance = place.max; v.controls.autoRotate = place.auto; v.controls.enableDamping = place.damp; v.controls.enabled = true; v.controls.update(); }
+function exitPlace() {
+ const v = view(); if (!place || place.leaving) return false;
+ const it = items.find(i => i.uid === selected); if (it && arrange) finishEdit(!it.pending || check(it).ok);
+ if (ui) ui.panel.hidden = true; selected = null; original = null;
+ place.leaving = true; if (!v?.controls) { place = null; return true; }
+ tweenTo(v, { pos: place.pos, tgt: place.tgt, fov: place.fov }, () => { restoreView(v); showBike(); place = null; refresh(); });
+ refresh(); return true;
+}
+function dropAt(it) {
+ for (let r = 0; r <= 4; r += .15) { const n = r ? Math.max(8, Math.round(r * 14)) : 1;
+  for (let a = 0; a < n; a++) { const x = CENTRE.x + Math.cos(a / n * 6.283) * r, z = CENTRE.z + Math.sin(a / n * 6.283) * r;
+   if (z > .42) continue; // never between the bike and the normal camera: new items go beside / behind the bike
+   if (moveTo(it, x, z).ok) { if (it.mount !== 'wall') it.drop = performance.now(); return true; } } }
+ return spawnSpot(it);
+}
+function stepDrops() {
+ const now = performance.now();
+ for (const it of items) if (it.drop) { const k = Math.min(1, (now - it.drop) / DROP_MS); it.holder.position.y = it.y + DROP_H * (1 - k) * (1 - k); if (k >= 1) { delete it.drop; apply(it); } }
 }
 
 // ---- rig adapter so the garage gizmo can drive workshop items unchanged
@@ -125,6 +168,9 @@ const css = document.createElement('style'); css.textContent = `
 #wk-place-panel .card:hover{border-color:#7affc6;box-shadow:0 0 12px #30e9bd44}#wk-place-panel .card img{width:100%;height:96px;object-fit:contain;border-radius:8px;background:radial-gradient(#2a2340,#0c0b14)}
 #wk-place-panel .card strong{font-size:13px}#wk-place-panel .card small{color:#9fc3d8}
 #wk-place-bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:45;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px;max-width:94vw;padding:8px;border-radius:14px;border:1px solid #a3d9ef70;background:linear-gradient(135deg,#182d43c4,#080f1ccc);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 30px #0009;color:#eff8ff;font:12px system-ui}
+#wk-place-mode{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:62;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:999px;border:1px solid #35e07a8c;background:#0a1016b8;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 20px #0008;color:#e8fff1;font:800 13px/1 system-ui;letter-spacing:.1em}
+#wk-place-mode[hidden]{display:none}#wk-place-mode .dot{width:8px;height:8px;border-radius:50%;background:#35e07a;box-shadow:0 0 8px #35e07a}
+#wk-place-mode button{min-height:32px;padding:6px 14px;border-radius:999px;border:0;background:#35e07a;color:#07120b;font:900 12px system-ui;letter-spacing:.06em;cursor:pointer}
 #wk-place-bar[hidden]{display:none}#wk-place-bar button{min-width:44px;min-height:40px;padding:6px 12px;border-radius:10px;border:1px solid #8eb8d888;background:#102037cc;color:#e8f6ff;font:800 13px system-ui;cursor:pointer}
 #wk-place-bar button.primary{border-color:#7affc6;color:#b9ffd9}#wk-place-bar button:disabled{opacity:.45;cursor:default}
 #wk-place-bar .status{min-width:120px;text-align:center;font-weight:800}#wk-place-bar .status.ok{color:${OK}}#wk-place-bar .status.bad{color:${BAD}}`;
@@ -133,16 +179,17 @@ function ensureUi() {
  const v = view(), host = v?.renderer?.domElement?.parentElement; if (!host) return null;
  if (ui && ui.host === host) return ui;
  ui?.button.remove(); gizmoStop?.();
- const button = document.createElement('button'); button.type = 'button'; button.dataset.wkPlace = ''; button.textContent = '＋ PLACE'; button.setAttribute('aria-label', 'Place a prop in the workshop'); button.onclick = openPanel; host.append(button);
- let panel = document.getElementById('wk-place-panel'); if (!panel) { panel = document.createElement('div'); panel.id = 'wk-place-panel'; panel.hidden = true; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Place in workshop'); panel.onclick = e => { if (e.target === panel) panel.hidden = true; }; document.body.append(panel); }
+ const button = document.createElement('button'); button.type = 'button'; button.dataset.wkPlace = ''; button.textContent = '＋ PLACE'; button.setAttribute('aria-label', 'Place a prop in the workshop'); button.onclick = () => { enterPlace(); openPanel(); }; host.append(button);
+ let panel = document.getElementById('wk-place-panel'); if (!panel) { panel = document.createElement('div'); panel.id = 'wk-place-panel'; panel.hidden = true; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Place in workshop'); panel.onclick = e => { if (e.target === panel) { panel.hidden = true; if (!arrange) exitPlace(); } }; document.body.append(panel); }
+ let pill = document.getElementById('wk-place-mode'); if (!pill) { pill = document.createElement('div'); pill.id = 'wk-place-mode'; pill.hidden = true; pill.setAttribute('role', 'status'); pill.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="lbl">PLACE MODE</span><button type="button" data-wk-place-exit aria-label="Exit place mode">✓ Done</button>'; pill.querySelector('button').onclick = () => exitPlace(); document.body.append(pill); }
  let bar = document.getElementById('wk-place-bar'); if (!bar) { bar = document.createElement('div'); bar.id = 'wk-place-bar'; bar.hidden = true; document.body.append(bar); }
  gizmoStop = garageGizmo(host, () => (active() ? rig : null), () => { if (selected) remove(selected); }, value => { if (value) { arrange = true; const it = items.find(i => i.uid === selected); original = it ? { x: it.x, y: it.y, z: it.z, yaw: it.yaw } : null; refresh(); } else finishEdit(true); });
- ui = { host, button, panel, bar }; return ui;
+ ui = { host, button, panel, bar, pill }; return ui;
 }
 function openPanel() {
  const u = ensureUi(); if (!u || !inst) return;
  const sheet = document.createElement('div'); sheet.className = 'sheet';
- const head = document.createElement('header'); const h = document.createElement('h2'); h.textContent = 'PLACE IN WORKSHOP'; const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close'); x.onclick = () => { u.panel.hidden = true; }; head.append(h, x);
+ const head = document.createElement('header'); const h = document.createElement('h2'); h.textContent = 'PLACE IN WORKSHOP'; const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close'); x.onclick = () => { u.panel.hidden = true; if (!arrange) exitPlace(); }; head.append(h, x);
  const grid = document.createElement('div'); grid.className = 'grid';
  for (const def of PLACEABLES) { const c = document.createElement('button'); c.type = 'button'; c.className = 'card'; c.dataset.placeItem = def.id; const img = document.createElement('img'); img.alt = ''; img.src = thumb(def); const s = document.createElement('strong'); s.textContent = def.name; const sm = document.createElement('small'); sm.textContent = def.mount === 'wall' ? 'Wall mounted' : 'Floor'; c.append(img, s, sm); c.onclick = () => { u.panel.hidden = true; begin(def.id); }; grid.append(c); }
  sheet.append(head, grid); u.panel.replaceChildren(sheet); u.panel.hidden = false;
@@ -159,7 +206,8 @@ function thumb(def) {
 }
 function refresh(full = true) {
  const u = ensureUi(); if (!u) return;
- u.button.hidden = !active() || arrange;
+ u.button.hidden = !active() || arrange || !!place?.leaving;
+ u.pill.hidden = !place || place.leaving || !active();
  const it = items.find(i => i.uid === selected); for (const i of items) i.mark.visible = i === it && arrange;
  if (!it || !arrange || !active()) { u.bar.hidden = true; return; }
  const v = it.valid || paint(it);
@@ -186,7 +234,8 @@ function load() {
 function tick() {
  const next = world()?.getInstance?.(ROOM) || null;
  if (next !== inst) { inst = next?.placement ? next : null; if (inst) load(); }
- if (inst) { const v = view(); if (selected && v?.controls) v.controls.autoRotate = false; refresh(false); }
+ if (place && !active()) { const v = view(); if (v?.controls) restoreView(v); showBike(); place = null; }
+ if (inst) { const v = view(); if (place && v) { stepTween(v); if (place && !place.leaving) hideBike(v); } stepDrops(); if (selected && v?.controls) v.controls.autoRotate = false; refresh(false); }
  requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -203,6 +252,7 @@ globalThis.__WK_WORKSHOP_PLACE__ = {
  list: () => items.filter(i => !i.pending).map(({ uid, item, x, y, z, yaw, mount }) => ({ uid, item, x, y, z, yaw, mount })),
  begin, confirm: () => finishEdit(true), cancel: () => finishEdit(false), select: (uid, edit) => select(uid, edit), open: openPanel,
  dragTo(x, z) { const it = items.find(i => i.uid === selected); if (!it) return null; const v = moveTo(it, x, z); refresh(false); return v; },
- state: () => ({ ready: !!inst, items: items.length, selected, arrange, pending: items.some(i => i.pending), valid: items.find(i => i.uid === selected)?.valid || null, key: KEY }),
+ placeMode: { enter: () => enterPlace(), exit: () => exitPlace(), state: () => ({ on: !!place, leaving: !!place?.leaving, tweening: !!place?.tw, hidden: place ? place.hidden.size : 0 }) },
+ state: () => ({ ready: !!inst, placeMode: !!place, items: items.length, selected, arrange, pending: items.some(i => i.pending), valid: items.find(i => i.uid === selected)?.valid || null, key: KEY }),
  reload: load,
 };
