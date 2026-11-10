@@ -39,6 +39,7 @@ function resolveChangedTests(){
   {re:/^player-/, tests:['player-rooms','manage-rides']},
   {re:/^garage-/, tests:['garage-drag','manage-rides','world-room']},
   {re:/^(garage-gizmo\.js|workshop-placement\.js|player-view3d\.js|src\/props\/gizmo3d\.js|src\/props\/kit\/parts-stand\.js|src\/rooms\/(workstand|workshop-room)\.js)$/, tests:['gizmo-stand']},
+  {re:/^(ride\.js|ride-replay|ride-controls|ride-buffer)/, tests:['replay-menu-gap']},
   {re:/^trax-/, tests:['trax-bike','trax-mechanics']},
   {re:/^bike-motion/, tests:['bike-motion']},
   {re:/^vehicle-/, tests:['vehicle-platforms']},

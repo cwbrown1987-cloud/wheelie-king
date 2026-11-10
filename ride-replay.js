@@ -21,7 +21,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   const overlayPlay = panel.querySelector('[data-r="overlay-play"]');
   const theatreScrub = panel.querySelector('[data-r="theatre-scrub"]');
   const theatreTime = panel.querySelector('[data-r="theatre-time"]');
-  let recorder, stream, url, expiry, limit, started, capture, disposed = false, openedFromPause = false;
+  let recorder, stream, url, expiry, limit, started, capture, disposed = false, openedFromPause = false, clipPausedAt = 0;
   let rolling = null, activeSource = 'latest', activeSaved = null, latestBlob = null, latestDuration = 1;
   const ring = createBlockRing({ maxBlocks: 2, blockMs: 30000 });
   let latestState = null; // optional state snapshot for Drop In on latest / saved-with-state
@@ -80,9 +80,9 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   }
   function stopClip() {
     clearTimeout(limit);
-    if (recorder?.state === 'recording') recorder.stop();
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
     stream?.getTracks().forEach(track => track.stop());
-    recorder = stream = null;
+    recorder = stream = null; clipPausedAt = 0;
   }
   function mimeGuess(chunks, rec) { return rec?.mimeType || chunks[0]?.type || 'video/webm'; }
 
@@ -170,7 +170,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   }
   function finish() {
     if (!recorder) return;
-    capture.duration = Math.max(.1, (performance.now() - started) / 1000);
+    capture.duration = Math.max(.1, ((clipPausedAt || performance.now()) - started) / 1000);
     stopClip();
   }
   function finalizeCurrentBlock(force = false) {
@@ -213,6 +213,11 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     } catch { rolling = null; }
   }
   function setCaptureActive(active) {
+    // the slow-mo clip recorder pauses with the rolling one (its duration excludes the paused time)
+    try {
+      if (recorder && !active && recorder.state === 'recording' && recorder.pause) { recorder.pause(); clipPausedAt = performance.now(); }
+      else if (recorder && active && recorder.state === 'paused' && clipPausedAt && recorder.resume) { recorder.resume(); started += performance.now() - clipPausedAt; clipPausedAt = 0; }
+    } catch {}
     if (!rolling?.recorder) return;
     try {
       if (!active && rolling.recorder.state === 'recording' && rolling.recorder.pause) {

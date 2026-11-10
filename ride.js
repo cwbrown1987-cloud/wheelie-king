@@ -262,7 +262,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,up);
   });
   const releaseControls=()=>{hopQueued=false;held.clear();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];leanControls.release();ui.querySelectorAll('[data-t]').forEach(b=>{b.style.filter='';delete b.dataset.pressed})};
-  const visibility=()=>{if(document.hidden)releaseControls()};
+  const visibility=()=>{if(document.hidden){releaseControls();replay.setCaptureActive?.(false)}};
+  const appCovered=()=>{if(document.hidden||document.body.dataset.playerView)return true;for(const n of document.querySelectorAll('[role=menu],[role=dialog],[aria-modal="true"]'))if(!el.contains(n)&&!n.hidden&&n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden')return true;return false};
   addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
   $('[data-r="back"]').onclick = () => close(); $('[data-r="reset"]').onclick = () => respawn();
   const restartRun=()=>{finished=true;respawn();};
@@ -334,7 +335,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     else if (dropInEase > 0) { timeScale = 0.5 + (1 - dropInEase) * 0.5; dropInEase = Math.max(0, dropInEase - cameraDt); }
     const dt = realDt * timeScale;
     last = now;
-    const capturing = !paused && !reviewing && !finished;
+    // Replay video + Drop In buffer hold live riding only: app menus/overlays opened over the ride (More, Settings,
+    // Shop, Garage...) don't pause the ride itself, so they must stop capture too.
+    const capturing = !paused && !reviewing && !finished && !appCovered();
     replay.setCaptureActive?.(capturing);
     if (capturing) replay.buffer?.tick(cameraDt); // capture clock = replay video timeline
     const activeTime = realDt > 0 ? cameraDt : 0;
@@ -364,7 +367,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       const n = Math.ceil(dt * 480);
       for (let k = 0; k < n; k++) {
         step(s, P, inp, dt / n, ter);
-        if (dt > 0) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
+        if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
       }
     }
     if (s.crashed) endSlow();
