@@ -31,7 +31,20 @@ try{
   assert(!lay.scroll&&!lay.docScroll,`${w}x${h} no scrolling `+JSON.stringify(lay));
   assert.deepEqual(lay.bad,[],`${w}x${h} controls visible + clickable`);
   assert(lay.videoFill>.97,`${w}x${h} video fills the panel `+lay.videoFill);
+  assert(lay.panel[2]<=w*0.82+1&&lay.panel[3]<=h*0.80+1,`${w}x${h} panel is ~75-80% of the viewport `+JSON.stringify(lay.panel));
   assert(new Set(lay.rowY).size===1&&Math.max(...lay.widths)-Math.min(...lay.widths)<=2,`${w}x${h} save buttons on one row, evenly sized `+JSON.stringify(lay));
+  // centre play button: a real click starts playback and hides the button (the :active translate used to eat the click)
+  await p.evaluate(()=>{const v=document.querySelector('.ride-replay video');v.pause();v.currentTime=Math.min(.15,Math.max(0,(+document.querySelector('.ride-replay input[type=range]').max||1)*0.05));});
+  await p.waitForFunction(()=>{const b=document.querySelector('[data-r=overlay-play]');return b&&!b.hidden&&b.getBoundingClientRect().width>0},null,{timeout:8000});
+  const tPlay=await p.evaluate(()=>document.querySelector('.ride-replay video').currentTime);
+  await p.locator('[data-r=overlay-play]').click({force:false,timeout:5000});
+  await p.waitForFunction(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]'),p=document.querySelector('.ride-replay');return !v.paused&&b.hidden&&!p.classList.contains('is-theatre')&&v.currentTime>t0+0.12},tPlay,{timeout:8000});
+  const played=await p.evaluate(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]');return {ct:v.currentTime,paused:v.paused,hidden:b.hidden,theatre:document.querySelector('.ride-replay').classList.contains('is-theatre'),t0}},tPlay);
+  assert(!played.paused&&played.hidden&&!played.theatre&&played.ct>played.t0+0.12,`${w}x${h} centre play starts the video `+JSON.stringify(played));
+  // tapping the video (away from chrome) toggles pause
+  const stage=await p.locator('.ride-replay-stage').boundingBox();
+  await p.mouse.click(stage.x+stage.width*0.5,stage.y+stage.height*0.42);
+  await p.waitForFunction(()=>document.querySelector('.ride-replay video').paused,null,{timeout:5000});
   // touch drag along the seek bar (CDP touch, like a finger): playhead follows, panel stays, page doesn't scroll
   const bb=await p.locator('[data-r=replay-seek]').boundingBox(),inp=await p.locator('[data-r=replay-seek] input').boundingBox(),cdp=await p.context().newCDPSession(p),y=bb.y+bb.height*.15;
   const t0=await p.evaluate(()=>document.querySelector('.ride-replay video').currentTime);
@@ -83,6 +96,31 @@ try{
   assert.deepEqual(rot.bad,[],'rotated controls on the video '+JSON.stringify(rot));
   if(shots)await p.screenshot({path:`${shots}/replay-rotated-412x915.png`});
   assert.deepEqual(errors,[]);console.log('replay-overlay rotated 915x412→412x915 ok',JSON.stringify(rot));
+  await p.close();
+ }
+ // Desktop monitor: centre play + smaller panel, with screenshots
+ {
+  const w=1280,h=720;
+  const p=await browser.newPage(pageOptions({viewport:{width:w,height:h},deviceScaleFactor:1,serviceWorkers:'block'}));
+  const errors=[];p.on('pageerror',e=>errors.push(e.message));
+  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
+  await p.goto(URL0);await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
+  await p.evaluate(()=>document.querySelector('[data-destination=race]').click());
+  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
+  await p.keyboard.down('ArrowUp');await p.waitForTimeout(4500);await p.keyboard.up('ArrowUp');
+  await p.locator('[data-r="pause"]').click();await p.waitForTimeout(250);await p.locator('[data-r="menu-replay"]').click();
+  await p.waitForFunction(()=>{const v=document.querySelector('.ride-replay video');return !document.querySelector('.ride-replay').hidden&&v.readyState>=2&&+document.querySelector('.ride-replay input[type=range]').max>0},null,{timeout:15000});
+  await p.evaluate(()=>{const v=document.querySelector('.ride-replay video');v.pause();});
+  await p.waitForFunction(()=>{const b=document.querySelector('[data-r=overlay-play]');return b&&!b.hidden},null,{timeout:8000});
+  const desk=await p.evaluate(()=>{const s=document.querySelector('.ride-replay'),R=s.getBoundingClientRect(),v=document.querySelector('.ride-replay video');
+   return {w:R.width,h:R.height,vw:innerWidth,vh:innerHeight,ar:R.width/R.height,vwVid:v.videoWidth,vhVid:v.videoHeight,scroll:s.scrollHeight>s.clientHeight+1};});
+  assert(!desk.scroll&&desk.w<=w*0.82+1&&desk.h<=h*0.80+1,'desktop panel size '+JSON.stringify(desk));
+  if(shots)await p.screenshot({path:`${shots}/replay-1280x720-paused.png`});
+  const t0=await p.evaluate(()=>document.querySelector('.ride-replay video').currentTime);
+  await p.locator('[data-r=overlay-play]').click();
+  await p.waitForFunction(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]');return !v.paused&&b.hidden&&v.currentTime>t0+0.12},t0,{timeout:8000});
+  if(shots)await p.screenshot({path:`${shots}/replay-1280x720-playing.png`});
+  assert.deepEqual(errors,[]);console.log('replay-overlay desktop 1280x720 ok',JSON.stringify(desk));
   await p.close();
  }
 }finally{await browser.close();}

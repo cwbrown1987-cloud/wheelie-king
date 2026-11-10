@@ -182,7 +182,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       <div class="ride-replay-main">
         <div class="ride-replay-stage">
           <video playsinline></video>
-          <button type="button" class="ride-replay-overlay-play" data-r="overlay-play" aria-label="Play theatre">▶</button>
+          <button type="button" class="ride-replay-overlay-play" data-r="overlay-play" aria-label="Play">▶</button>
         </div>
         <div class="ride-replay-scrub" data-r="replay-seek"><label><span class="ride-sr">Seek</span> <input type="range" min="0" step=".05" aria-label="Scrub replay"></label><span data-r="replay-time">0:00 / 0:00</span></div>
         <div class="ride-replay-actions">

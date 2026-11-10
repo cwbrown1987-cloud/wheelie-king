@@ -40,7 +40,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     return (apple ? [...mp4, ...webm] : [...webm, ...mp4]).find(t => MediaRecorder.isTypeSupported(t));
   })();
   // 30 fps capture (15 fps looked choppy); bitrate sized for phones vs desktop.
-  const REC = { fps: 30, bps: coarse ? 2000000 : 3000000 };
+  const REC = { fps: 30, bps: coarse ? 4000000 : 8000000 };
   let start0 = 0; // media timeline start of the presented clip (non-zero when early blocks were trimmed)
 
   const fmt = s => { s = Math.max(0, +s || 0); const m = Math.floor(s / 60), sec = Math.floor(s % 60); return m + ':' + String(sec).padStart(2, '0'); };
@@ -450,7 +450,12 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   video.onplay = () => syncPlayIcon();
   video.onpause = () => syncPlayIcon();
   playBtn?.addEventListener('click', () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
-  overlayPlay?.addEventListener('click', () => enterTheatre());
+  const togglePlay = () => { if (video.paused) video.play().catch(() => {}); else video.pause(); };
+  overlayPlay?.addEventListener('click', e => { e.stopPropagation(); if (video.paused) video.play().catch(() => {}); });
+  panel.querySelector('.ride-replay-stage')?.addEventListener('click', e => {
+    if (e.target.closest('button, a, input, label, [data-r="replay-seek"], [data-r="replay-time"]')) return;
+    togglePlay();
+  });
   panel.querySelector('[data-r="theatre-play"]')?.addEventListener('click', () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
   panel.querySelector('[data-r="theatre-rew"]')?.addEventListener('click', () => { video.currentTime = Math.max(start0, video.currentTime - 5); syncTime(); });
   panel.querySelector('[data-r="theatre-ff"]')?.addEventListener('click', () => { video.currentTime = Math.min(+scrub.max || video.duration || 0, video.currentTime + 5); syncTime(); });

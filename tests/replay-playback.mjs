@@ -38,11 +38,9 @@ try {
   const ctl = await page.evaluate(async()=>{
     const v=document.querySelector('.ride-replay video'),p=document.querySelector('.ride-replay');const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     v.pause();const s=p.querySelector('input[type=range]');s.value=String(Math.min(+s.max,1));s.dispatchEvent(new Event('input'));await sleep(500);const afterScrub=v.currentTime;
-    p.querySelector('[data-r="overlay-play"]').click();await sleep(300);const theatre=p.classList.contains('is-theatre')&&!v.paused;
-    p.querySelector('[data-r="theatre-ff"]').click();await sleep(300);const ff=v.currentTime;
-    p.querySelector('[data-r="theatre-rew"]').click();await sleep(300);const rew=v.currentTime;
-    p.querySelector('[data-r="theatre-play"]').click();await sleep(200);const paused=v.paused;
-    return {afterScrub,theatre,ff,rew,paused,max:+s.max};
+    const tPlay=v.currentTime;const btn=p.querySelector('[data-r="overlay-play"]');btn.hidden=false;btn.click();await sleep(600);
+    const played=!v.paused&&btn.hidden&&!p.classList.contains('is-theatre')&&v.currentTime>tPlay+0.12;
+    return {afterScrub,played,ct:v.currentTime,tPlay,hidden:btn.hidden,paused:v.paused,theatre:p.classList.contains('is-theatre'),max:+s.max};
   });
   console.log(JSON.stringify(ctl));
   if (shot) await page.screenshot({path:shot});
@@ -62,7 +60,7 @@ try {
     // rVFC is unreliable headless; the decoder's own counters show real frames played and dropped.
     assert(r.advanced > 0.8 && r.decoded >= Math.max(3, Math.min(30, gameFps) * 2 * .5) && r.dropped <= r.decoded * .1, 'plays frames smoothly: '+JSON.stringify(r));
   }
-  assert(Math.abs(ctl.afterScrub - Math.min(ctl.max,1)) < .3 && ctl.theatre && ctl.ff > ctl.afterScrub && ctl.rew < ctl.ff && ctl.paused, JSON.stringify(ctl));
+  assert(Math.abs(ctl.afterScrub - Math.min(ctl.max,1)) < .3 && ctl.played, JSON.stringify(ctl));
   assert(dropReady);
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({replayPlayback:true}));
