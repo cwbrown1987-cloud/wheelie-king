@@ -1,16 +1,75 @@
-const driveButton=(kind,label,icon)=>`<button type="button" class="ride-drive ${kind}" data-t="${kind}" aria-label="${label}">${icon}</button>`;
+const driveButton=(kind,label,icon)=>`<button type="button" class="ride-drive ${kind}" data-t="${kind}" aria-label="${label}">${icon}<span class="ride-drive-label">${kind==='throttle'?'ACCELERATE':'BRAKE'}</span></button>`;
 const brakeIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4"><circle cx="32" cy="32" r="23"/><circle cx="32" cy="32" r="15"/><circle cx="32" cy="32" r="6"/><path d="M32 9v8M32 47v8M9 32h8M47 32h8M16 16l6 6M42 42l6 6M16 48l6-6M42 22l6-6"/></g></svg>';
 const gasIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 32l16-16 16 16M16 48l16-16 16 16" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const glyph={hop:'M16 6V0 M12 4l4-4 4 4',tailwhip:'M12 4C0-2-2 13 6 15 M2 14l4 1-1-5',barspin:'M22 3c9-5 12 6 5 8 M30 7l-3 4-3-3',superman:'M4 4l17 2 5 4 M12 5L5 9 M20 4l3-3',trick:'M6 7C18-5 34 4 29 13 M26 9l3 4 3-3'};
 const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label="${label}"><svg viewBox="0 0 32 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="5"/><circle cx="26" cy="17" r="5"/><path d="M7 17l7-9 5 9H7m7-9h9l3 9M12 5h6m2-3 4 5"/><path d="${glyph[key]}"/></g></svg><span>${label}</span></button>`;
 export const rideControlsMarkup=()=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks">${trickButton('hop','HOP')}</div>
- <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back">‹</button><button type="button" data-t="leanForward" aria-label="Lean forward">›</button></div>
+ <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back"><span class="ride-lean-glyph" aria-hidden="true">‹</span><span class="ride-tilt-copy"><small>TILT</small><small>BACK</small></span></button><button type="button" data-t="leanForward" aria-label="Lean forward"><span class="ride-lean-glyph" aria-hidden="true">›</span><span class="ride-tilt-copy"><small>TILT</small><small>FWD</small></span></button></div>
+ <div class="ride-steer">
+  <div class="ride-steer-hint">STEER · drag · springs back</div>
+  <div class="ride-steer-pill" role="slider" aria-label="Steer" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" tabindex="0">
+   <span class="ride-steer-chev" aria-hidden="true">‹</span>
+   <div class="ride-steer-track"><div class="ride-steer-knob"></div></div>
+   <span class="ride-steer-chev" aria-hidden="true">›</span>
+  </div>
+ </div>
  <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button><div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div></div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
 </div>`;
 export function mountLeanControls(ui,touch){
  const release=()=>{touch.lean=0;touch.leanBack=0;touch.leanForward=0};release();return {update(){},release,state:()=>({active:!!(touch.leanBack||touch.leanForward),value:(touch.leanForward||0)-(touch.leanBack||0)})};
+}
+export function mountSteerSlider(ui,touch){
+ const root=ui.querySelector('.ride-steer');
+ const pill=root?.querySelector('.ride-steer-pill');
+ const track=root?.querySelector('.ride-steer-track');
+ const knob=root?.querySelector('.ride-steer-knob');
+ touch.steer=0;
+ let dragging=false,ptr=null,vel=0;
+ const clamp=v=>Math.max(-1,Math.min(1,v));
+ const set=v=>{
+  touch.steer=clamp(v);
+  if(knob)knob.style.left=`${(touch.steer+1)/2*100}%`;
+  pill?.setAttribute('aria-valuenow',touch.steer.toFixed(2));
+ };
+ const fromEvent=e=>{
+  const r=track.getBoundingClientRect();
+  const x=e.clientX;
+  if(!r.width)return touch.steer;
+  return clamp((x-r.left)/r.width*2-1);
+ };
+ const down=e=>{
+  const surface=ui.closest('[data-wk-ride-surface]')||document.querySelector('[data-wk-ride-surface]');
+  if(surface&&surface.dataset.wkCam!=='chase')return;
+  if(surface&&(surface.hasAttribute('data-wk-paused')||surface.hasAttribute('data-wk-crashed')||surface.hasAttribute('data-wk-finished')||surface.hasAttribute('data-wk-reviewing')))return;
+  e.preventDefault();e.stopPropagation();
+  dragging=true;ptr=e.pointerId;vel=0;
+  try{pill.setPointerCapture(e.pointerId)}catch{}
+  set(fromEvent(e));
+ };
+ const move=e=>{if(!dragging||e.pointerId!==ptr)return;e.preventDefault();set(fromEvent(e));};
+ const up=e=>{
+  if(ptr==null)return;
+  if(e&&e.pointerId!==ptr&&e.type!=='lostpointercapture')return;
+  dragging=false;ptr=null;
+  try{if(e)pill.releasePointerCapture(e.pointerId)}catch{}
+ };
+ pill?.addEventListener('pointerdown',down);
+ pill?.addEventListener('pointermove',move);
+ for(const name of ['pointerup','pointercancel','lostpointercapture'])pill?.addEventListener(name,up);
+ return {
+  update(dt){
+   if(dragging||(touch.steer===0&&vel===0))return;
+   const w=16,z=.9,a=-w*w*touch.steer-2*z*w*vel;
+   vel+=a*dt;
+   let next=touch.steer+vel*dt;
+   if(Math.abs(next)<.01&&Math.abs(vel)<.08){next=0;vel=0;}
+   set(next);
+  },
+  release(){dragging=false;ptr=null;vel=0;set(0);},
+  state:()=>({value:touch.steer||0,dragging})
+ };
 }
 export function mountTricksMenu(ui){
  const root=ui.querySelector('.ride-tricks:not(.ride-hop)');
@@ -218,5 +277,39 @@ if(typeof document!=='undefined'){
  .ride-replay:not(.is-theatre).is-tall-video .ride-replay-actions .ri{font-size:17px;line-height:1}
  .ride-replay:not(.is-theatre).is-tall-video .ride-replay-actions .ride-replay-playbtn{flex:1 1 0;width:auto;font-size:20px!important}
  .ride-replay:not(.is-theatre).is-tall-video .ride-replay-scrub{bottom:128px}
- `;document.head.append(style);
+ 
+ .ride-drive-label,.ride-tilt-copy,.ride-steer{display:none}
+ [data-wk-ride-surface][data-wk-cam=chase]{--chase-accel:80px;--chase-brake:62px;--chase-hop:56px;--chase-tilt:58px;--chase-gap:8px;--chase-steer-h:62px} [data-wk-ride-surface][data-wk-cam=chase] .ride-controls{inset:0;left:14px;right:14px;top:0;bottom:18px;display:block;pointer-events:none;gap:0}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-controls>*{pointer-events:auto;position:absolute}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-steer{display:block;left:0;bottom:0;width:min(250px,46vw)}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-hint{position:absolute;left:8px;bottom:calc(var(--chase-steer-h) + 4px);font:700 9px system-ui,sans-serif;letter-spacing:.08em;color:#b7dcc8;text-shadow:0 2px 6px #000;pointer-events:none;white-space:nowrap}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-pill{display:flex;align-items:center;gap:8px;height:var(--chase-steer-h);padding:0 12px;border:1px solid #c7f4df66;border-radius:999px;background:linear-gradient(135deg,#1c2d478f,#0a1428c4);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 10px 28px #000a,inset 0 1px #ffffff22;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-chev{font:900 22px system-ui;color:#d9ffe8;width:18px;text-align:center;pointer-events:none}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-track{flex:1;height:10px;border-radius:999px;background:#0b1512cc;border:1px solid #80fbb255;position:relative;box-shadow:inset 0 1px 3px #000a;pointer-events:none}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-knob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#d9ffe8,#3d6b55);border:2px solid #c8ffd8;box-shadow:0 0 12px #39ff7a88,0 3px 6px #000a;pointer-events:none}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-lean-buttons{left:0;bottom:calc(var(--chase-steer-h) + 26px);display:flex;flex-direction:column;align-items:center;gap:10px}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-lean-buttons button{width:var(--chase-tilt);height:var(--chase-tilt);flex-direction:column;gap:0;font:800 11px system-ui;line-height:1.05;padding:0;letter-spacing:.04em}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-lean-glyph{font:900 15px system-ui;line-height:1;padding:0}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-tilt-copy{display:flex;flex-direction:column;align-items:center}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-tilt-copy small{font:800 8px system-ui;letter-spacing:.08em;opacity:.85}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-drive-buttons{right:0;bottom:0;display:flex;align-items:flex-end;gap:10px}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-drive{flex-direction:column;gap:1px}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-drive.brake{width:var(--chase-brake);height:var(--chase-brake)}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-drive.throttle{width:var(--chase-accel);height:var(--chase-accel)}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-drive svg{width:46%;height:46%}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-drive-label{display:block;font:800 9px system-ui,sans-serif;letter-spacing:.04em;line-height:1}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-hop.ride-tricks{left:auto;right:0;bottom:calc(var(--chase-accel) + var(--chase-gap));display:flex;margin:0;grid-template-columns:none;justify-self:end;width:var(--chase-hop)}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-hop.ride-tricks button{width:var(--chase-hop);height:var(--chase-hop);border-radius:50%;border-width:3px;border-color:#c8c9c6;background:linear-gradient(145deg,#424743d9,#121616df);font:800 11px system-ui,sans-serif;letter-spacing:.08em;padding:0}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-hop.ride-tricks svg{display:none}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-tricks:not(.ride-hop){left:auto;right:calc(56px + var(--chase-gap));bottom:calc(var(--chase-accel) + var(--chase-gap) + var(--chase-hop) + var(--chase-gap));margin:0;justify-self:end;align-self:end;grid-column:auto;grid-row:auto}
+ [data-wk-ride-surface][data-wk-cam=chase] .ride-rewind{right:14px;bottom:calc(18px + var(--chase-accel) + var(--chase-gap) + var(--chase-hop) + var(--chase-gap))}
+ @media(min-width:1000px){
+  [data-wk-ride-surface][data-wk-cam=chase]{--chase-accel:96px;--chase-brake:74px;--chase-hop:66px;--chase-tilt:70px;--chase-steer-h:72px}
+  [data-wk-ride-surface][data-wk-cam=chase] .ride-controls{left:22px;right:22px;bottom:22px}
+  [data-wk-ride-surface][data-wk-cam=chase] .ride-steer{width:300px}
+  [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-hint{left:16px;font-size:11px}
+  [data-wk-ride-surface][data-wk-cam=chase] .ride-steer-knob{width:34px;height:34px}
+  [data-wk-ride-surface][data-wk-cam=chase] .ride-rewind{right:22px}
+ }
+`;document.head.append(style);
 }
