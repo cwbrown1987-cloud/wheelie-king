@@ -3,7 +3,7 @@
 // placement system uses. Drop-in replacement for garageRoom({workshop:true}) in world-rooms.js.
 import { createKit } from '../props/kit/index.js';
 import { workshopShell, workshopGeometry } from './workshop-shell.js';
-import { roomLayout, roomSlots } from './workshop-props.js';
+import { roomLayout, roomSlots, movableFixtures } from './workshop-props.js';
 import { obbFrom, halfPlanes } from './room-collision.js';
 import { RoomEnvironment } from '../../vendor/RoomEnvironment.js';
 
@@ -54,8 +54,10 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  for (const l of lights) room.add(l);
  // --- props
  const kit = createKit(T), layout = roomLayout(R), source = new T.Group(); source.name = 'workshop:props-src';
+ const { fixtures, skip } = movableFixtures(layout);
  const colliders = [];
- for (const e of layout) {
+ for (const [i, e] of layout.entries()) {
+  if (skip.has(i)) continue;
   const o = kit.build(e.type, e.params || {});
   const local = kit.solidBounds(o);
   o.position.set(...e.at); if (e.rot) o.rotation.set(...e.rot); else o.rotation.y = e.rotY || 0; source.add(o);
@@ -72,7 +74,7 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  const zone = (name, x0, x1, z0, z1, y1 = 2.6) => ({ name, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hx: (x1 - x0) / 2, hz: (z1 - z0) / 2, yaw: 0, y0: 0, y1 });
  const zones = [zone('bike-stand', -.98, .94, -.9, .42, 1.6), zone('door:garage', -1.75, 1.75, 5.55, FRONTZ, 3), zone('door:outside', LEFTX, LEFTX + 1.0, 3.45, 4.95, 2.4)];
  const placed = new T.Group(); placed.name = 'workshop:placed'; room.add(placed);
- const placement = { kit, planes, outline, ceil: CEIL, colliders, zones, slots: roomSlots(R), group: placed, room: R, chamferEnd, chamferDir: R.chamferDir };
+ const placement = { kit, planes, outline, ceil: CEIL, colliders, zones, slots: roomSlots(R), group: placed, room: R, chamferEnd, chamferDir: R.chamferDir, fixtures };
  const allLights = []; room.traverse(o => { if (o.isLight) allLights.push(o); });
  const drawCalls = baked.children.length + shell.group.children.length;
  return {

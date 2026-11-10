@@ -11,16 +11,20 @@ import { PLACEABLES, placeable } from './src/props/kit/catalog.js';
 const KEY = 'wk-room-layout-v1', ROOM = 'workshop', STEP = Math.PI / 12;
 const OK = '#69ff98', BAD = '#ff5a6e';
 const readStore = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v.rooms === 'object') return v; } catch {} return { version: 1, rooms: {} }; };
-let inst = null, items = [], selected = null, arrange = false, original = null, drag = null, down = null, ui = null, gizmoStop = null, thumbs = new Map();
+let inst = null, items = [], storage = [], selected = null, arrange = false, original = null, drag = null, down = null, ui = null, gizmoStop = null, thumbs = new Map();
 const view = () => globalThis.__WK_VIEW__;
 const world = () => globalThis.__WK_SHARED_WORLD__;
 const active = () => { const v = view(); return !!(v?.renderer?.domElement?.isConnected && inst && world()?.getActive?.() === ROOM && !world()?.state?.().transitioning && !document.body.dataset.playerView && !document.querySelector('[data-ride]')); };
 const P = () => inst.placement;
+const defOf = id => placeable(id) || P()?.fixtures?.find(f => f.id === id) || null;
 const uidOf = () => (globalThis.crypto?.randomUUID?.() || 'p' + Math.random().toString(36).slice(2));
 
 function save() {
  const s = readStore();
- s.rooms[ROOM] = { items: items.filter(i => !i.pending).map(({ uid, item, x, y, z, yaw }) => ({ uid, item, x: +x.toFixed(4), y: +y.toFixed(4), z: +z.toFixed(4), yaw: +yaw.toFixed(4) })) };
+ s.rooms[ROOM] = {
+  items: items.filter(i => !i.pending).map(({ uid, item, x, y, z, yaw }) => ({ uid, item, x: +x.toFixed(4), y: +y.toFixed(4), z: +z.toFixed(4), yaw: +yaw.toFixed(4) })),
+  storage: storage.map(({ uid, item }) => ({ uid, item })),
+ };
  localStorage.setItem(KEY, JSON.stringify(s));
 }
 
@@ -28,7 +32,9 @@ function obbOf(it, pos = it) { return obbFrom(it.local, [pos.x, pos.y, pos.z], p
 function check(it, pos = it) { return validate(obbOf(it, pos), { planes: P().planes, ceil: P().ceil, colliders: P().colliders, zones: P().zones, items: items.filter(i => !i.pending || i === it).map(i => ({ uid: i.uid, obb: obbOf(i) })), ignore: it.uid }); }
 
 function makeItem(def, uid, pos) {
- const kit = P().kit, src = kit.build(def.type, def.params || {}), lb = kit.solidBounds(src);
+ const kit = P().kit, src = kit.build(def.type, def.params || {});
+ for (const top of def.toppings || []) { const o = kit.build(top.type, top.params || {}); o.position.set(top.x, top.y, top.z); o.rotation.y = top.yaw || 0; src.add(o); }
+ const lb = kit.solidBounds(src);
  const holder = new T.Group(); holder.name = 'workshop:placed:' + def.id; holder.userData.savedRide = uid; // gizmo/pick compatibility
  const baked = kit.bake(src); baked.traverse(o => { if (o.isMesh) o.userData.savedRide = uid; }); holder.add(baked);
  const size = lb.getSize(new T.Vector3()), centre = lb.getCenter(new T.Vector3());
@@ -37,7 +43,7 @@ function makeItem(def, uid, pos) {
  const foot = new T.Mesh(new T.PlaneGeometry(1, 1), mat); foot.rotation.x = -Math.PI / 2; foot.scale.set(size.x + .06, size.z + .06, 1); foot.position.set(centre.x, lb.min.y + .006, centre.z); foot.renderOrder = 3;
  const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(size.x + .02, size.y + .02, size.z + .02)), new T.LineBasicMaterial({ color: OK, transparent: true, opacity: .95, toneMapped: false, depthTest: false }));
  edges.renderOrder = 4; edges.position.copy(centre); mark.add(foot, edges); holder.add(mark);
- const it = { uid, item: def.id, def, mount: def.mount || 'floor', holder, baked, mark, local: { min: lb.min.toArray(), max: lb.max.toArray() }, x: pos.x, y: pos.y ?? (def.mount === 'wall' ? def.y ?? 1.3 : 0), z: pos.z, yaw: pos.yaw ?? 0 };
+ const it = { uid, item: def.id, def, fixture: !!def.fixture, mount: def.mount || 'floor', holder, baked, mark, local: { min: lb.min.toArray(), max: lb.max.toArray() }, x: pos.x, y: pos.y ?? (def.mount === 'wall' ? def.y ?? 1.3 : 0), z: pos.z, yaw: pos.yaw ?? 0 };
  apply(it); P().group.add(holder); return it;
 }
 function apply(it) { it.holder.position.set(it.x, it.y, it.z); it.holder.rotation.y = it.yaw; }
@@ -63,12 +69,12 @@ function select(uid, edit = false) {
 }
 function finishEdit(commit) {
  const it = items.find(i => i.uid === selected); if (!it) { arrange = false; return; }
- if (it.pending) { if (commit && check(it).ok) { it.pending = false; save(); } else if (!commit) { remove(it.uid, false); } }
+ if (it.pending) { if (commit && check(it).ok) { it.pending = false; storage = storage.filter(s => s.uid !== it.uid); save(); } else if (!commit) { remove(it.uid, false); } }
  else if (commit && check(it).ok) save();
  else if (original) { Object.assign(it, original); apply(it); }
  arrange = false; if (it) paint(it); refresh();
 }
-function remove(uid, persist = true) { const it = items.find(i => i.uid === uid); if (!it) return false; disposeItem(it); items = items.filter(i => i !== it); if (selected === uid) { selected = null; arrange = false; } if (persist) save(); refresh(); return true; }
+function remove(uid, persist = true) { const it = items.find(i => i.uid === uid); if (!it) return false; disposeItem(it); items = items.filter(i => i !== it); if (selected === uid) { selected = null; arrange = false; } if (persist && !it.pending) { if (!storage.some(s => s.uid === it.uid)) storage.push({ uid: it.uid, item: it.item }); save(); } refresh(); return true; }
 function footXZ(it, yaw = it.yaw, x = it.x, z = it.z) { const lx = (it.local.min[0] + it.local.max[0]) / 2, lz = (it.local.min[2] + it.local.max[2]) / 2, c = Math.cos(yaw), s = Math.sin(yaw); return { x: x + lx * c + lz * s, z: z - lx * s + lz * c }; }
 function rotate(it, delta) { if (!it || it.mount === 'wall') return { ok: false, reason: 'wall-mounted' }; const mid = footXZ(it); it.yaw += delta; const next = footXZ(it); it.x += mid.x - next.x; it.z += mid.z - next.z; settleFloor(it, it.x, it.z); apply(it); return paint(it); }
 function spawnSpot(it) {
@@ -80,6 +86,12 @@ function begin(id) {
  const def = placeable(id); if (!def || !inst) return null;
  if (selected) finishEdit(false);
  const it = makeItem(def, uidOf(), { x: 0, z: 1.6 }); it.pending = true; items.push(it);
+ if (place) dropAt(it); else spawnSpot(it); selected = it.uid; arrange = true; original = null; paint(it); refresh(); return it.uid;
+}
+function beginStored(entry) {
+ const def = defOf(entry?.item); if (!def || !inst || items.some(i => i.uid === entry.uid)) return null;
+ if (selected) finishEdit(false);
+ const it = makeItem(def, entry.uid, { x: 0, z: 1.6 }); it.pending = true; items.push(it);
  if (place) dropAt(it); else spawnSpot(it); selected = it.uid; arrange = true; original = null; paint(it); refresh(); return it.uid;
 }
 
@@ -181,6 +193,7 @@ body.wk-room-dock-on [data-wk-bench],body.wk-room-dock-on [data-wk-rotate],body.
 #wk-place-panel .card{display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:12px;border:1px solid #7392ae66;background:#102033a6;color:#eff8ff;text-align:left;cursor:pointer;min-height:44px}
 #wk-place-panel .card:hover{border-color:#7affc6;box-shadow:0 0 12px #30e9bd44}#wk-place-panel .card img{width:100%;height:96px;object-fit:contain;border-radius:8px;background:radial-gradient(#2a2340,#0c0b14)}
 #wk-place-panel .card strong{font-size:13px}#wk-place-panel .card small{color:#9fc3d8}
+#wk-place-panel .sec{margin:16px 0 8px;font:800 11px system-ui;letter-spacing:.14em;color:#8be0b8;text-transform:uppercase}#wk-place-panel .sec:first-of-type{margin-top:4px}#wk-place-panel .card.stored{border-color:#35e07a99}
 #wk-place-bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:45;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:7px;max-width:94vw;padding:8px;border-radius:14px;border:1px solid #a3d9ef70;background:linear-gradient(135deg,#182d43c4,#080f1ccc);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 30px #0009;color:#eff8ff;font:12px system-ui}
 #wk-place-mode{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:62;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:999px;border:1px solid #35e07a8c;background:#0a1016b8;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 20px #0008;color:#e8fff1;font:800 13px/1 system-ui;letter-spacing:.1em}
 #wk-place-mode[hidden]{display:none}#wk-place-mode .dot{width:8px;height:8px;border-radius:50%;background:#35e07a;box-shadow:0 0 8px #35e07a}
@@ -205,13 +218,27 @@ function ensureUi() {
  gizmoStop = garageGizmo(host, () => (active() ? rig : null), () => { if (selected) remove(selected); }, value => { if (value) { arrange = true; const it = items.find(i => i.uid === selected); original = it ? { x: it.x, y: it.y, z: it.z, yaw: it.yaw } : null; refresh(); } else finishEdit(true); });
  ui = { host, button, panel, bar, pill, dock }; return ui;
 }
+function cardFor(def, stored, onClick) {
+ const c = document.createElement('button'); c.type = 'button'; c.className = stored ? 'card stored' : 'card'; c.dataset.placeItem = def.id; if (stored) c.dataset.stored = '';
+ const img = document.createElement('img'); img.alt = ''; img.src = thumb(def); const s = document.createElement('strong'); s.textContent = def.name;
+ const sm = document.createElement('small'); sm.textContent = stored ? 'In storage' : (def.mount === 'wall' ? 'Wall mounted' : 'Floor');
+ c.append(img, s, sm); c.onclick = onClick; return c;
+}
 function openPanel() {
  const u = ensureUi(); if (!u || !inst) return;
  const sheet = document.createElement('div'); sheet.className = 'sheet';
- const head = document.createElement('header'); const h = document.createElement('h2'); h.textContent = 'PLACE IN WORKSHOP'; const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close'); x.onclick = () => { u.panel.hidden = true; if (!arrange) exitPlace(); }; head.append(h, x);
+ const head = document.createElement('header'); const h = document.createElement('h2'); h.textContent = 'PLACE IN WORKSHOP'; const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close'); x.onclick = () => { u.panel.hidden = true; if (!arrange) exitPlace(); }; head.append(h, x); sheet.append(head);
+ const shown = storage.filter(s => defOf(s.item) && !items.some(i => i.uid === s.uid && i.pending));
+ if (shown.length) {
+  const sec = document.createElement('div'); sec.className = 'sec'; sec.textContent = 'Storage'; sheet.append(sec);
+  const g = document.createElement('div'); g.className = 'grid';
+  for (const s of shown) g.append(cardFor(defOf(s.item), true, () => { u.panel.hidden = true; beginStored(s); }));
+  sheet.append(g);
+ }
+ if (shown.length) { const sec = document.createElement('div'); sec.className = 'sec'; sec.textContent = 'Place'; sheet.append(sec); }
  const grid = document.createElement('div'); grid.className = 'grid';
- for (const def of PLACEABLES) { const c = document.createElement('button'); c.type = 'button'; c.className = 'card'; c.dataset.placeItem = def.id; const img = document.createElement('img'); img.alt = ''; img.src = thumb(def); const s = document.createElement('strong'); s.textContent = def.name; const sm = document.createElement('small'); sm.textContent = def.mount === 'wall' ? 'Wall mounted' : 'Floor'; c.append(img, s, sm); c.onclick = () => { u.panel.hidden = true; begin(def.id); }; grid.append(c); }
- sheet.append(head, grid); u.panel.replaceChildren(sheet); u.panel.hidden = false;
+ for (const def of PLACEABLES) grid.append(cardFor(def, false, () => { u.panel.hidden = true; begin(def.id); }));
+ sheet.append(grid); u.panel.replaceChildren(sheet); u.panel.hidden = false;
 }
 let thumbRenderer = null;
 function thumb(def) {
@@ -248,8 +275,17 @@ function refresh(full = true) {
 // ---- lifecycle: (re)build items whenever the workshop room instance changes
 function load() {
  for (const it of items) disposeItem(it); items = []; selected = null; arrange = false;
- const saved = readStore().rooms[ROOM]?.items || [];
- for (const s of saved) { const def = placeable(s.item); if (def) { const it = makeItem(def, s.uid, s); paint(it); items.push(it); } }
+ const rec = readStore().rooms[ROOM] || {};
+ storage = (rec.storage || []).filter(s => defOf(s.item)).map(s => ({ uid: s.uid, item: s.item }));
+ const seen = new Set();
+ for (const s of rec.items || []) {
+  const def = defOf(s.item); if (!def) continue;
+  const it = makeItem(def, s.uid, s); paint(it); items.push(it); seen.add(it.uid);
+ }
+ for (const f of P()?.fixtures || []) {
+  if (seen.has(f.id) || storage.some(s => s.uid === f.id)) continue;
+  const it = makeItem(f, f.id, f.defaultPos); paint(it); items.push(it);
+ }
 }
 let tagAt = 0;
 function tagHud() { const now = performance.now(); if (now - tagAt < 500) return; tagAt = now; for (const b of document.querySelectorAll('button:not([data-wk-reset])')) if ((b.textContent || '').includes('RESET VIEW')) b.dataset.wkReset = ''; for (const b of document.querySelectorAll('button:not([data-primary])')) if ((b.textContent || '').trim() === '+' && b.getBoundingClientRect().top < 60) b.dataset.primary = ''; }
@@ -268,13 +304,15 @@ globalThis.__WK_WORKSHOP_PLACE__ = {
  catalog: () => PLACEABLES.map(p => p.id),
  ready: () => !!inst,
  /** Validate a hypothetical placement without creating anything. */
- check(id, pos) { const def = placeable(id); if (!def || !inst) return { ok: false, reason: 'unknown' }; const it = makeItem(def, 'probe', pos); const v = check(it, { x: pos.x, y: pos.y ?? it.y, z: pos.z, yaw: pos.yaw ?? 0 }); disposeItem(it); return v; },
- add(id, pos) { const def = placeable(id); if (!def || !inst) return null; const it = makeItem(def, uidOf(), pos); const v = paint(it); if (!v.ok) { disposeItem(it); return null; } items.push(it); save(); return it.uid; },
+ check(id, pos) { const def = defOf(id); if (!def || !inst) return { ok: false, reason: 'unknown' }; const it = makeItem(def, 'probe', pos); const v = check(it, { x: pos.x, y: pos.y ?? it.y, z: pos.z, yaw: pos.yaw ?? 0 }); disposeItem(it); return v; },
+ add(id, pos) { const def = defOf(id); if (!def || !inst) return null; const it = makeItem(def, id.startsWith('fixture:') ? id : uidOf(), pos); const v = paint(it); if (!v.ok) { disposeItem(it); return null; } items.push(it); storage = storage.filter(s => s.uid !== it.uid); save(); return it.uid; },
  move(uid, pos) { const it = items.find(i => i.uid === uid); if (!it) return { ok: false }; const prev = { x: it.x, y: it.y, z: it.z, yaw: it.yaw }; Object.assign(it, { x: pos.x ?? it.x, y: pos.y ?? it.y, z: pos.z ?? it.z }); apply(it); const v = paint(it); if (!v.ok) { Object.assign(it, prev); apply(it); paint(it); } else save(); return v; },
  rotate(uid, delta) { const it = items.find(i => i.uid === uid); if (!it) return { ok: false }; const prev = { yaw: it.yaw, x: it.x, z: it.z }; const v = rotate(it, delta); if (!v.ok) { Object.assign(it, prev); apply(it); paint(it); } else save(); return v; },
  remove: uid => remove(uid),
- list: () => items.filter(i => !i.pending).map(({ uid, item, x, y, z, yaw, mount }) => ({ uid, item, x, y, z, yaw, mount })),
- begin, confirm: () => finishEdit(true), cancel: () => finishEdit(false), select: (uid, edit) => select(uid, edit), open: openPanel,
+ list: () => items.filter(i => !i.pending).map(({ uid, item, x, y, z, yaw, mount, fixture }) => ({ uid, item, x, y, z, yaw, mount, fixture: !!fixture })),
+ storage: () => storage.map(({ uid, item }) => ({ uid, item })),
+ fixtures: () => (P()?.fixtures || []).map(f => ({ id: f.id, name: f.name, type: f.type, defaultPos: { ...f.defaultPos } })),
+ begin, beginStored, confirm: () => finishEdit(true), cancel: () => finishEdit(false), select: (uid, edit) => select(uid, edit), open: openPanel,
  dragTo(x, z) { const it = items.find(i => i.uid === selected); if (!it) return null; const v = moveTo(it, x, z); refresh(false); return v; },
  bboxCentre(uid) { const it = items.find(i => i.uid === uid); if (!it) return null; const f = footXZ(it); return [f.x, it.y + (it.local.min[1] + it.local.max[1]) / 2, f.z]; },
  placeMode: { enter: () => enterPlace(), exit: () => exitPlace(), state: () => ({ on: !!place, leaving: !!place?.leaving, tweening: !!place?.tw, hidden: place ? place.hidden.size : 0, allowSpin: !!place?.allowSpin, autoRotate: !!view()?.controls?.autoRotate }) },

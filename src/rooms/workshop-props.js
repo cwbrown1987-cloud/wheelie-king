@@ -123,3 +123,34 @@ export function roomSlots(R) {
   { name: 'ceiling-hang', kind: 'ceiling', x: 0, z: 1.45, y: CEIL - .25 },
  ];
 }
+
+export const MOVABLE_TYPES = ['toolChest', 'shelving'];
+export const LOOSE_TYPES = ['hardCase', 'sprayCan', 'can', 'bin', 'bottle'];
+
+/** Built-in chests and shelves that leave the bake and become placed items, plus any loose
+ *  toppings that sit on them (they travel with the fixture so nothing clips or floats). */
+export function movableFixtures(layout) {
+ const MOVABLE = new Set(MOVABLE_TYPES), LOOSE = new Set(LOOSE_TYPES), counts = {}, skip = new Set(), fixtures = [];
+ layout.forEach((e, i) => {
+  if (!MOVABLE.has(e.type) || e.rot) return;
+  skip.add(i);
+  const n = counts[e.type] || 0; counts[e.type] = n + 1;
+  const w = e.params?.width || 1, d = e.params?.depth || .5, h = e.params?.height || 1, toppings = [];
+  layout.forEach((o, j) => {
+   if (j === i || !LOOSE.has(o.type) || o.rot) return;
+   const yaw = e.rotY || 0, dx = o.at[0] - e.at[0], dz = o.at[2] - e.at[2], c = Math.cos(yaw), s = Math.sin(yaw);
+   const lx = dx * c - dz * s, lz = dx * s + dz * c, ly = o.at[1] - e.at[1];
+   if (Math.abs(lx) <= w / 2 + .12 && Math.abs(lz) <= d / 2 + .12 && ly >= h - .25 && ly <= h + .5) {
+    toppings.push({ type: o.type, params: o.params || {}, x: lx, y: ly, z: lz, yaw: (o.rotY || 0) - yaw });
+    skip.add(j);
+   }
+  });
+  fixtures.push({
+   id: 'fixture:' + e.type + ':' + n,
+   name: e.type === 'toolChest' ? 'Tool chest' : 'Shelving',
+   type: e.type, mount: 'floor', params: e.params || {}, toppings, fixture: true,
+   defaultPos: { x: e.at[0], y: e.at[1], z: e.at[2], yaw: e.rotY || 0 },
+  });
+ });
+ return { fixtures, skip };
+}

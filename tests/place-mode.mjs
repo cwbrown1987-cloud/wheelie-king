@@ -51,7 +51,7 @@ try{
   const back=await p.evaluate(camOf);// the workshop's idle camera sway keeps moving the eye a few mm, so the eye gets a small tolerance; target, distance, FOV and zoom limits are exact
   assert(near(back.c,cam0.c,.05)&&near(back.c.slice(3),cam0.c.slice(3),1e-3)&&Math.abs(back.d-cam0.d)<1e-3&&back.fov===cam0.fov&&back.min===cam0.min&&back.max===cam0.max,`${tag} camera + zoom restored `+JSON.stringify([cam0,back]));
   assert.deepEqual(await p.evaluate(bikeVis),{bike:true,stand:true},'bike + workstand back');
-  const saved=await p.evaluate(()=>__WK_WORKSHOP_PLACE__.list().map(i=>i.item).sort());assert.deepEqual(saved,['blue-chest','red-chest'],'both items kept');
+  const saved=await p.evaluate(()=>__WK_WORKSHOP_PLACE__.list().map(i=>i.item).filter(id=>!String(id).startsWith('fixture:')).sort());assert.deepEqual(saved,['blue-chest','red-chest'],'both items kept');
   assert(!(await p.locator('#wk-place-mode').isVisible()),'pill gone');
   if(shots&&!vp.mobile)await p.screenshot({path:shots+'/place-6-workshop-exit.png'});
   assert.deepEqual(errors,[]);await p.close();console.log('place-mode workshop',tag,'ok',JSON.stringify({dc:+dc.toFixed(2),fov:wide.fov,d:+wide.d.toFixed(2)}));
