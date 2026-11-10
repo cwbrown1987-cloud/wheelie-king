@@ -9,7 +9,8 @@ export function makeRider(T,body,bike,A,mechanical){
  const mesh=(name,geometry,mat,parent=rider)=>{const m=new T.Mesh(geometry,mat);m.name='rider:'+name;m.castShadow=true;parent.add(m);return m};
  const off=p=>new T.Vector3(p[0]+bike.position.x,p[1]+bike.position.y,0);
  const hip=off(A.riderHip||[A.seatTop[0],A.seatTop[1]+.085]),hand=off(A.hand||[A.headTop[0]-.04,A.headTop[1]+.2]),foot=off(A.feet||A.bb),shoulder=new T.Vector3(...(A.shoulder||[.20,.43,0]));
- if(A.vehicleClass&&A.vehicleClass!=='escooter'){hip.x-=.07;hip.y-=.04}
+ const ridingPose=A.vehicleClass?A.vehicleClass!=='escooter':!A.riderHip;
+ if(ridingPose){hip.x-=.07;hip.y-=.04}
  const torso=new T.Group();torso.name='rider:torso';torso.position.copy(hip);rider.add(torso);
  // Shaped shoulders, waist and hem instead of a single capsule body.
  const vertices=[],indices=[],rings=[[0,.085,.095],[.06,.095,.11],[.22,.105,.135],[.37,.09,.155],[.43,.075,.145],[.46,.06,.105]],segments=24;
@@ -53,7 +54,7 @@ export function makeRider(T,body,bike,A,mechanical){
  wear();
  let count=0;rider.traverse(o=>{if(o.isMesh)count++});
  return {root:rider,update({lean=0,crashed=false,superman=0}={}){
-  const rideCrouch=A.vehicleClass&&A.vehicleClass!=='escooter'?-.36:0;
+  const rideCrouch=ridingPose?-.36:0;
   torso.position.copy(hip);torso.rotation.set(0,0,lean*.23+(crashed?.6:0)-superman*.9+(A.vehicleClass==='escooter'?-.15:0)+rideCrouch);headGroup.position.set(0,0,0);
   const localHand=hand.clone().sub(torso.position).applyAxisAngle(new T.Vector3(0,0,1),-torso.rotation.z);
   for(const a of arms){const sh=shoulder.clone().setZ(a.side*RIDER_SPEC.shoulderHalfSpan),h=localHand.clone().setZ(a.side*(A.handWidth||.18)),el=sh.clone().lerp(h,.5).add(new T.Vector3(-.045,-.07,a.side*.025));pose(a.upper,sh,el);pose(a.lower,el,h);a.elbow.position.copy(el);a.glove.position.copy(h);a.glove.rotation.set(0,0,0)}
