@@ -531,8 +531,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     const sc=sideCam.update(reviewing ? 0 : cameraDt,{x:s.x,y:s.y,vx:s.vx,vy:s.vy,speed:sp,grounded:!!(s.ground[0]||s.ground[1]),groundY:ter.h(s.x),landingY:ter.h(s.x+Math.max(2,s.vx*.35)),inLoop:!!s.loopRide,focus:crashFocus,reduceMotion:reduceMotion.matches}),dist=sc.dist;
     const targetBlend=cameraView==='chase'?1:0;cameraBlend+=Math.max(-cameraDt/.4,Math.min(cameraDt/.4,targetBlend-cameraBlend));const blend=cameraBlend*cameraBlend*(3-2*cameraBlend),angle=blend*Math.PI/2,radius=dist*(1-blend)+(3.0+Math.min(2,sp*.12))*blend;
     const cx=sc.x*(1-blend)+(crashFocus?.x??s.x+Math.min(3,s.vx*.15))*blend,riderY=sc.y*(1-blend)+(crashFocus?.y??s.y)*blend,side=1-blend;
-    cam.position.set(cx-Math.sin(angle)*radius+sc.bobX*side,riderY+(.45+dist*.025)*side+1.10*blend+sc.bobY*side,Math.cos(angle)*radius+.4*blend);
-    cameraReady=true;cam.lookAt(cx+blend*3.2,riderY+(.45+dist*.025-.65)*side-.65*blend+sc.bobY*.6*side,0);if(side>0&&sc.roll)cam.rotateZ(sc.roll*side);cam.fov=40+blend*5;cam.updateProjectionMatrix();
+    cameraReady=true;
+    if(!globalThis.__WK_CAM_HOLD__){cam.position.set(cx-Math.sin(angle)*radius+sc.bobX*side,riderY+(.45+dist*.025)*side+1.10*blend+sc.bobY*side,Math.cos(angle)*radius+.4*blend);cam.lookAt(cx+blend*3.2,riderY+(.45+dist*.025-.65)*side-.65*blend+sc.bobY*.6*side,0);if(side>0&&sc.roll)cam.rotateZ(sc.roll*side);cam.fov=40+blend*5;cam.updateProjectionMatrix();}
     environment.update(s.x);environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');
 
     sun.position.set(s.x + 4, s.y + 10, 6); sun.target.position.set(s.x, s.y, 0);

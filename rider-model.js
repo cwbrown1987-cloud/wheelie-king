@@ -43,8 +43,10 @@ export function makeRider(T,body,bike,A,mechanical){
   if(wornHelmet){headGroup.remove(wornHelmet);dispose(wornHelmet)}wornHelmet=gearModel(T,look.helmet);wornHelmet.position.copy(headCenter);if(look.helmet?.style!=='open')wornHelmet.position.y-=.025;headGroup.add(wornHelmet);neck.visible=look.helmet?.style==='open';
   blue.color.set(look.top.primary);cuff.color.copy(blue.color).multiplyScalar(.65);pants.color.set(look.pants.primary);shoeMat.color.set(look.shoes.primary);gloveMat.color.set(look.gloves.primary);
   const hoodie=look.top.style==='hoodie',openFace=look.helmet?.style==='open';
-  hood.visible=hoodie;collar.visible=look.top.style==='jersey';
+  hood.visible=hoodie;if(!hoodie&&hood.parent)hood.parent.remove(hood);else if(hoodie&&!hood.parent)torso.add(hood);
+  collar.visible=look.top.style==='jersey';
   torso.children.filter(o=>/hood-cord|pocket-seam|hoodie-hem/.test(o.name)).forEach(o=>o.visible=hoodie);
+  wornHelmet.visible=true;wornHelmet.traverse(o=>{if(o.isMesh)o.visible=true});
   headGroup.children.forEach(o=>{if(/face|nose|eye|ear/.test(o.name))o.visible=openFace});
   for(const a of arms){a.lower.material=look.top.style==='tee'?skin:blue;for(const child of [...a.glove.children]){a.glove.remove(child);dispose(child)}a.glove.add(gearModel(T,look.gloves));}
   for(const l of legs){l.shin.material=look.pants.style==='shorts'?skin:pants;l.knee.material=look.pants.style==='shorts'?skin:pants;for(const child of [...l.shoe.children]){l.shoe.remove(child);dispose(child)}l.shoe.add(gearModel(T,look.shoes,{single:true}));}

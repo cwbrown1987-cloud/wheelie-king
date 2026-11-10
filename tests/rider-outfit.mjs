@@ -79,7 +79,16 @@ try{
     hasLaces:names.some(n=>n.includes('shoe:lace')),
     riderH:riderBox.h,helmetH:headBox.h,ratio:headBox.h/riderBox.h,
     faceHidden:!names.filter(n=>/rider:(face|nose|eye|ear)/.test(n)).some(n=>rider.getObjectByName(n)?.visible),
-    neckHidden:rider.getObjectByName('rider:neck')?.visible===false
+    neckHidden:rider.getObjectByName('rider:neck')?.visible===false,
+    shellVisible:!!shell?.visible,
+    helmetGroupVisible:!!shell?.parent?.visible,
+    hoodParent:hood?.parent?.name||null,
+    headGraph:(()=>{const rows=[];rider.traverse(o=>{
+      if(!o.isMesh||!/helmet|hood|head|face|collar|neck|peak|goggle|visor|liner|shell/i.test(o.name||''))return;
+      o.updateWorldMatrix(true,false);const e=o.matrixWorld.elements,c=o.material?.color;
+      rows.push({name:o.name,vis:o.visible,parent:o.parent?.name,pos:[+e[12].toFixed(3),+e[13].toFixed(3),+e[14].toFixed(3)],
+        type:o.material?.type,color:c?{r:+c.r.toFixed(3),g:+c.g.toFixed(3),b:+c.b.toFixed(3)}:null,verts:o.geometry?.attributes?.position?.count||0});
+    });return rows;})()
    };
   },want);
   assert.deepEqual(look.gearIds,want,name+' default test outfit '+JSON.stringify(look.gearIds));
@@ -96,7 +105,21 @@ try{
   assert(look.ratio<0.36,name+' head is not oversized '+JSON.stringify({ratio:look.ratio,helmetH:look.helmetH,riderH:look.riderH}));
   assert(look.faceHidden,name+' face sits inside the full-face helmet');
   assert(look.neckHidden,name+' neck is hidden under the full-face helmet');
+  assert(look.shellVisible,name+' lime helmet shell is drawn '+JSON.stringify(look.headGraph));
+  assert.equal(look.hoodParent,null,name+' jersey must not keep the built-in hood '+JSON.stringify({hoodParent:look.hoodParent}));
+  console.log(JSON.stringify({name,headGraph:look.headGraph}));
   if(shots){
+   await p.evaluate(()=>{
+    const {scene,cam}=__WK_RIDE_SCENE__(),rider=scene.getObjectByName('wk:rider');
+    let shell=null;rider.traverse(o=>{if(!shell&&o.isMesh&&o.name&&o.name.includes('helmet:shell'))shell=o});
+    shell.updateWorldMatrix(true,false);const e=shell.matrixWorld.elements;
+    cam.position.set(e[12]+0.05,e[13]+0.04,e[14]+0.95);cam.lookAt(e[12],e[13],e[14]);cam.fov=32;cam.updateProjectionMatrix();
+    globalThis.__WK_CAM_HOLD__=true;
+   });
+   await p.waitForTimeout(50);
+   await p.screenshot({path:`${shots}/${name}-helmet-close.png`});
+   await p.evaluate(()=>{globalThis.__WK_CAM_HOLD__=false});
+   await p.waitForTimeout(50);
    await p.screenshot({path:`${shots}/${name}-side.png`});
    await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
    await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraBlend===1);
