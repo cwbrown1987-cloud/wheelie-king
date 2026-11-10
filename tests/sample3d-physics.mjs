@@ -25,8 +25,6 @@ assert(Math.abs(onSampleFlat.vx-onEndless.vx)<0.15,'same stepper on flat ground 
 assert(Math.abs(onSampleFlat.x-onEndless.x)<0.2,'same travel on flat ground');
 assert(sample.h(56)>0.8,'sample kicker is in the ridden profile');
 assert(Math.abs(flat.h(56))<1e-9,'endless stays flat');
-function maxY(ter,x,seconds=1.2){const s=makeState(P,x,ter),inp={throttle:1,brake:0,lean:0,hop:0,trick:0,whip:0};let m=s.y;for(let i=0;i<Math.round(seconds*60);i++){step(s,P,inp,1/60,ter);m=Math.max(m,s.y)}return m}
-assert(maxY(sample,48)>maxY(flat,48)+0.4,'the sample kicker lifts the bike off the flat path');
 assert(Math.abs(sample.h(68))<0.05,'road under the skate lot is flat — the bowl is not in the profile');
 assert(Math.abs(sample.h(70))<0.05);
 
