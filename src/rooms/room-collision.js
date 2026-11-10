@@ -1,9 +1,12 @@
 // Placement collision for rooms: oriented boxes on the floor plane (XZ) + a height range.
 // Pure functions (no THREE), so they are cheap and easy to test.
 //  obb = { cx, cz, hx, hz, yaw, y0, y1, name? }   yaw follows THREE rotation.y
-export function obbFrom(localBox, at, yaw = 0, name = '') {
- const lx = (localBox.min[0] + localBox.max[0]) / 2, lz = (localBox.min[2] + localBox.max[2]) / 2, c = Math.cos(yaw), s = Math.sin(yaw);
- return { cx: at[0] + lx * c + lz * s, cz: at[2] - lx * s + lz * c, hx: (localBox.max[0] - localBox.min[0]) / 2, hz: (localBox.max[2] - localBox.min[2]) / 2, yaw, y0: at[1] + localBox.min[1], y1: at[1] + localBox.max[1], name };
+export function obbFrom(localBox, at, yaw = 0, name = '', roll = 0) {
+ const lx = (localBox.min[0] + localBox.max[0]) / 2, ly = (localBox.min[1] + localBox.max[1]) / 2, lz = (localBox.min[2] + localBox.max[2]) / 2, c = Math.cos(yaw), s = Math.sin(yaw);
+ let hx = (localBox.max[0] - localBox.min[0]) / 2, hy = (localBox.max[1] - localBox.min[1]) / 2, hz = (localBox.max[2] - localBox.min[2]) / 2;
+ // 90° / 270° roll in the wall plane swaps the along-wall (X) and upright (Y) extents
+ if (Math.abs(Math.sin(roll)) > .5) { const t = hx; hx = hy; hy = t; }
+ return { cx: at[0] + lx * c + lz * s, cz: at[2] - lx * s + lz * c, hx, hz, yaw, y0: at[1] + ly - hy, y1: at[1] + ly + hy, name };
 }
 const axes = o => { const c = Math.cos(o.yaw), s = Math.sin(o.yaw); return [[c, -s], [s, c]]; }; // local X and Z in world XZ
 export function corners(o) {
