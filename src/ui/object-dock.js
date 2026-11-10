@@ -1,5 +1,5 @@
 // "Neon dock" style (Chris picked style B) for the selected-object controls in the workshop and garage:
-// the bottom bar (turn / up / down, status, place-done, cancel) and the floating edit / remove / lift handles.
+// the bottom bar (turn / up / down, status, place-done, cancel) and the floating edit / remove handles.
 // Line icons drawn as SVG so they read the same on every phone (no emoji / glyph fonts).
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${d}</svg>`;
 export const ICON = {
@@ -25,8 +25,6 @@ html body #wk-place-bar button.primary svg{filter:none}
 html body #wk-place-bar .wkl{display:block;font:800 9px/1 system-ui,sans-serif;letter-spacing:.12em;opacity:.9}
 html body .garage-gizmo button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;padding:0!important;border-radius:14px!important;display:grid!important;place-items:center;background:linear-gradient(180deg,#14223a,#070d18)!important;border:1px solid #6fd3ff66!important;color:#9fe0ff!important;box-shadow:0 0 12px #2fa8ff44!important;font-size:0!important}
 html body .garage-gizmo button[hidden]{display:none!important}
-html body .garage-gizmo .object-lift{height:84px!important;grid-template-rows:1fr 1fr}
-html body .garage-gizmo .object-lift svg{height:30px}
 html body .garage-gizmo button[data-icon=bin]{color:#ff8a9a!important;border-color:#ff5a6e88!important}
 html body .garage-gizmo button[data-icon=check]{color:#7dffb0!important;border-color:#35e07a99!important}
 @media (max-height:500px),(max-width:600px){

@@ -34,7 +34,9 @@ try{
  await p.waitForFunction(()=>{for(const el of document.querySelectorAll('*'))if(el.wkGizmo?.state().visible)return true;return false},null,{timeout:20000});
  const g0=await p.evaluate(`(${host})().wkGizmo.state()`);assert(g0.radius>.45&&g0.radius<1.2,JSON.stringify(g0));
  assert.equal(await p.locator('.garage-gizmo .floor-rotate').count(),0,'old flat rotate buttons gone');
- for(const name of ['Finish editing object','Remove placed item','Lift or lower object'])assert.equal(await p.getByRole('button',{name,exact:true}).count(),1,name+' kept');
+ for(const name of ['Finish editing object','Remove placed item'])assert.equal(await p.getByRole('button',{name,exact:true}).count(),1,name+' kept');
+ assert.equal(await p.getByRole('button',{name:'Lift or lower object',exact:true}).count(),0,'old lift pill gone');
+ assert(await p.evaluate(()=>{for(const el of document.querySelectorAll('*'))if(el.wkGizmo?.state().lift)return true;return false}),'3D lift arrows present');
  const pt=(kind,i)=>p.evaluate(([k,i,h])=>eval(h)().wkGizmo.project(k,i),[kind,i,`(${host})`]);
  const listed=()=>p.evaluate(u=>__WK_WORKSHOP_PLACE__.list().find(i=>i.uid===u)||null,uid);
  const item=()=>p.evaluate(u=>{const P=__WK_WORKSHOP_PLACE__,h=__WK_VIEW__.scene.getObjectByName('workshop:placed:red-chest');return {x:h.position.x,z:h.position.z,yaw:h.rotation.y,valid:P.state().valid}},uid);

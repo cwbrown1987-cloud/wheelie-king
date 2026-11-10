@@ -69,7 +69,8 @@ function finishEdit(commit) {
  arrange = false; if (it) paint(it); refresh();
 }
 function remove(uid, persist = true) { const it = items.find(i => i.uid === uid); if (!it) return false; disposeItem(it); items = items.filter(i => i !== it); if (selected === uid) { selected = null; arrange = false; } if (persist) save(); refresh(); return true; }
-function rotate(it, delta) { if (!it || it.mount === 'wall') return { ok: false, reason: 'wall-mounted' }; it.yaw += delta; settleFloor(it, it.x, it.z); apply(it); return paint(it); }
+function footXZ(it, yaw = it.yaw, x = it.x, z = it.z) { const lx = (it.local.min[0] + it.local.max[0]) / 2, lz = (it.local.min[2] + it.local.max[2]) / 2, c = Math.cos(yaw), s = Math.sin(yaw); return { x: x + lx * c + lz * s, z: z - lx * s + lz * c }; }
+function rotate(it, delta) { if (!it || it.mount === 'wall') return { ok: false, reason: 'wall-mounted' }; const mid = footXZ(it); it.yaw += delta; const next = footXZ(it); it.x += mid.x - next.x; it.z += mid.z - next.z; settleFloor(it, it.x, it.z); apply(it); return paint(it); }
 function spawnSpot(it) {
  const v = view(), ray = new T.Raycaster(); ray.setFromCamera(new T.Vector2(0, -.15), v.camera); const p = ray.ray.intersectPlane(new T.Plane(new T.Vector3(0, 1, 0), 0), new T.Vector3()) || new T.Vector3(0, 0, 1.5);
  for (let r = 0; r <= 4; r += .25) for (let a = 0; a < (r ? 12 : 1); a++) { const x = p.x + Math.cos(a / 12 * 6.283) * r, z = p.z + Math.sin(a / 12 * 6.283) * r; if (moveTo(it, x, z).ok) return true; }
@@ -100,7 +101,7 @@ function stepTween(v) {
 }
 function enterPlace() {
  const v = view(); if (place || !v?.controls || !active()) return false;
- place = { pos: v.camera.position.clone(), tgt: v.controls.target.clone(), fov: v.camera.fov, max: v.controls.maxDistance, auto: v.controls.autoRotate, damp: v.controls.enableDamping, hidden: new Map(), tw: null, leaving: false };
+ place = { pos: v.camera.position.clone(), tgt: v.controls.target.clone(), fov: v.camera.fov, max: v.controls.maxDistance, auto: v.controls.autoRotate, damp: v.controls.enableDamping, hidden: new Map(), tw: null, leaving: false, allowSpin: false };
  v.controls.autoRotate = false; v.controls.enableDamping = false; v.controls.maxDistance = Math.max(place.max, 14); hideBike(v);
  tweenTo(v, WIDE); refresh(); return true;
 }
@@ -130,7 +131,7 @@ const rig = {
  get objects() { return active() ? items.map(i => ({ key: i.uid, holder: i.holder })) : []; },
  state: () => ({ selected, arrange }),
  get controls() { return view()?.controls; }, get camera() { return view()?.camera; },
- move(dx, dz, dy = 0) { const it = items.find(i => i.uid === selected); if (!it || !arrange) return; if (dy && it.mount === 'wall') { it.y = Math.max(.1, Math.min(P().ceil - .2, it.y + dy)); apply(it); paint(it); } else if (dx || dz) moveTo(it, it.x + dx, it.z + dz); refresh(false); },
+ move(dx, dz, dy = 0) { const it = items.find(i => i.uid === selected); if (!it || !arrange) return; if (dy) { const h = (it.local.max[1] - it.local.min[1]) || .2; const lo = it.mount === 'wall' ? .1 : 0; it.y = Math.max(lo, Math.min(P().ceil - h - .05, it.y + dy)); apply(it); paint(it); } if (dx || dz) moveTo(it, it.x + dx, it.z + dz); refresh(false); },
  rotate(d) { const it = items.find(i => i.uid === selected); if (it && arrange) { rotate(it, d); refresh(false); } },
 };
 
@@ -257,10 +258,11 @@ function tick() {
  const next = world()?.getInstance?.(ROOM) || null;
  if (next !== inst) { inst = next?.placement ? next : null; if (inst) load(); }
  if (place && !active()) { const v = view(); if (v?.controls) restoreView(v); showBike(); place = null; }
- if (inst) { const v = view(); if (place && v) { stepTween(v); if (place && !place.leaving) hideBike(v); } stepDrops(); if (selected && v?.controls) v.controls.autoRotate = false; refresh(false); }
+ if (inst) { const v = view(); if (place && v) { stepTween(v); if (place && !place.leaving) hideBike(v); } stepDrops(); if (v?.controls && ((place && !place.leaving && !place.allowSpin) || (selected && arrange && !place))) v.controls.autoRotate = false; refresh(false); }
  requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
+addEventListener('click', e => { if (!place || place.leaving || !e.target.closest('[data-wk-rotate]')) return; queueMicrotask(() => { if (place && !place.leaving) place.allowSpin = !!view()?.controls?.autoRotate; }); });
 
 globalThis.__WK_WORKSHOP_PLACE__ = {
  catalog: () => PLACEABLES.map(p => p.id),
@@ -274,7 +276,8 @@ globalThis.__WK_WORKSHOP_PLACE__ = {
  list: () => items.filter(i => !i.pending).map(({ uid, item, x, y, z, yaw, mount }) => ({ uid, item, x, y, z, yaw, mount })),
  begin, confirm: () => finishEdit(true), cancel: () => finishEdit(false), select: (uid, edit) => select(uid, edit), open: openPanel,
  dragTo(x, z) { const it = items.find(i => i.uid === selected); if (!it) return null; const v = moveTo(it, x, z); refresh(false); return v; },
- placeMode: { enter: () => enterPlace(), exit: () => exitPlace(), state: () => ({ on: !!place, leaving: !!place?.leaving, tweening: !!place?.tw, hidden: place ? place.hidden.size : 0 }) },
+ bboxCentre(uid) { const it = items.find(i => i.uid === uid); if (!it) return null; const f = footXZ(it); return [f.x, it.y + (it.local.min[1] + it.local.max[1]) / 2, f.z]; },
+ placeMode: { enter: () => enterPlace(), exit: () => exitPlace(), state: () => ({ on: !!place, leaving: !!place?.leaving, tweening: !!place?.tw, hidden: place ? place.hidden.size : 0, allowSpin: !!place?.allowSpin, autoRotate: !!view()?.controls?.autoRotate }) },
  state: () => ({ ready: !!inst, placeMode: !!place, items: items.length, selected, arrange, pending: items.some(i => i.pending), valid: items.find(i => i.uid === selected)?.valid || null, key: KEY }),
  reload: load,
 };
