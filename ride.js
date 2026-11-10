@@ -168,7 +168,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   addEventListener("deviceorientation", ori);
   // HUD + touch controls (DOM over the canvas)
   const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none"; el.appendChild(ui);
-  ui.innerHTML = `<div class="ride-view-label">▣ SIDE VIEW (2.5D)</div><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
+  ui.innerHTML = `<div class="ride-review-scrim" aria-hidden="true"></div><div class="ride-view-label">▣ SIDE VIEW (2.5D)</div><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
     <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">ENDLESS ${flat?"∞":"OFF"}</button></div>
    ${pauseMenuMarkup(flat)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
