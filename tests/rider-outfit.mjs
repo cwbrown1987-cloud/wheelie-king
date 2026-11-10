@@ -78,6 +78,8 @@ try{
     hasBoot:has('shoe:ankle')||has('shoe:shin')||has('shoe:buckle'),
     hasLaces:names.some(n=>n.includes('shoe:lace')),
     riderH:riderBox.h,helmetH:headBox.h,ratio:headBox.h/riderBox.h,
+    overlayBall:names.includes('rider:helmet-shell'),
+    gearHelmetSize:shell?worldBox(shell.parent&&String(shell.parent.name).startsWith('gear:')?shell.parent:shell):null,
     faceHidden:!names.filter(n=>/rider:(face|nose|eye|ear)/.test(n)).some(n=>rider.getObjectByName(n)?.visible),
     neckHidden:rider.getObjectByName('rider:neck')?.visible===false,
     shellVisible:!!shell?.visible,
@@ -106,6 +108,10 @@ try{
   assert(look.faceHidden,name+' face sits inside the full-face helmet');
   assert(look.neckHidden,name+' neck is hidden under the full-face helmet');
   assert(look.shellVisible,name+' lime helmet shell is drawn '+JSON.stringify(look.headGraph));
+  assert.equal(look.overlayBall,false,name+' leftover torso helmet-shell sphere must be gone');
+  assert(look.gearHelmetSize&&look.gearHelmetSize.h>0.12&&look.gearHelmetSize.h<0.32,name+' helmet height should match a real head '+JSON.stringify(look.gearHelmetSize));
+  assert(look.gearHelmetSize.w>0.14&&look.gearHelmetSize.w<0.32,name+' helmet depth should not be a giant ball '+JSON.stringify(look.gearHelmetSize));
+  assert(look.gearHelmetSize.d>0.14&&look.gearHelmetSize.d<0.28,name+' helmet width should sit inside the shoulders '+JSON.stringify(look.gearHelmetSize));
   assert.equal(look.hoodParent,null,name+' jersey must not keep the built-in hood '+JSON.stringify({hoodParent:look.hoodParent}));
   console.log(JSON.stringify({name,headGraph:look.headGraph}));
   if(shots){

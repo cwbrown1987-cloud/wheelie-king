@@ -17,7 +17,7 @@ export function gearModel(T,p,{single=false}={}){
   const surface=(lens=false)=>{const vertices=[],indices=[],rows=64,cols=64,low=lens?-.055:(open?-.080:-.113),high=.132;for(let j=0;j<=rows;j++){const y=lens?-.055+j/rows*.13:low+j/rows*(high-low),r=Math.sqrt(Math.max(0,1-(y/.132)**2)),c=cut(y);for(let i=0;i<=cols;i++){const angle=lens?-c+i/cols*c*2:c+i/cols*(Math.PI*2-c*2);vertices.push(Math.cos(angle)*r*RIDER_SPEC.helmet.x*(lens?.986:1),y,Math.sin(angle)*r*RIDER_SPEC.helmet.z*(lens?.986:1));}}for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;indices.push(a,b,c,b,d,c)}const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;};
   let paint=primary;
   primary.emissive.set(p.theme==='lime'?'#8cff00':p.primary);primary.emissiveIntensity=p.theme==='lime'?.85:.55;primary.roughness=.4;primary.side=T.DoubleSide;if(p.theme==='lime')primary.color.set('#8cff00');
-  const shell=mesh('helmet:shell',new T.SphereGeometry(.13,32,24),paint);shell.scale.set(1.15,1.08,1.12);shell.receiveShadow=false;shell.renderOrder=2;
+  const shell=mesh('helmet:shell',surface(),paint);shell.receiveShadow=false;shell.renderOrder=2;shell.frustumCulled=false;
   const liner=new T.SphereGeometry(.112,32,20,0,Math.PI*2,0,Math.PI*(open?.60:.88));liner.scale(.98,1.09,.96);const linerMat=material('#111a20');linerMat.side=T.BackSide;mesh('helmet:liner',liner,linerMat);
   if(!open){
    const gogFrame=material('#07090c',.12,.42),gogLens=material('#2a5570',.75,.1),gogStrap=material('#0d1014',.05,.75);
@@ -34,7 +34,7 @@ export function gearModel(T,p,{single=false}={}){
   if(!street){const shape=new T.Shape();shape.moveTo(0,-.095);shape.quadraticCurveTo(.15,-.12,.22,-.07);shape.quadraticCurveTo(.25,0,.22,.07);shape.quadraticCurveTo(.15,.12,0,.095);shape.quadraticCurveTo(.045,0,0,-.095);const geo=new T.ExtrudeGeometry(shape,{depth:.005,bevelEnabled:true,bevelSize:.002,bevelThickness:.001,bevelSegments:3,curveSegments:18});const attr=geo.attributes.position;for(let i=0;i<attr.count;i++)attr.setZ(i,attr.getZ(i)+Math.max(0,attr.getX(i)-.07)*.08);geo.computeVertexNormals();const peak=mesh('helmet:peak',geo,paint,[0,.09,0]);peak.rotation.x=Math.PI/2;peak.scale.x=(mx||p.style==='mtb')?1.15:.9;peak.scale.y=1.15;}
 
   for(const side of [-1,1]){const bolt=cylinder('helmet:visorBolt',.006,.006,silver,[.018,.027,side*.115]);bolt.rotation.x=Math.PI/2;box('helmet:vent',[.047,.009,.015],dark,[-.014,.120,side*.038]);tube('helmet:themeStripe',[[-.065,.06,side*.082],[-.014,.102,side*.067],[.041,.095,side*.070]],.005,accent);tube('helmet:strap',[[.01,-.045,side*.10],[.015,-.13,side*.04],[.08,-.10,side*.04]],.004,dark);}
-   g.scale.setScalar(1.16);
+
  }else if(p.slot==='gloves'){
   box('glove:palm',[.065,.025,.067],primary);
   for(let i=0;i<4;i++){const z=(i-1.5)*.016;tube('glove:finger',[[.024,0,z],[.044,-.006,z],[.047,-.021,z],[.033,-.027,z]],.007,primary);mesh('glove:knuckle',new T.SphereGeometry(.010,12,8),p.style==='armoured'?dark:accent,[.022,.015,z]).scale.y=.45;}
