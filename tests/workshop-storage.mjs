@@ -67,8 +67,8 @@ try{
   assert(extra.a&&extra.shelfGone&&extra.chest&&extra.storage.some(s=>s.uid===moved.prev.uid),JSON.stringify(extra));
   await p.reload();
   await p.waitForFunction(()=>globalThis.__WK_VIEW__?.worldRoom&&__WK_WORKSHOP_PLACE__?.ready(),null,{timeout:180000});
-  const after=await p.evaluate((shelf,chest)=>{const P=__WK_WORKSHOP_PLACE__;
-   return {shelf:P.list().find(i=>i.uid===shelf),chest:P.list().find(i=>i.uid===chest),storage:P.storage(),fixtures:P.list().filter(i=>i.fixture).length,min:__WK_VIEW__.controls.minDistance,max:__WK_VIEW__.controls.maxDistance,fov:__WK_VIEW__.camera.fov};},moved.prev.uid,extra.a);
+  const after=await p.evaluate(({shelf,chest})=>{const P=__WK_WORKSHOP_PLACE__;
+   return {shelf:P.list().find(i=>i.uid===shelf),chest:P.list().find(i=>i.uid===chest),storage:P.storage(),fixtures:P.list().filter(i=>i.fixture).length,min:__WK_VIEW__.controls.minDistance,max:__WK_VIEW__.controls.maxDistance,fov:__WK_VIEW__.camera.fov};},{shelf:moved.prev.uid,chest:extra.a});
   assert(!after.shelf&&after.chest&&after.storage.some(s=>s.uid===moved.prev.uid)&&after.storage.every(s=>s.uid!==extra.a),JSON.stringify(after));
   assert.equal(after.fixtures,12);
   assert.equal(after.min,.12);assert.equal(after.max,4.2);assert.equal(after.fov,32);
