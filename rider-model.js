@@ -46,14 +46,25 @@ export function makeRider(T,body,bike,A,mechanical){
   hood.visible=hoodie;if(!hoodie&&hood.parent)hood.parent.remove(hood);else if(hoodie&&!hood.parent)torso.add(hood);
   collar.visible=look.top.style==='jersey';
   torso.children.filter(o=>/hood-cord|pocket-seam|hoodie-hem/.test(o.name)).forEach(o=>o.visible=hoodie);
-  wornHelmet.visible=true;wornHelmet.traverse(o=>{if(o.isMesh){o.visible=true;o.frustumCulled=false;if(o.geometry&&!o.geometry.boundingSphere)o.geometry.computeBoundingSphere()}});
-  // Keep the real gear helmet on the head group so it nods and sits on the
-  // skull. Do not add a second torso sphere — that read as a giant green ball.
-  if(wornHelmet.parent!==headGroup){wornHelmet.parent?.remove(wornHelmet);headGroup.add(wornHelmet)}
-  wornHelmet.position.copy(headCenter);if(look.helmet?.style!=='open')wornHelmet.position.y-=.025;
+  // Gear helmet stays in the graph for outfit ids, but it does not reliably
+  // draw in the ride framebuffer. Build a head-sized full-face (chin bar +
+  // visor, not a sphere) with the same mesh() path as the jersey collar.
+  wornHelmet.visible=false;
   lime.color.set(look.helmet?.theme==='lime'?'#8cff00':(look.helmet?.primary||'#8cff00'));
   lime.emissive.copy(lime.color);lime.emissiveIntensity=.9;lime.roughness=.4;lime.side=T.DoubleSide;
-  for(const n of ['rider:helmet-shell','rider:helmet-goggles']){const extra=torso.getObjectByName(n);if(extra){torso.remove(extra);dispose(extra)}}
+  let vis=torso.getObjectByName('rider:helmet');
+  if(!vis){
+    vis=new T.Group();vis.name='rider:helmet';torso.add(vis);
+    const shell=mesh('helmet-shell',new T.SphereGeometry(.088,24,16,0,Math.PI*2,0,Math.PI*.7),lime,vis);
+    shell.scale.set(1.26,1.04,.94);shell.position.set(.012,.02,0);shell.frustumCulled=false;
+    const chin=mesh('helmet-chinbar',new T.TorusGeometry(.052,.017,10,20,Math.PI),lime,vis);
+    chin.rotation.set(Math.PI/2,Math.PI/2,0);chin.position.set(.05,-.058,0);chin.frustumCulled=false;
+    for(const side of [-1,1]){const cheek=mesh('helmet-cheek',new T.SphereGeometry(.03,12,8),lime,vis);cheek.scale.set(1.15,.85,.8);cheek.position.set(.035,-.035,side*.06);cheek.frustumCulled=false;}
+    const visorMat=material('#101820',.22);visorMat.metalness=.45;visorMat.transparent=true;visorMat.opacity=.88;visorMat.emissive.set('#152030');visorMat.emissiveIntensity=.25;
+    const visor=mesh('helmet-visor',new T.BoxGeometry(.045,.048,.13),visorMat,vis);visor.position.set(.095,.01,0);visor.rotation.z=-.12;visor.frustumCulled=false;
+    const frame=mesh('helmet-goggles',new T.BoxGeometry(.02,.056,.14),material('#0a0c10',.4),vis);frame.position.set(.078,.01,0);frame.frustumCulled=false;
+  }
+  vis.visible=!openFace;vis.position.copy(headCenter);
   headGroup.children.forEach(o=>{if(/face|nose|eye|ear/.test(o.name))o.visible=openFace});
   for(const a of arms){a.lower.material=look.top.style==='tee'?skin:blue;for(const child of [...a.glove.children]){a.glove.remove(child);dispose(child)}a.glove.add(gearModel(T,look.gloves));}
   for(const l of legs){l.shin.material=look.pants.style==='shorts'?skin:pants;l.knee.material=look.pants.style==='shorts'?skin:pants;for(const child of [...l.shoe.children]){l.shoe.remove(child);dispose(child)}l.shoe.add(gearModel(T,look.shoes,{single:true}));}
@@ -64,7 +75,7 @@ export function makeRider(T,body,bike,A,mechanical){
  let count=0;rider.traverse(o=>{if(o.isMesh)count++});
  return {root:rider,update({lean=0,crashed=false,superman=0}={}){
   const rideCrouch=ridingPose?-.16:0;
-  torso.position.copy(hip);torso.rotation.set(0,0,lean*.23+(crashed?.6:0)-superman*.9+(A.vehicleClass==='escooter'?-.15:0)+rideCrouch);const nod=ridingPose?-.18:0;headGroup.rotation.set(0,0,nod);headGroup.position.copy(headCenter).sub(headCenter.clone().applyAxisAngle(new T.Vector3(0,0,1),nod));
+  torso.position.copy(hip);torso.rotation.set(0,0,lean*.23+(crashed?.6:0)-superman*.9+(A.vehicleClass==='escooter'?-.15:0)+rideCrouch);const nod=ridingPose?-.18:0;headGroup.rotation.set(0,0,nod);headGroup.position.copy(headCenter).sub(headCenter.clone().applyAxisAngle(new T.Vector3(0,0,1),nod));const vis=torso.getObjectByName('rider:helmet');if(vis){vis.position.copy(headCenter);vis.rotation.set(0,0,nod);}
   const localHand=hand.clone().sub(torso.position).applyAxisAngle(new T.Vector3(0,0,1),-torso.rotation.z);
   for(const a of arms){const sh=shoulder.clone().setZ(a.side*RIDER_SPEC.shoulderHalfSpan),h=localHand.clone().setZ(a.side*(A.handWidth||.18)),el=sh.clone().lerp(h,.5).add(new T.Vector3(-.08,-.01,a.side*.09));pose(a.upper,sh,el);pose(a.lower,el,h);a.elbow.position.copy(el);a.glove.position.copy(h);a.glove.rotation.set(0,0,0)}
   const pedal=!!bike.getObjectByName('cranks:rotor'),angle=mechanical?.state.crankPhase||0;

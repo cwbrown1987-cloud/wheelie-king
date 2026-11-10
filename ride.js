@@ -196,7 +196,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   addEventListener("deviceorientation", ori);
   // HUD + touch controls (DOM over the canvas)
   const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none"; el.appendChild(ui);
-  ui.innerHTML = `<div class="ride-review-scrim" aria-hidden="true"></div><div class="ride-view-label">▣ SIDE VIEW (2.5D)</div><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
+  ui.innerHTML = `<div class="ride-review-scrim" aria-hidden="true"></div><button type="button" class="ride-view-label" data-r="view" aria-label="Switch camera view" aria-pressed="false">▣ SIDE VIEW (2.5D)</button><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
     <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
    ${pauseMenuMarkup(level)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
@@ -440,7 +440,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   function close() { report(); onClose?.(); }
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
-  const viewLabel=ui.querySelector('.ride-view-label'),hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
+  const viewLabel=ui.querySelector('.ride-view-label');viewLabel?.addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();if(reviewing||finished)return;cameraView=cameraView==='chase'?'side':'chase';});const hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
   const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),rotateLocked=document.body.classList.contains('wk-portrait-lock'),realDt = paused || reviewing || rewinding || rotateLocked ? 0 : Math.min(0.05,cameraDt);
     let timeScale = 1;
     if (slowMo) timeScale = .62;
@@ -562,7 +562,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     const cx=sc.x*(1-blend)+(crashFocus?.x??s.x+Math.min(3,s.vx*.15))*blend,riderY=sc.y*(1-blend)+(crashFocus?.y??s.y)*blend,side=1-blend;
     cameraReady=true;
     if(!globalThis.__WK_CAM_HOLD__){cam.position.set(cx-Math.sin(angle)*radius+sc.bobX*side,riderY+(.45+dist*.025)*side+1.10*blend+sc.bobY*side,Math.cos(angle)*radius+.4*blend);cam.lookAt(cx+blend*3.2,riderY+(.45+dist*.025-.65)*side-.65*blend+sc.bobY*.6*side,0);if(side>0&&sc.roll)cam.rotateZ(sc.roll*side);cam.fov=40+blend*5;cam.updateProjectionMatrix();}
-    environment.update(s.x);environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');
+    environment.update(s.x);environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
 
     sun.position.set(s.x + 4, s.y + 10, 6); sun.target.position.set(s.x, s.y, 0);
     sky.position.x = cam.position.x; sunDisc.position.x = cam.position.x + 40;

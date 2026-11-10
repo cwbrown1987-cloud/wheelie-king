@@ -57,7 +57,7 @@ try{
       level:st.level,finish:st.ter.finish,hasLoop:!!st.ter.loop,
       checkpoints:st.ter.checkpoints,kickers:st.ter.kickers,
       heights:Object.fromEntries(xs.map(x=>[x,+st.ter.h(x).toFixed(3)])),
-      props,hasTricks:!!document.querySelector('[data-t="hop"],[data-r="tricks"],.ride-tricks,button[aria-label*="Tricks"],[data-t]'),
+      props,names,hasTricks:!!document.querySelector('[data-t="hop"],[data-r="tricks"],.ride-tricks,button[aria-label*="Tricks"],[data-t]'),
       hasRewind:!!document.querySelector('[data-r="rewind"]'),
       hasReplay:!!document.querySelector('[data-r="menu-replay"]'),
       finishTitle:document.querySelector('.ride-finish strong')?.textContent||null
@@ -71,6 +71,9 @@ try{
   assert(world.props.some(o=>o.name.includes('dirt-jump')&&Math.abs(o.z)>2),'dirt mounds are off the ride strip');
   assert(world.heights[68]<0.1&&world.heights[70]<0.1,'ridden height under the bowl is the road, not the scenery');
   assert(world.heights[56]>0.8,'kicker in the terrain is ridden');
+  assert(world.names.includes('environment:grass'),'grass verge missing');
+  assert(world.names.includes('environment:low-wall'),'low wall missing');
+  assert(world.names.includes('environment:kerb-face'),'kerb face missing');
   assert.equal(world.hasRewind,true,'rewind control is mounted');
   assert.equal(world.hasReplay,true,'replay is in the pause menu');
   assert.match(world.finishTitle||'',/SAMPLE 3D COMPLETE/);

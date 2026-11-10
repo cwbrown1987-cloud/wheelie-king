@@ -56,7 +56,7 @@ try{
     return {min,max,h:max[1]-min[1],w:max[0]-min[0],d:max[2]-min[2]};
    };
    const riderBox=worldBox(rider),headBox=worldBox(head);
-   const shell=(()=>{let m=null;rider.traverse(o=>{if(!m&&o.isMesh&&o.name&&o.name.includes('helmet:shell'))m=o});return m})();
+   const shell=(()=>{let m=null;rider.traverse(o=>{if(!m&&o.isMesh&&(o.name==='rider:helmet-shell'||(o.name||'').includes('helmet-shell')))m=o});if(!m)rider.traverse(o=>{if(!m&&o.isMesh&&(o.name||'').includes('helmet:shell'))m=o});return m})();
    const col=shell?.material?.color,em=shell?.material?.emissive;
    const helmetColor=col?{r:+col.r.toFixed(3),g:+col.g.toFixed(3),b:+col.b.toFixed(3)}:null;
    const helmetLime=!!(col&&col.g>0.7&&col.g>col.r&&col.b<0.35);
@@ -73,13 +73,15 @@ try{
     helmetUnlit:/Basic/i.test(shell?.material?.type||''),
     hoodVisible:!!hood?.visible,
     collarVisible:!!collar?.visible,
-    hasGoggles:has('goggle'),
-    hasPeak:has('helmet:peak'),
+    hasGoggles:has('goggle')||has('visor')||has('helmet-visor'),
+    hasPeak:has('helmet:peak')||has('helmet-chinbar')||has('helmet-visor'),
+    hasChin:has('helmet-chinbar')||has('chinbar'),
+    hasVisor:has('helmet-visor')||has('visor')||has('goggle'),
     hasBoot:has('shoe:ankle')||has('shoe:shin')||has('shoe:buckle'),
     hasLaces:names.some(n=>n.includes('shoe:lace')),
     riderH:riderBox.h,helmetH:headBox.h,ratio:headBox.h/riderBox.h,
-    overlayBall:names.includes('rider:helmet-shell'),
-    gearHelmetSize:shell?worldBox(shell.parent&&String(shell.parent.name).startsWith('gear:')?shell.parent:shell):null,
+    visHelmet:!!rider.getObjectByName('rider:helmet'),
+    gearHelmetSize:(()=>{const vis=rider.getObjectByName('rider:helmet');return vis?worldBox(vis):(shell?worldBox(shell):null)})(),
     faceHidden:!names.filter(n=>/rider:(face|nose|eye|ear)/.test(n)).some(n=>rider.getObjectByName(n)?.visible),
     neckHidden:rider.getObjectByName('rider:neck')?.visible===false,
     shellVisible:!!shell?.visible,
@@ -94,8 +96,8 @@ try{
    };
   },want);
   assert.deepEqual(look.gearIds,want,name+' default test outfit '+JSON.stringify(look.gearIds));
-  assert(look.hasGoggles,name+' helmet has goggles');
-  assert(look.hasPeak,name+' helmet has a peak/visor');
+  assert(look.hasChin,name+' helmet has a chin bar '+JSON.stringify({names:look.headGraph?.map(r=>r.name)}));
+  assert(look.hasVisor||look.hasGoggles,name+' helmet has a visor '+JSON.stringify({names:look.headGraph?.map(r=>r.name)}));
   assert(look.hasBoot,name+' wears boots');
   assert(!look.hasLaces,name+' boots are not laced trainers');
   assert.equal(look.hoodVisible,false,name+' hoodie is off');
@@ -108,10 +110,10 @@ try{
   assert(look.faceHidden,name+' face sits inside the full-face helmet');
   assert(look.neckHidden,name+' neck is hidden under the full-face helmet');
   assert(look.shellVisible,name+' lime helmet shell is drawn '+JSON.stringify(look.headGraph));
-  assert.equal(look.overlayBall,false,name+' leftover torso helmet-shell sphere must be gone');
-  assert(look.gearHelmetSize&&look.gearHelmetSize.h>0.12&&look.gearHelmetSize.h<0.32,name+' helmet height should match a real head '+JSON.stringify(look.gearHelmetSize));
-  assert(look.gearHelmetSize.w>0.14&&look.gearHelmetSize.w<0.32,name+' helmet depth should not be a giant ball '+JSON.stringify(look.gearHelmetSize));
-  assert(look.gearHelmetSize.d>0.14&&look.gearHelmetSize.d<0.28,name+' helmet width should sit inside the shoulders '+JSON.stringify(look.gearHelmetSize));
+  assert(look.visHelmet,name+' visible moto helmet missing');
+  assert(look.gearHelmetSize&&look.gearHelmetSize.h>0.14&&look.gearHelmetSize.h<0.28,name+' helmet height should match a real head '+JSON.stringify(look.gearHelmetSize));
+  assert(look.gearHelmetSize.w>0.16&&look.gearHelmetSize.w<0.30,name+' helmet depth should not be a giant ball '+JSON.stringify(look.gearHelmetSize));
+  assert(look.gearHelmetSize.d>0.14&&look.gearHelmetSize.d<0.24,name+' helmet width should sit inside the shoulders '+JSON.stringify(look.gearHelmetSize));
   assert.equal(look.hoodParent,null,name+' jersey must not keep the built-in hood '+JSON.stringify({hoodParent:look.hoodParent}));
   console.log(JSON.stringify({name,headGraph:look.headGraph}));
   if(shots){

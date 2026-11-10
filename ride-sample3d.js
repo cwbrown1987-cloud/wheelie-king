@@ -36,6 +36,17 @@ export function makeSampleWorld(T,scene,terrain,{lowDetail=false}={}){
  const kerbL=strip(-2.2,-1.55,-.34,kerb,'environment:kerb');
  const nearWalk=strip(2.15,4.1,-.355,sidewalk,'environment:sidewalk-near');nearSide.push(nearWalk);
  const kerbR=strip(1.55,2.2,-.34,kerb,'environment:kerb-near');nearSide.push(kerbR);
+ const grass=mat('#3d5c32',{roughness:.96}),lowWall=mat('#6d6874',{roughness:.9});
+ const face=(z,y0,y1,mat,name,jitter=0)=>{
+  const v=[],uv=[],idx=[];let i=0;
+  for(let x=start;x<=end;x+=.6,i++){const y=h(x),top=y1+(jitter?jitter*Math.cos(x*.18):0);v.push(x,y+y0,z,x,y+top,z);uv.push(x/4,0,x/4,1);if(x<end){const a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2)}}
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);
+  const m=new T.Mesh(g,mat);m.name=name;m.receiveShadow=true;root.add(m);return m;
+ };
+ face(-2.16,-.02,.15,kerb,'environment:kerb-face');
+ strip(-7.3,-4.2,-.27,grass,'environment:grass');
+ face(-4.22,-.38,.14,grass,'environment:grass-edge');
+ face(-6.35,-.04,1.08,lowWall,'environment:low-wall',.1);
 
  const windowMat=mat('#d1c8e0',{map:facade,emissive:'#8e6875',emissiveMap:facade,emissiveIntensity:.18});
  const builds=new T.Group();builds.name='environment:buildings';root.add(builds);
