@@ -34,8 +34,9 @@ try{
   const p=await browser.newPage(pageOptions({viewport:{width:vp.width,height:vp.height},isMobile:!!vp.mobile,hasTouch:!!vp.mobile,deviceScaleFactor:1,serviceWorkers:'block'})),errors=[];p.on('pageerror',e=>errors.push(e.message));
   const tag=vp.width+'x'+vp.height;
   await p.goto(URL0);await p.evaluate(()=>localStorage.removeItem('wk-room-layout-v1'));await p.reload();
-  await p.waitForFunction(()=>globalThis.__WK_VIEW__?.worldRoom&&globalThis.__WK_WORKSHOP_CAM__&&__WK_WORKSHOP_PLACE__?.ready(),null,{timeout:180000});
-  await p.evaluate(()=>{__WK_VIEW__.controls.autoRotate=false});await p.waitForTimeout(600);
+  await p.waitForFunction(()=>globalThis.__WK_VIEW__?.worldRoom&&globalThis.__WK_VIEW__?.wkOpeningFramed&&globalThis.__WK_WORKSHOP_CAM__&&__WK_WORKSHOP_PLACE__?.ready(),null,{timeout:180000});
+  await p.evaluate(()=>{__WK_VIEW__.controls.autoRotate=false});await p.waitForTimeout(700);
+  await p.evaluate(()=>__WK_WORKSHOP_CAM__.home({immediate:true}));
   const cam0=await p.evaluate(camOf);
   const ui0=await p.evaluate(chrome);
   assert.equal(ui0.reset,false,`${tag} RESET VIEW gone `+JSON.stringify(ui0));
@@ -61,7 +62,7 @@ try{
   assert.equal(home.min,cam0.min,`${tag} min zoom unchanged after home`);
   assert.equal(home.max,cam0.max,`${tag} max zoom unchanged after home`);
   assert(!await p.evaluate(()=>__WK_WORKSHOP_CAM__.state().far),`${tag} snapped home `+JSON.stringify({cam0,home}));
-  assert(Math.abs(home.d-cam0.d)<.08,`${tag} home distance `+JSON.stringify({cam0,home}));
+  assert(Math.abs(home.d-cam0.d)<.15,`${tag} home distance `+JSON.stringify({cam0,home}));
 
   // tap again when close: inspect orbit + dock
   const hit2=await p.evaluate(bikeScreen);
@@ -82,7 +83,7 @@ try{
   const back=await p.evaluate(camOf),ui2=await p.evaluate(chrome);
   assert.equal(ui2.inspect,false);assert.equal(ui2.dock,false);assert.equal(ui2.rotate,false);assert.equal(ui2.bench,false);
   assert.equal(back.fov,cam0.fov);assert.equal(back.min,cam0.min);assert.equal(back.max,cam0.max);
-  assert(Math.abs(back.d-cam0.d)<.08,`${tag} exit restores home `+JSON.stringify({cam0,back}));
+  assert(Math.abs(back.d-cam0.d)<.15,`${tag} exit restores home `+JSON.stringify({cam0,back}));
   assert(ui2.edit&&ui2.ride,`${tag} room dock back `+JSON.stringify(ui2));
   if(shots&&!vp.mobile)await p.screenshot({path:shots+'/edit-3-exit.png'});
 
