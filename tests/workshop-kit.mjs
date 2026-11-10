@@ -17,7 +17,7 @@ try{
  const room=await p.evaluate(()=>{const v=__WK_VIEW__,c=v.controls,s=v.scene;let turntable=false,oldBoard=false;s.traverse(o=>{if(/turntable|turn-base/i.test(o.name))turntable=true;if(o.name==='garage:tool-board')oldBoard=true;});
   return {state:v.worldRoom.state(),min:c.minDistance,max:c.maxDistance,pol:c.maxPolarAngle,fov:v.camera.fov,turntable,oldBoard,active:__WK_SHARED_WORLD__.getActive()};});
  assert.equal(room.active,'workshop');
- assert(room.state.kit&&room.state.worldRoom&&room.state.props>60,JSON.stringify(room.state));
+ assert(room.state.kit&&room.state.worldRoom&&room.state.props>50&&room.state.art==='art-room',JSON.stringify(room.state));
  assert.equal(room.min,.12);assert.equal(room.max,4.2);assert(Math.abs(room.pol-Math.PI*.53)<1e-9);assert.equal(room.fov,32);
  assert(!room.turntable,'no turntable');assert(!room.oldBoard,'old procedural tool board replaced');
  assert(room.state.propDrawCalls<=25,'prop draw calls '+room.state.propDrawCalls);

@@ -16,15 +16,15 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  // --- environment for the PBR props (same neon-strip RoomEnvironment trick as the original room)
  let envTarget = null;
  if (!asSecondary) {
-  scene.background = new T.Color('#06070b'); scene.fog = new T.Fog('#06070b', 25, 55);
+  scene.background = new T.Color('#0b0714'); scene.fog = new T.Fog('#140a24', 9, 30);
   const pm = new T.PMREMGenerator(renderer), env = new RoomEnvironment(renderer);
-  for (const [x, c] of [[-3, '#b04cff'], [0, '#52daff'], [3, '#ffb35a']]) { const s = new T.Mesh(new T.BoxGeometry(2, .05, .3), new T.MeshBasicMaterial({ color: new T.Color(c).multiplyScalar(5) })); s.position.set(x, 3.6, 0); env.add(s); }
+  for (const [x, c] of [[-3, '#b04cff'], [-1, '#ff4fd2'], [1, '#52daff'], [3, '#ffb35a']]) { const s = new T.Mesh(new T.BoxGeometry(2, .05, .3), new T.MeshBasicMaterial({ color: new T.Color(c).multiplyScalar(5) })); s.position.set(x, 3.6, 0); env.add(s); }
   envTarget = pm.fromScene(env, .04); scene.environment = envTarget.texture; scene.environmentIntensity = .6; env.dispose?.(); pm.dispose();
  }
  // --- walls + floor
  const TL = new T.TextureLoader(), tex = {}; const load = (k, p) => { tex[k] = TL.load(ASSET(p)); };
- load('art', 'icons/neon-garage-background.webp'); load('mask', 'assets/workshop/art-prop-mask.png'); load('relight', 'assets/workshop/art-relight.jpg');
- load('brick', 'assets/workshop/brick.jpg'); load('concrete', 'assets/workshop/concrete.jpg'); load('ceiling', 'assets/workshop/ceiling.jpg');
+ load('art', 'assets/workshop/art-room.jpg');
+ load('brick', 'assets/workshop/art-room-brick.jpg'); load('concrete', 'assets/workshop/concrete.jpg'); load('ceiling', 'assets/workshop/ceiling.jpg');
  const shell = workshopShell(T, tex, { quality }); room.add(shell.group);
  const R = shell.room;
  // walls and ceiling face inward only, so an orbit that leaves the room looks in like a cut-away
@@ -61,7 +61,7 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  const drawCalls = baked.children.length + shell.group.children.length;
  return {
   room, lights: allLights, placement, shell,
-  state: () => ({ worldRoom: true, kit: true, theme: 'workshop', reflection: !coarse, quality, drawCalls, propDrawCalls: baked.children.length, props: layout.length, colliders: colliders.length, placed: placed.children.length }),
+  state: () => ({ worldRoom: true, kit: true, theme: 'workshop', art: 'art-room', reflection: !coarse, quality, drawCalls, propDrawCalls: baked.children.length, props: layout.length, colliders: colliders.length, placed: placed.children.length }),
   setActive(on) { room.visible = !!on; for (const l of allLights) l.visible = !!on; },
   dispose() {
    room.removeFromParent(); baked.userData.dispose?.(); shell.dispose(); kit.dispose();
