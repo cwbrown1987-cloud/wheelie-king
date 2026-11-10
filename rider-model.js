@@ -40,13 +40,26 @@ export function makeRider(T,body,bike,A,mechanical){
  }
  const dispose=g=>g?.traverse(o=>{o.geometry?.dispose();if(o.material)[].concat(o.material).forEach(m=>m.dispose())});
  function wear(look=outfit()){
-  if(wornHelmet){headGroup.remove(wornHelmet);dispose(wornHelmet)}wornHelmet=gearModel(T,look.helmet);wornHelmet.position.copy(headCenter);if(look.helmet?.style!=='open')wornHelmet.position.y-=.025;headGroup.add(wornHelmet);neck.visible=look.helmet?.style==='open';
+  if(wornHelmet){wornHelmet.parent?.remove(wornHelmet);dispose(wornHelmet)}wornHelmet=gearModel(T,look.helmet);wornHelmet.position.copy(headCenter);if(look.helmet?.style!=='open')wornHelmet.position.y-=.025;headGroup.add(wornHelmet);neck.visible=look.helmet?.style==='open';
   blue.color.set(look.top.primary);cuff.color.copy(blue.color).multiplyScalar(.65);pants.color.set(look.pants.primary);shoeMat.color.set(look.shoes.primary);gloveMat.color.set(look.gloves.primary);
   const hoodie=look.top.style==='hoodie',openFace=look.helmet?.style==='open';
   hood.visible=hoodie;if(!hoodie&&hood.parent)hood.parent.remove(hood);else if(hoodie&&!hood.parent)torso.add(hood);
   collar.visible=look.top.style==='jersey';
   torso.children.filter(o=>/hood-cord|pocket-seam|hoodie-hem/.test(o.name)).forEach(o=>o.visible=hoodie);
-  wornHelmet.visible=true;wornHelmet.traverse(o=>{if(o.isMesh)o.visible=true});
+  wornHelmet.visible=true;wornHelmet.traverse(o=>{if(o.isMesh){o.visible=true;o.frustumCulled=false;if(o.geometry&&!o.geometry.boundingSphere)o.geometry.computeBoundingSphere()}});
+  // Parent the gear helmet to the torso, same as the jersey collar that does
+  // draw, and add a lime shell with the rider mesh helper so a full-face is
+  // always in the framebuffer at game scale.
+  if(wornHelmet.parent!==torso){headGroup.remove(wornHelmet);torso.add(wornHelmet)}
+  wornHelmet.position.copy(headCenter);if(look.helmet?.style!=='open')wornHelmet.position.y-=.025;
+  lime.color.set(look.helmet?.theme==='lime'?'#8cff00':(look.helmet?.primary||'#8cff00'));
+  lime.emissive.copy(lime.color);lime.emissiveIntensity=.9;lime.roughness=.4;lime.side=T.DoubleSide;
+  let visShell=torso.getObjectByName('rider:helmet-shell');
+  if(!visShell){visShell=mesh('helmet-shell',new T.SphereGeometry(.155,24,16),lime,torso);visShell.frustumCulled=false}
+  visShell.position.copy(headCenter);visShell.scale.set(1.22,1.14,1.18);visShell.visible=!openFace;
+  let visGog=torso.getObjectByName('rider:helmet-goggles');
+  if(!visGog){const gogMat=material('#152028',.35);gogMat.metalness=.4;visGog=mesh('helmet-goggles',new T.BoxGeometry(.08,.055,.16),gogMat,torso);visGog.frustumCulled=false}
+  visGog.position.copy(headCenter).add(new T.Vector3(.14,-.01,0));visGog.visible=!openFace;
   headGroup.children.forEach(o=>{if(/face|nose|eye|ear/.test(o.name))o.visible=openFace});
   for(const a of arms){a.lower.material=look.top.style==='tee'?skin:blue;for(const child of [...a.glove.children]){a.glove.remove(child);dispose(child)}a.glove.add(gearModel(T,look.gloves));}
   for(const l of legs){l.shin.material=look.pants.style==='shorts'?skin:pants;l.knee.material=look.pants.style==='shorts'?skin:pants;for(const child of [...l.shoe.children]){l.shoe.remove(child);dispose(child)}l.shoe.add(gearModel(T,look.shoes,{single:true}));}
