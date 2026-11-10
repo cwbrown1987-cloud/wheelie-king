@@ -6,7 +6,7 @@ import {root,stageRuntime} from './package.mjs';
 const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-camera','ride-loop','ride-finish','ride-lod','ride-quality','ride-themes','quality-lifecycle','ride-landings','wheelie-balance','air-control','ride-controls','crash-physics','crash-ride','race-balance','ride-pause-replay','check-update','replay-blocks','ride-gallery','boot-loader','replay-playback','panel-scroll'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
 profiles.gpu=['claude-gpu'];
 profiles.transitions=['screen-transitions'];
-profiles.rooms=['shared-world','world-room','workshop-presentation','garage-drag','player-rooms','manage-rides','workshop-mobile'];
+profiles.rooms=['workshop-kit','shared-world','world-room','workshop-presentation','garage-drag','player-rooms','manage-rides','workshop-mobile'];
 profiles.powertrain=['ride-parameters','physics-cadence','ride-parameter-integration','race-balance'];
 profiles.menus=['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','sticker-picker','workshop-mobile','shop-space'];
 profiles.release=[...profiles.transitions,...profiles.rooms,...profiles.powertrain,...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
@@ -26,6 +26,7 @@ function resolveChangedTests(){
  const tests=new Set();
  const rules=[
   {re:/^(shared-world|world-rooms|garage-room3d|garage-furniture|loading-tips)\.js$/, tests:['shared-world','world-room']},
+  {re:/^(src\/(props|rooms)\/|assets\/workshop\/|workshop-placement\.js$)/, tests:['workshop-kit','shared-world','world-room']},
   {re:/^workshop-/, tests:['workshop-presentation','workshop-mobile','workshop-batch']},
   {re:/^ride-(pause|replay|buffer)/, tests:['ride-pause-replay','replay-playback','replay-blocks']},
   {re:/^ride-gallery/, tests:['ride-gallery']},

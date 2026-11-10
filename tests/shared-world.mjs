@@ -42,16 +42,17 @@ try{
  const props=await p.evaluate(()=>{
   const s=__WK_VIEW__.scene;
   return {
-   floor:!!s.getObjectByName('garage:floor'),
-   tools:!!s.getObjectByName('garage:tool-board'),
+   shell:!!s.getObjectByName('workshop:shell'),
+   props:!!s.getObjectByName('workshop:props'),
+   placed:!!s.getObjectByName('workshop:placed'),
    turntable:!!s.getObjectByName('workshop:turntable')||!!s.getObjectByName('workshop:turn-base'),
-   procedural:s.children.some(o=>o.name==='workshop:room'||o.name?.startsWith('workshop:')),
-   bench:!!s.getObjectByName('garage:bench-chest'),
+   oldBoard:!!s.getObjectByName('garage:tool-board'),
+   kit:__WK_VIEW__.worldRoom.state().kit,
    theme:__WK_VIEW__.worldRoom.state().theme,
   };
  });
- // Restored original workshop: original tool board + red bench, no turntable circle, no replacement scene.
- assert(props.floor&&props.tools&&props.bench&&!props.turntable&&!props.procedural,JSON.stringify(props));
+ // 360° kit workshop: art shell + modelled kit props + placement layer, no turntable circle.
+ assert(props.shell&&props.props&&props.placed&&props.kit&&!props.turntable&&!props.oldBoard,JSON.stringify(props));
  assert.equal(props.theme,'workshop');
 
  // Warm garage lazily, then transition workshop -> garage

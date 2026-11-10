@@ -21,9 +21,12 @@ export const PRESETS = {
 };
 
 export function createMaterials(T) {
- const cache = new Map(), owned = new Set();
+ const cache = new Map(), owned = new Set(), maps = new Map();
+ // skin specs may name textures by URL: { preset:'paint', mapUrl:'assets/x.jpg', normalUrl, roughnessUrl, repeat:[2,2] }
+ const loadMap = (url, srgb, repeat) => { const k = url + (srgb ? ':s' : ':l') + (repeat || ''); if (!maps.has(k)) { const t = new T.TextureLoader().load(url); if (srgb) t.colorSpace = T.SRGBColorSpace; if (repeat) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(...repeat); } maps.set(k, t); } return maps.get(k); };
  function make(spec) {
-  const { physical, preset, ...p } = spec;
+  const { physical, preset, mapUrl, normalUrl, roughnessUrl, repeat, ...p } = spec;
+  if (typeof document !== 'undefined') { if (mapUrl) p.map = loadMap(mapUrl, true, repeat); if (normalUrl) p.normalMap = loadMap(normalUrl, false, repeat); if (roughnessUrl) p.roughnessMap = loadMap(roughnessUrl, false, repeat); }
   const M = physical ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
   const m = new M();
   for (const [k, v] of Object.entries(p)) {
@@ -56,5 +59,5 @@ export function createMaterials(T) {
  function skin(defaults, over = {}) {
   return slot => mat(defaults[slot] ?? 'steel', over[slot]);
  }
- return { mat, skin, dispose() { for (const m of owned) { m.map?.dispose(); m.emissiveMap?.dispose(); m.dispose(); } cache.clear(); owned.clear(); } };
+ return { mat, skin, dispose() { for (const m of owned) { m.map?.dispose(); m.emissiveMap?.dispose(); m.dispose(); } cache.clear(); owned.clear(); for (const t of maps.values()) t.dispose(); maps.clear(); } };
 }
