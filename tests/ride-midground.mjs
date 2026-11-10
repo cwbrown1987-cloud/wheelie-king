@@ -26,10 +26,12 @@ try{
     const env=__WK_RIDE_STATE__().environment||{};
     const names=[];const items={};
     const worldPt=(o,i=0)=>{
-      if(o.isInstancedMesh){const m=o.matrix.clone(),e=o.matrixWorld.elements;o.getMatrixAt(Math.min(i,o.count-1),m);m.premultiply(o.matrixWorld);return {x:m.elements[12],y:m.elements[13],z:m.elements[14]}}
-      if(o.geometry?.attributes?.position){const a=o.geometry.attributes.position,v={x:a.getX(i),y:a.getY(i),z:a.getZ(i)};o.updateWorldMatrix(true,false);const e=o.matrixWorld.elements;return {x:e[0]*v.x+e[4]*v.y+e[8]*v.z+e[12],y:e[1]*v.x+e[5]*v.y+e[9]*v.z+e[13],z:e[2]*v.x+e[6]*v.y+e[10]*v.z+e[14]}}
-      const w=o.getWorldPosition({x:0,y:0,z:0,copy(){return this},set(x,y,z){this.x=x;this.y=y;this.z=z;return this}});
-      return {x:w.x,y:w.y,z:w.z};
+      o.updateWorldMatrix(true,false);
+      if(o.isInstancedMesh){const m={elements:new Float32Array(16)};o.getMatrixAt(Math.min(i,Math.max(0,o.count-1)),m);const a=m.elements,b=o.matrixWorld.elements;
+        const x=a[12],y=a[13],z=a[14];
+        return {x:b[0]*x+b[4]*y+b[8]*z+b[12],y:b[1]*x+b[5]*y+b[9]*z+b[13],z:b[2]*x+b[6]*y+b[10]*z+b[14]}}
+      if(o.geometry?.attributes?.position){const a=o.geometry.attributes.position,v={x:a.getX(i),y:a.getY(i),z:a.getZ(i)},e=o.matrixWorld.elements;return {x:e[0]*v.x+e[4]*v.y+e[8]*v.z+e[12],y:e[1]*v.x+e[5]*v.y+e[9]*v.z+e[13],z:e[2]*v.x+e[6]*v.y+e[10]*v.z+e[14]}}
+      const e=o.matrixWorld.elements;return {x:e[12],y:e[13],z:e[14]};
     };
     scene.traverse(o=>{
       if(!o.name||!o.name.startsWith('environment:'))return;
