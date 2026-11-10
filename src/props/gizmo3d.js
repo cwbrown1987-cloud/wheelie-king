@@ -42,8 +42,9 @@ export function makeLiftArrows(T) {
  mv.moveTo(0, -sw); mv.lineTo(L, -sw); mv.lineTo(L, -hw); mv.lineTo(L + hl, 0); mv.lineTo(L, hw); mv.lineTo(L, sw); mv.lineTo(0, sw); mv.closePath();
  const geo = new T.ExtrudeGeometry(mv, { depth: .03, bevelEnabled: true, bevelThickness: .008, bevelSize: .008, bevelSegments: 3, curveSegments: 24 });
  geo.rotateZ(Math.PI / 2); // shaft along +Y
- const mesh = (dir) => { const m = new T.Mesh(geo, mat); m.userData.gizmo = 'lift'; m.castShadow = false; m.receiveShadow = false; m.rotation.z = dir < 0 ? Math.PI : 0; m.position.y = dir * .05; return m; };
- g.add(mesh(1), mesh(-1));
+ const mesh = (dir) => { const m = new T.Mesh(geo, mat); m.name = dir>0?'wk:gizmo-lift-up':'wk:gizmo-lift-down'; m.userData.gizmo = 'lift'; m.castShadow = false; m.receiveShadow = false; m.rotation.z = dir < 0 ? Math.PI : 0; m.position.y = dir * .05; return m; };
+ const shaft = new T.Mesh(new T.CylinderGeometry(.028, .028, .1, 12), mat); shaft.userData.gizmo = 'lift'; shaft.castShadow = shaft.receiveShadow = false;
+ g.add(mesh(1), mesh(-1), shaft);
  return g;
 }
 
