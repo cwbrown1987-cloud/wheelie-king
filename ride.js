@@ -412,7 +412,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   const viewLabel=ui.querySelector('.ride-view-label'),hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
-  const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),realDt = paused || reviewing || rewinding ? 0 : Math.min(0.05,cameraDt);
+  const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),rotateLocked=document.body.classList.contains('wk-portrait-lock'),realDt = paused || reviewing || rewinding || rotateLocked ? 0 : Math.min(0.05,cameraDt);
     let timeScale = 1;
     if (slowMo) timeScale = .62;
     else if (dropInEase > 0) { timeScale = 0.5 + (1 - dropInEase) * 0.5; dropInEase = Math.max(0, dropInEase - cameraDt); }
@@ -420,7 +420,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     last = now;
     // Replay video + Drop In buffer hold live riding only: app menus/overlays opened over the ride (More, Settings,
     // Shop, Garage...) don't pause the ride itself, so they must stop capture too.
-    const capturing = !paused && !reviewing && !finished && !rewinding && !appCovered();
+    const capturing = !paused && !reviewing && !finished && !rewinding && !rotateLocked && !appCovered();
     replay.setCaptureActive?.(capturing);
     if (capturing) replay.buffer?.tick(cameraDt); // capture clock = replay video timeline
     let rewindDx=0;

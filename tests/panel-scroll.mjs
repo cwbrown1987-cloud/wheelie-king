@@ -28,7 +28,7 @@ async function swipe(page, sel) {
 }
 const results = {};
 try {
-  for (const [name, vp] of [['portrait', {width:390,height:844}], ['landscape', {width:844,height:390}]]) {
+  for (const [name, vp] of [['landscape', {width:844,height:390}]]) {
     const page = await browser.newPage(pageOptions({viewport:vp,hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.addInitScript(() => localStorage.setItem('wk-level', 'trials'));

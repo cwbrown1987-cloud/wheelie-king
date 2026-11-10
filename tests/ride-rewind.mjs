@@ -114,7 +114,7 @@ try{
  assert(bound.n<=20*480+50,'frame count stays bounded '+JSON.stringify(bound));
 
  if(shots){
-  const phone=await browser.newPage(pageOptions({viewport:{width:390,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
+  const phone=await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
   phone.on('pageerror',e=>errors.push(e.message));
   await phone.addInitScript(()=>localStorage.setItem('wk-level','trials'));
   await phone.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');

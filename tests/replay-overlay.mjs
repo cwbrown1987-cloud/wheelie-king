@@ -1,11 +1,11 @@
-// Replay overlay: all controls on the video, no scrolling at phone landscape (1024x460, 844x390) and portrait
-// (390x844); every control visible and hit-testable; a touch drag on the tall seek bar moves the playhead.
+// Replay overlay: all controls on the video, no scrolling at phone landscape (1024x460, 844x390, 915x412);
+// every control visible and hit-testable; a touch drag on the tall seek bar moves the playhead.
 import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
 const URL0=process.env.WK_TEST_URL||'http://127.0.0.1:8931/',shots=process.env.WK_REPLAY_SHOTS;
 const browser=await launchBrowser({extraArgs:['--autoplay-policy=no-user-gesture-required']});
 try{
- for(const [w,h] of [[1024,460],[844,390],[390,844],[412,915],[915,412]]){
+ for(const [w,h] of [[1024,460],[844,390],[915,412]]){
   const p=await browser.newPage(pageOptions({viewport:{width:w,height:h},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
   const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
@@ -64,39 +64,6 @@ try{
   assert(!back.panel&&!back.reviewing,`${w}x${h} Drop In from the overlay `+JSON.stringify(back));
   if(shots){await p.locator('[data-r="pause"]').tap();await p.waitForTimeout(250);await p.locator('[data-r="menu-replay"]').tap();await p.waitForTimeout(1500);await p.screenshot({path:`${shots}/replay-${w}x${h}.png`});}
   assert.deepEqual(errors,[]);console.log('replay-overlay',w+'x'+h,'ok',JSON.stringify({widths:lay.widths,panel:lay.panel.map(Math.round)}));
-  await p.close();
- }
- // Landscape clip on a portrait phone (Pixel 9 Pro XL): record at 915x412, then rotate to 412x915.
- // The panel must stay at the clip's landscape aspect with compact on-video chrome (not the tall stacked layout).
- {
-  const p=await browser.newPage(pageOptions({viewport:{width:915,height:412},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
-  const errors=[];p.on('pageerror',e=>errors.push(e.message));
-  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
-  await p.goto(URL0);await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
-  await p.evaluate(()=>document.querySelector('[data-destination=race]').click());
-  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
-  await p.keyboard.down('ArrowUp');await p.waitForTimeout(4500);await p.keyboard.up('ArrowUp');
-  await p.locator('[data-r="pause"]').tap();await p.waitForTimeout(250);await p.locator('[data-r="menu-replay"]').tap();
-  await p.waitForFunction(()=>{const v=document.querySelector('.ride-replay video');return !document.querySelector('.ride-replay').hidden&&v.readyState>=2&&+document.querySelector('.ride-replay input[type=range]').max>0},null,{timeout:15000});
-  await p.setViewportSize({width:412,height:915});
-  await p.waitForTimeout(600);
-  const rot=await p.evaluate(()=>{const s=document.querySelector('.ride-replay'),R=s.getBoundingClientRect();
-   const vis=q=>{const e=document.querySelector(q);if(!e)return false;const cs=getComputedStyle(e);return cs.visibility!=='hidden'&&cs.opacity!=='0'&&cs.display!=='none'};
-   const out={scroll:s.scrollHeight>s.clientHeight+1||s.scrollWidth>s.clientWidth+1,docScroll:document.scrollingElement.scrollHeight>innerHeight+1,panel:[R.width,R.height],ar:R.width/R.height,tall:s.classList.contains('is-tall-video'),reviewing:document.querySelector('[data-wk-ride-surface]')?.hasAttribute('data-wk-reviewing'),bad:[]};
-   if(vis('[data-h=msg]'))out.bad.push('PAUSED hud leaked');
-   if(vis('.ride-view-label'))out.bad.push('view label leaked');
-   if(vis('[data-h=score]'))out.bad.push('score hud leaked');
-   const ctl=['[data-r=replay-close]','[data-r=replay-play]','[data-r=drop-in]','[data-r=save-shot-gallery]','[data-r=replay-seek]'];
-   for(const q of ctl){const e=s.querySelector(q),b=e.getBoundingClientRect();
-    const inside=b.width>0&&b.height>0&&b.left>=R.left-1&&b.right<=R.right+1&&b.top>=R.top-1&&b.bottom<=R.bottom+1&&b.bottom<=innerHeight&&b.right<=innerWidth;
-    if(!inside)out.bad.push(q+' outside');}
-   if(s.querySelector('[data-r=replay-seek]').getBoundingClientRect().height<44)out.bad.push('seek short');
-   return out;});
-  assert(!rot.scroll&&!rot.docScroll,'rotated no scrolling '+JSON.stringify(rot));
-  assert(!rot.tall&&rot.ar>1.3,'rotated panel stays landscape '+JSON.stringify(rot));
-  assert.deepEqual(rot.bad,[],'rotated controls on the video '+JSON.stringify(rot));
-  if(shots)await p.screenshot({path:`${shots}/replay-rotated-412x915.png`});
-  assert.deepEqual(errors,[]);console.log('replay-overlay rotated 915x412→412x915 ok',JSON.stringify(rot));
   await p.close();
  }
  // Desktop monitor: centre play + smaller panel, with screenshots
