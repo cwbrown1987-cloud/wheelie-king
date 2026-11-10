@@ -1,6 +1,6 @@
 // Editable boot lines — hints, tips, and What's new for the current build.
 export const LOADING_TIPS = [
-  'Tip: tap SLOW MO once in the air — tap again to cancel.',
+  'Tip: tap SLOW MO once to start — tap again to cancel.',
   'Tip: Pause → Replay → Drop In to rejoin mid-trick.',
   'Tip: Esc or P opens the pause menu anytime.',
   'Tip: Save replays to Gallery, or Save to Device for keeps.',

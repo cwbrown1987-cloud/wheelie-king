@@ -99,7 +99,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     scrub.max = Math.max(.1, duration || 1);
     scrub.value = 0;
     if (theatreScrub) { theatreScrub.max = scrub.max; theatreScrub.value = 0; }
-    button.hidden = true; panel.hidden = false; setReviewing(true);
+    button.hidden = true; panel.hidden = false; fitAspect(); setReviewing(true);
     video.src = url;
     activeSource = source;
     if (source === 'latest') { latestBlob = blob; latestDuration = +scrub.max; latestBtn?.setAttribute('aria-pressed', 'true'); }
@@ -313,7 +313,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     const duration = Math.max(.1, buffer.duration || 1);
     latestDuration = duration;
     const finishOpen = (blob) => {
-      panel.hidden = false; setReviewing(true); exitTheatre(false);
+      panel.hidden = false; fitAspect(); setReviewing(true); exitTheatre(false);
       if (blob && blob.size) present(blob, duration, { autoplay: false, source: 'latest' });
       else {
         // No video: the scrubber walks the state buffer on its capture clock.
@@ -424,7 +424,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
 
   // Wire controls
   button.onclick = () => {
-    clearTimeout(expiry); button.hidden = true; panel.hidden = false; setReviewing(true);
+    clearTimeout(expiry); button.hidden = true; panel.hidden = false; fitAspect(); setReviewing(true);
     panel.classList.remove('is-dropping'); dropping = false; activeSource = 'latest'; activeSaved = null; syncDrop();
     if (clipAnchor) anchor = clipAnchor;
     scrub.value = 0; if (url && video.src !== url) { video.src = url; prepareVideo().then(ok => ok && video.play().catch(() => {})); } else video.play().catch(() => {});
@@ -432,7 +432,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   };
   scrub.oninput = () => { video.currentTime = +scrub.value; if (theatreScrub) theatreScrub.value = scrub.value; syncPlayIcon(); syncTime(); };
   // Video fills the overlay panel at the clip's own aspect.
-  const fitAspect = () => { if (video.videoWidth && video.videoHeight) panel.style.setProperty('--wk-replay-ar', (video.videoWidth / video.videoHeight).toFixed(4)); };
+  const fitAspect = () => { if (!video.videoWidth || !video.videoHeight) return; const ar=video.videoWidth/video.videoHeight; panel.style.setProperty('--wk-replay-ar', ar.toFixed(4)); panel.classList.toggle('is-tall-video', ar<1); };
   video.addEventListener('loadedmetadata', fitAspect); video.addEventListener('resize', fitAspect);
   // Finger-friendly seek: the whole (tall) bar is the touch target; drag anywhere along it, no page scroll.
   const seekZone = panel.querySelector('[data-r="replay-seek"]');
