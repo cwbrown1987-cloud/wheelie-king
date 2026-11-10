@@ -1,5 +1,4 @@
-// Mid-ground park sits on the graffiti-wall cap, between the wall and the far city.
-// The chain fence moves to the back of that terrace. Road, sky and painted city stay put.
+// Mid-ground is a painted parallax strip between the wall cap and the painted city.
 import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
@@ -18,59 +17,39 @@ try{
   await p.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
   await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_RIDE_SCENE__,null,{timeout:90000});
-  await p.waitForTimeout(800);
+  await p.waitForFunction(()=>{
+    const {scene}=__WK_RIDE_SCENE__();
+    let strip=null;scene.traverse(o=>{if(o.name==='environment:midground-strip')strip=o});
+    return !!(strip?.material?.map);
+  },null,{timeout:20000});
+  await p.waitForTimeout(400);
   const look=await p.evaluate(()=>{
     const {scene}=__WK_RIDE_SCENE__();
     const env=__WK_RIDE_STATE__().environment||{};
+    let strip=null,wall=null,sky=0;
     const names=[];
-    const worldVerts=o=>{
-      const out=[];
-      if(!o?.geometry?.attributes?.position)return out;
-      o.updateWorldMatrix(true,false);
-      const a=o.geometry.attributes.position,e=o.matrixWorld.elements;
-      for(let i=0;i<a.count;i++){
-        const x=a.getX(i),y=a.getY(i),z=a.getZ(i);
-        out.push({lx:x,ly:y,lz:z,x:e[0]*x+e[4]*y+e[8]*z+e[12],y:e[1]*x+e[5]*y+e[9]*z+e[13],z:e[2]*x+e[6]*y+e[10]*z+e[14]});
-      }
-      return out;
-    };
-    const mean=a=>a&&a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
-    let deckV=[],wallV=[],fenceV=[],skyZ=[];
-    const has={car:false,bowl:false,jump:false,mid:false,deck:false};
     scene.traverse(o=>{
       if(!o.name||!o.name.startsWith('environment:'))return;
       names.push(o.name);
-      if(o.name==='environment:midground')has.mid=true;
-      if(o.name==='environment:midground-deck'){has.deck=true;deckV=deckV.concat(worldVerts(o))}
-      if(o.name==='environment:graffiti-wall')wallV=wallV.concat(worldVerts(o));
-      if(o.name==='environment:chain-fence')fenceV=fenceV.concat(worldVerts(o));
-      if(o.name==='environment:skyline'&&o.isInstancedMesh&&o.instanceMatrix){
-        o.updateWorldMatrix(true,false);
-        const arr=o.instanceMatrix.array,b=o.matrixWorld.elements;
-        for(let i=0;i<o.count;i++){const j=i*16,x=arr[j+12],y=arr[j+13],z=arr[j+14];skyZ.push(b[2]*x+b[6]*y+b[10]*z+b[14])}
-      }
-      if(o.name==='environment:midground-car')has.car=true;
-      if(o.name==='environment:midground-bowl')has.bowl=true;
-      if(o.name==='environment:midground-jump')has.jump=true;
+      if(o.name==='environment:midground-strip')strip=o;
+      if(o.name==='environment:graffiti-wall')wall=o;
     });
-    const wallZ=mean(wallV.map(v=>v.z)),fenceZ=mean(fenceV.map(v=>v.z));
-    const wallTopY=mean(wallV.filter((_,i)=>i%2===1).map(v=>v.y));
-    const deckY=mean(deckV.map(v=>v.y));
-    const deckZMin=deckV.length?Math.min(...deckV.map(v=>v.z)):null;
-    const deckZMax=deckV.length?Math.max(...deckV.map(v=>v.z)):null;
+    if(strip)strip.updateWorldMatrix(true,false);
+    if(wall)wall.updateWorldMatrix(true,false);
+    const stripZ=strip?.matrixWorld.elements[14]??null;
+    const wallZ=wall?.matrixWorld.elements[14]??null;
+    const tex=strip?.material?.map;
     return {
-      midground:has.mid&&env.midground===true,
-      hasDeck:has.deck&&deckV.length>8,
-      hasCar:has.car,
-      hasBowl:has.bowl,
-      hasJump:has.jump,
-      fenceBehindWall:fenceZ!=null&&wallZ!=null&&fenceZ<wallZ-4,
-      deckOnWallCap:deckY!=null&&wallTopY!=null&&Math.abs(deckY-wallTopY)<.25,
-      deckBehindWall:deckZMax!=null&&wallZ!=null&&deckZMax<wallZ+0.1,
-      skylineBehindFence:skyZ.length&&fenceZ!=null&&mean(skyZ)<fenceZ-20,
-      fenceZ,wallZ,deckY,wallTopY,deckZMin,deckZMax,deckVerts:deckV.length,
-      sample:deckV[0]||null,
-      sections:env.sections?.length
+      midground:env.midground===true && names.includes('environment:midground'),
+      hasStrip:!!strip && !!tex,
+      stripVisible:!!strip?.visible && (strip?.material?.opacity??0)>.5,
+      hasCar:names.includes('environment:midground-car'),
+      hasBowl:names.includes('environment:midground-bowl'),
+      hasJump:names.includes('environment:midground-jump'),
+      stripBehindWall:stripZ!=null&&wallZ!=null&&stripZ<wallZ-1,
+      cityKept:env.far===true,
+      texSize:tex?{w:tex.image?.width||0,h:tex.image?.height||0}:null,
+      stripZ,wallZ,opacity:strip?.material?.opacity??null
     };
   });
   if(shots){
@@ -83,15 +62,14 @@ try{
     await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraBlend===0);
   }
   assert(look.midground,name+' mid-ground group missing '+JSON.stringify(look));
-  assert(look.hasDeck,name+' mid-ground deck missing '+JSON.stringify(look));
-  assert(look.hasCar,name+' parked cars missing '+JSON.stringify(look));
-  assert(look.hasBowl,name+' skate bowl missing '+JSON.stringify(look));
-  assert(look.hasJump,name+' dirt jumps missing '+JSON.stringify(look));
-  assert(look.fenceBehindWall,name+' fence should sit at the back of the terrace '+JSON.stringify(look));
-  assert(look.deckOnWallCap,name+' deck should sit on the wall cap '+JSON.stringify(look));
-  assert(look.deckBehindWall,name+' deck should sit behind the wall '+JSON.stringify(look));
-  assert(look.skylineBehindFence,name+' city stays behind the fence '+JSON.stringify(look));
-    assert.deepEqual(errors,[]);
+  assert(look.hasStrip,name+' painted mid-ground strip missing '+JSON.stringify(look));
+  assert(look.stripVisible,name+' painted mid-ground should show in side view '+JSON.stringify(look));
+  assert(!look.hasCar,name+' procedural cars should be gone '+JSON.stringify(look));
+  assert(!look.hasBowl,name+' procedural bowls should be gone '+JSON.stringify(look));
+  assert(!look.hasJump,name+' procedural dirt mounds should be gone '+JSON.stringify(look));
+  assert(look.stripBehindWall,name+' strip should sit behind the wall '+JSON.stringify(look));
+  assert(look.cityKept,name+' painted city layer should stay '+JSON.stringify(look));
+  assert.deepEqual(errors,[]);
   results.push({name,...look});
   await p.close();
  }
