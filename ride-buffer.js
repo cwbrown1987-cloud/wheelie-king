@@ -69,6 +69,16 @@ export function createRideBuffer(seconds = 20) {
       const f = this.at(time, true);
       return f ? frames.indexOf(f) : -1;
     },
+    // Drop frames after the playhead so a rewind-and-resume does not keep a discarded future, and t stays capped.
+    trimTo(time, absolute = true) {
+      if (!frames.length) return null;
+      const f = this.at(time, absolute);
+      const i = frames.indexOf(f);
+      if (i < 0) return null;
+      frames.length = i + 1;
+      t = frames[i].t;
+      return f;
+    },
   };
 }
 

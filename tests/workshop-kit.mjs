@@ -32,7 +32,7 @@ try{
   freeWall:P.check('tool-wall',{x:5.383,y:1.6,z:4.3,yaw:-Math.PI/2}),
  }});
  assert.equal(probes.wall.reason,'wall',JSON.stringify(probes));
- assert.equal(probes.prop.reason,'prop',JSON.stringify(probes));
+ assert.equal(probes.prop.reason,'item',JSON.stringify(probes));
  assert.equal(probes.bike.reason,'zone',JSON.stringify(probes));
  assert.equal(probes.door.reason,'zone',JSON.stringify(probes));
  assert.equal(probes.ceiling.reason,'ceiling',JSON.stringify(probes));
@@ -58,13 +58,13 @@ try{
  assert(!(await p.locator('[data-wk-place-confirm]').isDisabled()),'confirm enabled when free');
  await p.getByRole('button',{name:'Rotate left',exact:true}).click();
  await p.locator('[data-wk-place-confirm]').click();
- const placed=await p.evaluate(()=>__WK_WORKSHOP_PLACE__.list());assert.equal(placed.length,3,JSON.stringify(placed));
+ const placed=await p.evaluate(()=>__WK_WORKSHOP_PLACE__.list());const player=l=>l.filter(i=>!String(i.item).startsWith('fixture:'));assert.equal(player(placed).length,3,JSON.stringify(player(placed)));assert.equal(placed.filter(i=>i.fixture).length,13);
  // persistence + garage untouched
  const stored=await p.evaluate(()=>JSON.parse(localStorage.getItem('wk-room-layout-v1')).rooms.workshop.items);
- assert.equal(stored.length,3);
+ assert.equal(player(stored).length,3);assert.equal(stored.length,16);
  await p.reload();await ready();
  const after=await p.evaluate(()=>({list:__WK_WORKSHOP_PLACE__.list(),garage:localStorage.getItem('wk-garage-layout-v1'),meshes:__WK_VIEW__.scene.getObjectByName('workshop:placed').children.length}));
- assert.equal(after.list.length,3);assert.equal(after.meshes,3);
+ assert.equal(player(after.list).length,3);assert.equal(after.list.length,16);assert.equal(after.meshes,16);
  assert.deepEqual(after.list.map(i=>[i.item,+i.x.toFixed(3),+i.z.toFixed(3),+i.yaw.toFixed(3)]).sort(),placed.map(i=>[i.item,+i.x.toFixed(3),+i.z.toFixed(3),+i.yaw.toFixed(3)]).sort());
  assert.equal(after.garage,GARAGE,'garage save untouched');
  assert.deepEqual(errors,[]);

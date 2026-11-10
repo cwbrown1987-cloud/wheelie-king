@@ -2,6 +2,7 @@ import {part} from './modular-catalogue.js';
 import {prototypeFor} from './vehicle-platforms.js';
 import * as T from './vendor/three.module.js';
 import * as SharedWorld from './shared-world.js';
+import './workshop-inspect.js';
 let lastRoom,summary,lastView,lastRoot,lastKey='',lastPlatform;
 function fitVehicle(v,root){
  root.updateWorldMatrix(true,true);const bounds=new T.Box3().setFromObject(root),center=bounds.getCenter(new T.Vector3());if(bounds.isEmpty())return;
@@ -10,7 +11,7 @@ function fitVehicle(v,root){
  let distance=.8;for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]){const q=new T.Vector3(x,y,z).sub(center),depth=q.dot(direction);distance=Math.max(distance,Math.abs(q.dot(right))/(tanH*.89)+depth,Math.abs(q.dot(up))/(tanV*.88)+depth)}
  const damping=v.controls.enableDamping,rotating=v.controls.autoRotate;v.controls.autoRotate=false;v.controls.enableDamping=false;v.controls.update();v.camera.zoom=1;v.camera.position.copy(center).addScaledVector(direction,distance);v.controls.target.copy(center);v.camera.updateProjectionMatrix();v.controls.update();v.controls.enableDamping=damping;v.controls.autoRotate=rotating;
 }
- document.addEventListener('click',e=>{if(e.target.closest('[data-wk-reset]'))setTimeout(()=>{const v=globalThis.__WK_VIEW__;if(!v)return;let root;v.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});if(root)fitVehicle(v,root)},0)});
+
 const style=document.createElement('style');style.textContent=`
 [data-wk-content]:has([data-scene]:not([data-wk-room-ready])){visibility:hidden!important}
 html,body{background:#202430}body[data-wk-workshop]:not([data-player-view]){background:#202430!important}[data-scene]{left:-12px!important;right:-12px!important;top:-72px!important;bottom:-12px!important;border-radius:0!important;border:0!important}#root>div,[data-stage]{background:transparent!important}[data-scene]{background:transparent!important;border-color:#9bc4dc33!important}[data-scene]>div:first-child,[data-scene]>div:nth-child(2){display:none!important}[data-wk-header]{background:#0c172675;border:1px solid #9abbd438;border-radius:10px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}[data-wk-mode-toggle],[data-wk-header]>div:last-child{background:#15284288!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid #8ac8ee55!important}[data-fitpanel]{background:#13243c9e!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
@@ -29,6 +30,18 @@ body[data-wk-workshop] [data-wk-bench]{right:98px!important;background:#122037b9
 [data-scene]>button[data-wk-reset]{right:98px!important;background:#122037b9!important}
 [data-scene] [data-wk-rotate]{top:auto;bottom:140px;background:#122037b9;right:98px}[data-wk-compatibility]{left:14px!important;right:240px!important;top:46px!important;max-width:none!important;text-align:left!important;font-size:11px!important}
 @media(max-width:800px){body[data-wk-workshop] [data-rail="right"]{width:198px!important}#wk-summary{font-size:10px;padding:7px}#wk-summary img{height:46px;width:72px}#wk-summary .name{font-size:10px}}
+[data-wk-reset],body[data-wk-workshop] [data-scene]>button[data-wk-reset]{display:none!important}
+body[data-wk-workshop]:not(.wk-inspect-on) [data-wk-rotate],body[data-wk-workshop]:not(.wk-inspect-on) [data-wk-bench]{display:none!important}
+body.wk-inspect-on #wk-room-dock{display:none!important}
+#wk-inspect-dock{position:absolute;right:12px;bottom:12px;z-index:8;width:min(220px,46vw);padding:8px;border-radius:16px;border:1px solid #6fd3ff55;background:linear-gradient(180deg,#101a2ccc,#060b14e6);box-shadow:0 0 0 1px #000,0 10px 30px #000a,0 0 24px #2fa8ff33;color:#e8f6ff;font:12px system-ui}
+#wk-inspect-dock[hidden]{display:none}
+#wk-inspect-dock header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+#wk-inspect-dock header strong{font:800 11px system-ui;letter-spacing:.12em;color:#9fe0ff}
+#wk-inspect-dock header button{width:36px;height:36px;border-radius:50%;border:1px solid #8eb8d888;background:#102037cc;color:#e8f6ff;font-size:16px;cursor:pointer}
+#wk-inspect-dock .wk-inspect-tools{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+body.wk-inspect-on [data-wk-rotate],body.wk-inspect-on [data-wk-bench]{position:static!important;right:auto!important;left:auto!important;top:auto!important;bottom:auto!important;width:100%!important;translate:none!important}
+@media (max-height:500px),(max-width:600px){#wk-inspect-dock{bottom:8px;right:8px;width:min(200px,48vw);padding:6px}}
+
 `;document.head.append(style);
 function update(){
  const v=globalThis.__WK_VIEW__,garage=v?.renderer.domElement.isConnected&&!document.querySelector('[data-ride]');if(!garage){delete document.body.dataset.wkWorkshop;return;}document.body.dataset.wkWorkshop='';SharedWorld.tick();

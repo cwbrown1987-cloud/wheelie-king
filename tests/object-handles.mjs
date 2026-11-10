@@ -73,7 +73,7 @@ try{
  await p.waitForTimeout(5500);
  assert.equal(await p.evaluate(()=>__WK_VIEW__.controls.autoRotate),false,'place mode stays off after 5s resume window');
  await p.evaluate(()=>{const pan=document.getElementById('wk-place-panel');if(pan)pan.hidden=true;});
- await p.locator('[data-wk-rotate]').click({force:true});
+ await p.evaluate(()=>document.querySelector('[data-wk-rotate]')?.click());
  assert.equal(await p.evaluate(()=>__WK_VIEW__.controls.autoRotate),true,'ROTATION toggle can turn it on');
  await p.close();
  console.log('object-handles place-mode rotation lock ok');

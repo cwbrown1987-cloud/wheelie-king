@@ -4,7 +4,7 @@ export const THEMES = {
   skatepark: {
     name: 'Neon skatepark at dusk',
     background: '#55516d',
-    fog: { color: '#69637e', near: 25, far: 95 },
+    fog: { color: '#7a6c88', near: 28, far: 150 },
     hemi: { sky: '#d3d4ff', ground: '#725d89', intensity: 1.8 },
     sun: { color: '#ffd7c6', intensity: 2.4 },
     sky: { low: [.98, .6, .3], high: [.25, .45, .85] }, // fallback gradient if the backdrop image fails

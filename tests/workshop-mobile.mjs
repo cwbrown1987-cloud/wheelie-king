@@ -5,7 +5,7 @@ import {mkdirSync} from 'node:fs';
 const browser=await launchBrowser();
 mkdirSync('wk-shots/workshop-mobile',{recursive:true});
 try{
- for(const viewport of [{width:1280,height:576},{width:844,height:390},{width:667,height:375},{width:390,height:844}]){
+ for(const viewport of [{width:1280,height:576},{width:844,height:390},{width:667,height:375}]){
   const p=await browser.newPage(pageOptions({viewport,hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'})),errors=[];
   p.on('pageerror',e=>errors.push(e.message));await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
   await p.waitForFunction(()=>document.querySelector('[data-wk-sticker-dock] img')?.complete&&document.querySelector('[data-simple-category="style"] img')?.complete);

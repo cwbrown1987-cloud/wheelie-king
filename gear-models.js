@@ -14,17 +14,27 @@ export function gearModel(T,p,{single=false}={}){
  if(p.slot==='helmet'){
   const open=p.style==='open',mx=p.style==='mx',street=p.style==='street';
   const cut=y=>open?1.08*Math.sqrt(Math.max(0,1-((y+.035)/.12)**2)):y>-.055&&y<.075?.98*Math.pow(Math.max(0,1-((y-.01)/.065)**4),.25):0;
-  const surface=(lens=false)=>{const vertices=[],indices=[],rows=64,cols=64,low=lens?-.055:(open?-.080:-.113),high=.132;for(let j=0;j<=rows;j++){const y=lens?-.055+j/rows*.13:low+j/rows*(high-low),r=Math.sqrt(Math.max(0,1-(y/.132)**2)),c=cut(y);for(let i=0;i<=cols;i++){const angle=lens?-c+i/cols*c*2:c+i/cols*(Math.PI*2-c*2);vertices.push(Math.cos(angle)*r*RIDER_SPEC.helmet.x*(lens?.986:1),y,Math.sin(angle)*r*RIDER_SPEC.helmet.z*(lens?.986:1));}}for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;if(lens)indices.push(a,b,c,b,d,c);else indices.push(a,c,b,b,c,d)}const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;};
-  mesh('helmet:shell',surface(),primary);
+  const surface=(lens=false)=>{const vertices=[],indices=[],rows=64,cols=64,low=lens?-.055:(open?-.080:-.113),high=.132;for(let j=0;j<=rows;j++){const y=lens?-.055+j/rows*.13:low+j/rows*(high-low),r=Math.sqrt(Math.max(0,1-(y/.132)**2)),c=cut(y);for(let i=0;i<=cols;i++){const angle=lens?-c+i/cols*c*2:c+i/cols*(Math.PI*2-c*2);vertices.push(Math.cos(angle)*r*RIDER_SPEC.helmet.x*(lens?.986:1),y,Math.sin(angle)*r*RIDER_SPEC.helmet.z*(lens?.986:1));}}for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;indices.push(a,b,c,b,d,c)}const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;};
+  let paint=primary;
+  primary.emissive.set(p.theme==='lime'?'#8cff00':p.primary);primary.emissiveIntensity=p.theme==='lime'?.85:.55;primary.roughness=.4;primary.side=T.DoubleSide;if(p.theme==='lime')primary.color.set('#8cff00');
+  const shell=mesh('helmet:shell',new T.SphereGeometry(.13,32,24),paint);shell.scale.set(1.15,1.08,1.12);shell.receiveShadow=false;shell.renderOrder=2;
   const liner=new T.SphereGeometry(.112,32,20,0,Math.PI*2,0,Math.PI*(open?.60:.88));liner.scale(.98,1.09,.96);const linerMat=material('#111a20');linerMat.side=T.BackSide;mesh('helmet:liner',liner,linerMat);
   if(!open){
-   const lens=material('#152b3c',.5,.16);lens.side=T.DoubleSide;mesh('helmet:visor',surface(true),lens);
-   tube('helmet:chinbar',[[.005,-.065,-.091],[.10,-.074,-.069],[.139,-.064,0],[.10,-.074,.069],[.005,-.065,.091]],.016,primary);
+   const gogFrame=material('#07090c',.12,.42),gogLens=material('#2a5570',.75,.1),gogStrap=material('#0d1014',.05,.75);
+   gogLens.transparent=true;gogLens.opacity=.9;gogLens.emissive.set('#163044');gogLens.emissiveIntensity=.4;
+   for(const side of [-1,1]){
+    box('helmet:goggleFrame',[.07,.06,.072],gogFrame,[.10,.02,side*.05]);
+    box('helmet:goggleLens',[.052,.044,.058],gogLens,[.136,.02,side*.05]);
+   }
+   box('helmet:goggleBridge',[.042,.024,.042],gogFrame,[.112,.022,0]);
+   for(const side of [-1,1])tube('helmet:goggleStrap',[[.05,.032,side*.11],[-.02,.05,side*.125],[-.10,.045,side*.10],[-.12,.02,0]],.012,gogStrap);
+   tube('helmet:chinbar',[[.005,-.065,-.091],[.10,-.074,-.069],[.139,-.064,0],[.10,-.074,.069],[.005,-.065,.091]],.016,paint);
    for(const side of [-1,1]){tube('helmet:cheekTrim',[[.01,-.08,side*.087],[.075,-.02,side*.089],[.064,.065,side*.087]],.004,accent);box('helmet:chinVent',[.026,.013,.035],dark,[.138,-.06,side*.027]);}
   }
-  if(!street){const shape=new T.Shape();shape.moveTo(0,-.095);shape.quadraticCurveTo(.15,-.12,.22,-.07);shape.quadraticCurveTo(.25,0,.22,.07);shape.quadraticCurveTo(.15,.12,0,.095);shape.quadraticCurveTo(.045,0,0,-.095);const geo=new T.ExtrudeGeometry(shape,{depth:.005,bevelEnabled:true,bevelSize:.002,bevelThickness:.001,bevelSegments:3,curveSegments:18});const attr=geo.attributes.position;for(let i=0;i<attr.count;i++)attr.setZ(i,attr.getZ(i)+Math.max(0,attr.getX(i)-.07)*.08);geo.computeVertexNormals();const peak=mesh('helmet:peak',geo,primary,[0,.082,0]);peak.rotation.x=Math.PI/2;peak.scale.x=mx?1:.82;}
+  if(!street){const shape=new T.Shape();shape.moveTo(0,-.095);shape.quadraticCurveTo(.15,-.12,.22,-.07);shape.quadraticCurveTo(.25,0,.22,.07);shape.quadraticCurveTo(.15,.12,0,.095);shape.quadraticCurveTo(.045,0,0,-.095);const geo=new T.ExtrudeGeometry(shape,{depth:.005,bevelEnabled:true,bevelSize:.002,bevelThickness:.001,bevelSegments:3,curveSegments:18});const attr=geo.attributes.position;for(let i=0;i<attr.count;i++)attr.setZ(i,attr.getZ(i)+Math.max(0,attr.getX(i)-.07)*.08);geo.computeVertexNormals();const peak=mesh('helmet:peak',geo,paint,[0,.09,0]);peak.rotation.x=Math.PI/2;peak.scale.x=(mx||p.style==='mtb')?1.15:.9;peak.scale.y=1.15;}
 
   for(const side of [-1,1]){const bolt=cylinder('helmet:visorBolt',.006,.006,silver,[.018,.027,side*.115]);bolt.rotation.x=Math.PI/2;box('helmet:vent',[.047,.009,.015],dark,[-.014,.120,side*.038]);tube('helmet:themeStripe',[[-.065,.06,side*.082],[-.014,.102,side*.067],[.041,.095,side*.070]],.005,accent);tube('helmet:strap',[[.01,-.045,side*.10],[.015,-.13,side*.04],[.08,-.10,side*.04]],.004,dark);}
+   g.scale.setScalar(1.16);
  }else if(p.slot==='gloves'){
   box('glove:palm',[.065,.025,.067],primary);
   for(let i=0;i<4;i++){const z=(i-1.5)*.016;tube('glove:finger',[[.024,0,z],[.044,-.006,z],[.047,-.021,z],[.033,-.027,z]],.007,primary);mesh('glove:knuckle',new T.SphereGeometry(.010,12,8),p.style==='armoured'?dark:accent,[.022,.015,z]).scale.y=.45;}
@@ -34,9 +44,13 @@ export function gearModel(T,p,{single=false}={}){
    box('shoe:sole',[.175,.017,.082],material('#d7dfe2'),[.035,-.044,0],shoe);box('shoe:tread',[.171,.007,.079],dark,[.035,-.055,0],shoe);
    const upper=mesh('shoe:upper',new T.CapsuleGeometry(.033,.094,6,20),primary,[.035,-.013,0],shoe);upper.rotation.z=Math.PI/2;upper.scale.z=1.05;
    box('shoe:tongue',[.072,.009,.043],primary,[.013,.016,0],shoe);box('shoe:heel',[.012,.035,.066],accent,[-.045,-.020,0],shoe);
-   if(boot)box('shoe:ankle',[.065,.095,.075],primary,[-.021,.027,0],shoe);
+   if(boot){
+    box('shoe:ankle',[.07,.12,.08],primary,[-.018,.04,0],shoe);
+    box('shoe:shin',[.06,.07,.078],primary,[-.02,.11,0],shoe);
+    for(const y of [.02,.055,.09])box('shoe:buckle',[.04,.01,.086],accent,[-.01,y,0],shoe);
+   }
    box('shoe:toe',[.035,.026,.074],dark,[.107,-.026,0],shoe);
-   const lace=fabric();for(let i=0;i<5;i++){const x=-.018+i*.017;tube('shoe:lace',[[x,.024+i*.001,-.022],[x+.012,.026+i*.001,.022]],.002,lace,shoe);}
+   if(!boot){const lace=fabric();for(let i=0;i<5;i++){const x=-.018+i*.017;tube('shoe:lace',[[x,.024+i*.001,-.022],[x+.012,.026+i*.001,.022]],.002,lace,shoe);}}
    for(const z of [-.037,.037])tube('shoe:soleSeam',[[-.037,-.036,z],[.02,-.034,z],[.10,-.036,z]],.0015,accent,shoe);
    for(const z of [-.037,.037]){const stripe=box('shoe:stripe',[.056,.012,.004],accent,[.025,-.004,z],shoe);stripe.rotation.z=.45;}
   }

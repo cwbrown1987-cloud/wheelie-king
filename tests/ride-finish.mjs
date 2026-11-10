@@ -40,18 +40,7 @@ try {
     return s.x < 3 && s.score === 0 && !s.crashed && !finished;
   }));
   assert(await slow.isVisible());
-  await page.evaluate(() => {
-    const {s}=__WK_RIDE_STATE__();
-    Object.assign(s,{y:s.y+.15,vy:1,wasAir:true,air:.1,ground:[false,false]});
-  });
-  await slow.click();
-  assert.equal(await slow.getAttribute('aria-pressed'),'false');
-  await slow.click();
-  assert.equal(await slow.getAttribute('aria-pressed'),'false');
-  await page.evaluate(() => {
-    const {s}=__WK_RIDE_STATE__();
-    Object.assign(s,{y:s.y+3,vy:4,wasAir:true,air:.25,ground:[false,false]});
-  });
+  // Slow-mo now works on the ground as well as in the air.
   await slow.click();
   await page.waitForTimeout(700);
   assert.equal(await slow.getAttribute('aria-pressed'),'true');

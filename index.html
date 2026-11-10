@@ -8,6 +8,7 @@
 <meta name="description" content="Build a BMX into an e-bike in the outback garage, then wheelie it.">
 <link rel="manifest" href="./manifest.webmanifest">
 <script type="module" src="./panel-scroll.js"></script>
+<script type="module" src="./rotate-lock.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -110,7 +111,7 @@ await runBootSequence({
 });
 </script>
 <script>
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("./sw.js", { scope: "./" }));
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" }).then((r) => r?.update()).catch(() => {}));
 (function () {
   const bar = document.getElementById("install"), btn = document.getElementById("ibtn"), txt = document.getElementById("itext");
   const standalone = matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || navigator.standalone;

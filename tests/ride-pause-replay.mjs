@@ -32,6 +32,19 @@ const end = buf.at(1);
 const start = buf.at(0);
 assert(end.s.x > start.s.x);
 
+// Rewind trims the discarded future and keeps t moving from that playhead
+const rewindBuf = createRideBuffer(20);
+for (let i = 0; i < 600; i++) { base.x = i * 0.05; rewindBuf.push(base, 1 / 120, { dirt: 0, flips: 0, maxScore: 10, lastCP: 2, wear: {} }); }
+const beforeLen = rewindBuf.length, cut = rewindBuf.at(0.4), kept = rewindBuf.trimTo(cut.t, true);
+assert.equal(kept.t, cut.t);
+assert.equal(rewindBuf.at(1).t, cut.t);
+assert(rewindBuf.length < beforeLen, 'trim drops frames after the playhead');
+const n0 = rewindBuf.length;
+base.x = cut.s.x + 0.05;
+rewindBuf.push(base, 1 / 120, { dirt: 0, flips: 0, maxScore: 10, lastCP: 2, wear: {} });
+assert.equal(rewindBuf.length, n0 + 1);
+assert(rewindBuf.at(1).t > cut.t);
+
 const ride = readFileSync(new URL('../ride.js', import.meta.url), 'utf8');
 const pause = readFileSync(new URL('../ride-pause.js', import.meta.url), 'utf8');
 const replay = readFileSync(new URL('../ride-replay.js', import.meta.url), 'utf8');
@@ -44,6 +57,7 @@ assert(replay.includes('openFromPause') && replay.includes('dropIn'));
 assert(replay.includes('is-theatre') || readFileSync(new URL('../ride-controls.js',import.meta.url),'utf8').includes('is-theatre'));
 assert(readFileSync(new URL('../ride-gallery.js',import.meta.url),'utf8').includes('indexedDB'));
 assert(replay.includes('data-r="replay-play"') || ride.includes('data-r="replay-play"'));
+assert(ride.includes('data-r="rewind"') && ride.includes('trimTo') && /rewind/i.test(readFileSync(new URL('../ride-controls.js',import.meta.url),'utf8')));
 assert(/wk-v\d+|racefix\d+|shared-world/i.test(sw.match(/const CACHE = "([^"]+)"/)?.[1]||'') && sw.includes('ride-buffer.js') && sw.includes('ride-pause.js'));
 
 console.log(JSON.stringify({

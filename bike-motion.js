@@ -104,7 +104,7 @@ function bench() {
   panel.innerHTML='<button type="button" data-bench-toggle style="background:#183e28;color:#b8ffcf;border:1px solid #527960;border-radius:6px;padding:7px;cursor:pointer">▶ TEST MOTION</button><label>Suspension <input aria-label="Test suspension compression" type="range" min="0" max="1" step=".01" value="0" style="width:90px;vertical-align:middle"></label>';
   panel.querySelector('button').onclick=()=>{active=!active;panel.querySelector('button').textContent=active?'■ STOP MOTION':'▶ TEST MOTION';};panel.querySelector('input').oninput=e=>compression=+e.target.value;
  }
- if(panel.parentElement!==canvas.parentElement)canvas.parentElement.append(panel);panel.style.display='grid';
+ const benchHost=document.querySelector('#wk-inspect-dock .wk-inspect-tools')||canvas.parentElement;if(panel.parentElement!==benchHost)benchHost.append(panel);panel.style.display='grid';
  let root;v.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});if(!root)return;
  if(lastRoot!==root){lastRoot=root;rig=createBikeMotion(root,root.userData.wkBuild||{},id=>globalThis.__WK_CAT__?.().items.find(p=>p.id===id));}
  const now=performance.now(),dt=Math.min(.08,(now-lastTime)/1000||0);lastTime=now;
