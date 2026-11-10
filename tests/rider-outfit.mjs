@@ -70,6 +70,7 @@ try{
     helmetColor,
     helmetLime,
     helmetEmissive:shell?.material?.emissiveIntensity??0,
+    helmetUnlit:/Basic/i.test(shell?.material?.type||''),
     hoodVisible:!!hood?.visible,
     collarVisible:!!collar?.visible,
     hasGoggles:has('goggle'),
@@ -91,7 +92,7 @@ try{
   assert(look.pitch<-.08&&look.pitch>-.28,name+' attack-position pitch '+look.pitch);
   assert(look.spineDeg>=28&&look.spineDeg<=42,name+' back angle 30-40deg '+look.spineDeg);
   assert(look.helmetLime,name+' helmet reads lime '+JSON.stringify(look.helmetColor));
-  assert(look.helmetEmissive>=.5,name+' helmet emissive '+look.helmetEmissive);
+  assert(look.helmetUnlit||look.helmetEmissive>=.5,name+' helmet stays bright '+JSON.stringify({unlit:look.helmetUnlit,emi:look.helmetEmissive}));
   assert(look.ratio<0.36,name+' head is not oversized '+JSON.stringify({ratio:look.ratio,helmetH:look.helmetH,riderH:look.riderH}));
   assert(look.faceHidden,name+' face sits inside the full-face helmet');
   assert(look.neckHidden,name+' neck is hidden under the full-face helmet');
