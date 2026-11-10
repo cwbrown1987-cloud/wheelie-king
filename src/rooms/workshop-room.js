@@ -30,6 +30,22 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  // walls and ceiling face inward only, so an orbit that leaves the room looks in like a cut-away
  shell.group.traverse(o => { if (o.isMesh && o !== shell.floor) o.material.side = T.FrontSide; });
  fixWinding(T, shell.group, R);
+ // Depth precision (phone wall glitch): the shared camera's near plane is .005, so on phone GPUs with
+ // 16/24-bit depth the walls are only resolved to centimetres. The projected walls then z-fight with the
+ // wall-mounted props (screens, tool wall, fuse boxes, neon, vines) and show as blocky, smeared, duplicated
+ // pieces that change with the view angle. Push the shell back in depth and scale the near plane with the
+ // orbit distance (restored when the workshop isn't the one drawn).
+ shell.group.traverse(o => { if (o.isMesh) Object.assign(o.material, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 }); });
+ const nearHook = { base: null, cam: null }, prevSceneHook = scene.onBeforeRender;
+ if (!asSecondary) scene.onBeforeRender = function (r, s, cam, rt) {
+  prevSceneHook?.call(this, r, s, cam, rt);
+  if (rt || !cam?.isPerspectiveCamera) return;
+  const v = globalThis.__WK_VIEW__; if (!v || v.camera !== cam) return;
+  if (nearHook.cam !== cam) { nearHook.cam = cam; nearHook.base = cam.near; }
+  const t = v.controls?.target, want = room.visible && t ? Math.min(.1, Math.max(nearHook.base, cam.position.distanceTo(t) * .08)) : nearHook.base;
+  if (Math.abs(cam.near - want) > want * .02) { cam.near = want; cam.updateProjectionMatrix(); }
+ };
+ const releaseNear = () => { if (!asSecondary && scene.onBeforeRender !== prevSceneHook) scene.onBeforeRender = prevSceneHook || (() => {}); if (nearHook.cam) { nearHook.cam.near = nearHook.base; nearHook.cam.updateProjectionMatrix(); } };
  const floor = shell.floor; let reflecting = false;
  if (!coarse) floor.onBeforeRender = (r, s, cam) => { if (reflecting || r.getRenderTarget() !== null || !room.visible) return; reflecting = true; try { shell.renderReflection(r, s, cam); } finally { reflecting = false; } };
  // --- lights for the modelled props (and the bike)
@@ -64,7 +80,7 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
   state: () => ({ worldRoom: true, kit: true, theme: 'workshop', art: 'art-room', reflection: !coarse, quality, drawCalls, propDrawCalls: baked.children.length, props: layout.length, colliders: colliders.length, placed: placed.children.length }),
   setActive(on) { room.visible = !!on; for (const l of allLights) l.visible = !!on; },
   dispose() {
-   room.removeFromParent(); baked.userData.dispose?.(); shell.dispose(); kit.dispose();
+   releaseNear(); room.removeFromParent(); baked.userData.dispose?.(); shell.dispose(); kit.dispose();
    placed.traverse(o => { if (o.isMesh && o.name === 'kit:merged') o.geometry.dispose(); });
    if (envTarget && scene.environment === envTarget.texture) { scene.environment = previous.environment; scene.background = previous.background; scene.fog = previous.fog; scene.environmentIntensity = previous.envI ?? 1; }
    envTarget?.dispose();

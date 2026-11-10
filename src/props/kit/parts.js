@@ -274,7 +274,7 @@ export function registerParts(kit) {
   const w = p.width ?? 1.1, h = p.height ?? .7, S = kit.skin({ bezel: 'darkSteel', glass: { preset: 'emissive', color: '#ffffff', emissive: '#ffffff', emissiveIntensity: p.intensity ?? 1.15, map: kit.tex.blueprint?.() || null, emissiveMap: kit.tex.blueprint?.() || null } }, p.skin);
   const g = group('screen', p, [w, h, .05]);
   add(g, G.rbox(w, h, .04, .012), S('bezel'), [0, h / 2, .02]);
-  add(g, G.plane(w - .05, h - .05), S('glass'), [0, h / 2, .0405]);
+  add(g, G.plane(w - .05, h - .05), S('glass'), [0, h / 2, .046]); // 6 mm proud of the bezel: no z-fight on low-precision phone depth
   return g;
  }, { category: 'part', description: 'Wall display (procedural blueprint content)' });
 
