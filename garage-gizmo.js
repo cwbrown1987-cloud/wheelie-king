@@ -47,7 +47,7 @@ export function garageGizmo(host,getRig,onRemove,onEdit){
  const placeAt=(b,x,y,clampX=true)=>{const hw=(b.offsetWidth||BTN)/2,hh=(b.offsetHeight||BTN)/2+6,maxX=(host.clientWidth||1)-hw-MARGIN,maxY=(host.clientHeight||1)-hh-MARGIN;
   b.style.left=(clampX?Math.max(hw+MARGIN,Math.min(maxX,x)):x)+'px';b.style.top=Math.max(minTop(),Math.min(maxY,y))+'px';};
  const placeRow=(anchor,pair)=>{const mid=toHost(anchor);const minY=minTop(),hw=BTN/2,minX=hw+MARGIN,maxX=mid.w-hw-MARGIN,maxY=mid.h-hw-MARGIN;
-  const cy=Math.max(minY,Math.min(maxY,mid.y-28));
+  const cy=Math.max(minY,Math.min(maxY,mid.y-52));
   if(!pair){placeAt(edit,mid.x,cy);return;}
   // keep a rigid generous gap: shift the pair to stay on screen, never shrink the spacing
   let left=mid.x-SPREAD/2,right=mid.x+SPREAD/2,dx=0;
@@ -69,7 +69,7 @@ export function garageGizmo(host,getRig,onRemove,onEdit){
   if(!g3||g3.scene!==scene||Math.abs(g3.r-local.radius)>.01){dropGizmo();g3={group:makeGizmo(T,local.radius),r:local.radius,scene};scene.add(g3.group);const lift=makeLiftArrows(T);g3.group.add(lift);}
   g3.group.visible=true;g3.group.position.copy(centreOf(o));
   const lift=g3.group.getObjectByName('wk:gizmo-lift');
-  if(lift){lift.visible=true;lift.position.set(0,Math.max(.28,bounds.max.y-g3.group.position.y+.22),0);const cam=r.camera.position,c=g3.group.position;lift.rotation.y=Math.atan2(cam.x-c.x,cam.z-c.z);const dist=cam.distanceTo(lift.getWorldPosition(new T.Vector3()));lift.scale.setScalar(Math.min(2.4,Math.max(1,dist*.09)));}
+  if(lift){lift.visible=true;lift.scale.setScalar(1);const cam=r.camera.position,c=g3.group.position;lift.rotation.y=Math.atan2(cam.x-c.x,cam.z-c.z);const dist=cam.distanceTo(new T.Vector3(c.x,bounds.max.y,c.z));const s=Math.min(1.15,Math.max(.7,dist*.06));lift.scale.setScalar(s);lift.position.set(0,bounds.max.y-g3.group.position.y+.28*s+.08,0);}
   g3.group.userData.tick?.(performance.now(),!!drag);
  };
  update();
