@@ -24,49 +24,57 @@ try{
   const look=await p.evaluate(()=>{
     const {scene}=__WK_RIDE_SCENE__();
     const env=__WK_RIDE_STATE__().environment||{};
-    const names=[];const items={};
-    const worldPt=(o,i=0)=>{
+    const names=[];
+    const worldVerts=o=>{
+      const out=[];
+      if(!o?.geometry?.attributes?.position)return out;
       o.updateWorldMatrix(true,false);
-      if(o.isInstancedMesh&&o.instanceMatrix){const arr=o.instanceMatrix.array,j=Math.min(i,Math.max(0,o.count-1))*16,x=arr[j+12],y=arr[j+13],z=arr[j+14],b=o.matrixWorld.elements;
-        return {x:b[0]*x+b[4]*y+b[8]*z+b[12],y:b[1]*x+b[5]*y+b[9]*z+b[13],z:b[2]*x+b[6]*y+b[10]*z+b[14]}}
-      if(o.geometry?.attributes?.position){const a=o.geometry.attributes.position,v={x:a.getX(i),y:a.getY(i),z:a.getZ(i)},e=o.matrixWorld.elements;return {x:e[0]*v.x+e[4]*v.y+e[8]*v.z+e[12],y:e[1]*v.x+e[5]*v.y+e[9]*v.z+e[13],z:e[2]*v.x+e[6]*v.y+e[10]*v.z+e[14]}}
-      const e=o.matrixWorld.elements;return {x:e[12],y:e[13],z:e[14]};
+      const a=o.geometry.attributes.position,e=o.matrixWorld.elements;
+      for(let i=0;i<a.count;i++){
+        const x=a.getX(i),y=a.getY(i),z=a.getZ(i);
+        out.push({lx:x,ly:y,lz:z,x:e[0]*x+e[4]*y+e[8]*z+e[12],y:e[1]*x+e[5]*y+e[9]*z+e[13],z:e[2]*x+e[6]*y+e[10]*z+e[14]});
+      }
+      return out;
     };
+    const mean=a=>a&&a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
+    let deckV=[],wallV=[],fenceV=[],skyZ=[];
+    const has={car:false,bowl:false,jump:false,mid:false,deck:false};
     scene.traverse(o=>{
       if(!o.name||!o.name.startsWith('environment:'))return;
       names.push(o.name);
-      const w=worldPt(o);
-      const rec=items[o.name]||(items[o.name]={count:0,z:[],y:[]});
-      rec.count++;rec.z.push(+w.z.toFixed(3));rec.y.push(+w.y.toFixed(3));
+      if(o.name==='environment:midground')has.mid=true;
+      if(o.name==='environment:midground-deck'){has.deck=true;deckV=deckV.concat(worldVerts(o))}
+      if(o.name==='environment:graffiti-wall')wallV=wallV.concat(worldVerts(o));
+      if(o.name==='environment:chain-fence')fenceV=fenceV.concat(worldVerts(o));
+      if(o.name==='environment:skyline'&&o.isInstancedMesh&&o.instanceMatrix){
+        o.updateWorldMatrix(true,false);
+        const arr=o.instanceMatrix.array,b=o.matrixWorld.elements;
+        for(let i=0;i<o.count;i++){const j=i*16,x=arr[j+12],y=arr[j+13],z=arr[j+14];skyZ.push(b[2]*x+b[6]*y+b[10]*z+b[14])}
+      }
+      if(o.name==='environment:midground-car')has.car=true;
+      if(o.name==='environment:midground-bowl')has.bowl=true;
+      if(o.name==='environment:midground-jump')has.jump=true;
     });
-    const mid=names.includes('environment:midground');
-    const deck=items['environment:midground-deck'];
-    const wall=items['environment:graffiti-wall'];
-    const fence=items['environment:chain-fence'];
-    const sky=items['environment:skyline'];
-    const mean=a=>a&&a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
-    const fenceZ=mean(fence?.z),wallZ=mean(wall?.z),deckY=mean(deck?.y),wallY=mean(wall?.y);
+    const wallZ=mean(wallV.map(v=>v.z)),fenceZ=mean(fenceV.map(v=>v.z));
+    const wallTopY=mean(wallV.filter((_,i)=>i%2===1).map(v=>v.y));
+    const deckY=mean(deckV.map(v=>v.y));
+    const deckZMin=deckV.length?Math.min(...deckV.map(v=>v.z)):null;
+    const deckZMax=deckV.length?Math.max(...deckV.map(v=>v.z)):null;
     return {
-      midground:mid&&env.midground===true,
-      hasDeck:!!deck,
-      hasCar:!!items['environment:midground-car'],
-      hasBowl:!!items['environment:midground-bowl'],
-      hasJump:!!items['environment:midground-jump'],
+      midground:has.mid&&env.midground===true,
+      hasDeck:has.deck&&deckV.length>8,
+      hasCar:has.car,
+      hasBowl:has.bowl,
+      hasJump:has.jump,
       fenceBehindWall:fenceZ!=null&&wallZ!=null&&fenceZ<wallZ-4,
-      deckAboveRoad:deckY!=null&&deckY>1.2,
-      skylineBehindFence:sky!=null&&mean(sky.z)<(fenceZ??0)-20,
-      fenceZ,wallZ,deckY,
+      deckOnWallCap:deckY!=null&&wallTopY!=null&&Math.abs(deckY-wallTopY)<.25,
+      deckBehindWall:deckZMax!=null&&wallZ!=null&&deckZMax<wallZ+0.1,
+      skylineBehindFence:skyZ.length&&fenceZ!=null&&mean(skyZ)<fenceZ-20,
+      fenceZ,wallZ,deckY,wallTopY,deckZMin,deckZMax,deckVerts:deckV.length,
+      sample:deckV[0]||null,
       sections:env.sections?.length
     };
   });
-  assert(look.midground,name+' mid-ground group missing');
-  assert(look.hasDeck,name+' mid-ground deck missing');
-  assert(look.hasCar,name+' parked cars missing');
-  assert(look.hasBowl,name+' skate bowl missing');
-  assert(look.hasJump,name+' dirt jumps missing');
-  assert(look.fenceBehindWall,name+' fence should sit at the back of the terrace '+JSON.stringify({fenceZ:look.fenceZ,wallZ:look.wallZ}));
-  assert(look.deckAboveRoad,name+' deck should sit on the wall cap '+look.deckY);
-  assert(look.skylineBehindFence,name+' city stays behind the fence');
   if(shots){
     await p.screenshot({path:shots+'/'+name+'-side.png'});
     await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
@@ -76,7 +84,16 @@ try{
     await p.evaluate(()=>__WK_SCENE_VIEW__('side'));
     await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraBlend===0);
   }
-  assert.deepEqual(errors,[]);
+  assert(look.midground,name+' mid-ground group missing '+JSON.stringify(look));
+  assert(look.hasDeck,name+' mid-ground deck missing '+JSON.stringify(look));
+  assert(look.hasCar,name+' parked cars missing '+JSON.stringify(look));
+  assert(look.hasBowl,name+' skate bowl missing '+JSON.stringify(look));
+  assert(look.hasJump,name+' dirt jumps missing '+JSON.stringify(look));
+  assert(look.fenceBehindWall,name+' fence should sit at the back of the terrace '+JSON.stringify(look));
+  assert(look.deckOnWallCap,name+' deck should sit on the wall cap '+JSON.stringify(look));
+  assert(look.deckBehindWall,name+' deck should sit behind the wall '+JSON.stringify(look));
+  assert(look.skylineBehindFence,name+' city stays behind the fence '+JSON.stringify(look));
+    assert.deepEqual(errors,[]);
   results.push({name,...look});
   await p.close();
  }
