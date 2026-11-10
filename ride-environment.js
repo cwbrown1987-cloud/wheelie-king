@@ -66,7 +66,7 @@ export function makeEnvironment(T,scene,terrain,{lowDetail=false,theme=null}={})
   const f=add(vertical(x=>deckY(x),x=>deckY(x)+.85,zFar),fenceMat,0,0,0);f.name='environment:chain-fence';
   const supports=new T.InstancedMesh(boxGeo,metal,7);for(let i=0;i<7;i++){dummy.position.set(i*4,deckY(i*4)+.42,zFar);dummy.scale.set(.04,1.2,.04);dummy.updateMatrix();supports.setMatrixAt(i,dummy.matrix)}g.add(supports);
   const place=(geo,m,x,y,z,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.scale.set(sx,sy,sz);o.castShadow=o.receiveShadow=true;mid.add(o);return o};
-  const band=Math.abs(index*3+7)%3,zMid=(zNear+zFar)/2;
+  const band=((index%3)+3)%3,zMid=(zNear+zFar)/2;
   // Asphalt pads under parked cars; seeded so neighbouring chunks don't tile the same lot.
   if(!lowDetail||band!==1){const padX=band===2?15.5:4.8,pad=place(boxGeo,asphalt,padX,deckY(padX)+.02,zMid,.0,0,0,7.2,.04,5.6);pad.name='environment:midground-lot';
     const colours=['#3a7bd5','#c94a3c','#e0a125','#d8dde3','#2f8f6b'];const nCar=lowDetail?2:4;
