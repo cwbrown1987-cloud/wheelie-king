@@ -44,18 +44,21 @@ export function garageGizmo(host,getRig,onRemove,onEdit){
  const minTop=()=>{const half=BTN/2+6,tools=host.querySelector('.room-tools');let min=half;
   if(tools&&tools.getClientRects().length){const t=tools.getBoundingClientRect(),frame=host.getBoundingClientRect();if(t.top-frame.top<frame.height/2)min=Math.max(min,(t.bottom-frame.top)*host.clientHeight/frame.height+half)}
   return min;};
- const placeAt=(b,x,y)=>{const hw=(b.offsetWidth||BTN)/2,hh=(b.offsetHeight||BTN)/2+6,maxX=(host.clientWidth||1)-hw-MARGIN,maxY=(host.clientHeight||1)-hh-MARGIN;
-  b.style.left=Math.max(hw+MARGIN,Math.min(maxX,x))+'px';b.style.top=Math.max(minTop(),Math.min(maxY,y))+'px';};
- const placeRow=(anchor,pair)=>{const mid=toHost(anchor);let cy=mid.y-28,cx=mid.x,minY=minTop(),hw=BTN/2,minX=hw+MARGIN,maxX=mid.w-hw-MARGIN,maxY=mid.h-hw-MARGIN;
-  cy=Math.max(minY,Math.min(maxY,cy));
-  if(!pair){placeAt(edit,cx,cy);return;}
-  let left=cx-SPREAD/2,right=cx+SPREAD/2;
-  if(left<minX){const d=minX-left;left+=d;right+=d;}
-  if(right>maxX){const d=right-maxX;left-=d;right-=d;}
-  if(left<minX)left=minX;
-  if(right>maxX)right=maxX;
-  if(right-left<SPREAD){ /* tiny frame: keep as far apart as the frame allows */ }
-  placeAt(remove,left,cy);placeAt(edit,right,cy);};
+ const placeAt=(b,x,y,clampX=true)=>{const hw=(b.offsetWidth||BTN)/2,hh=(b.offsetHeight||BTN)/2+6,maxX=(host.clientWidth||1)-hw-MARGIN,maxY=(host.clientHeight||1)-hh-MARGIN;
+  b.style.left=(clampX?Math.max(hw+MARGIN,Math.min(maxX,x)):x)+'px';b.style.top=Math.max(minTop(),Math.min(maxY,y))+'px';};
+ const placeRow=(anchor,pair)=>{const mid=toHost(anchor);const minY=minTop(),hw=BTN/2,minX=hw+MARGIN,maxX=mid.w-hw-MARGIN,maxY=mid.h-hw-MARGIN;
+  const cy=Math.max(minY,Math.min(maxY,mid.y-28));
+  if(!pair){placeAt(edit,mid.x,cy);return;}
+  // keep a rigid generous gap: shift the pair to stay on screen, never shrink the spacing
+  let left=mid.x-SPREAD/2,right=mid.x+SPREAD/2,dx=0;
+  if(SPREAD<=maxX-minX){if(left<minX)dx=minX-left;else if(right>maxX)dx=maxX-right;}
+  else{dx=(minX+maxX)/2-(left+right)/2;}
+  left+=dx;right+=dx;
+  placeAt(remove,left,cy,false);placeAt(edit,right,cy,false);
+  const a=remove.getBoundingClientRect(),b=edit.getBoundingClientRect();
+  if(a.width&&b.width&&b.left-a.right<GAP-0.5){const push=(GAP-(b.left-a.right))/2,sx=host.clientWidth/(host.getBoundingClientRect().width||1);
+   placeAt(remove,left-push*sx,cy,false);placeAt(edit,right+push*sx,cy,false);}
+ };
  const update=()=>{raf=requestAnimationFrame(update);const r=getRig(),o=object();root.hidden=!o;if(!o){if(g3)g3.group.visible=false;return;}const bounds=new T.Box3().setFromObject(o.holder),center=bounds.getCenter(new T.Vector3()),editing=r.state().arrange;
   (edit.dataset.icon!==(editing?'check':'edit')&&dockButton(edit,editing?'check':'edit'));edit.setAttribute('aria-label',editing?'Finish editing object':'Edit object');
   remove.hidden=!editing;remove.setAttribute('aria-label',o.ride?'Remove displayed ride':'Remove placed item');
