@@ -50,6 +50,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     if (timeLbl) timeLbl.textContent = text;
     if (theatreTime) theatreTime.textContent = text;
     if (theatreScrub && scrub) theatreScrub.value = scrub.value;
+    if (scrub) { const lo = +scrub.min || 0, hi = +scrub.max || 0; scrub.style.setProperty('--wk-seek', (hi > lo ? Math.max(0, Math.min(100, (+scrub.value - lo) / (hi - lo) * 100)) : 0).toFixed(2) + '%'); }
   };
   const syncPlayIcon = () => {
     const playing = !video.paused;
@@ -262,8 +263,13 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
       row.type = 'button'; row.className = 'ride-replay-item';
       row.setAttribute('aria-pressed', String(activeSaved?.id === clip.id));
       row.innerHTML = `<img class="ride-replay-thumb" alt="" src="${clip.thumb || ''}"><span class="ride-replay-meta"><strong>${clip.title || 'Saved run'}</strong><small>${clip.dateLabel || ''} · ${fmt(clip.duration)} · ${clip.bike || 'Bike'}</small></span><button type="button" class="ride-replay-del" data-del="${clip.id}" aria-label="Delete replay">🗑</button>`;
+      let press = 0, pressed = false;
+      row.addEventListener('pointerdown', () => { pressed = false; clearTimeout(press); press = setTimeout(() => { pressed = true; row.classList.add('show-del'); setTimeout(() => row.classList.remove('show-del'), 4000); }, 550); });
+      for (const t of ['pointerup', 'pointerleave', 'pointercancel']) row.addEventListener(t, () => clearTimeout(press));
+      row.addEventListener('contextmenu', e => { e.preventDefault(); row.classList.add('show-del'); });
       row.onclick = e => {
         if (e.target.closest('[data-del]')) return;
+        if (pressed) { pressed = false; return; }
         activeSaved = clip; activeSource = 'saved';
         latestBtn?.setAttribute('aria-pressed', 'false');
         present(clip.blob, clip.duration, { autoplay: true, source: 'saved' });
@@ -354,9 +360,9 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   }
   function flashBtn(btn, ok = 'Saved') {
     if (!btn) return;
-    const prev = btn.textContent;
-    btn.textContent = ok;
-    setTimeout(() => { btn.textContent = prev; }, 900);
+    const label = btn.querySelector('.rl') || btn, prev = label.textContent;
+    label.textContent = ok;
+    setTimeout(() => { label.textContent = prev; }, 900);
   }
   async function saveFrameToGallery() {
     try {
@@ -425,6 +431,20 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     syncPlayIcon(); refreshLibrary();
   };
   scrub.oninput = () => { video.currentTime = +scrub.value; if (theatreScrub) theatreScrub.value = scrub.value; syncPlayIcon(); syncTime(); };
+  // Video fills the overlay panel at the clip's own aspect.
+  const fitAspect = () => { if (video.videoWidth && video.videoHeight) panel.style.setProperty('--wk-replay-ar', (video.videoWidth / video.videoHeight).toFixed(4)); };
+  video.addEventListener('loadedmetadata', fitAspect); video.addEventListener('resize', fitAspect);
+  // Finger-friendly seek: the whole (tall) bar is the touch target; drag anywhere along it, no page scroll.
+  const seekZone = panel.querySelector('[data-r="replay-seek"]');
+  if (seekZone) {
+    let seekId = null;
+    const seekAt = e => { const r = scrub.getBoundingClientRect(), k = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))), min = +scrub.min || 0, max = +scrub.max || 0;
+      scrub.value = String(min + (max - min) * k); scrub.dispatchEvent(new Event('input', { bubbles: true })); };
+    seekZone.addEventListener('pointerdown', e => { if (e.button > 0 || e.target.closest('[data-r="replay-time"]')) return; seekId = e.pointerId; seekZone.setPointerCapture?.(e.pointerId); seekZone.classList.add('is-seeking'); if (!video.paused) video.pause(); if (e.pointerType === 'mouse') e.preventDefault(); seekAt(e); });
+    seekZone.addEventListener('pointermove', e => { if (e.pointerId === seekId) seekAt(e); });
+    const endSeek = e => { if (e.pointerId !== seekId) return; seekZone.releasePointerCapture?.(e.pointerId); seekId = null; seekZone.classList.remove('is-seeking'); scrub.dispatchEvent(new Event('change', { bubbles: true })); };
+    seekZone.addEventListener('pointerup', endSeek); seekZone.addEventListener('pointercancel', endSeek);
+  }
   theatreScrub?.addEventListener('input', () => { scrub.value = theatreScrub.value; video.currentTime = +theatreScrub.value; syncTime(); });
   video.ontimeupdate = () => { scrub.value = video.currentTime; syncTime(); };
   video.onplay = () => syncPlayIcon();

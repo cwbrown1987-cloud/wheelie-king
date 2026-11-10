@@ -158,14 +158,14 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
           <video playsinline></video>
           <button type="button" class="ride-replay-overlay-play" data-r="overlay-play" aria-label="Play theatre">▶</button>
         </div>
-        <div class="ride-replay-scrub"><label>Seek <input type="range" min="0" step=".05" aria-label="Scrub replay"></label><span data-r="replay-time">0:00 / 0:00</span></div>
+        <div class="ride-replay-scrub" data-r="replay-seek"><label><span class="ride-sr">Seek</span> <input type="range" min="0" step=".05" aria-label="Scrub replay"></label><span data-r="replay-time">0:00 / 0:00</span></div>
         <div class="ride-replay-actions">
           <button type="button" class="ride-replay-playbtn" data-r="replay-play" aria-label="Play">▶</button>
           <button type="button" class="ride-replay-drop" data-r="drop-in"><span aria-hidden="true">⤵</span> Drop In</button>
-          <button type="button" class="ride-save-btn" data-r="save-shot-gallery" title="Save frame to Gallery">🖼 Screenshot</button>
-          <button type="button" class="ride-save-btn" data-r="save-video-gallery" title="Save video to Gallery">💾 Save to Gallery</button>
-          <button type="button" class="ride-save-btn" data-r="save-video-device" title="Save video to device">⬇ Save to Device</button>
-          <a data-r="download-video" download="wheelie-king.webm" hidden>Save clip</a>
+          <button type="button" class="ride-save-btn" data-r="save-shot-gallery" title="Save frame to Gallery"><span class="ri" aria-hidden="true">🖼</span><span class="rl">Screenshot</span></button>
+          <button type="button" class="ride-save-btn" data-r="save-video-gallery" title="Save video to Gallery"><span class="ri" aria-hidden="true">💾</span><span class="rl">Save to Gallery</span></button>
+          <button type="button" class="ride-save-btn" data-r="save-video-device" title="Save video to device"><span class="ri" aria-hidden="true">⬇</span><span class="rl">Save to Device</span></button>
+          <a data-r="download-video" download="wheelie-king.webm" hidden><span class="ri" aria-hidden="true">🎬</span><span class="rl">Save clip</span></a>
         </div>
       </div>
       <aside class="ride-replay-library" aria-label="Saved replays">

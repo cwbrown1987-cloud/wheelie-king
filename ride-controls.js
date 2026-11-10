@@ -133,5 +133,64 @@ if(typeof document!=='undefined'){
  @media(max-width:650px){[data-wk-ride-surface] .ride-controls{left:8px;right:8px;bottom:12px;gap:7px;--lean-size:48px;--trick-size:44px}.ride-tricks{gap:3px}.ride-tricks button{border-radius:9px}.ride-view-label{font-size:12px;padding:4px 10px}.ride-toolbar{gap:5px!important;top:39px!important}.ride-toolbar button{font-size:11px!important;height:36px!important;width:auto!important;min-width:38px;padding:0 8px!important}[data-h=speed]{font-size:24px!important}}
  .ride-hop.ride-tricks{grid-column:1;grid-row:1;grid-template-columns:var(--trick-size);justify-self:start;margin-left:calc((var(--lean-size)*2 + clamp(7px,1vw,14px) - var(--trick-size))/2)}.ride-lean-buttons{grid-column:1;grid-row:2}.ride-drive-buttons{grid-column:2;grid-row:2}
  @media(max-width:520px){[data-wk-ride-surface] .ride-controls{row-gap:9px}.ride-tricks{grid-template-columns:repeat(2,var(--trick-size))}.ride-hop.ride-tricks{grid-template-columns:var(--trick-size)}}
+ /* Replay: every control sits on the video (video-player style); the panel is the video, no scrolling. */
+ .ride-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+ .ride-replay:not(.is-theatre){--wk-replay-ar:1.7778;padding:0!important;width:min(98vw,calc(94dvh * var(--wk-replay-ar)))!important;max-width:none!important;max-height:94dvh!important;aspect-ratio:var(--wk-replay-ar);overflow:hidden!important;border-radius:16px}
+ .ride-replay:not(.is-theatre) .ride-replay-layout{display:block!important;position:absolute;inset:0}
+ .ride-replay:not(.is-theatre) .ride-replay-main{position:static}
+ .ride-replay:not(.is-theatre) .ride-replay-stage{position:absolute!important;inset:0;height:auto!important;min-height:0!important;aspect-ratio:auto!important;border:0!important;border-radius:0!important}
+ .ride-replay:not(.is-theatre) .ride-replay-stage video{object-fit:cover}
+ .ride-replay:not(.is-theatre) .ride-replay-stage::before,.ride-replay:not(.is-theatre) .ride-replay-stage::after{content:'';position:absolute;left:0;right:0;pointer-events:none;z-index:1}
+ .ride-replay:not(.is-theatre) .ride-replay-stage::before{top:0;height:28%;background:linear-gradient(#000b,#0000)}
+ .ride-replay:not(.is-theatre) .ride-replay-stage::after{bottom:0;height:46%;background:linear-gradient(#0000,#000d)}
+ .ride-replay:not(.is-theatre) .ride-replay-head{position:absolute;top:10px;left:12px;right:10px;z-index:4;margin:0!important;pointer-events:none}
+ .ride-replay:not(.is-theatre) .ride-replay-head strong{font:900 12px system-ui!important;padding:7px 11px;border-radius:999px;background:#0b1a13cc;border:1px solid #7dffb066;letter-spacing:.18em!important;white-space:nowrap}
+ .ride-replay:not(.is-theatre) .ride-replay-head strong::before{content:'● ';color:#ff4d5e}
+ .ride-replay:not(.is-theatre) .ride-replay-x{pointer-events:auto;border-radius:50%!important;width:40px;min-width:40px!important;height:40px;padding:0!important;background:#0b1a13cc!important}
+ .ride-replay:not(.is-theatre) .ride-replay-library{position:absolute;z-index:4;top:8px;left:116px;right:60px;max-height:none!important;overflow:visible!important;display:flex;gap:6px;align-items:center;padding:0!important;order:0}
+ .ride-replay:not(.is-theatre) .ride-replay-library h3{display:none}
+ .ride-replay:not(.is-theatre) .ride-replay-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;min-width:0}
+ .ride-replay:not(.is-theatre) .ride-replay-list::-webkit-scrollbar{display:none}
+ .ride-replay:not(.is-theatre) :is(.ride-replay-latest,.ride-replay-item){position:relative;width:auto!important;flex:0 0 auto;margin:0!important;padding:4px 11px 4px 4px!important;gap:7px!important;border-radius:999px!important;background:#0b1a13cc!important;max-width:200px;min-height:40px}
+ .ride-replay:not(.is-theatre) .ride-replay-thumb{width:46px!important;height:28px!important;border-radius:999px!important}
+ .ride-replay:not(.is-theatre) .ride-replay-meta small{display:none}
+ .ride-replay:not(.is-theatre) .ride-replay-del{display:none!important}
+ .ride-replay:not(.is-theatre) .ride-replay-item.show-del .ride-replay-del{display:inline-flex!important;position:absolute;top:-6px;right:-6px;min-width:26px!important;width:26px;height:26px;padding:0!important;border-radius:50%!important;font-size:12px!important}
+ .ride-replay:not(.is-theatre) .ride-replay-overlay-play{z-index:3;width:68px!important;height:68px!important}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub{position:absolute;z-index:4;left:10px;right:10px;bottom:60px;height:48px;margin:0!important;padding:0 6px;gap:10px;color:#e9fff2!important;text-shadow:0 1px 3px #000;touch-action:none;cursor:pointer;-webkit-user-select:none;user-select:none}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub label{height:100%;cursor:pointer}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub input{pointer-events:none;height:48px;margin:0;background:transparent;-webkit-appearance:none;appearance:none}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub input::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,#6dff9a,#6dff9a) 0/var(--wk-seek,0%) 100% no-repeat,#ffffff40}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-9px;border-radius:50%;background:#e9fff2;border:3px solid #6dff9a;box-shadow:0 0 12px #39ff7a99,0 2px 6px #000a;transition:transform .12s}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub input::-moz-range-track{height:6px;border-radius:6px;background:#ffffff40}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub input::-moz-range-progress{height:6px;border-radius:6px;background:#6dff9a}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub input::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#e9fff2;border:3px solid #6dff9a}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub.is-seeking input::-webkit-slider-thumb{transform:scale(1.25)}
+ .ride-replay:not(.is-theatre) .ride-replay-scrub [data-r=replay-time]{font:800 12px system-ui;white-space:nowrap}
+ .ride-replay:not(.is-theatre) .ride-replay-actions{position:absolute;z-index:4;left:12px;right:12px;bottom:12px;display:flex!important;flex-wrap:nowrap!important;gap:8px!important;align-items:center}
+ .ride-replay:not(.is-theatre) .ride-replay-actions :is(button,a){flex:1 1 0;min-width:0;max-width:240px;min-height:42px;padding:6px 10px!important;border-radius:999px!important;background:#0b1a13cc!important;white-space:nowrap;font-size:12px!important;gap:6px}
+ .ride-replay:not(.is-theatre) .ride-replay-actions a[hidden]{display:none!important}
+ .ride-replay:not(.is-theatre) .ride-replay-actions .rl{overflow:hidden;text-overflow:ellipsis}
+ .ride-replay:not(.is-theatre) .ride-replay-actions .ride-replay-playbtn{flex:0 0 42px;width:42px;padding:0!important;font-size:16px!important}
+ .ride-replay:not(.is-theatre) .ride-replay-actions .ride-replay-drop{order:9;flex:0 0 auto;max-width:none;margin-left:auto;padding:10px 22px!important;font-size:15px!important;background:linear-gradient(180deg,#a6f5b0,#5fd877)!important;color:#0f2416!important;box-shadow:0 0 18px #39ff7a88}
+ .ride-replay:not(.is-theatre) .ride-replay-actions .ride-replay-drop[hidden]{display:none!important}
+ /* short phone landscape (844x390 and similar): icon-over-label buttons, same even spacing */
+ @media(orientation:landscape) and (max-height:420px){
+  .ride-replay:not(.is-theatre) .ride-replay-actions :is(button,a):not(.ride-replay-playbtn):not(.ride-replay-drop){flex-direction:column;gap:1px;font-size:10px!important;padding:3px 6px!important;min-height:42px}
+  .ride-replay:not(.is-theatre) .ride-replay-actions .ri{font-size:15px;line-height:1}
+  .ride-replay:not(.is-theatre) .ride-replay-scrub{bottom:56px}
+  .ride-replay:not(.is-theatre) .ride-replay-overlay-play{width:56px!important;height:56px!important}
+ }
+ /* phone portrait: Drop In spans the width, the rest share one evenly spaced row of icon-over-label buttons */
+ @media(orientation:portrait) and (max-width:520px){
+  .ride-replay:not(.is-theatre) .ride-replay-library{left:12px;right:58px;top:52px}
+  .ride-replay:not(.is-theatre) .ride-replay-head strong{font-size:11px!important}
+  .ride-replay:not(.is-theatre) .ride-replay-actions{flex-wrap:wrap!important;row-gap:8px!important}
+  .ride-replay:not(.is-theatre) .ride-replay-actions .ride-replay-drop{order:-1;flex:1 1 100%;margin:0!important;padding:13px!important;font-size:17px!important}
+  .ride-replay:not(.is-theatre) .ride-replay-actions :is(button,a):not(.ride-replay-drop){flex:1 1 0;max-width:none;flex-direction:column;gap:2px;font-size:10px!important;padding:4px 2px!important;min-height:50px;border-radius:14px!important}
+  .ride-replay:not(.is-theatre) .ride-replay-actions .ri{font-size:17px;line-height:1}
+  .ride-replay:not(.is-theatre) .ride-replay-actions .ride-replay-playbtn{flex:1 1 0;width:auto;font-size:20px!important}
+  .ride-replay:not(.is-theatre) .ride-replay-scrub{bottom:128px}
+ }
  `;document.head.append(style);
 }
