@@ -7,8 +7,8 @@ export const rideControlsMarkup=()=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks">${trickButton('hop','HOP')}</div>
  <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back"><span class="ride-lean-glyph" aria-hidden="true">‹</span><span class="ride-tilt-copy"><small>TILT</small><small>BACK</small></span></button><button type="button" data-t="leanForward" aria-label="Lean forward"><span class="ride-lean-glyph" aria-hidden="true">›</span><span class="ride-tilt-copy"><small>TILT</small><small>FWD</small></span></button></div>
  <div class="ride-steer">
-  <div class="ride-steer-hint">STEER · drag · springs back</div>
-  <div class="ride-steer-pill" role="slider" aria-label="Steer" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" tabindex="0">
+  <div class="ride-steer-hint">TILT · drag · springs back</div>
+  <div class="ride-steer-pill" role="slider" aria-label="Tilt" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" tabindex="0">
    <span class="ride-steer-chev" aria-hidden="true">‹</span>
    <div class="ride-steer-track"><div class="ride-steer-knob"></div></div>
    <span class="ride-steer-chev" aria-hidden="true">›</span>
@@ -20,6 +20,9 @@ export const rideControlsMarkup=()=>`<div class="ride-controls">
 export function mountLeanControls(ui,touch){
  const release=()=>{touch.lean=0;touch.leanBack=0;touch.leanForward=0};release();return {update(){},release,state:()=>({active:!!(touch.leanBack||touch.leanForward),value:(touch.leanForward||0)-(touch.leanBack||0)})};
 }
+// Chase slider is a temporary tilt control (left = lean back / nose up, right = lean forward)
+// until lateral steering is implemented. Switch this back to inp.steer and restore the
+// cosmetic roll + camera yaw when steering lands.
 export function mountSteerSlider(ui,touch){
  const root=ui.querySelector('.ride-steer');
  const pill=root?.querySelector('.ride-steer-pill');

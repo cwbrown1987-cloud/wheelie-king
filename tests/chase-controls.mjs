@@ -132,24 +132,49 @@ try{
     if(shots)await p.screenshot({path:join(shots,'chase-phone-air-tilt.png')});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 
-    // Steering slider: drag, cosmetic roll + camera only, no lateral move, then spring back
+    const hint=await p.locator('.ride-steer-hint').textContent();
+    assert.match(hint||'',/TILT/,'slider should be labelled as tilt');
+
+    // Whole bike+rider in frame, lower-middle on flat, chase FOV near 60 at low speed
+    await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:16,vx:3,vy:0,pitch:0,w:0,air:0,wasAir:false,crashed:null,ground:[true,true]});s.y=ter.h(16)+.42;});
+    await p.waitForTimeout(320);
+    const frame=await p.evaluate(async()=>{
+      const T=await import('/vendor/three.module.js');
+      const {scene,cam}=__WK_RIDE_SCENE__();
+      cam.updateMatrixWorld();
+      const rider=scene.getObjectByName('wk:rider');
+      const root=rider?.parent?.parent||rider;
+      const box=new T.Box3().setFromObject(root);
+      const c=box.getCenter(new T.Vector3()).project(cam);
+      const corners=[];
+      for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])corners.push(new T.Vector3(x,y,z).project(cam));
+      const ys=corners.map(v=>v.y),xs=corners.map(v=>v.x);
+      return {minY:Math.min(...ys),maxY:Math.max(...ys),midY:c.y,inX:xs.every(x=>x>-1&&x<1),inY:ys.every(y=>y>-1&&y<1),fov:__WK_RIDE_STATE__().chaseCam.fov};
+    });
+    assert(frame.inX&&frame.inY,'bike+rider should be fully in frame '+JSON.stringify(frame));
+    assert(frame.midY<0.1,'bike should sit in the lower half of the chase frame '+JSON.stringify(frame));
+    assert(frame.fov>=59&&frame.fov<=64,'low-speed chase FOV should be about 60, got '+frame.fov);
+
+    // Slider is temporary tilt: left = lean back (nose up), springs back, no cosmetic roll
+    await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;Object.assign(s,{y:6,vy:1,vx:4,pitch:0,w:0,air:.3,wasAir:true,crashed:null,ground:[false,false]});});
     const pill=await p.locator('.ride-steer-pill').boundingBox();
     assert(pill);
-    const start={id:14,x:pill.x+pill.width*0.5,y:pill.y+pill.height/2};
-    const end={id:14,x:pill.x+pill.width*0.92,y:pill.y+pill.height/2};
-    const xBefore=await p.evaluate(()=>__WK_RIDE_STATE__().s.x);
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[start]});
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[end]});
-    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer>0.4,null,{timeout:3000});
-    const steered=await p.evaluate(()=>({steer:__WK_RIDE_STATE__().inp.steer,roll:__WK_RIDE_STATE__().visual.roll,z:__WK_RIDE_STATE__().visual.z,x:__WK_RIDE_STATE__().s.x,camZ:__WK_RIDE_SCENE__().cam.position.z}));
-    assert(steered.steer>0.4,JSON.stringify(steered));
-    assert(steered.roll>0.1,'cosmetic bike roll should follow steer');
-    assert.equal(steered.z,0,'no fake lane movement');
+    const mid={id:14,x:pill.x+pill.width*0.5,y:pill.y+pill.height/2};
+    const left={id:14,x:pill.x+pill.width*0.08,y:pill.y+pill.height/2};
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[mid]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[left]});
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.lean>0.4,null,{timeout:3000});
+    await p.waitForTimeout(350);
+    const slid=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,pitch:__WK_RIDE_STATE__().s.pitch,w:__WK_RIDE_STATE__().s.w,roll:__WK_RIDE_STATE__().visual.roll,z:__WK_RIDE_STATE__().visual.z,slider:__WK_RIDE_STATE__().visual.steer,steer:__WK_RIDE_STATE__().inp.steer}));
+    assert(slid.lean>0.4,'left on the slider should lean back '+JSON.stringify(slid));
+    assert(slid.pitch>0.15||slid.w>1,'slider tilt should raise the nose in the air '+JSON.stringify(slid));
+    assert.equal(slid.roll,0,'cosmetic steer roll should be gone');
+    assert.equal(slid.z,0);
+    assert.equal(slid.steer,0);
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().inp.steer)<0.05&&Math.abs(__WK_RIDE_STATE__().visual.roll)<0.05,null,{timeout:3000});
-    const sprung=await p.evaluate(()=>({steer:__WK_RIDE_STATE__().inp.steer,z:__WK_RIDE_STATE__().visual.z}));
-    assert.equal(sprung.z,0);
-    report.phone={accelerate:true,brake:true,hop:true,airTilt:air,steer:steered,sprung,xBefore,errors};
+    await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().inp.lean)<0.05&&Math.abs(__WK_RIDE_STATE__().visual.steer)<0.05,null,{timeout:3000});
+    const sprung=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,slider:__WK_RIDE_STATE__().visual.steer}));
+    report.phone={accelerate:true,brake:true,hop:true,airTilt:air,sliderTilt:slid,sprung,frame,errors};
 
     // View swap back to side hides chase chrome
     await p.locator('[data-r=view]').tap();
@@ -158,6 +183,8 @@ try{
     assert.equal(back.steerDisplay,'none');
     assert.equal(back.tiltCopy,'none');
     assert(back.hop.x<300,'hop returns to the left in side view');
+    const sideFov=await p.evaluate(()=>__WK_RIDE_SCENE__().cam.fov);
+    assert.equal(sideFov,40,'side-view FOV must stay 40');
     assert.deepEqual(errors,[]);
     await p.close();
   }
