@@ -19,8 +19,6 @@ try{
   await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_RIDE_SCENE__,null,{timeout:90000});
   await p.waitForTimeout(800);
-  await p.getByRole('button',{name:'Pause ride',exact:true}).click();
-  await p.waitForTimeout(200);
   const look=await p.evaluate(()=>{
     const {scene}=__WK_RIDE_SCENE__();
     const env=__WK_RIDE_STATE__().environment||{};
