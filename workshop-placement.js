@@ -35,6 +35,11 @@ function makeItem(def, uid, pos) {
  const kit = P().kit, src = kit.build(def.type, def.params || {});
  for (const top of def.toppings || []) { const o = kit.build(top.type, top.params || {}); o.position.set(top.x, top.y, top.z); o.rotation.y = top.yaw || 0; src.add(o); }
  const lb = kit.solidBounds(src);
+ // Chests and shelves are packed to their body size; handles must not freeze two neighbours together once they leave the bake.
+ const pw = def.params?.width, pd = def.params?.depth;
+ const local = (pw && pd)
+  ? { min: [-pw / 2, lb.min.y, -pd / 2], max: [pw / 2, lb.max.y, pd / 2] }
+  : { min: lb.min.toArray(), max: lb.max.toArray() };
  const holder = new T.Group(); holder.name = 'workshop:placed:' + def.id; holder.userData.savedRide = uid; // gizmo/pick compatibility
  const baked = kit.bake(src); baked.traverse(o => { if (o.isMesh) o.userData.savedRide = uid; }); holder.add(baked);
  const size = lb.getSize(new T.Vector3()), centre = lb.getCenter(new T.Vector3());
@@ -43,7 +48,7 @@ function makeItem(def, uid, pos) {
  const foot = new T.Mesh(new T.PlaneGeometry(1, 1), mat); foot.rotation.x = -Math.PI / 2; foot.scale.set(size.x + .06, size.z + .06, 1); foot.position.set(centre.x, lb.min.y + .006, centre.z); foot.renderOrder = 3;
  const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(size.x + .02, size.y + .02, size.z + .02)), new T.LineBasicMaterial({ color: OK, transparent: true, opacity: .95, toneMapped: false, depthTest: false }));
  edges.renderOrder = 4; edges.position.copy(centre); mark.add(foot, edges); holder.add(mark);
- const it = { uid, item: def.id, def, fixture: !!def.fixture, mount: def.mount || 'floor', holder, baked, mark, local: { min: lb.min.toArray(), max: lb.max.toArray() }, x: pos.x, y: pos.y ?? (def.mount === 'wall' ? def.y ?? 1.3 : 0), z: pos.z, yaw: pos.yaw ?? 0 };
+ const it = { uid, item: def.id, def, fixture: !!def.fixture, mount: def.mount || 'floor', holder, baked, mark, local, x: pos.x, y: pos.y ?? (def.mount === 'wall' ? def.y ?? 1.3 : 0), z: pos.z, yaw: pos.yaw ?? 0 };
  apply(it); P().group.add(holder); return it;
 }
 function apply(it) { it.holder.position.set(it.x, it.y, it.z); it.holder.rotation.y = it.yaw; }
