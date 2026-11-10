@@ -85,8 +85,10 @@ if(typeof document!=='undefined'){
  .ride-pause-replay{margin-top:2px}
  .ride-replay-alert{position:absolute;top:50px;right:10px;padding:8px 12px;z-index:13;animation:ride-replay-pulse 1s alternate infinite}
  @keyframes ride-replay-pulse{to{box-shadow:0 0 13px #7eff9d}}
- .ride-crash-actions{position:absolute;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;display:flex;gap:10px;align-items:center;pointer-events:auto}
+ .ride-crash-actions{position:absolute;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center;pointer-events:auto;max-width:96vw;padding:0 8px}
  .ride-crash-actions[hidden]{display:none!important}
+ .ride-rewind{min-width:158px;height:48px;padding:0 16px;border-radius:16px;border:1px solid #b8ffd5!important;background:linear-gradient(180deg,#3cf08a,#13b45c)!important;color:#03200e!important;font:900 15px system-ui!important;letter-spacing:.08em;box-shadow:0 0 16px #35e07a99,inset 0 1px 0 #ffffff66;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+ .ride-rewind.is-held,.ride-rewind:active{transform:translateY(1px) scale(.98);filter:brightness(.96)}
  .ride-replay.is-dropping{opacity:0;transform:translate(-50%,-46%) scale(.98);filter:blur(2px);transition:opacity .32s ease,transform .32s ease,filter .32s ease;pointer-events:none}
  .ride-replay{transition:opacity .28s ease,transform .28s ease,filter .28s ease}
  .ride-save-btn{font-size:12px!important;padding:10px 12px!important}
