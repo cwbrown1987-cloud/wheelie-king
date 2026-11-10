@@ -4,6 +4,7 @@
 // the other placed props. Saves per room under its own key (garage saves untouched).
 import * as T from './vendor/three.module.js';
 import { garageGizmo } from './garage-gizmo.js';
+import { dockButton } from './src/ui/object-dock.js';
 import { obbFrom, validate, pushInside } from './src/rooms/room-collision.js';
 import { PLACEABLES, placeable } from './src/props/kit/catalog.js';
 
@@ -213,12 +214,12 @@ function refresh(full = true) {
  const v = it.valid || paint(it);
  if (full || !u.bar.firstChild) {
   u.bar.replaceChildren();
-  const b = (label, aria, fn, cls = '') => { const n = document.createElement('button'); n.type = 'button'; n.textContent = label; n.setAttribute('aria-label', aria); n.className = cls; n.onclick = fn; u.bar.append(n); return n; };
-  if (it.mount !== 'wall') { b('↺', 'Rotate left', () => { rotate(it, STEP); refresh(false); }); b('↻', 'Rotate right', () => { rotate(it, -STEP); refresh(false); }); }
-  else { b('▲', 'Raise', () => rig.move(0, 0, .1)); b('▼', 'Lower', () => rig.move(0, 0, -.1)); }
+  const b = (label, aria, fn, cls = '') => { const n = document.createElement('button'); n.type = 'button'; dockButton(n, label[0], label[1]); n.setAttribute('aria-label', aria); n.className = cls; n.onclick = fn; u.bar.append(n); return n; };
+  if (it.mount !== 'wall') { b(['rl', 'TURN'], 'Rotate left', () => { rotate(it, STEP); refresh(false); }); b(['rr', 'TURN'], 'Rotate right', () => { rotate(it, -STEP); refresh(false); }); }
+  else { b(['up', 'UP'], 'Raise', () => rig.move(0, 0, .1)); b(['down', 'DOWN'], 'Lower', () => rig.move(0, 0, -.1)); }
   const st = document.createElement('span'); st.className = 'status'; u.bar.append(st);
-  b(it.pending ? '✓ Place' : '✓ Done', it.pending ? 'Place here' : 'Finish moving', () => finishEdit(true), 'primary').dataset.wkPlaceConfirm = '';
-  b('✕', it.pending ? 'Cancel placing' : 'Undo move', () => finishEdit(false));
+  b(['check', it.pending ? 'PLACE' : 'DONE'], it.pending ? 'Place here' : 'Finish moving', () => finishEdit(true), 'primary').dataset.wkPlaceConfirm = '';
+  b(['x', 'CANCEL'], it.pending ? 'Cancel placing' : 'Undo move', () => finishEdit(false));
  }
  const st = u.bar.querySelector('.status'), ok = it.valid?.ok; st.className = 'status ' + (ok ? 'ok' : 'bad');
  st.textContent = ok ? 'Fits here' : ({ wall: 'Hits a wall', ceiling: 'Hits the ceiling', prop: 'Hits the ' + (String(it.valid?.hit || 'prop').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()), item: 'Hits another item', zone: (it.valid?.hit || '').startsWith('door') ? 'Blocks a door' : 'In the bike area', floor: 'Below the floor' })[it.valid?.reason] || 'Blocked';

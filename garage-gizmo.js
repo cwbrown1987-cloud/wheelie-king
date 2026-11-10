@@ -1,14 +1,15 @@
 import * as T from './vendor/three.module.js';
 import { makeGizmo, gizmoHitFloor } from './src/props/gizmo3d.js';
+import { dockButton, ensureDockStyle } from './src/ui/object-dock.js';
 // Selected-object controls shared by the garage and the workshop. HTML handles: edit / remove / lift.
 // 3D floor gizmo (src/props/gizmo3d.js): drag a curved blue arrow (or the ring) to rotate, a green arrow to move.
 // Dragging the object itself is still handled by the room. Gizmo drags never reach the orbit controls.
 export function garageGizmo(host,getRig,onRemove,onEdit){
- const root=document.createElement('div');root.className='garage-gizmo';root.hidden=true;host.append(root);let drag,raf,g3=null,local=null;
- const handle=(label,glyph)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',label);b.title=label;b.textContent=glyph;root.append(b);return b};
- const edit=handle('Edit object','✎');edit.className='object-edit';edit.onclick=()=>onEdit(!getRig().state().arrange);
- const remove=handle('Remove placed item','⌫');remove.onclick=onRemove;
- const lift=handle('Lift or lower object','↕');lift.className='object-lift';
+ ensureDockStyle();const root=document.createElement('div');root.className='garage-gizmo';root.hidden=true;host.append(root);let drag,raf,g3=null,local=null;
+ const handle=(label,icon)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',label);b.title=label;dockButton(b,icon);root.append(b);return b};
+ const edit=handle('Edit object','edit');edit.className='object-edit';edit.onclick=()=>onEdit(!getRig().state().arrange);
+ const remove=handle('Remove placed item','bin');remove.onclick=onRemove;
+ const lift=handle('Lift or lower object','lift');lift.className='object-lift';
  const object=()=>{const r=getRig();return r?.objects.find(o=>o.key===r.state().selected)};
  lift.onpointerdown=e=>{e.preventDefault();e.stopPropagation();if(!object())return;lift.setPointerCapture(e.pointerId);drag={button:lift,y:e.clientY};};
  lift.onpointermove=e=>{if(drag?.button!==lift)return;const r=getRig(),rect=r.controls.domElement.getBoundingClientRect(),distance=r.camera.position.distanceTo(object().holder.position),scale=2*distance*Math.tan(r.camera.fov*Math.PI/360)/rect.height;r.move(0,0,(drag.y-e.clientY)*scale);drag.y=e.clientY;};
@@ -39,7 +40,7 @@ export function garageGizmo(host,getRig,onRemove,onEdit){
  host.addEventListener('pointerdown',down,true);host.addEventListener('pointermove',move,true);host.addEventListener('pointermove',hover);host.addEventListener('pointerup',up,true);host.addEventListener('pointercancel',up,true);
  const place=(b,p)=>{const r=getRig(),v=p.clone().project(r.camera),canvas=r.controls.domElement.getBoundingClientRect(),frame=host.getBoundingClientRect();b.style.left=((canvas.left-frame.left+(v.x+1)*canvas.width/2)*host.clientWidth/frame.width)+'px';b.style.top=((canvas.top-frame.top+(-v.y+1)*canvas.height/2)*host.clientHeight/frame.height)+'px';};
  const update=()=>{raf=requestAnimationFrame(update);const r=getRig(),o=object();root.hidden=!o;if(!o){if(g3)g3.group.visible=false;return;}const bounds=new T.Box3().setFromObject(o.holder),center=bounds.getCenter(new T.Vector3()),editing=r.state().arrange;
-  place(edit,new T.Vector3(center.x+.22,bounds.max.y+.05,center.z));edit.textContent=editing?'✓':'✎';edit.setAttribute('aria-label',editing?'Finish editing object':'Edit object');
+  place(edit,new T.Vector3(center.x+.22,bounds.max.y+.05,center.z));(edit.dataset.icon!==(editing?'check':'edit')&&dockButton(edit,editing?'check':'edit'));edit.setAttribute('aria-label',editing?'Finish editing object':'Edit object');
   for(const b of [lift,remove])b.hidden=!editing;
   place(lift,new T.Vector3(center.x,bounds.max.y+.35,center.z));place(remove,new T.Vector3(center.x-.22,bounds.max.y+.05,center.z));remove.setAttribute('aria-label',o.ride?'Remove displayed ride':'Remove placed item');
   if(!editing){if(g3)g3.group.visible=false;return;}
