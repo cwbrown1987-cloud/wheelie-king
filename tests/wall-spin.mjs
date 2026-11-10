@@ -74,7 +74,8 @@ try{
   // back to horizontal, then drag up the wall
   await p.evaluate(u=>__WK_WORKSHOP_PLACE__.spin90(u,-1),placed.neon);
   await p.evaluate(u=>{const P=__WK_WORKSHOP_PLACE__;P.select(u,true);},placed.neon);
-  await p.evaluate(lookAt,placed.neon);await p.waitForTimeout(200);
+  await p.waitForFunction(()=>!__WK_WORKSHOP_PLACE__.placeMode.state().tweening,null,{timeout:8000});
+  await p.evaluate(lookAt,placed.neon);await p.waitForTimeout(80);
   const before=await p.evaluate(u=>__WK_WORKSHOP_PLACE__.list().find(i=>i.uid===u),placed.neon);
   const hit=await p.evaluate(screenOf,placed.neon);
   assert(hit.ok,`${tag} neon on screen `+JSON.stringify(hit));
@@ -100,6 +101,7 @@ try{
 
   // animated spin arrows on neon, hidden on the upright screen
   await p.evaluate(u=>{__WK_WORKSHOP_PLACE__.select(u,true);},placed.neon);
+  await p.waitForFunction(()=>!__WK_WORKSHOP_PLACE__.placeMode.state().tweening,null,{timeout:8000});
   await p.evaluate(lookAt,placed.neon);
   await p.waitForFunction(()=>{for(const el of document.querySelectorAll('*'))if(el.wkGizmo?.state().visible&&el.wkGizmo.state().spin)return true;return false;},null,{timeout:8000});
   const a0=await p.evaluate(arrowSpin);await p.waitForTimeout(500);const a1=await p.evaluate(arrowSpin);
@@ -110,7 +112,8 @@ try{
   if(shots&&vp.mobile)await p.screenshot({path:shots+'/wall-3-phone-neon.png'});
 
   await p.evaluate(u=>__WK_WORKSHOP_PLACE__.select(u,true),placed.screen);
-  await p.evaluate(lookAt,placed.screen);await p.waitForTimeout(200);
+  await p.waitForFunction(()=>!__WK_WORKSHOP_PLACE__.placeMode.state().tweening,null,{timeout:8000});
+  await p.evaluate(lookAt,placed.screen);await p.waitForTimeout(80);
   const gs=await p.evaluate(()=>{for(const el of document.querySelectorAll('*'))if(el.wkGizmo?.state().visible)return el.wkGizmo.state();return null;});
   assert(gs&&gs.wall&&!gs.spin,`${tag} upright item has no spin arrows `+JSON.stringify(gs));
   if(shots&&!vp.mobile)await p.screenshot({path:shots+'/wall-2-screen-upright.png'});
