@@ -31,7 +31,7 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  shell.group.traverse(o => { if (o.isMesh && o !== shell.floor) o.material.side = T.FrontSide; });
  fixWinding(T, shell.group, R);
  const floor = shell.floor; let reflecting = false;
- floor.onBeforeRender = (r, s, cam) => { if (reflecting || r.getRenderTarget() !== null || !room.visible) return; reflecting = true; try { shell.renderReflection(r, s, cam); } finally { reflecting = false; } };
+ if (!coarse) floor.onBeforeRender = (r, s, cam) => { if (reflecting || r.getRenderTarget() !== null || !room.visible) return; reflecting = true; try { shell.renderReflection(r, s, cam); } finally { reflecting = false; } };
  // --- lights for the modelled props (and the bike)
  const lights = shell.pbrLights(coarse ? 6 : 10);
  const fill = new T.PointLight('#ffd2a8', 2.2, 3.2, 1.6); fill.position.set(2.0, 1.25, -1.7); lights.push(fill); // tall chest's dark side
@@ -61,7 +61,7 @@ export function workshopKitRoom(T, scene, renderer, { asSecondary = false } = {}
  const drawCalls = baked.children.length + shell.group.children.length;
  return {
   room, lights: allLights, placement, shell,
-  state: () => ({ worldRoom: true, kit: true, theme: 'workshop', reflection: true, quality, drawCalls, propDrawCalls: baked.children.length, props: layout.length, colliders: colliders.length, placed: placed.children.length }),
+  state: () => ({ worldRoom: true, kit: true, theme: 'workshop', reflection: !coarse, quality, drawCalls, propDrawCalls: baked.children.length, props: layout.length, colliders: colliders.length, placed: placed.children.length }),
   setActive(on) { room.visible = !!on; for (const l of allLights) l.visible = !!on; },
   dispose() {
    room.removeFromParent(); baked.userData.dispose?.(); shell.dispose(); kit.dispose();

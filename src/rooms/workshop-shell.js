@@ -70,11 +70,14 @@ export function workshopShell(T, tex, { quality = 'desktop' } = {}) {
  add(quad(V(RIGHTX, 0, BACKZ), V(RIGHTX, 0, FRONTZ), V(RIGHTX, CEIL, FRONTZ), V(RIGHTX, CEIL, BACKZ)), brick, 'right-wall');
  add(quad(V(RIGHTX, 0, FRONTZ), V(LEFTX, 0, FRONTZ), V(LEFTX, CEIL, FRONTZ), V(RIGHTX, CEIL, FRONTZ)), brick, 'front-wall');
  // ---- clean concrete floor + live planar reflection (blurred, fresnel) ----
- const floorMat = new T.ShaderMaterial({ vertexShader: VS, uniforms: { ...shared, uCon: { value: tex.concrete }, uRefl: { value: reflRT.texture }, uMirVP: { value: new T.Matrix4() }, uPx: { value: new T.Vector2(1 / 512, 1 / 288) } },
+ const floorMat = new T.ShaderMaterial({ vertexShader: VS, defines: { REFL: quality === 'mobile' ? 0 : 1 }, uniforms: { ...shared, uCon: { value: tex.concrete }, uRefl: { value: reflRT.texture }, uMirVP: { value: new T.Matrix4() }, uPx: { value: new T.Vector2(1 / 512, 1 / 288) } },
   fragmentShader: LIT + `varying vec3 vWP;uniform sampler2D uCon,uRefl;uniform mat4 uMirVP;uniform vec2 uPx;
   vec3 disp(vec3 x){x*=1.1;x=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return pow(clamp(x,0.,1.),vec3(1./2.2));}
   void main(){vec3 N=vec3(0,1,0);vec3 alb=texture2D(uCon,vWP.xz*.23).rgb;vec3 L=lightAt(N,vWP);float lg=dot(L,vec3(.3,.5,.2));L=mix(vec3(lg),L,.5);vec3 col=alb*(L*.75+vec3(.08));
    if(uLinearOut>.5){gl_FragColor=outCol(col);return;}
+   #if REFL == 0
+   {vec3 Vm=normalize(cameraPosition-vWP);float f=pow(1.-max(Vm.y,0.),3.);gl_FragColor=vec4(col+L*f*.16*(.6+alb.r),1.);return;}
+   #endif
    vec4 c=uMirVP*vec4(vWP,1.);vec2 r=c.xy/c.w*.5+.5;vec3 Vv=normalize(cameraPosition-vWP);float ndv=max(dot(Vv,N),0.);
    float rough=1.6+3.2*(1.-alb.r*1.8);vec3 acc=vec3(0);float wt=0.;
    for(int i=-2;i<=2;i++)for(int j=-2;j<=2;j++){vec2 o=vec2(float(j),float(i))*uPx*rough;float w=1./(1.+float(i*i+j*j)*.3);acc+=texture2D(uRefl,r+o).rgb*w;wt+=w;}
