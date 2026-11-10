@@ -1,12 +1,16 @@
 // Rolling ride-state buffer for pause Drop In (last N seconds, every physics step).
 export function createRideBuffer(seconds = 20) {
   const frames = [];
-  let t = 0;
+  // t = simulated time (slow-mo / Drop In ease run it slower than real time).
+  // wall = capture clock: real seconds while the replay video is recording. The video timeline is in wall time,
+  // so scrub positions map onto frames by wall time (mapping by sim time dropped you at the wrong spot).
+  let t = 0, wall = 0;
   const snap = (s, meta = {}) => {
     // Strip ephemeral event spam; keep stunt/trick so Drop In stays mid-trick.
     const { events, ...rest } = s;
     return {
       t,
+      w: wall,
       s: structuredClone({
         ...rest,
         events: [],
@@ -32,7 +36,22 @@ export function createRideBuffer(seconds = 20) {
       const cut = t - seconds;
       while (frames.length > 1 && frames[0].t < cut) frames.shift();
     },
-    clear() { frames.length = 0; t = 0; },
+    clear() { frames.length = 0; t = 0; wall = 0; },
+    get wall() { return wall; },
+    get wallStart() { return frames.length ? frames[0].w : wall; },
+    // Advance the capture clock (call once per rendered frame while the replay video is recording).
+    tick(dt) { if (dt > 0) wall += dt; },
+    // Latest frame captured at or before capture-clock time w (clamped to the buffer).
+    atWall(w) {
+      if (!frames.length) return null;
+      if (w <= frames[0].w) return frames[0];
+      let lo = 0, hi = frames.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (frames[mid].w <= w) lo = mid; else hi = mid - 1;
+      }
+      return frames[lo];
+    },
     // Map scrubber ratio 0..1 or absolute time within buffer onto a frame.
     at(ratioOrTime, absolute = false) {
       if (!frames.length) return null;

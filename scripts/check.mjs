@@ -8,7 +8,7 @@ profiles.gpu=['claude-gpu'];
 profiles.transitions=['screen-transitions'];
 profiles.rooms=['workshop-kit','shared-world','world-room','workshop-presentation','garage-drag','player-rooms','manage-rides','workshop-mobile','gizmo-stand'];
 profiles.powertrain=['ride-parameters','physics-cadence','ride-parameter-integration','race-balance'];
-profiles.menus=['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','sticker-picker','workshop-mobile','shop-space'];
+profiles.menus=['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','sticker-picker','workshop-mobile','shop-space','menus-fit'];
 profiles.release=[...profiles.transitions,...profiles.rooms,...profiles.powertrain,...profiles.scene,...profiles.builder,...profiles.ride,...profiles.mechanics,...profiles.modular,...profiles.vehicles,...profiles.polish,...profiles.player];
 profiles.changed=[]; // filled below when requested
 
@@ -28,11 +28,11 @@ function resolveChangedTests(){
   {re:/^(shared-world|world-rooms|garage-room3d|garage-furniture|loading-tips)\.js$/, tests:['shared-world','world-room']},
   {re:/^(src\/(props|rooms)\/|assets\/workshop\/|workshop-placement\.js$)/, tests:['workshop-kit','shared-world','world-room']},
   {re:/^workshop-/, tests:['workshop-presentation','workshop-mobile','workshop-batch']},
-  {re:/^ride-(pause|replay|buffer)/, tests:['ride-pause-replay','replay-playback','replay-blocks']},
+  {re:/^ride-(pause|replay|buffer)/, tests:['ride-pause-replay','replay-playback','replay-blocks','replay-dropin']},
   {re:/^ride-gallery/, tests:['ride-gallery']},
   {re:/^ride-camera/, tests:['ride-camera']},
   {re:/^(ride\.js|ride-loop|ride-physics|ride-tricks|ride-environment|ride-scenery|race-launch)/, tests:['ride-loop','ride-finish','race-balance','crash-ride']},
-  {re:/^(ride-controls|panel-scroll)/, tests:['ride-controls','panel-scroll']},
+  {re:/^(ride-controls|panel-scroll)/, tests:['ride-controls','panel-scroll','menus-fit']},
   {re:/^(ride-quality|ride-lod|ride-themes)/, tests:['ride-quality','ride-lod','ride-themes','quality-lifecycle']},
   {re:/^crash-/, tests:['crash-physics','crash-ride']},
   {re:/^sticker-/, tests:['sticker-picker','sticker-frame']},
@@ -44,7 +44,7 @@ function resolveChangedTests(){
   {re:/^vehicle-/, tests:['vehicle-platforms']},
   {re:/^modular-/, tests:['modular-builds']},
   {re:/^(boot-loader|sw\.js)/, tests:['boot-loader','check-update']},
-  {re:/^(app\.js|builder-|partmodels|parts3d|fitment|gear-)/, tests:['simple-builder','part-fitment','shop-space','basic-crazy']},
+  {re:/^(app\.js|builder-|partmodels|parts3d|fitment|gear-)/, tests:['simple-builder','part-fitment','shop-space','basic-crazy','menus-fit']},
   {re:/^terrain-/, tests:['terrain-ride','scene-depth']},
   {re:/^(screen-|workshop-navigation)/, tests:['screen-transitions']},
   {re:/^ride-parameters|^ride-parameter/, tests:['ride-parameters','ride-parameter-integration','physics-cadence']},

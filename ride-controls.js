@@ -110,6 +110,16 @@ if(typeof document!=='undefined'){
   .ride-pause-fab{padding:10px 16px;font-size:13px}
   .ride-theatre-bar{justify-content:center}
  }
+ /* Short phone landscape (~1024x460): video + scrub + Drop In row all visible without scrolling. */
+ @media(orientation:landscape) and (max-height:520px){
+  .ride-replay:not(.is-theatre){padding:10px 12px}
+  .ride-replay:not(.is-theatre) .ride-replay-head{margin-bottom:6px}
+  .ride-replay:not(.is-theatre) .ride-replay-stage{aspect-ratio:auto;height:min(calc(92dvh - 160px),31vw);min-height:120px}
+  .ride-replay:not(.is-theatre) .ride-replay-scrub{margin:6px 0}
+  .ride-replay:not(.is-theatre) .ride-replay-actions{gap:6px}
+  .ride-replay:not(.is-theatre) .ride-replay-actions :is(button,a){padding:8px 11px}
+  .ride-replay-library{max-height:calc(92dvh - 80px)}
+ }
  @media(orientation:portrait) and (max-width:520px){
   .ride-replay{width:96vw;padding:12px}
   .ride-replay-thumb{width:72px;height:42px}

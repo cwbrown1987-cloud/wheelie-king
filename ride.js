@@ -226,7 +226,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       paused = false;
       el.removeAttribute('data-wk-paused');
       pauseUi?.syncFab(false);
+      if (pauseUi?.menu) pauseUi.menu.hidden = true;
       releaseControls();
+      sideCam.reset(); // snap the camera to the restored spot instead of swooping from where the run ended
+      last = performance.now();
+      globalThis.__WK_LAST_DROP__ = { frame, restored: structuredClone(s) };
       return meta;
     },
   });
@@ -330,7 +334,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     else if (dropInEase > 0) { timeScale = 0.5 + (1 - dropInEase) * 0.5; dropInEase = Math.max(0, dropInEase - cameraDt); }
     const dt = realDt * timeScale;
     last = now;
-    replay.setCaptureActive?.(!paused && !reviewing && !finished);
+    const capturing = !paused && !reviewing && !finished;
+    replay.setCaptureActive?.(capturing);
+    if (capturing) replay.buffer?.tick(cameraDt); // capture clock = replay video timeline
     const activeTime = realDt > 0 ? cameraDt : 0;
     if (replayTail > 0 && (replayTail -= activeTime) <= 0) replay.finish();
     if (finished && realDt > 0) {

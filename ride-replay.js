@@ -25,6 +25,10 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   let rolling = null, activeSource = 'latest', activeSaved = null, latestBlob = null, latestDuration = 1;
   const ring = createBlockRing({ maxBlocks: 2, blockMs: 30000 });
   let latestState = null; // optional state snapshot for Drop In on latest / saved-with-state
+  // Capture-clock anchors: where the presented video sits on the buffer's wall clock.
+  //  'end'  : rolling video from pause (its last frame = wallOpen)
+  //  'start': slow-mo clip (its first frame = clipWall0)
+  let anchor = { mode: 'end', wall: 0 }, clipWall0 = 0, clipAnchor = null, dropping = false;
   const buffer = createRideBuffer(20);
   const supported = typeof MediaRecorder !== 'undefined' && !!canvas.captureStream;
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer:coarse)').matches;
@@ -60,6 +64,9 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   function clear() {
     clearTimeout(expiry); clearTimeout(limit);
     button.hidden = true; panel.hidden = true; ui.querySelector('.ride-gallery') && (ui.querySelector('.ride-gallery').hidden = true); openedFromPause = false;
+    // Drop In fades the panel out with .is-dropping; it must not survive into the next open (an invisible,
+    // click-through panel left the game frozen in review mode: the 'second Drop In freezes' bug).
+    panel.classList.remove('is-dropping'); dropping = false;
     exitTheatre(false);
     ring.unfreeze();
     setCaptureActive(true);
@@ -136,7 +143,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   function start() {
     if (!supported) return;
     clear();
-    const clip = capture = { chunks: [], discard: false };
+    const clip = capture = { chunks: [], discard: false, wall0: buffer.wall };
     try {
       stream = canvas.captureStream(REC.fps);
       recorder = new MediaRecorder(stream, { videoBitsPerSecond: REC.bps, ...(recMime ? { mimeType: recMime } : {}) });
@@ -144,14 +151,17 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
       recording.ondataavailable = event => { if (!clip.discard && event.data.size) clip.chunks.push(event.data); };
       recording.onstop = () => {
         if (disposed || clip.discard || clip !== capture || !clip.chunks.length) return;
+        // The player opened Replay from pause meanwhile: never swap the video under them or auto-close it.
+        if (!panel.hidden) { clip.chunks.length = 0; return; }
         const mime = mimeGuess(clip.chunks, recording);
         if (url) URL.revokeObjectURL(url);
         url = URL.createObjectURL(new Blob(clip.chunks, { type: mime }));
         clip.chunks.length = 0;
         scrub.max = clip.duration;
         latestBlob = null; // alert path uses url
+        clipAnchor = { mode: 'start', wall: clip.wall0 };
         button.hidden = false;
-        expiry = setTimeout(clear, 15000);
+        expiry = setTimeout(() => { if (panel.hidden) clear(); }, 15000);
       };
       started = performance.now();
       recording.start();
@@ -281,7 +291,12 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
 
   function openFromPause() {
     openedFromPause = true;
-    clearTimeout(expiry);
+    clearTimeout(expiry); clearTimeout(limit);
+    // A slow-mo clip still recording would finish ~20s later and close/replace this panel
+    // ('scrub smashed back to race'). Drop it; the rolling video covers the same moment.
+    if (capture) { capture.discard = true; capture.chunks.length = 0; capture = null; }
+    stopClip(); button.hidden = true; panel.classList.remove('is-dropping'); dropping = false;
+    anchor = { mode: 'end', wall: buffer.wall };
     setCaptureActive(false);
     latestState = buffer.at(1);
     const duration = Math.max(.1, buffer.duration || 1);
@@ -290,7 +305,9 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
       panel.hidden = false; setReviewing(true); exitTheatre(false);
       if (blob && blob.size) present(blob, duration, { autoplay: false, source: 'latest' });
       else {
-        scrub.max = duration; scrub.value = scrub.max; syncTime(); syncDrop(); syncPlayIcon();
+        // No video: the scrubber walks the state buffer on its capture clock.
+        anchor = { mode: 'start', wall: buffer.wallStart, novideo: true };
+        scrub.min = '0'; start0 = 0; scrub.max = Math.max(.1, buffer.wall - buffer.wallStart); scrub.value = scrub.max; syncTime(); syncDrop(); syncPlayIcon();
       }
       refreshLibrary();
     };
@@ -300,25 +317,29 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
 
   function recordStep(s, dt, meta) { if (dt > 0) buffer.push(s, dt, meta); }
 
-  // The video can hold more than the 20s state buffer; map the playhead onto the buffer's tail.
-  function dropFraction() {
-    const end = +scrub.max || 0, at = +scrub.value || 0, span = Math.max(.1, buffer.duration || end - start0 || 1);
-    if (end <= 0) return 1;
-    return Math.max(0, Math.min(1, 1 - (end - at) / span));
+  // The video can hold more than the 20s state buffer; Drop In maps the playhead onto the buffer by capture clock.
+  // Capture-clock time of the frame on screen.
+  function dropWall() {
+    const at = +scrub.value || 0;
+    if (anchor.mode === 'start') return anchor.wall + Math.max(0, at - (anchor.novideo ? 0 : start0));
+    return anchor.wall - Math.max(0, (+scrub.max || 0) - at);
   }
   function dropIn() {
-    if (!canDropIn()) return null;
+    if (dropping || !canDropIn()) return null;
     const frame = activeSource === 'latest'
-      ? buffer.at(dropFraction())
+      ? (buffer.length ? buffer.atWall(dropWall()) : null)
       : activeSaved?.state;
     if (!frame) return null;
+    dropping = true;
+    video.pause();
     panel.classList.add('is-dropping');
     const run = () => {
-      hooks.onDropIn?.(frame);
+      if (disposed) return;
       clear();
+      hooks.onDropIn?.(frame);
     };
     setTimeout(run, 340);
-    return { frame };
+    return { frame, wall: frame.w };
   }
 
   async function currentVideoBlob() {
@@ -393,6 +414,8 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
   // Wire controls
   button.onclick = () => {
     clearTimeout(expiry); button.hidden = true; panel.hidden = false; setReviewing(true);
+    panel.classList.remove('is-dropping'); dropping = false; activeSource = 'latest'; activeSaved = null; syncDrop();
+    if (clipAnchor) anchor = clipAnchor;
     scrub.value = 0; if (url && video.src !== url) { video.src = url; prepareVideo().then(ok => ok && video.play().catch(() => {})); } else video.play().catch(() => {});
     syncPlayIcon(); refreshLibrary();
   };
@@ -473,6 +496,7 @@ export function mountRideReplay(ui, canvas, setReviewing, hooks = {}) {
     buffer, recordStep, openFromPause, dropIn, restoreRideState, armRolling, setCaptureActive, ring, openGallery, refreshGallery,
     // test helpers
     _debug: () => ({ blocks: ring.snapshot().map(b => b.blobs.map(x => x.size)), first: rolling?.first?.size || 0, init: rolling?.init?.size || 0, mime: recMime, state: rolling?.recorder?.state, src: video.currentSrc, err: video.error?.message || '' }),
+    _anchor: () => ({ ...anchor, scrubMax: +scrub.max, scrubMin: +scrub.min, value: +scrub.value, start0, dropping, cls: panel.className }),
     _saveToLibrary: saveVideoToGallery, _refreshLibrary: refreshLibrary, _enterTheatre: enterTheatre, _saveFrame: saveFrameToGallery,
   };
 }
