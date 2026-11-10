@@ -32,10 +32,10 @@ function makeItem(def, uid, pos) {
  const baked = kit.bake(src); baked.traverse(o => { if (o.isMesh) o.userData.savedRide = uid; }); holder.add(baked);
  const size = lb.getSize(new T.Vector3()), centre = lb.getCenter(new T.Vector3());
  const mark = new T.Group(); mark.name = 'workshop:placement-preview'; mark.visible = false;
- const mat = new T.MeshBasicMaterial({ color: OK, transparent: true, opacity: .28, depthWrite: false, toneMapped: false });
+ const mat = new T.MeshBasicMaterial({ color: OK, transparent: true, opacity: .36, depthWrite: false, toneMapped: false });
  const foot = new T.Mesh(new T.PlaneGeometry(1, 1), mat); foot.rotation.x = -Math.PI / 2; foot.scale.set(size.x + .06, size.z + .06, 1); foot.position.set(centre.x, lb.min.y + .006, centre.z); foot.renderOrder = 3;
- const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(size.x + .02, size.y + .02, size.z + .02)), new T.LineBasicMaterial({ color: OK, transparent: true, opacity: .95, toneMapped: false }));
- edges.position.copy(centre); mark.add(foot, edges); holder.add(mark);
+ const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(size.x + .02, size.y + .02, size.z + .02)), new T.LineBasicMaterial({ color: OK, transparent: true, opacity: .95, toneMapped: false, depthTest: false }));
+ edges.renderOrder = 4; edges.position.copy(centre); mark.add(foot, edges); holder.add(mark);
  const it = { uid, item: def.id, def, mount: def.mount || 'floor', holder, baked, mark, local: { min: lb.min.toArray(), max: lb.max.toArray() }, x: pos.x, y: pos.y ?? (def.mount === 'wall' ? def.y ?? 1.3 : 0), z: pos.z, yaw: pos.yaw ?? 0 };
  apply(it); P().group.add(holder); return it;
 }
@@ -173,7 +173,7 @@ function refresh(full = true) {
   b('✕', it.pending ? 'Cancel placing' : 'Undo move', () => finishEdit(false));
  }
  const st = u.bar.querySelector('.status'), ok = it.valid?.ok; st.className = 'status ' + (ok ? 'ok' : 'bad');
- st.textContent = ok ? 'Fits here' : ({ wall: 'Hits a wall', ceiling: 'Hits the ceiling', prop: 'Hits ' + (it.valid?.hit || 'a prop'), item: 'Hits another item', zone: (it.valid?.hit || '').startsWith('door') ? 'Blocks a door' : 'In the bike area', floor: 'Below the floor' })[it.valid?.reason] || 'Blocked';
+ st.textContent = ok ? 'Fits here' : ({ wall: 'Hits a wall', ceiling: 'Hits the ceiling', prop: 'Hits the ' + (String(it.valid?.hit || 'prop').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()), item: 'Hits another item', zone: (it.valid?.hit || '').startsWith('door') ? 'Blocks a door' : 'In the bike area', floor: 'Below the floor' })[it.valid?.reason] || 'Blocked';
  u.bar.querySelector('[data-wk-place-confirm]').disabled = !ok; u.bar.hidden = false;
 }
 
