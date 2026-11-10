@@ -77,7 +77,8 @@ try{
     hasBoot:has('shoe:ankle')||has('shoe:shin')||has('shoe:buckle'),
     hasLaces:names.some(n=>n.includes('shoe:lace')),
     riderH:riderBox.h,helmetH:headBox.h,ratio:headBox.h/riderBox.h,
-    faceHidden:!names.filter(n=>/rider:(face|nose|eye|ear)/.test(n)).some(n=>rider.getObjectByName(n)?.visible)
+    faceHidden:!names.filter(n=>/rider:(face|nose|eye|ear)/.test(n)).some(n=>rider.getObjectByName(n)?.visible),
+    neckHidden:rider.getObjectByName('rider:neck')?.visible===false
    };
   },want);
   assert.deepEqual(look.gearIds,want,name+' default test outfit '+JSON.stringify(look.gearIds));
@@ -91,8 +92,9 @@ try{
   assert(look.spineDeg>=28&&look.spineDeg<=42,name+' back angle 30-40deg '+look.spineDeg);
   assert(look.helmetLime,name+' helmet reads lime '+JSON.stringify(look.helmetColor));
   assert(look.helmetEmissive>=.5,name+' helmet emissive '+look.helmetEmissive);
-  assert(look.ratio<0.33,name+' head is not oversized '+JSON.stringify({ratio:look.ratio,helmetH:look.helmetH,riderH:look.riderH}));
+  assert(look.ratio<0.36,name+' head is not oversized '+JSON.stringify({ratio:look.ratio,helmetH:look.helmetH,riderH:look.riderH}));
   assert(look.faceHidden,name+' face sits inside the full-face helmet');
+  assert(look.neckHidden,name+' neck is hidden under the full-face helmet');
   if(shots){
    await p.screenshot({path:`${shots}/${name}-side.png`});
    await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));

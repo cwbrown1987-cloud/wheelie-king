@@ -40,7 +40,7 @@ export function makeRider(T,body,bike,A,mechanical){
  }
  const dispose=g=>g?.traverse(o=>{o.geometry?.dispose();if(o.material)[].concat(o.material).forEach(m=>m.dispose())});
  function wear(look=outfit()){
-  if(wornHelmet){headGroup.remove(wornHelmet);dispose(wornHelmet)}wornHelmet=gearModel(T,look.helmet);wornHelmet.position.copy(headCenter);headGroup.add(wornHelmet);
+  if(wornHelmet){headGroup.remove(wornHelmet);dispose(wornHelmet)}wornHelmet=gearModel(T,look.helmet);wornHelmet.position.copy(headCenter);if(look.helmet?.style!=='open')wornHelmet.position.y-=.025;headGroup.add(wornHelmet);neck.visible=look.helmet?.style==='open';
   blue.color.set(look.top.primary);cuff.color.copy(blue.color).multiplyScalar(.65);pants.color.set(look.pants.primary);shoeMat.color.set(look.shoes.primary);gloveMat.color.set(look.gloves.primary);
   const hoodie=look.top.style==='hoodie',openFace=look.helmet?.style==='open';
   hood.visible=hoodie;collar.visible=look.top.style==='jersey';
