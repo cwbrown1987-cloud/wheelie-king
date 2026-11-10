@@ -68,16 +68,25 @@ try{
  assert(mid.t<before.t-0.2,'hold rewinds time '+JSON.stringify({mid,before}));
  assert(mid.x<before.x-0.2,'hold moves the bike back '+JSON.stringify({mid,before}));
  if(shots)await p.screenshot({path:shots+'/desktop-rewinding.png'});
+ // Screenshot time keeps walking the playhead; capture the state at release, not the earlier mid-hold sample.
  await release();
  const after=await p.evaluate(()=>{
-  const r=__WK_RIDE_STATE__(),b=__WK_REPLAY__.buffer,last=b.at(1);
-  return {x:r.s.x,vx:r.s.vx,crashed:r.s.crashed,n:b.length,t:last.t,barHidden:document.querySelector('.ride-crash-actions').hidden};
+  const r=__WK_RIDE_STATE__(),b=__WK_REPLAY__.buffer,last=b.at(1),drop=globalThis.__WK_LAST_DROP__;
+  return {
+    x:r.s.x,vx:r.s.vx,crashed:r.s.crashed,n:b.length,t:last.t,
+    lastVx:last.s.vx,lastX:last.s.x,
+    dropVx:drop?.restored?.vx,dropX:drop?.restored?.x,dropT:drop?.frame?.t,
+    barHidden:document.querySelector('.ride-crash-actions').hidden
+  };
  });
- assert.ok(Math.abs(after.vx-mid.frameVx)<0.08,'release restores velocity '+JSON.stringify({after,mid}));
- assert.ok(Math.abs(after.x-mid.frameX)<0.08,'release restores position '+JSON.stringify({after,mid}));
+ assert.ok(after.t<before.t-0.2,'release playhead is still rewound '+JSON.stringify({after,before}));
+ assert.ok(Math.abs(after.vx-after.dropVx)<0.08,'release restores the Drop In velocity '+JSON.stringify(after));
+ assert.ok(Math.abs(after.vx-after.lastVx)<0.08,'trimmed last frame keeps that velocity '+JSON.stringify(after));
+ assert.ok(Math.abs(after.x-after.dropX)<0.15,'release restores the Drop In position '+JSON.stringify(after));
+ assert.ok(Math.abs(after.t-after.dropT)<0.08,'buffer is trimmed to the release playhead '+JSON.stringify(after));
  assert.ok(!after.crashed,'crash clears when rewound to before it '+JSON.stringify(after));
  assert(after.barHidden,'crash bar hides after a pre-crash restore');
- assert(Math.abs(after.t-mid.t)<0.08,'buffer is trimmed to the playhead '+JSON.stringify({after,mid}));
+ assert(Math.abs(after.vx)>1,'restored speed is the pre-crash velocity, not a respawn '+JSON.stringify(after));
  await p.waitForTimeout(250);
  const later=await p.evaluate(()=>({x:__WK_RIDE_STATE__().s.x,vx:__WK_RIDE_STATE__().s.vx,crashed:__WK_RIDE_STATE__().s.crashed}));
  assert(!later.crashed,'stays un-crashed after release');
