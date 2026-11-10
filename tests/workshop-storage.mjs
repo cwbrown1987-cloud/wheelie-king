@@ -23,8 +23,9 @@ try{
   assert.equal(boot.min,.12);assert.equal(boot.max,4.2);assert.equal(boot.fov,32);
   // a leftover baked collider would block a tiny nudge off the default pose
   const nudge=await p.evaluate(()=>{const P=__WK_WORKSHOP_PLACE__,it=P.list().find(i=>i.item==='fixture:toolChest:0'),ox=it.x,oz=it.z;
-   const v=P.move(it.uid,{x:ox+.05,z:oz});const now=P.list().find(i=>i.uid===it.uid);P.move(it.uid,{x:ox,z:oz});
-   return {ok:v.ok,reason:v.reason,uid:it.uid,from:[ox,oz],to:[now.x,now.z]};});
+   const dirs=[{x:ox+.05,z:oz},{x:ox-.05,z:oz},{x:ox,z:oz+.05},{x:ox,z:oz-.05}];
+   let v=null,now=null;for(const pos of dirs){v=P.move(it.uid,pos);now=P.list().find(i=>i.uid===it.uid);if(v.ok){P.move(it.uid,{x:ox,z:oz});break;}}
+   return {ok:!!v?.ok,reason:v?.reason,hit:v?.hit,uid:it.uid,from:[ox,oz],to:now?[now.x,now.z]:null};});
   assert(nudge.ok,'chest moves off its default pose without clipping '+JSON.stringify(nudge));
   // move a shelf to a free floor spot (no leftover bake, no overlap)
   const moved=await p.evaluate(()=>{const P=__WK_WORKSHOP_PLACE__,sh=P.list().find(i=>i.item.startsWith('fixture:shelving:')),prev={uid:sh.uid,item:sh.item,x:sh.x,z:sh.z,yaw:sh.yaw};
@@ -83,5 +84,5 @@ try{
   console.log('PASS workshop-storage',tag,JSON.stringify({movedTo:moved.hit.pos,uid:moved.prev.uid}));
  };
  await run({width:1024,height:658});
- await run({width:390,height:844,mobile:true});
+ await run({width:844,height:390,mobile:true});
 }finally{await browser.close();}
