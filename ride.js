@@ -336,9 +336,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     msgT = restarting ? 2 : .7;
   }
   const crashActions=document.createElement('div');crashActions.className='ride-crash-actions';crashActions.hidden=true;
-  const recover=document.createElement('button');recover.dataset.r='recover';recover.textContent='↻ RECOVER';recover.setAttribute('aria-label','Instant recover');recover.style.cssText=btnCss('#65ee6b',170,48)+';pointer-events:auto;font-weight:900;color:#092015';recover.onclick=respawn;
-  const crashReplay=document.createElement('button');crashReplay.dataset.r='crash-replay';crashReplay.textContent='● REPLAY';crashReplay.setAttribute('aria-label','Replay last 20 seconds');crashReplay.style.cssText=btnCss('#1e3d32',150,48)+';pointer-events:auto;font-weight:900;color:#d9ffe8;border:2px solid #7dffb0';crashReplay.onclick=()=>{paused=true;el.toggleAttribute('data-wk-paused',true);releaseControls();pauseUi?.syncFab(true);replay.openFromPause();};
-  const rewind=document.createElement('button');rewind.dataset.r='rewind';rewind.type='button';rewind.className='ride-rewind';rewind.setAttribute('aria-label','Rewind. Hold to rewind the ride');rewind.setAttribute('aria-pressed','false');rewind.textContent='⏪ REWIND';
+  const recover=document.createElement('button');recover.dataset.r='recover';recover.type='button';recover.className='ride-crash-btn';recover.textContent='↻ RECOVER';recover.setAttribute('aria-label','Instant recover');recover.onclick=respawn;
+  const crashReplay=document.createElement('button');crashReplay.dataset.r='crash-replay';crashReplay.type='button';crashReplay.className='ride-crash-btn';crashReplay.textContent='● REPLAY';crashReplay.setAttribute('aria-label','Replay last 20 seconds');crashReplay.onclick=()=>{paused=true;el.toggleAttribute('data-wk-paused',true);releaseControls();pauseUi?.syncFab(true);replay.openFromPause();};
+  const rewind=document.createElement('button');rewind.dataset.r='rewind';rewind.type='button';rewind.className='ride-crash-btn ride-rewind';rewind.setAttribute('aria-label','Rewind. Hold to rewind the ride');rewind.setAttribute('aria-pressed','false');rewind.textContent='⏪ REWIND';
   function applyRideSnapshot(frame,{ease=true,clearCrash=false}={}){
     const meta=restoreRideState(s,frame)||{};
     if(meta.dirt!=null)dirt=meta.dirt;
