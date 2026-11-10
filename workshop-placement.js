@@ -157,7 +157,19 @@ addEventListener('pointerup', e => {
 
 // ---- UI: place button, centred glass catalogue panel, edit toolbar (game style)
 const css = document.createElement('style'); css.textContent = `
-[data-wk-place]{position:absolute;right:12px;top:182px;z-index:5;min-height:34px;padding:6px 12px;border-radius:9px;border:1px solid #7affc699;background:#122037b9;color:#e9fff4;font:800 12px system-ui;letter-spacing:.06em;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 0 14px #30e9bd33;cursor:pointer}
+#wk-room-dock{position:absolute;right:12px;bottom:12px;z-index:6;display:flex;gap:4px;padding:6px;border-radius:18px;background:linear-gradient(180deg,#101a2ccc,#060b14e6);border:1px solid #6fd3ff55;box-shadow:0 0 0 1px #000,0 10px 30px #000a,0 0 24px #2fa8ff33}#wk-room-dock[hidden]{display:none}
+html body #wk-room-dock button{position:static;min-width:72px;height:56px;padding:4px 10px;border-radius:12px;border:0!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent!important;color:#9fe0ff!important;box-shadow:none!important;font:800 9px/1 system-ui;letter-spacing:.12em;cursor:pointer;backdrop-filter:none}
+html body #wk-room-dock button:hover{background:#1a2b44!important}
+html body #wk-room-dock button.primary{background:linear-gradient(180deg,#3cf08a,#13b45c)!important;color:#03200e!important;box-shadow:0 0 16px #35e07a99!important;min-width:92px}
+#wk-room-dock svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 4px currentColor)}#wk-room-dock .primary svg{filter:none}
+#wk-room-dock .wkl{display:block;font:800 9px/1 system-ui;letter-spacing:.12em}
+@media (max-height:500px),(max-width:600px){#wk-room-dock{bottom:8px;right:8px;padding:4px}html body #wk-room-dock button{min-width:60px;height:48px}html body #wk-room-dock button.primary{min-width:76px}}
+/* sidebar icons */
+[aria-label="Simple / Advanced"]::before{content:'';display:inline-block;width:18px;height:18px;margin-right:8px;vertical-align:-4px;background:currentColor;-webkit-mask:var(--wk-ic) center/contain no-repeat;mask:var(--wk-ic) center/contain no-repeat;filter:drop-shadow(0 0 3px currentColor)}
+[aria-label="Simple / Advanced"]{--wk-ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h10M4 17h6M18 4v6M14 14v6'/%3E%3Ccircle cx='18' cy='7' r='2'/%3E%3Ccircle cx='14' cy='17' r='2'/%3E%3C/svg%3E")}
+/* bike controls (ROTATION / TEST MOTION / Suspension / RESET VIEW) sit left of the dock until they move into bike inspect */
+body.wk-room-dock-on [data-wk-bench],body.wk-room-dock-on [data-wk-rotate],body.wk-room-dock-on [data-wk-reset]{translate:calc(-1 * var(--wk-dock-w,190px)) 0}
+[data-wk-place-old]{position:absolute;right:12px;top:182px;z-index:5;min-height:34px;padding:6px 12px;border-radius:9px;border:1px solid #7affc699;background:#122037b9;color:#e9fff4;font:800 12px system-ui;letter-spacing:.06em;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 0 14px #30e9bd33;cursor:pointer}
 [data-wk-place]:hover{background:#18304ad0}[data-wk-place][hidden]{display:none}
 #wk-place-panel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#03060c66}
 #wk-place-panel[hidden]{display:none}
@@ -179,13 +191,18 @@ document.head.append(css);
 function ensureUi() {
  const v = view(), host = v?.renderer?.domElement?.parentElement; if (!host) return null;
  if (ui && ui.host === host) return ui;
- ui?.button.remove(); gizmoStop?.();
- const button = document.createElement('button'); button.type = 'button'; button.dataset.wkPlace = ''; button.textContent = '＋ PLACE'; button.setAttribute('aria-label', 'Place a prop in the workshop'); button.onclick = () => { enterPlace(); openPanel(); }; host.append(button);
+ ui?.button.remove(); ui?.dock?.remove(); gizmoStop?.();
+ const button = document.createElement('button'); button.type = 'button'; button.dataset.wkPlace = ''; dockButton(button, 'edit', 'EDIT ROOM'); button.setAttribute('aria-label', 'Edit room: place props in the workshop'); button.onclick = () => { enterPlace(); openPanel(); };
+ // bottom-right room dock (Chris's approved workshop HUD): EDIT ROOM + TEST RIDE
+ document.getElementById('wk-room-dock')?.remove(); const dock = document.createElement('div'); dock.id = 'wk-room-dock'; dock.setAttribute('role', 'toolbar'); dock.setAttribute('aria-label', 'Workshop');
+ const ride = document.createElement('button'); ride.type = 'button'; ride.className = 'primary'; ride.dataset.wkTestRide = ''; dockButton(ride, 'play', 'TEST RIDE'); ride.setAttribute('aria-label', 'Test ride this bike');
+ ride.onclick = () => { const t = [...document.querySelectorAll('button')].find(b => b !== ride && /^TEST RIDE/.test((b.textContent || '').trim())); if (t) t.click(); else document.querySelector('[data-destination=race]')?.click(); };
+ dock.append(button, ride); host.append(dock);
  let panel = document.getElementById('wk-place-panel'); if (!panel) { panel = document.createElement('div'); panel.id = 'wk-place-panel'; panel.hidden = true; panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Place in workshop'); panel.onclick = e => { if (e.target === panel) { panel.hidden = true; if (!arrange) exitPlace(); } }; document.body.append(panel); }
  let pill = document.getElementById('wk-place-mode'); if (!pill) { pill = document.createElement('div'); pill.id = 'wk-place-mode'; pill.hidden = true; pill.setAttribute('role', 'status'); pill.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="lbl">PLACE MODE</span><button type="button" data-wk-place-exit aria-label="Exit place mode">✓ Done</button>'; pill.querySelector('button').onclick = () => exitPlace(); document.body.append(pill); }
  let bar = document.getElementById('wk-place-bar'); if (!bar) { bar = document.createElement('div'); bar.id = 'wk-place-bar'; bar.hidden = true; document.body.append(bar); }
  gizmoStop = garageGizmo(host, () => (active() ? rig : null), () => { if (selected) remove(selected); }, value => { if (value) { arrange = true; const it = items.find(i => i.uid === selected); original = it ? { x: it.x, y: it.y, z: it.z, yaw: it.yaw } : null; refresh(); } else finishEdit(true); });
- ui = { host, button, panel, bar, pill }; return ui;
+ ui = { host, button, panel, bar, pill, dock }; return ui;
 }
 function openPanel() {
  const u = ensureUi(); if (!u || !inst) return;
@@ -208,6 +225,7 @@ function thumb(def) {
 function refresh(full = true) {
  const u = ensureUi(); if (!u) return;
  u.button.hidden = !active() || arrange || !!place?.leaving;
+ if (u.dock) { u.dock.hidden = u.button.hidden; document.body.classList.toggle('wk-room-dock-on', !u.dock.hidden); if (!u.dock.hidden) document.body.style.setProperty('--wk-dock-w', (u.dock.offsetWidth + 10) + 'px'); }
  u.pill.hidden = !place || place.leaving || !active();
  const it = items.find(i => i.uid === selected); for (const i of items) i.mark.visible = i === it && arrange;
  if (!it || !arrange || !active()) { u.bar.hidden = true; return; }
@@ -232,7 +250,10 @@ function load() {
  const saved = readStore().rooms[ROOM]?.items || [];
  for (const s of saved) { const def = placeable(s.item); if (def) { const it = makeItem(def, s.uid, s); paint(it); items.push(it); } }
 }
+let tagAt = 0;
+function tagHud() { const now = performance.now(); if (now - tagAt < 500) return; tagAt = now; for (const b of document.querySelectorAll('button:not([data-wk-reset])')) if ((b.textContent || '').includes('RESET VIEW')) b.dataset.wkReset = ''; for (const b of document.querySelectorAll('button:not([data-primary])')) if ((b.textContent || '').trim() === '+' && b.getBoundingClientRect().top < 60) b.dataset.primary = ''; }
 function tick() {
+ tagHud();
  const next = world()?.getInstance?.(ROOM) || null;
  if (next !== inst) { inst = next?.placement ? next : null; if (inst) load(); }
  if (place && !active()) { const v = view(); if (v?.controls) restoreView(v); showBike(); place = null; }

@@ -7,6 +7,7 @@ export const ICON = {
  check: svg('<path d="M4.5 12.5l5 5L19.5 7"/>'), x: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
  rl: svg('<path d="M8 7H4V3"/><path d="M4.6 7A8 8 0 1 1 4 13"/>'), rr: svg('<path d="M16 7h4V3"/><path d="M19.4 7A8 8 0 1 0 20 13"/>'),
  edit: svg('<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>'), bin: svg('<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>'),
+ play: svg('<path d="M7 5l12 7-12 7z"/>'), sticker: svg('<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4"/>'),
  lift: svg('<path d="M7 9l5-5 5 5M7 15l5 5 5-5"/>'), turn90: svg('<path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M18 3v4h-4"/><path d="M12 20V12"/>'),
 };
 /** Fill a button with icon + optional small caps label (keeps aria-label as the accessible name). */
