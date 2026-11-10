@@ -52,7 +52,7 @@ try{
   // re-place from the Storage card, then confirm
   await p.locator('#wk-place-panel [data-stored]').first().click();
   await p.waitForFunction(()=>__WK_WORKSHOP_PLACE__.state().arrange&&__WK_WORKSHOP_PLACE__.state().pending,null,{timeout:8000});
-  await p.evaluate((pos,uid)=>{const P=__WK_WORKSHOP_PLACE__;P.dragTo(pos.x,pos.z);},moved.hit.pos,moved.prev.uid);
+  await p.evaluate(pos=>{const P=__WK_WORKSHOP_PLACE__;P.dragTo(pos.x,pos.z);},moved.hit.pos);
   await p.waitForTimeout(200);
   assert(!(await p.locator('[data-wk-place-confirm]').isDisabled()),'re-place confirm enabled');
   await p.locator('[data-wk-place-confirm]').click();
