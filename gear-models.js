@@ -15,17 +15,19 @@ export function gearModel(T,p,{single=false}={}){
   const open=p.style==='open',mx=p.style==='mx',street=p.style==='street';
   const cut=y=>open?1.08*Math.sqrt(Math.max(0,1-((y+.035)/.12)**2)):y>-.055&&y<.075?.98*Math.pow(Math.max(0,1-((y-.01)/.065)**4),.25):0;
   const surface=(lens=false)=>{const vertices=[],indices=[],rows=64,cols=64,low=lens?-.055:(open?-.080:-.113),high=.132;for(let j=0;j<=rows;j++){const y=lens?-.055+j/rows*.13:low+j/rows*(high-low),r=Math.sqrt(Math.max(0,1-(y/.132)**2)),c=cut(y);for(let i=0;i<=cols;i++){const angle=lens?-c+i/cols*c*2:c+i/cols*(Math.PI*2-c*2);vertices.push(Math.cos(angle)*r*RIDER_SPEC.helmet.x*(lens?.986:1),y,Math.sin(angle)*r*RIDER_SPEC.helmet.z*(lens?.986:1));}}for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;if(lens)indices.push(a,b,c,b,d,c);else indices.push(a,c,b,b,c,d)}const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;};
-  const shell=mesh('helmet:shell',surface(),primary);shell.scale.set(1.06,.9,1.02);
+  if(p.theme==='lime'){primary.color.set('#9bff1f');primary.emissive.set('#85ff14');primary.emissiveIntensity=.7;primary.roughness=.34;primary.metalness=.04}
+  else{primary.emissive.set(p.primary);primary.emissiveIntensity=.35;primary.roughness=.4}
+  const shell=mesh('helmet:shell',surface(),primary);shell.scale.set(1.08,.98,1.06);
   const liner=new T.SphereGeometry(.112,32,20,0,Math.PI*2,0,Math.PI*(open?.60:.88));liner.scale(.98,1.09,.96);const linerMat=material('#111a20');linerMat.side=T.BackSide;mesh('helmet:liner',liner,linerMat);
   if(!open){
    const lens=material('#152b3c',.5,.16);lens.side=T.DoubleSide;mesh('helmet:visor',surface(true),lens);
-   const gogFrame=material('#10161c',.25,.4),gogLens=material('#173044',.55,.14),gogStrap=material('#141a20',.05,.75);
-   gogLens.transparent=true;gogLens.opacity=.78;
+   const gogFrame=material('#07090c',.12,.42),gogLens=material('#2a5570',.75,.1),gogStrap=material('#0d1014',.05,.75);
+   gogLens.transparent=true;gogLens.opacity=.9;gogLens.emissive.set('#163044');gogLens.emissiveIntensity=.4;
    for(const side of [-1,1]){
-    box('helmet:goggleFrame',[.05,.046,.056],gogFrame,[.09,.026,side*.042]);
-    box('helmet:goggleLens',[.036,.032,.044],gogLens,[.116,.026,side*.042]);
+    box('helmet:goggleFrame',[.07,.06,.072],gogFrame,[.10,.02,side*.05]);
+    box('helmet:goggleLens',[.052,.044,.058],gogLens,[.136,.02,side*.05]);
    }
-   box('helmet:goggleBridge',[.028,.018,.03],gogFrame,[.098,.028,0]);
+   box('helmet:goggleBridge',[.042,.024,.042],gogFrame,[.112,.022,0]);
    for(const side of [-1,1])tube('helmet:goggleStrap',[[.05,.032,side*.10],[-.02,.05,side*.11],[-.08,.04,side*.08],[-.10,.02,0]],.007,gogStrap);
    tube('helmet:chinbar',[[.005,-.065,-.091],[.10,-.074,-.069],[.139,-.064,0],[.10,-.074,.069],[.005,-.065,.091]],.016,primary);
    for(const side of [-1,1]){tube('helmet:cheekTrim',[[.01,-.08,side*.087],[.075,-.02,side*.089],[.064,.065,side*.087]],.004,accent);box('helmet:chinVent',[.026,.013,.035],dark,[.138,-.06,side*.027]);}

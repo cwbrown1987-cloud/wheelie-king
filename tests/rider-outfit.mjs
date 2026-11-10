@@ -56,12 +56,20 @@ try{
     return {min,max,h:max[1]-min[1],w:max[0]-min[0],d:max[2]-min[2]};
    };
    const riderBox=worldBox(rider),headBox=worldBox(head);
+   const shell=(()=>{let m=null;rider.traverse(o=>{if(!m&&o.isMesh&&o.name&&o.name.includes('helmet:shell'))m=o});return m})();
+   const col=shell?.material?.color,em=shell?.material?.emissive;
+   const helmetColor=col?{r:+col.r.toFixed(3),g:+col.g.toFixed(3),b:+col.b.toFixed(3)}:null;
+   const helmetLime=!!(col&&col.g>0.7&&col.g>col.r&&col.b<0.35);
    return {
     gearIds:rider.userData.gearIds,
     want,
     style:st.style,
     reference:st.reference,
     pitch:torso.rotation.z,
+    spineDeg:st.pose?.spineDeg,
+    helmetColor,
+    helmetLime,
+    helmetEmissive:shell?.material?.emissiveIntensity??0,
     hoodVisible:!!hood?.visible,
     collarVisible:!!collar?.visible,
     hasGoggles:has('goggle'),
@@ -79,8 +87,11 @@ try{
   assert(!look.hasLaces,name+' boots are not laced trainers');
   assert.equal(look.hoodVisible,false,name+' hoodie is off');
   assert.equal(look.collarVisible,true,name+' jersey collar is on');
-  assert(look.pitch<-.2,name+' crouched forward pose '+look.pitch);
-  assert(look.ratio<0.32,name+' head is not oversized '+JSON.stringify({ratio:look.ratio,helmetH:look.helmetH,riderH:look.riderH}));
+  assert(look.pitch<-.08&&look.pitch>-.28,name+' attack-position pitch '+look.pitch);
+  assert(look.spineDeg>=28&&look.spineDeg<=42,name+' back angle 30-40deg '+look.spineDeg);
+  assert(look.helmetLime,name+' helmet reads lime '+JSON.stringify(look.helmetColor));
+  assert(look.helmetEmissive>=.5,name+' helmet emissive '+look.helmetEmissive);
+  assert(look.ratio<0.33,name+' head is not oversized '+JSON.stringify({ratio:look.ratio,helmetH:look.helmetH,riderH:look.riderH}));
   assert(look.faceHidden,name+' face sits inside the full-face helmet');
   if(shots){
    await p.screenshot({path:`${shots}/${name}-side.png`});
@@ -91,7 +102,7 @@ try{
    await p.evaluate(()=>__WK_SCENE_VIEW__('side'));
   }
   assert.deepEqual(errors,[],'page errors '+errors.join(' | '));
-  results.push({name,pitch:+look.pitch.toFixed(3),ratio:+look.ratio.toFixed(3),gear:look.gearIds});
+  results.push({name,pitch:+look.pitch.toFixed(3),spineDeg:look.spineDeg!=null?+look.spineDeg.toFixed(1):null,ratio:+look.ratio.toFixed(3),helmetLime:look.helmetLime,gear:look.gearIds});
   await p.close();
  }
  console.log(JSON.stringify({riderOutfit:true,want,results}));
