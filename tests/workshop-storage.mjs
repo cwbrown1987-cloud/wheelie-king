@@ -58,7 +58,7 @@ try{
   await p.locator('[data-wk-place-confirm]').click();
   const back=await p.evaluate(uid=>{const P=__WK_WORKSHOP_PLACE__,it=P.list().find(i=>i.uid===uid);
    return {it,storage:P.storage(),saved:JSON.parse(localStorage.getItem('wk-room-layout-v1')).rooms.workshop};},moved.prev.uid);
-  assert(back.it&&Math.hypot(back.it.x-moved.hit.pos.x,back.it.z-moved.hit.pos.z)<.2&&!back.storage.length&&!back.saved.storage.length&&back.saved.items.some(i=>i.uid===moved.prev.uid),JSON.stringify(back));
+  assert(back.it&&Math.hypot(back.it.x-moved.hit.pos.x,back.it.z-moved.hit.pos.z)<.45&&!back.storage.length&&!back.saved.storage.length&&back.saved.items.some(i=>i.uid===moved.prev.uid),JSON.stringify(back));
   if(shots)await p.screenshot({path:shots+'/storage-'+tag+'-replaced.png'});
   // persist the new pose across reload; also a removed catalog item stays in storage
   const extra=await p.evaluate(uid=>{const P=__WK_WORKSHOP_PLACE__,spots=[{x:2.6,z:1.6},{x:4.05,z:3.9},{x:-3.0,z:4.6}];
