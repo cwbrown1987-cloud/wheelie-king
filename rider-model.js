@@ -55,7 +55,7 @@ export function makeRider(T,body,bike,A,mechanical){
  let count=0;rider.traverse(o=>{if(o.isMesh)count++});
  return {root:rider,update({lean=0,crashed=false,superman=0}={}){
   const rideCrouch=ridingPose?-.16:0;
-  torso.position.copy(hip);torso.rotation.set(0,0,lean*.23+(crashed?.6:0)-superman*.9+(A.vehicleClass==='escooter'?-.15:0)+rideCrouch);headGroup.position.set(0,0,0);headGroup.rotation.set(0,0,ridingPose?-.18:0);
+  torso.position.copy(hip);torso.rotation.set(0,0,lean*.23+(crashed?.6:0)-superman*.9+(A.vehicleClass==='escooter'?-.15:0)+rideCrouch);const nod=ridingPose?-.18:0;headGroup.rotation.set(0,0,nod);headGroup.position.copy(headCenter).sub(headCenter.clone().applyAxisAngle(new T.Vector3(0,0,1),nod));
   const localHand=hand.clone().sub(torso.position).applyAxisAngle(new T.Vector3(0,0,1),-torso.rotation.z);
   for(const a of arms){const sh=shoulder.clone().setZ(a.side*RIDER_SPEC.shoulderHalfSpan),h=localHand.clone().setZ(a.side*(A.handWidth||.18)),el=sh.clone().lerp(h,.5).add(new T.Vector3(-.08,-.01,a.side*.09));pose(a.upper,sh,el);pose(a.lower,el,h);a.elbow.position.copy(el);a.glove.position.copy(h);a.glove.rotation.set(0,0,0)}
   const pedal=!!bike.getObjectByName('cranks:rotor'),angle=mechanical?.state.crankPhase||0;
