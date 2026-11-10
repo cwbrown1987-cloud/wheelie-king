@@ -117,6 +117,7 @@ function stepTween(v) {
  if (k >= 1) { place.tw = null; v.controls.enabled = true; tw.done?.(); }
 }
 function enterPlace() {
+ globalThis.__WK_WORKSHOP_CAM__?.exit?.({immediate:true});
  const v = view(); if (place || !v?.controls || !active()) return false;
  place = { pos: v.camera.position.clone(), tgt: v.controls.target.clone(), fov: v.camera.fov, max: v.controls.maxDistance, auto: v.controls.autoRotate, damp: v.controls.enableDamping, hidden: new Map(), tw: null, leaving: false, allowSpin: false };
  v.controls.autoRotate = false; v.controls.enableDamping = false; v.controls.maxDistance = Math.max(place.max, 14); hideBike(v);
@@ -185,8 +186,7 @@ html body #wk-room-dock button.primary{background:linear-gradient(180deg,#3cf08a
 /* sidebar icons */
 [aria-label="Simple / Advanced"]::before{content:'';display:inline-block;width:18px;height:18px;margin-right:8px;vertical-align:-4px;background:currentColor;-webkit-mask:var(--wk-ic) center/contain no-repeat;mask:var(--wk-ic) center/contain no-repeat;filter:drop-shadow(0 0 3px currentColor)}
 [aria-label="Simple / Advanced"]{--wk-ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h10M4 17h6M18 4v6M14 14v6'/%3E%3Ccircle cx='18' cy='7' r='2'/%3E%3Ccircle cx='14' cy='17' r='2'/%3E%3C/svg%3E")}
-/* bike controls (ROTATION / TEST MOTION / Suspension / RESET VIEW) sit left of the dock until they move into bike inspect */
-body.wk-room-dock-on [data-wk-bench],body.wk-room-dock-on [data-wk-rotate],body.wk-room-dock-on [data-wk-reset]{translate:calc(-1 * var(--wk-dock-w,190px)) 0}
+/* ROTATION / TEST MOTION / Suspension live in the inspect dock; RESET VIEW is removed */
 [data-wk-place-old]{position:absolute;right:12px;top:182px;z-index:5;min-height:34px;padding:6px 12px;border-radius:9px;border:1px solid #7affc699;background:#122037b9;color:#e9fff4;font:800 12px system-ui;letter-spacing:.06em;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 0 14px #30e9bd33;cursor:pointer}
 [data-wk-place]:hover{background:#18304ad0}[data-wk-place][hidden]{display:none}
 #wk-place-panel{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#03060c66}
