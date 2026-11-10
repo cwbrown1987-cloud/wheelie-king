@@ -1,9 +1,10 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 try{
- const p=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ const p=await browser.newPage(pageOptions({viewport:{width:1200,height:780},serviceWorkers:'block'})),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_BUILD__&&document.querySelector('#wk-simple-rail button'));
  const panel=p.locator('#wk-builder'),choose=id=>panel.locator(`[data-simple-part="${id}"]`).click(),apply=()=>p.getByRole('button',{name:'Apply preview',exact:true}).click(),cancel=()=>p.getByRole('button',{name:'Cancel preview',exact:true}).click();
  assert.equal(await p.evaluate(()=>document.body.dataset.wkMode),'simple');
@@ -21,8 +22,11 @@ try{
  assert.equal(await p.locator('#wk-cond').count(),0);
  await p.getByRole('button',{name:'Simple / Advanced',exact:true}).click();assert.equal(await p.locator('[data-r="level"]').count(),0);
  mkdirSync('wk-shots/simple-builder',{recursive:true});await p.screenshot({path:'wk-shots/simple-builder/menu.png'});
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);await p.waitForFunction(()=>__WK_RIDE_STATE__().backdropLoaded);assert(await p.evaluate(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().ter.h(1e6)===0));
- await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish!==Infinity);await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().backdropLoaded);
+ await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);await p.waitForFunction(()=>__WK_RIDE_STATE__().backdropLoaded);assert(await p.evaluate(()=>Number.isFinite(__WK_RIDE_STATE__().ter.finish)&&__WK_RIDE_STATE__().ter.finish>0));
+ // Default is Trials; toggle to flat endless, then exercise far ground.
+ await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().backdropLoaded);
+ assert(await p.evaluate(()=>__WK_RIDE_STATE__().ter.finish===Infinity&&__WK_RIDE_STATE__().ter.h(1e6)===0));
  await p.evaluate(()=>{__WK_RIDE_STATE__().s.x=5000});await p.keyboard.down('ArrowUp');await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().cameraX-__WK_RIDE_STATE__().s.x)<10);await p.waitForTimeout(600);await p.keyboard.up('ArrowUp');assert(await p.evaluate(()=>Number.isFinite(__WK_RIDE_STATE__().s.y)&&!__WK_RIDE_STATE__().finished&&Math.abs(__WK_RIDE_STATE__().groundX-__WK_RIDE_STATE__().s.x)<200));await p.screenshot({path:'wk-shots/simple-builder/flat-endless.png'});
+ await p.locator('[data-r="level"]').click();await p.waitForFunction(()=>__WK_RIDE_STATE__().ter.finish!==Infinity&&__WK_RIDE_STATE__().backdropLoaded);
  assert.deepEqual(errors,[]);console.log(JSON.stringify({presets:9,modes:true,sharedWideRail:true,headerToggle:true,completeIcons:true,noGreenStandBlock:true,twoColumns:true,previewApplyCancel:true,reloadRestoresUnconfirmed:true,colours:true,wheels:true,watts:true,automaticMotorPlans:plans,repairsHidden:true,inRideLevelToggle:true,pictureBackdrop:true,flatBeyond5km:true,errors}));
 }finally{await browser.close()}

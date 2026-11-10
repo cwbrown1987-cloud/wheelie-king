@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { LOADING_TIPS, pickLoadingTip } from '../loading-tips.js';
+const boot = readFileSync(new URL('../boot-loader.js', import.meta.url), 'utf8');
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const builder = readFileSync(new URL('../builder-mode.js', import.meta.url), 'utf8');
+assert(boot.includes('no-store'));
+assert(boot.includes('wk-boot-reloaded'));
+assert(boot.includes('HARD_MAX_MS = 3000') || boot.includes('HARD_MAX_MS=3000'));
+assert(!boot.includes('420 - elapsed'));
+assert(boot.includes('pickLoadingTip'));
+assert(LOADING_TIPS.length >= 5);
+assert(typeof pickLoadingTip(() => 0) === 'string');
+assert(html.includes('loading-tips.js') || boot.includes("from './loading-tips.js'"));
+assert(html.includes('wk-boot-tip') || boot.includes('data-boot-tip'));
+assert(builder.includes('__WK_CHECK_UPDATE__'));
+console.log(JSON.stringify({ bootLoader: true, noPad: true, hardMax3s: true, tips: LOADING_TIPS.length, manualUpdateKept: true }));

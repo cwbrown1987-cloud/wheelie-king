@@ -1,7 +1,7 @@
-import {garageRoom} from './garage-room3d.js';
 import {part} from './modular-catalogue.js';
 import {prototypeFor} from './vehicle-platforms.js';
 import * as T from './vendor/three.module.js';
+import * as SharedWorld from './shared-world.js';
 let lastRoom,summary,lastView,lastRoot,lastKey='',lastPlatform;
 function fitVehicle(v,root){
  root.updateWorldMatrix(true,true);const bounds=new T.Box3().setFromObject(root),center=bounds.getCenter(new T.Vector3());if(bounds.isEmpty())return;
@@ -31,8 +31,8 @@ body[data-wk-workshop] [data-wk-bench]{right:98px!important;background:#122037b9
 @media(max-width:800px){body[data-wk-workshop] [data-rail="right"]{width:198px!important}#wk-summary{font-size:10px;padding:7px}#wk-summary img{height:46px;width:72px}#wk-summary .name{font-size:10px}}
 `;document.head.append(style);
 function update(){
- const v=globalThis.__WK_VIEW__,garage=v?.renderer.domElement.isConnected&&!document.querySelector('[data-ride]');if(!garage){delete document.body.dataset.wkWorkshop;return;}document.body.dataset.wkWorkshop='';
- if(v.stage&&lastView!==v){lastRoom?.dispose();lastRoom=garageRoom(T,v.scene,v.renderer,{workshop:true});v.worldRoom=lastRoom;lastView=v;v.stage.floor.visible=false;v.stage.ring.visible=false;/* shadow fix: lift the shadow catcher off the room floor (was coplanar at y=0 -> z-fighting flicker) and stop acne on the bike */if(v.stage.shadow){v.stage.shadow.position.y=.003;v.stage.shadow.renderOrder=2;v.stage.shadow.material.depthWrite=false;}{const ks=v.stage.lights[0]?.shadow;if(ks){ks.normalBias=.012;ks.bias=-2e-4;}}const [key,rim,fill]=v.stage.lights;key.color.set('#fff0f5');rim.color.set('#829bff');fill.color.set('#bc6dff');rim.intensity=1.9;fill.intensity=.7;}
+ const v=globalThis.__WK_VIEW__,garage=v?.renderer.domElement.isConnected&&!document.querySelector('[data-ride]');if(!garage){delete document.body.dataset.wkWorkshop;return;}document.body.dataset.wkWorkshop='';SharedWorld.tick();
+ if(v.stage&&lastView!==v){lastRoom?.dispose?.();lastRoom=SharedWorld.attach(v);lastView=v;}
  let root;v.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});if(root&&root!==lastRoot){lastRoot=root;const a=root.userData.wkAnchors?.bb||[0,0],anchor=root.localToWorld(root.position.clone().set(a[0]-.02,0,0));v.orbitAnchor=anchor;if(v.controls.autoRotate){v.camera.position.x+=anchor.x-v.controls.target.x;v.camera.position.z+=anchor.z-v.controls.target.z;v.controls.target.x=anchor.x;v.controls.target.z=anchor.z;v.controls.update()}}
  if(root&&!v.wkOpeningFramed&&v.renderer.domElement.clientWidth&&v.camera.aspect>0){fitVehicle(v,root);v.wkOpeningFramed=true;}
  const cw=v.renderer.domElement.clientWidth,ch=v.renderer.domElement.clientHeight;if(cw&&ch){const railWidth=document.querySelector('[data-rail=left]')?.clientWidth||0;v.camera.setViewOffset(cw,ch,-railWidth/2,-36,cw,ch);for(const hint of document.querySelectorAll('[data-scene]>div')){if(hint.textContent.startsWith('Tap a category')||hint.textContent.startsWith('Drag to rotate'))hint.style.left=(railWidth+24)+'px';if(hint.textContent.startsWith('Tap a category'))hint.style.top='82px';}const compatibility=document.querySelector('[data-wk-compatibility]');if(compatibility){compatibility.style.setProperty('left',(railWidth+24)+'px','important');compatibility.style.setProperty('top','118px','important');}}
@@ -47,4 +47,4 @@ function update(){
  summary.querySelector('.name').textContent=prototypeFor(b.frame)?.name||part(b.frame)?.name||'Your bike';const image=globalThis.__WK_THUMB__?.({id:'summary:'+JSON.stringify(b),slot:'kit',completeBike:true,kit:Object.values(b).filter(id=>part(id))},180);if(image)summary.querySelector('img').src=image;
  const rows=[['Power',metrics.get('W')+' W'],[prototypeFor(b.frame)?.powertrain==='petrol'?'Fuel':'Battery',prototypeFor(b.frame)?.powertrain==='petrol'?`${part(b.fuel_tank)?.litres||0} L · Petrol`:battery?`${battery.v} V · ${battery.ah} Ah`:'Not fitted'],['Top speed',metrics.get('km/h')+' km/h'],['Range',metrics.get('km')+' km'],['Torque',metrics.get('Nm')+' Nm']];const dl=summary.querySelector('dl');dl.replaceChildren();for(const [label,value]of rows){const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;row.append(dt,dd);dl.append(row)}
 }
-setInterval(update,350);
+setInterval(update,350);update();

@@ -44,4 +44,16 @@ for(const s of big)assert.ok(Math.abs(s.o.x-s.x)<4.5&&Math.abs(s.o.y-s.y)<4.5,'r
 {const c=createSideCamera(),i={x:0,y:1,vx:5,vy:0,speed:5,grounded:true,groundY:0};for(let n=0;n<60;n++)c.update(1/60,i);
  c.update(1/60,{...i,vy:-6,grounded:false});let m=0;for(let n=0;n<30;n++)m=Math.max(m,Math.abs(c.update(1/60,{...i,vy:0,grounded:true}).bobY));
  assert.ok(m>.03,'landing kick '+m);}
+// A tall jump over a drop needs the landing surface and the rider in the frame.
+{
+ const cam=createSideCamera();
+ for(let n=0;n<120;n++){
+  const y=1+18*Math.sin(Math.PI*n/120);
+  const view=cam.update(1/60,{x:n/5,y,vx:12,vy:9,grounded:false,groundY:0,landingY:-6,reduceMotion:true});
+  const lookY=view.y+.45+view.dist*.025-.65;
+  const halfHeight=view.dist*Math.tan(Math.PI/9);
+  assert(lookY-halfHeight < -6,'landing surface must stay visible');
+  assert(lookY+halfHeight > y+1,'rider must stay visible');
+ }
+}
 console.log('ride-camera: ok');

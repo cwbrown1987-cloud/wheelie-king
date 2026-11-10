@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0d1110">
 <meta name="description" content="Build a BMX into an e-bike in the outback garage, then wheelie it.">
 <link rel="manifest" href="./manifest.webmanifest">
+<script type="module" src="./panel-scroll.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,6 +24,16 @@ html,body{width:100%;height:100%;background:radial-gradient(ellipse at 50% 20%,#
 #install{position:fixed;z-index:99;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);display:none;align-items:center;gap:10px;background:#101814;border:2px solid #39ff7a;border-radius:14px;padding:8px 12px;color:#eef5f0;font:14px 'Russo One',sans-serif;box-shadow:0 0 18px rgba(57,255,122,.5)}
 #install button{background:linear-gradient(#5dff95,#1fbf55);border:0;border-radius:8px;padding:6px 12px;font:inherit;color:#03250f}
 #install .x{background:none;color:#8a9a92}
+
+#wk-boot{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 20%,#17221e 0%,#070a09 70%);transition:opacity .28s ease}
+#wk-boot.is-done{opacity:0;pointer-events:none}
+.wk-boot-card{width:min(360px,90vw);padding:28px 22px 22px;text-align:center;border-radius:18px;background:linear-gradient(135deg,#1c2d478f,#0a1428c4);border:1px solid #c7f4df66;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 12px 32px #000a,inset 0 1px #ffffff22;color:#edfdf4;font-family:'Russo One',system-ui,sans-serif}
+.wk-boot-logo{display:block;margin:0 auto 12px;border-radius:22px;box-shadow:0 0 24px #39ff7a44}
+.wk-boot-title{display:block;font-size:22px;letter-spacing:.8px;color:#8cfca9;margin-bottom:6px}
+.wk-boot-sub{display:block;font:600 12px system-ui;color:#b7dcc8;min-height:1.2em;margin-bottom:14px}
+.wk-boot-bar{height:10px;border-radius:999px;background:#0a1410;border:1px solid #75eeaf55;overflow:hidden}
+.wk-boot-bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5dff95,#1fbf55);box-shadow:0 0 12px #39ff7a88;transition:width .25s ease}
+.wk-boot-tip{display:block;margin-top:12px;min-height:2.6em;font:600 12px/1.35 system-ui;color:#9be7bc;opacity:.95}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 <script>
@@ -33,29 +44,70 @@ window.__WK_URLS__ = { three: new URL("./vendor/three.module.js", location.href)
 </script>
 </head>
 <body>
+<div id="wk-boot"><div class="wk-boot-card" role="status" aria-live="polite" aria-label="Loading Wheelie King"><img class="wk-boot-logo" src="./icons/icon-512.png" width="96" height="96" alt="Wheelie King"><strong class="wk-boot-title">WHEELIE KING</strong><span class="wk-boot-sub" data-boot-msg>Starting…</span><div class="wk-boot-bar"><i data-boot-bar style="width:6%"></i></div><span class="wk-boot-tip" data-boot-tip>Tip: Pause → Replay → Drop In to rejoin mid-trick.</span></div></div>
 <div id="root"></div>
 <div id="install"><span id="itext">Install Wheelie King for full-screen play</span><button id="ibtn">INSTALL</button><button class="x" id="iclose">✕</button></div>
 <script type="module">
+import { runBootSequence } from "./boot-loader.js";
 import * as T from "./vendor/three.module.js";
-import "./parts3d.js";
-import "./fitment.js";
-import "./thumbs.js";
-import "./builder-mode.js";
-import "./workshop-presentation.js";
-import "./race-launch.js";
-import "./workshop-navigation.js";
-import "./workshop-mobile.js";
-import "./sticker-trace.js";
-import "./sticker-editor.js";
-import "./sticker-picker.js";
-import "./garage-state.js";
-import "./workshop-autosave.js";
-import "./player-lounge.js";
 import * as OC from "./vendor/OrbitControls.js";
 import * as RE from "./vendor/RoomEnvironment.js";
 window.__WK_THREE__ = Promise.resolve([T, OC, RE]);
-await import("./app.js");
-import("./stickers-dd.js");
+
+import("./src/ui/neon-buttons.js");
+await runBootSequence({
+  async warmWorkshop(progress) {
+    progress?.(0.05);
+    await import("./parts3d.js");
+    await import("./src/rooms/workstand.js");
+    await import("./fitment.js");
+    await import("./thumbs.js");
+    progress?.(0.2);
+    await import("./world-rooms.js");
+    await import("./shared-world.js");
+    await import("./builder-mode.js");
+    await import("./workshop-presentation.js");
+    await import("./workshop-navigation.js");
+    await import("./workshop-mobile.js");
+    await import("./garage-state.js");
+    await import("./workshop-autosave.js");
+    await import("./player-lounge.js");
+    await import("./workshop-placement.js");
+    progress?.(0.4);
+    await import("./sticker-trace.js");
+    await import("./sticker-editor.js");
+    await import("./sticker-picker.js");
+    progress?.(0.55);
+    await import("./race-launch.js");
+    progress?.(0.65);
+    await import("./app.js");
+    import("./stickers-dd.js");
+    progress?.(0.75);
+    // Warm default workshop: wait for view, preload backdrop-ish textures, compile shaders.
+    const deadline = performance.now() + 2500;
+    while (performance.now() < deadline && !globalThis.__WK_VIEW__?.renderer) await new Promise(r => setTimeout(r, 40));
+    progress?.(0.85);
+    const view = globalThis.__WK_VIEW__;
+    if (view?.renderer && view.scene && view.camera) {
+      try {
+        const imgs = ['./icons/neon-garage-background.webp', './icons/icon-512.png'];
+        await Promise.all(imgs.map(src => new Promise(res => { const i = new Image(); i.onload = i.onerror = () => res(); i.src = src; })));
+        await Promise.race([
+          Promise.resolve().then(()=>{view.renderer.compile(view.scene, view.camera);view.renderer.render(view.scene, view.camera);}),
+          new Promise(r=>setTimeout(r,1200))
+        ]);
+      } catch {}
+    }
+    progress?.(1);
+  },
+  async lazyLoad() {
+    // Garage + other rooms / shop / ride payloads after first paint.
+    try { await import("./garage-room3d.js"); } catch {}
+    try { await import("./ride.js"); } catch {}
+    try { await import("./ride-controls.js"); } catch {}
+    try { await import("./modular-catalogue.js"); } catch {}
+  },
+});
 </script>
 <script>
 if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("./sw.js", { scope: "./" }));

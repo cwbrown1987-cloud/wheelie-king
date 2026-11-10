@@ -1,8 +1,9 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+
+const browser=await launchBrowser();
 try{
- const page=await browser.newPage({viewport:{width:1280,height:720},serviceWorkers:'block'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage(pageOptions({viewport:{width:1280,height:720},serviceWorkers:'block'})),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await page.waitForFunction(()=>globalThis.__WK_ROOM__&&globalThis.__WK_SAVED_BUILDS__);
  await page.getByRole('button',{name:'⌂ Garage',exact:true}).click();await page.getByRole('button',{name:'Stock BMX',exact:true}).click();await page.getByRole('button',{name:'Ride options',exact:true}).click();
  await page.getByRole('textbox',{name:'Ride name',exact:true}).fill('Jaxon’s BMX');await page.getByRole('button',{name:'Rename',exact:true}).click();

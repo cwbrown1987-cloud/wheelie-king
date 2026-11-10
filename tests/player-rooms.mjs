@@ -1,10 +1,11 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 mkdirSync('wk-shots/player-rooms',{recursive:true});
 try{
- const p=await browser.newPage({viewport:{width:1500,height:850},serviceWorkers:'block'}),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ const p=await browser.newPage(pageOptions({viewport:{width:1500,height:850},serviceWorkers:'block'})),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>globalThis.__WK_EQUIP__&&globalThis.__WK_ROOM__&&globalThis.__WK_SAVED_BUILDS__);
  await p.getByRole('button',{name:'⌂ Garage',exact:true}).click();await p.waitForFunction(()=>__WK_ROOM__.view==='garage');assert.equal(await p.locator('[data-rail="left"]').isVisible(),false);assert.equal(await p.locator('#wk-lounge .store-side').count(),0);
  await p.getByRole('button',{name:'Stock BMX',exact:true}).click();await p.waitForFunction(()=>!__WK_ROOM__.renderer.state().transition);const focused=await p.evaluate(()=>__WK_ROOM__.renderer.state().position);assert(Math.hypot(...focused)<7);

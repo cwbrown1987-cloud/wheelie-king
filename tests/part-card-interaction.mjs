@@ -1,7 +1,8 @@
+import {launchBrowser} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 try {
  for(const touch of [false,true]) {
   const ctx=await browser.newContext({viewport:touch?{width:900,height:420}:{width:1200,height:780},hasTouch:touch,serviceWorkers:'block'}),p=await ctx.newPage(),errors=[];

@@ -1,9 +1,10 @@
+import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+
 import {mkdirSync,writeFileSync} from 'node:fs';
-const browser=await chromium.launch({channel:'chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser=await launchBrowser();
 try {
- const page=await browser.newPage({viewport:{width:1200,height:780},serviceWorkers:'block'}),errors=[];
+ const page=await browser.newPage(pageOptions({viewport:{width:1200,height:780},serviceWorkers:'block'})),errors=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/wk (modular|frame|hook|trax|detail)/.test(m.text()))errors.push(m.text())});
  await page.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await page.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await page.waitForFunction(()=>globalThis.__WK_VIEW__);
  await page.locator('[data-cat="bars"]').click();await page.waitForFunction(()=>globalThis.__WK_EQUIP__);
