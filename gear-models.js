@@ -16,8 +16,7 @@ export function gearModel(T,p,{single=false}={}){
   const cut=y=>open?1.08*Math.sqrt(Math.max(0,1-((y+.035)/.12)**2)):y>-.055&&y<.075?.98*Math.pow(Math.max(0,1-((y-.01)/.065)**4),.25):0;
   const surface=(lens=false)=>{const vertices=[],indices=[],rows=64,cols=64,low=lens?-.055:(open?-.080:-.113),high=.132;for(let j=0;j<=rows;j++){const y=lens?-.055+j/rows*.13:low+j/rows*(high-low),r=Math.sqrt(Math.max(0,1-(y/.132)**2)),c=cut(y);for(let i=0;i<=cols;i++){const angle=lens?-c+i/cols*c*2:c+i/cols*(Math.PI*2-c*2);vertices.push(Math.cos(angle)*r*RIDER_SPEC.helmet.x*(lens?.986:1),y,Math.sin(angle)*r*RIDER_SPEC.helmet.z*(lens?.986:1));}}for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;indices.push(a,b,c,b,d,c)}const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;};
   let paint=primary;
-  if(p.theme==='lime')paint=new T.MeshBasicMaterial({color:'#8cff00',side:T.DoubleSide,toneMapped:false,fog:false});
-  else{primary.emissive.set(p.primary);primary.emissiveIntensity=.55;primary.roughness=.4;primary.side=T.DoubleSide}
+  primary.emissive.set(p.theme==='lime'?'#8cff00':p.primary);primary.emissiveIntensity=p.theme==='lime'?.85:.55;primary.roughness=.4;primary.side=T.DoubleSide;if(p.theme==='lime')primary.color.set('#8cff00');
   const shell=mesh('helmet:shell',new T.SphereGeometry(.13,32,24),paint);shell.scale.set(1.15,1.08,1.12);shell.receiveShadow=false;shell.renderOrder=2;
   const liner=new T.SphereGeometry(.112,32,20,0,Math.PI*2,0,Math.PI*(open?.60:.88));liner.scale(.98,1.09,.96);const linerMat=material('#111a20');linerMat.side=T.BackSide;mesh('helmet:liner',liner,linerMat);
   if(!open){

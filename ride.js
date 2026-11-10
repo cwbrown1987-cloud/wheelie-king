@@ -51,8 +51,19 @@ export function trimTinyMeshes(bike,limit=RIDE_TINY_MESH_M){let hidden=0,tris=0;
 export function cloneForRide(src) {
  const originals=[];let bike;try{src.traverse(o=>{originals.push([o,o.userData]);o.userData=rideData(o.userData)});bike=src.clone(true)}finally{for(const [o,data]of originals)o.userData=data;}
 
+  // src.clone(true) shares materials and geometries with the garage bike. The
+  // garage can later wear()/dispose the helmet, which left the ride copy with
+  // a live graph but dead GPU buffers — the lime shell never appeared and the
+  // jersey collar read as a dark-blue disc. Give the rider its own resources.
   bike.traverse(o=>{
-    if(!o.isMesh||!o.userData.wkFlashBase)return;
+    if(!o.isMesh||o.isInstancedMesh)return;
+    let rider=false,p=o;while(p){if(p.name==='wk:rider'){rider=true;break}p=p.parent}
+    if(rider){
+      if(o.geometry)o.geometry=o.geometry.clone();
+      const cm=m=>m.clone();
+      if(o.material)o.material=Array.isArray(o.material)?o.material.map(cm):cm(o.material);
+    }
+    if(!o.userData.wkFlashBase)return;
     const base=o.userData.wkFlashBase;
     const restore=m=>{const out=m.clone();if(out.emissive){out.emissive.setHex(base.color);out.emissiveIntensity=base.intensity;}return out;};
     o.material=Array.isArray(o.material)?o.material.map(restore):restore(o.material);
