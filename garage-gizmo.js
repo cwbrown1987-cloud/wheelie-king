@@ -38,7 +38,11 @@ export function garageGizmo(host,getRig,onRemove,onEdit){
  const up=e=>{if(!drag?.kind||e.pointerId!==drag.id)return;e.stopImmediatePropagation();const r=getRig();try{drag.target.releasePointerCapture(e.pointerId)}catch{}drag=null;delete host.dataset.wkGizmoDrag;if(r)r.controls.enabled=true;};
  const hover=e=>{if(drag||e.pointerType!=='mouse')return;const r=getRig();if(!r||e.target!==r.controls.domElement)return;const k=g3?.group.visible?handleAt(e):null;r.controls.domElement.style.cursor=k?(k==='move'?'move':'grab'):''};
  host.addEventListener('pointerdown',down,true);host.addEventListener('pointermove',move,true);host.addEventListener('pointermove',hover);host.addEventListener('pointerup',up,true);host.addEventListener('pointercancel',up,true);
- const place=(b,p)=>{const r=getRig(),v=p.clone().project(r.camera),canvas=r.controls.domElement.getBoundingClientRect(),frame=host.getBoundingClientRect();b.style.left=((canvas.left-frame.left+(v.x+1)*canvas.width/2)*host.clientWidth/frame.width)+'px';b.style.top=((canvas.top-frame.top+(-v.y+1)*canvas.height/2)*host.clientHeight/frame.height)+'px';};
+ const place=(b,p)=>{const r=getRig(),v=p.clone().project(r.camera),canvas=r.controls.domElement.getBoundingClientRect(),frame=host.getBoundingClientRect();b.style.left=((canvas.left-frame.left+(v.x+1)*canvas.width/2)*host.clientWidth/frame.width)+'px';let y=(canvas.top-frame.top+(-v.y+1)*canvas.height/2)*host.clientHeight/frame.height;
+ // keep handles clear of a toolbar along the top of the room (garage), and inside the frame
+ const half=(b.offsetHeight||44)/2+6,tools=host.querySelector('.room-tools');let min=half;
+ if(tools&&tools.getClientRects().length){const t=tools.getBoundingClientRect();if(t.top-frame.top<frame.height/2)min=Math.max(min,(t.bottom-frame.top)*host.clientHeight/frame.height+half)}
+ b.style.top=Math.max(min,y)+'px';};
  const update=()=>{raf=requestAnimationFrame(update);const r=getRig(),o=object();root.hidden=!o;if(!o){if(g3)g3.group.visible=false;return;}const bounds=new T.Box3().setFromObject(o.holder),center=bounds.getCenter(new T.Vector3()),editing=r.state().arrange;
   place(edit,new T.Vector3(center.x+.22,bounds.max.y+.05,center.z));(edit.dataset.icon!==(editing?'check':'edit')&&dockButton(edit,editing?'check':'edit'));edit.setAttribute('aria-label',editing?'Finish editing object':'Edit object');
   for(const b of [lift,remove])b.hidden=!editing;
