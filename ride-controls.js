@@ -38,6 +38,7 @@ if(typeof document!=='undefined'){
  .ride-replay-overlay-play{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%!important;border:3px solid #d9ffe8!important;background:#0d2418e8!important;color:#d9ffe8!important;font:900 28px system-ui!important;box-shadow:0 0 24px #39ff7a66,0 8px 20px #000a;z-index:2}
  .ride-replay-overlay-play:hover{background:#95ef9f!important;color:#142b1b!important;transform:translate(-50%,-50%)!important}
  .ride-replay button.ride-replay-overlay-play:active{transform:translate(-50%,-50%) scale(.96)!important}
+ .ride-replay-overlay-play[hidden]{display:none!important}
  .ride-replay-scrub{display:flex;align-items:center;gap:10px;margin:10px 0 8px;font:700 12px system-ui;color:#c7ead6}
  .ride-replay-scrub label{display:flex;align-items:center;gap:8px;flex:1}
  .ride-replay-scrub input,.ride-theatre-seek input{flex:1;width:100%;accent-color:#6dff9a}

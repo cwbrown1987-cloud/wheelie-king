@@ -41,6 +41,7 @@ try{
   await p.waitForFunction(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]'),p=document.querySelector('.ride-replay');return !v.paused&&b.hidden&&!p.classList.contains('is-theatre')&&v.currentTime>t0+0.12},tPlay,{timeout:8000});
   const played=await p.evaluate(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]');return {ct:v.currentTime,paused:v.paused,hidden:b.hidden,theatre:document.querySelector('.ride-replay').classList.contains('is-theatre'),t0}},tPlay);
   assert(!played.paused&&played.hidden&&!played.theatre&&played.ct>played.t0+0.12,`${w}x${h} centre play starts the video `+JSON.stringify(played));
+  assert.equal(await p.evaluate(()=>getComputedStyle(document.querySelector('[data-r=overlay-play]')).display),'none',`${w}x${h} centre play is visually hidden`);
   // tapping the video (away from chrome) toggles pause
   const stage=await p.locator('.ride-replay-stage').boundingBox();
   await p.mouse.click(stage.x+stage.width*0.5,stage.y+stage.height*0.42);
@@ -118,8 +119,9 @@ try{
   if(shots)await p.screenshot({path:`${shots}/replay-1280x720-paused.png`});
   const t0=await p.evaluate(()=>document.querySelector('.ride-replay video').currentTime);
   await p.locator('[data-r=overlay-play]').click();
-  await p.waitForFunction(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]');return !v.paused&&b.hidden&&v.currentTime>t0+0.12},t0,{timeout:8000});
+  await p.waitForFunction(t0=>{const v=document.querySelector('.ride-replay video'),b=document.querySelector('[data-r=overlay-play]');return !v.paused&&b.hidden&&getComputedStyle(b).display==='none'&&v.currentTime>t0+0.12},t0,{timeout:8000});
   if(shots)await p.screenshot({path:`${shots}/replay-1280x720-playing.png`});
+  assert.equal(await p.evaluate(()=>getComputedStyle(document.querySelector('[data-r=overlay-play]')).display),'none','desktop centre play is visually hidden');
   assert.deepEqual(errors,[]);console.log('replay-overlay desktop 1280x720 ok',JSON.stringify(desk));
   await p.close();
  }
