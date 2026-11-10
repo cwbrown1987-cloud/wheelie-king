@@ -28,7 +28,7 @@ function resolveChangedTests(){
   {re:/^(shared-world|world-rooms|garage-room3d|garage-furniture|loading-tips)\.js$/, tests:['shared-world','world-room']},
   {re:/^(src\/(props|rooms)\/|assets\/workshop\/|workshop-placement\.js$)/, tests:['workshop-kit','shared-world','world-room']},
   {re:/^workshop-/, tests:['workshop-presentation','workshop-mobile','workshop-batch']},
-  {re:/^ride-(pause|replay|buffer)/, tests:['ride-pause-replay','replay-playback','replay-blocks','replay-dropin']},
+  {re:/^ride-(pause|replay|buffer)/, tests:['ride-pause-replay','replay-playback','replay-blocks','replay-dropin','replay-dropin-stress']},
   {re:/^ride-gallery/, tests:['ride-gallery']},
   {re:/^ride-camera/, tests:['ride-camera']},
   {re:/^(ride\.js|ride-loop|ride-physics|ride-tricks|ride-environment|ride-scenery|race-launch)/, tests:['ride-loop','ride-finish','race-balance','crash-ride']},
