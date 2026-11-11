@@ -23,7 +23,7 @@ function plant(p,x,z){
 
 const report={};
 try{
-  for(const track of ['arena','sample3d']){
+  for(const track of ['sample3d']){
     const {p,errors}=await open(track);
     const spawn=track==='arena'?{x:0,z:0}:{x:8,z:0};
 

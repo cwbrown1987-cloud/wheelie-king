@@ -46,7 +46,7 @@ function read(p){
 const browser=await launchBrowser();
 try{
   const report={};
-  for(const track of ['arena','sample3d']){
+  for(const track of ['sample3d']){
     const {p,errors}=await openRide(browser,track);
     const spawn=track==='arena'?{x:0,z:20}:{x:8,z:0};
 

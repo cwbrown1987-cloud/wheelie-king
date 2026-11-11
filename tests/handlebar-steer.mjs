@@ -1,9 +1,9 @@
 // Handlebar steering: no yaw at a standstill, kinematic bicycle radius, tyre grip, slower burnout.
 import assert from 'node:assert/strict';
-import {bikeParams,makeState,step,makeArenaTerrain} from '../ride-physics.js';
+import {bikeParams,makeState,step,makePlaygroundTerrain} from '../ride-physics.js';
 import {stepHeading,maxSteerAngle,STEER_MAX_LOW,STEER_MAX_HIGH,STEER_BURNOUT} from '../ride-freeroam.js';
 
-const ter=makeArenaTerrain(),P=bikeParams({powertrain:'electric',P:4000,nm:80,wb:1.3,grip:1});
+const ter=makePlaygroundTerrain(),P=bikeParams({powertrain:'electric',P:4000,nm:80,wb:1.3,grip:1});
 assert.equal(P.wb,1.3);
 
 const still=makeState(P,0,ter);still.vx=0;still.ground=[true,true];

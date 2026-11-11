@@ -27,13 +27,6 @@ export function pauseMenuMarkup(level) {
       <button type="button" data-r="mode-arena" aria-pressed="${arena ? 'true' : 'false'}">PLAYGROUND</button>
     </div>
   </div>
-  ${arena ? `<div class="ride-pause-mode" role="group" aria-label="Physics">
-    <span class="ride-pause-mode-label">Physics</span>
-    <div class="ride-pause-seg">
-      <button type="button" data-r="phys-classic" aria-pressed="true">Classic</button>
-      <button type="button" data-r="phys-jolt" aria-pressed="false">Jolt</button>
-    </div>
-  </div>` : ''}
   <button type="button" class="ride-pause-replay" data-r="menu-replay"><span aria-hidden="true">●</span> Replay last 20s</button>
   <button type="button" data-r="menu-gallery"><span aria-hidden="true">🖼</span> Gallery</button>
 </section>`;
@@ -47,7 +40,7 @@ function levelOf(opts) {
 
 export function mountRidePause(ui, opts) {
   const {
-    getPaused, setPaused, onRespawn, onRestart, onMode, onReplay, onGallery, onPhysics, releaseControls, rootEl,
+    getPaused, setPaused, onRespawn, onRestart, onMode, onReplay, onGallery, releaseControls, rootEl,
   } = opts;
   const fab = ui.querySelector('[data-r="pause"]');
   const menu = ui.querySelector('.ride-pause-menu');
@@ -55,21 +48,13 @@ export function mountRidePause(ui, opts) {
   const sampleBtn = ui.querySelector('[data-r="mode-sample3d"]');
   const endlessBtn = ui.querySelector('[data-r="mode-endless"]');
   const arenaBtn = ui.querySelector('[data-r="mode-arena"]');
-  const physClassic = ui.querySelector('[data-r="phys-classic"]');
-  const physJolt = ui.querySelector('[data-r="phys-jolt"]');
   let current = levelOf(opts);
-  let phys = opts.physics === 'jolt' ? 'jolt' : 'classic';
 
   function syncMode() {
     trialsBtn?.setAttribute('aria-pressed', String(current === 'trials'));
     sampleBtn?.setAttribute('aria-pressed', String(current === 'sample3d'));
     endlessBtn?.setAttribute('aria-pressed', String(current === 'flat'));
     arenaBtn?.setAttribute('aria-pressed', String(current === 'arena'));
-  }
-  function syncPhysics(next) {
-    if (next) phys = next === 'jolt' ? 'jolt' : 'classic';
-    physClassic?.setAttribute('aria-pressed', String(phys === 'classic'));
-    physJolt?.setAttribute('aria-pressed', String(phys === 'jolt'));
   }
 
   function syncFab(paused) {
@@ -120,13 +105,10 @@ export function mountRidePause(ui, opts) {
   sampleBtn?.addEventListener('click', () => pick('sample3d'));
   endlessBtn?.addEventListener('click', () => pick('flat'));
   arenaBtn?.addEventListener('click', () => pick('arena'));
-  physClassic?.addEventListener('click', () => { if (phys === 'classic') return; syncPhysics('classic'); onPhysics?.('classic'); });
-  physJolt?.addEventListener('click', () => { if (phys === 'jolt') return; syncPhysics('jolt'); onPhysics?.('jolt'); });
   syncMode();
-  syncPhysics(phys);
 
   return {
-    open, close, toggle, syncFab, showMenu, syncPhysics,
+    open, close, toggle, syncFab, showMenu,
     setModeLabel(next) { current = next === true ? 'flat' : next === false ? 'trials' : (next || current); syncMode(); },
     get menu() { return menu; },
     get fab() { return fab; },

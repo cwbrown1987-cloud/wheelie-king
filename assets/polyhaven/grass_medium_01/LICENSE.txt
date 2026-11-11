@@ -1,7 +1,0 @@
-Grass Medium 01
-https://polyhaven.com/a/grass_medium_01
-Authors: Rob Tuytel (Photography), Rico Cilliers (Modeling)
-Licence: CC0 1.0 (https://polyhaven.com/license)
-Attribution is not required.
-This folder is the official 1K glTF download (lowest resolution) plus the
-matching 1K diffuse, normal, ARM and alpha textures.

@@ -1,7 +1,6 @@
 import { stepLoop } from './ride-loop.js';
 import {roundedProfile} from './terrain-profile.js';
 import { attachFreeRoam, stepHeading, collideFreeRoam } from './ride-freeroam.js';
-import { makeArenaTrack } from './ride-track.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
 // Units: metres, kg, seconds. x forward, y up. pitch: + = nose up (wheelie).
 export function makeTerrain(seed = 1) {
@@ -39,69 +38,14 @@ export function makeSampleTerrain(){
   const {pts:rounded,h,slope}=roundedProfile(pts);
   return attachFreeRoam({pts:rounded,h,slope,puddles:[],checkpoints:[0,64,128],kickers:[48,108,154],finish:196,inPuddle:()=>false});
 }
-const ARENA_HALF=150;
-const ARENA_BUMPS=[[-30,40,8,6,.7],[20,-45,9,7,.85],[-60,-20,10,8,.6],[55,55,8,8,.75],[-80,70,12,9,.9],[90,-80,9,7,.65]];
-// Curved kickers along the S-track, plus a tabletop on the opening straight.
-// The off-track "big" kicker stays a 3D hit. Copies get a heading in makeArenaTerrain.
-export const ARENA_RAMPS=[
-  {name:'table',kind:'table',x:-52,z:0,len:20,w:6,peak:1.95,up:.30,down:.62,yaw:0},
-  // Kickers: steep lip (quarter-sine takeoff), short backside, gap, rounded landing.
-  {name:'small',kind:'kicker',x:22,z:0,w:5.8,takeoff:7,peak:1.1,back:1.1,gap:5,land:8,landPeak:0.95,yaw:0},
-  {name:'medium',kind:'kicker',x:54,z:12,w:5.8,takeoff:6.8,peak:2.05,back:1.1,gap:5.5,land:8,landPeak:1.7,yaw:0},
-  {name:'big',kind:'kicker',x:70,z:-28,w:6,takeoff:7.5,peak:2.2,back:1.2,gap:7.5,land:10,landPeak:1.85,yaw:0},
-  {name:'large',kind:'kicker',x:112,z:0,w:6.2,takeoff:8.5,peak:3.3,back:1.4,gap:10,land:12,landPeak:2.7,yaw:0}
-];
-function arenaBump(x,z,mx,mz,rx,rz,peak){const dx=(x-mx)/rx,dz=(z-mz)/rz,r2=dx*dx+dz*dz;if(r2>=1)return 0;const t=1-r2;return peak*t*t}
-export function rampLength(r){
-  if(r.kind==='table')return r.len;
-  return (r.takeoff||0)+(r.back||0)+(r.gap||0)+(r.land||0);
-}
-export function rampLipX(r){return r.kind==='table'?(r.up||.32)*r.len:(r.takeoff||0)}
-// Smooth ridden faces: 0 slope at the base and at both ends of the landing. The lip is a
-// launch edge (steep), then a short backside the rider does not roll.
-export function rampHeightAt(r,lx){
-  if(r.kind==='table'){
-    const len=r.len,t=Math.max(0,Math.min(1,lx/len)),peak=r.peak,a=r.up||.32,b=r.down||.64;
-    if(t<=a)return peak*(1-Math.cos(Math.PI*t/a))/2;
-    if(t<b)return peak;
-    return peak*(1+Math.cos(Math.PI*(t-b)/(1-b)))/2;
-  }
-  const a=r.takeoff,b=r.back||1.2,g=r.gap||0,L=r.land||0,peak=r.peak;
-  if(lx<0||lx>a+b+g+L)return 0;
-  if(lx<=a)return peak*(1-Math.cos(Math.PI*lx/(2*a)));
-  if(lx<=a+b){const u=(lx-a)/b;return peak*(1-u)*(1-u)}
-  if(lx<=a+b+g)return 0;
-  const u=(lx-(a+b+g))/L,peakL=r.landPeak??peak*.85,up=Math.min(.35,(r.landUp??Math.min(1.2,L*.22))/L);
-  if(u<=up)return peakL*(1-Math.cos(Math.PI*u/up))/2;
-  return peakL*(1+Math.cos(Math.PI*(u-up)/(1-up)))/2;
-}
-export function rampProfile(r,t){return rampHeightAt(r,t*rampLength(r))}
-export function arenaRamp(x,z,r){
-  const c=Math.cos(r.yaw||0),n=Math.sin(r.yaw||0),dx=x-r.x,dz=z-r.z,lx=dx*c+dz*n,lz=-dx*n+dz*c,len=rampLength(r);
-  if(lx<0||lx>len||Math.abs(lz)>r.w/2)return 0;
-  const fade=.9,u=Math.max(0,Math.min(1,(Math.abs(lz)-(r.w/2-fade))/fade)),edge=1-u*u*(3-2*u);
-  return rampHeightAt(r,lx)*edge;
-}
-export function makeArenaTerrain(){
-  const track=makeArenaTrack();
-  const ramps=ARENA_RAMPS.map(r=>{
-    const n=track.nearest(r.x,r.z);
-    // On the main x-straight keep yaw at 0 so the prism stays on the ribbon.
-    const onStraight=Math.abs(r.z)<1;
-    return {...r,yaw:r.name==='big'||onStraight?0:n.heading};
-  });
-  function height(x,z){
-    let y=0;
-    for(const [mx,mz,rx,rz,peak] of ARENA_BUMPS)y=Math.max(y,arenaBump(x,z,mx,mz,rx,rz,peak));
-    for(const r of ramps)y=Math.max(y,arenaRamp(x,z,r));
-    return y;
-  }
-  function slopeAt(x,z,yaw){const d=.3,c=Math.cos(yaw||0),n=Math.sin(yaw||0);return Math.atan2(height(x+c*d,z+n*d)-height(x-c*d,z-n*d),2*d)}
+// Playground: one big flat plane (Jolt drives the bike there).
+const PLAYGROUND_HALF=1000;
+export function makePlaygroundTerrain(){
+  const height=()=>0;
   return {
-    pts:[[-ARENA_HALF,0],[ARENA_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,slopeAt,
-    puddles:[],checkpoints:[0],kickers:ramps.map(r=>r.x),ramps,bumps:ARENA_BUMPS,
-    finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,arena:true,boxes:[],track,
-    bounds:{xmin:-ARENA_HALF,xmax:ARENA_HALF,zmin:-ARENA_HALF,zmax:ARENA_HALF},gates:null
+    pts:[[-PLAYGROUND_HALF,0],[PLAYGROUND_HALF,0]],h:()=>0,slope:()=>0,height,slopeAt:()=>0,
+    puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,boxes:[],
+    bounds:{xmin:-PLAYGROUND_HALF,xmax:PLAYGROUND_HALF,zmin:-PLAYGROUND_HALF,zmax:PLAYGROUND_HALF},gates:null
   };
 }
 export function bikeParams(stats = {}) {

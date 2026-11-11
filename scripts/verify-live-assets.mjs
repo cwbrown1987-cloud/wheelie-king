@@ -4,7 +4,7 @@ import {readdirSync} from 'node:fs';
 import {join,relative} from 'node:path';
 import {root} from './package.mjs';
 const base=(process.argv[2]||'https://wheelie-king-beta.pages.dev').replace(/\/$/,'');
-const dirs=['assets/hdri','assets/ambientcg','assets/polyhaven'];
+const dirs=['assets/hdri','assets/ambientcg'];
 const files=dirs.flatMap(d=>readdirSync(join(root,d),{recursive:true,withFileTypes:true}).filter(e=>e.isFile()&&!/LICENSE/i.test(e.name)).map(e=>relative(root,join(e.parentPath,e.name)).split('\\').join('/')));
 const bad=[];
 await Promise.all(files.map(async f=>{
