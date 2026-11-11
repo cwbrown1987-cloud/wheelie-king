@@ -10,7 +10,8 @@ const toSpeed=(j,s,v)=>{for(let i=0;i<900&&s.vx<v;i++)j.step(s,P,{throttle:.6},d
 const R={};
 { // wheelie: toggle on, feather throttle around a 35° balance point
   const target=35/D;
-  const feather=(s)=>{const e=target-s.pitch-.35*(s.w||0);return e>=0?{mono:true,throttle:Math.min(1,.45+2.5*e)}:{mono:true,throttle:Math.max(.15,.45+2.5*e),brake:e<-.15?Math.min(.6,-e):0};};
+  // rider bot: feather the throttle around the target and cover the rear brake past it (as a real rider does)
+  const feather=(s)=>{const e=target-s.pitch-.35*(s.w||0);return e>=0?{mono:true,throttle:Math.min(1,.35+2.5*e)}:{mono:true,throttle:Math.max(0,.35+3*e),brake:e<-.03?Math.min(.8,-3*e):0};};
   let {j,s}=await bike();toSpeed(j,s,15/3.6);
   let up=0,best=0,pmax=0;for(let t=0;t<6&&!s.crashed;t+=dt){j.step(s,P,feather(s),dt);if(!s.ground[1]&&s.pitch>10/D){up+=dt;best=Math.max(best,up);}else up=0;pmax=Math.max(pmax,s.pitch);}
   const held={seconds:best,maxDeg:pmax*D,crashed:s.crashed||null};

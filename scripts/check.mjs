@@ -35,7 +35,7 @@ function resolveChangedTests(){
   {re:/^(ride-controls|panel-scroll|rotate-lock|index\.html)/, tests:['ride-controls','panel-scroll','no-page-scroll','menus-fit','rotate-lock','crash-bar','ride-tricks-menu','chase-controls']},
   {re:/^ride\.js$/, tests:['chase-controls','ride-view-toggle','free-roam','steer-look','ad-tilt-side']},
   {re:/ride-freeroam|^ride-physics\.js$/, tests:['free-roam','handlebar-steer','sample3d-physics','steer-look']},
-  {re:/^(ride-(playground|jolt|pause|profile|controls)|version)\.js$/, tests:['v34-flat','v34-parts','v34-controls','v34-rewind','v2-new-frame','v34-tricks-ui']},
+  {re:/^(ride-(playground|jolt|pause|profile|controls)|version)\.js$/, tests:['v34-flat','v34-parts','v34-controls','v34-rewind','v2-new-frame','v34-tricks-ui','v2-playground-rewind']},
   {re:/^(ride-quality|ride-lod|ride-themes)/, tests:['ride-quality','ride-lod','ride-themes','quality-lifecycle']},
   {re:/^crash-/, tests:['crash-physics','crash-ride']},
   {re:/^(ride-sample3d|ride-physics)\.js$/, tests:['sample-3d-track']},

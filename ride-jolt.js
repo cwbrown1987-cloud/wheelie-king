@@ -40,7 +40,7 @@ export function joltSettingsFrom(profile, P) {
     // Spring rate rule: the sample's Hz is for its 0.2 m stroke; a shorter stroke needs a
     // proportionally stiffer spring for the same sag ratio (Hz ~ 1/sqrt(travel)).
     const hz = w?.hz > 0 ? w.hz : (profile ? Math.max(1, Math.min(4, hz0 * Math.sqrt((S.backSuspMax - S.backSuspMin) / travel))) : hz0);
-    return { min: minL, max: minL + travel, travel, hz, damping: w?.damping ?? null };
+    return { min: minL, max: minL + travel, travel, hz, hzFromData: w?.hz > 0, damping: w?.damping ?? null };
   };
   const front = axle(pr.front, S.frontSuspMin, S.frontSuspMax, S.frontSuspFreq);
   const rear = axle(pr.rear, S.backSuspMin, S.backSuspMax, S.backSuspFreq);
@@ -62,7 +62,11 @@ export function joltSettingsFrom(profile, P) {
       const x = i / 10, omegaW = Math.max(1e-3, x * wheelRPM * 2 * Math.PI / 60);
       curve.push([x, e.power > 0 ? Math.min(1, e.power / (e.torque * omegaW)) : 1]);
     }
-    engine = { inertia: 0.005, maxTorque: e.torque / ratio, minRPM: MOTOR_RPM * 0.02, maxRPM: MOTOR_RPM, curve, gears: [1], reverse: [-1], diff: ratio, shiftUpRPM: MOTOR_RPM * 2, shiftDownRPM: 0 };
+    curve.push([0.97, curve[curve.length - 1][1]]); curve[curve.length - 2][1] = curve[curve.length - 1][1];
+    curve.splice(curve.length - 2, 1); curve.push([1, 0]); // governor: torque fades to 0 over the last 3 % to the part's top speed
+    // Rotor inertia as seen at the wheel = inertia x ratio^2. Fix that at 0.02 kg·m² (a light flywheel)
+    // so a 43:1 pedal-bike reduction doesn't add ~140 kg of effective mass (v2.0 QA: stock BMX crawled).
+    engine = { inertia: 0.02 / (ratio * ratio), maxTorque: e.torque / ratio, minRPM: MOTOR_RPM * 0.02, maxRPM: MOTOR_RPM, curve, gears: [1], reverse: [-1], diff: ratio, shiftUpRPM: MOTOR_RPM * 2, shiftDownRPM: 0 };
   } else {
     engine = { maxTorque: S.engineMaxTorque, minRPM: S.engineMinRPM, maxRPM: S.engineMaxRPM, curve: null, gears: S.gearRatios, reverse: S.reverseGearRatios, diff: S.differentialRatio, shiftUpRPM: S.shiftUpRPM, shiftDownRPM: S.shiftDownRPM };
   }
@@ -74,6 +78,13 @@ export function joltSettingsFrom(profile, P) {
     frontBrake: S.frontBrakeTorque * brakeScale, rearBrake: S.backBrakeTorque * brakeScale,
     engine, driveFront: e.driveAxle === 'front',
     leanScale: profile ? mass / S.mass : 1,
+    // How far full drive alone goes to lifting the front (weight transfer / static front load).
+    // The wheelie pop (rider yanking the bars) makes up the deficit, so a strong e-moto gets
+    // none and a 250 W BMX gets most of it.
+    liftRatio: profile && e.torque > 0 ? (e.torque / wheelR) * (pr.comH || 0.9) / (wb * mass * 9.81 * Math.max(0.15, comBack)) : 1,
+    // Wheel inertia (kg·m²): part data `wheelInertia`, else ~8% of the bike's own mass at the rim radius
+    // (e-moto ~0.5, BMX ~0.1). Jolt's 0.9 default is a car wheel: on a BMX it adds ~28 kg of spin mass.
+    wheelInertia: profile ? (pr.wheelInertia ?? Math.max(0.04, 0.08 * Math.max(5, mass - 75) * wheelR * wheelR)) : null,
   };
 }
 
@@ -166,6 +177,7 @@ export function createJoltRide({ P, profile = null }) {
           ws.mSteeringAxis = new Jolt.Vec3(0, 1, -Math.tan(C.caster)).Normalized(); // = -suspension direction
         }
         ws.mRadius = C.wheelR;
+        if (C.wheelInertia) ws.mInertia = C.wheelInertia;
         ws.mWidth = S.frontWheelWidth;
         ws.mSuspensionMinLength = w.min;
         ws.mSuspensionMaxLength = w.max;
@@ -215,6 +227,42 @@ export function createJoltRide({ P, profile = null }) {
 
       // PATCH (visual mapping only): the game draws the bike from s.y = centre-of-mass height
       // (P.comH above ground). Settle once at rest and record the sample body's ride height.
+      // PATCH (sag): Jolt sizes a frequency spring from the effective mass at the contact, which for a
+      // bike's low pitch inertia is small, so the sample's springs bottom the fork at rest (sample front
+      // sits at min length). Set rider sag like a real setup: rear 30 %, front 25 % of travel, by scaling
+      // each spring Hz from a measured settle (a few iterations). Hz given in part data is left alone.
+      const SAG = [0.25, 0.30]; // [front, rear]
+      api.sag = null;
+      if (profile) {
+        const spawn = () => { bodyInterface.SetPositionRotationAndVelocity(body.GetID(), new Jolt.RVec3(0, C.originH + 0.02, 0), new Jolt.Quat(0, 0, 0, 1), new Jolt.Vec3(0, 0, 0), new Jolt.Vec3(0, 0, 0)); if (constraint.ResetWarmStart) constraint.ResetWarmStart(); };
+        const axleOf = i => (i === 0 ? C.front : C.rear);
+        for (let it = 0; it < 8; it++) {
+          spawn();
+          for (let i = 0; i < 120; i++) { controller.SetDriverInput(0, 0, 0, false); jolt.Step(1 / 60, COLLISION_STEPS); }
+          const comp = [0, 1].map(i => Math.max(0.02, Math.min(1, (axleOf(i).max - wheel(i).GetSuspensionLength()) / axleOf(i).travel)));
+          api.sag = comp;
+          let done = true;
+          for (const i of [0, 1]) {
+            const ax = axleOf(i);
+            if (ax.hzFromData || Math.abs(comp[i] - SAG[i]) < 0.03) continue;
+            done = false;
+            // bottomed (comp 1) under-reports: push harder
+            const k = comp[i] >= 0.99 ? 1.6 : Math.sqrt(comp[i] / SAG[i]);
+            ax.hz = Math.max(1, Math.min(8, ax.hz * k));
+            wheelSet[i].mSuspensionSpring.mFrequency = ax.hz;
+          }
+          // Level at rest: move the front wheel mount so the sprung body sits at 0° pitch with the rider on.
+          const pitchRest = Math.asin(Math.max(-1, Math.min(1, axes().fwd.y)));
+          if (Math.abs(pitchRest) > 0.004) {
+            done = false;
+            const m = wheelSet[0].mPosition;
+            wheelSet[0].mPosition = new Jolt.Vec3(m.GetX(), m.GetY() + Math.tan(pitchRest) * (C.frontZ - C.rearZ), m.GetZ());
+          }
+          api.restPitch = pitchRest;
+          if (done) break;
+        }
+        spawn();
+      }
       for (let i = 0; i < 180; i++) { controller.SetDriverInput(0, 0, 0, false); jolt.Step(1 / 60, COLLISION_STEPS); }
       rideLift = body.GetPosition().GetY() - (P?.comH || 0.95);
       api.restY = body.GetPosition().GetY();
@@ -256,6 +304,12 @@ export function createJoltRide({ P, profile = null }) {
     if (inp.mono && brk > 0.05 && thr <= 0.05) {
       // In a wheelie the brake button is the rear brake: a tap brings the nose down.
       mode = 'mono-brake'; handBrake = 0; mForward = 0; mBrake = brk; mPreviousForward = 1;
+      return finishSteer(inp, dt);
+    }
+    if (inp.mono && thr > 0.05 && brk > 0.05 && !wheel(0).HasContact()) {
+      // Front up: throttle + brake is feathering against the rear brake to hold the balance point
+      // (front is airborne so Jolt's foot brake only acts on the rear). Not a drift.
+      mode = 'mono-feather'; handBrake = 0; mForward = thr; mBrake = brk; mPreviousForward = 1;
       return finishSteer(inp, dt);
     }
     if (thr > 0.05 && brk > 0.05) {
@@ -335,7 +389,7 @@ export function createJoltRide({ P, profile = null }) {
     const frontUp = !wheel(0).HasContact() && wheel(1).HasContact();
     // Wheelie off with the front still up: the rider throws their weight forward to set it down.
     // Toggle on = 0.2 s pop: the rider yanks the bars while the front is still down (how low-power bikes get it up).
-    const pop = monoKick > 0 && wheel(0).HasContact() ? 0.35 : 0;
+    const pop = monoKick > 0 && wheel(0).HasContact() ? 0.45 * Math.max(0, Math.min(1, 1 - api.settings.liftRatio)) : 0;
     const shift = ((monoOn ? 0.16 + pop : frontUp ? -0.2 : 0) + Math.max(-1, Math.min(1, inp.lean || 0)) * 0.12 + (mode === 'burnout' ? -0.25 : 0)) * reach;
     if (shift) {
       const tau = RIDER_KG * G * shift * Math.cos(pitch); // nose-up = negative about body right
@@ -452,6 +506,7 @@ export function createJoltRide({ P, profile = null }) {
       x: p.GetX(), y: p.GetY(), z: p.GetZ(), restY: api.restY, rideLift,
       driver: { forward: mForward, right: mRight, brake: mBrake, handBrake, mode, mono: monoOn, stand: standOn, rearLatScale: latScaleNow, previousForward: mPreviousForward },
       engine: { rpm, gear, torque: api.settings.engine.maxTorque, maxRPM: api.settings.engine.maxRPM },
+      calibration: { sagAtRest: api.sag, restPitchBefore: api.restPitch ?? null, frontHz: api.settings.front.hz, rearHz: api.settings.rear.hz, wheelInertia: api.settings.wheelInertia, liftRatio: api.settings.liftRatio, engineInertia: api.settings.engine.inertia ?? null },
       settings: { mass: api.settings.mass, comOffsetY: api.settings.comOffsetY, front: api.settings.front, rear: api.settings.rear, friction: api.settings.friction },
       contact: {
         rear: wR.HasContact() ? { py: wR.GetContactPosition().GetY(), susp: wR.GetSuspensionLength() } : null,

@@ -131,6 +131,7 @@ export function deriveRideProfile({ stats = {}, build = {}, find = () => null, a
       driveAxle: ride.driveAxle || base.driveAxle || 'rear',
     },
     friction: ride.friction ?? 1,
+    wheelInertia: ride.wheelInertia ?? null,
     brakeTorque: ride.brakeTorque ?? 1,
     attach,
     // Rider COM rise when standing on the pegs (standing hip ~1.0 m over the pegs vs seated ~0.25 m over the seat).
