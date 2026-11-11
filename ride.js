@@ -550,10 +550,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     if(!paused&&!reviewing){const qa=qualityMon.sample(cameraDt);if(qa){qualityLog.push(qa.type);if(qa.type==='down'){maxPR=Math.max(.75,maxPR*.8);if(R.shadowMap.enabled){R.shadowMap.enabled=false;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true})}}}}
     leanControls.update(dt);steerSlider.update(dt);
     inp.throttle = Math.max(touch.throttle, keys.w || (!freeRoam&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || (!freeRoam&&keys.arrowdown) ? 1 : 0);
-    const leanKey=freeRoam?((keys.arrowup||0)-(keys.arrowdown||0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
+    const sideView=!!freeRoam&&cameraView==='side';
+    const leanKey=freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey+(tilt?tiltLean:0)))*-1;
     const trackSide=!!ter.track&&cameraView==='side'&&trackLock.mode!=='free'&&trackLock.mode!=='pending';
-    inp.steer = freeRoam&&!trackSide?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0))):0;
+    inp.steer = freeRoam&&!trackSide&&!sideView?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0))):0;
     inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });
     if (!s.crashed && !finished) {

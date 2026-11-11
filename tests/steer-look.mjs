@@ -129,13 +129,14 @@ try{
       assert(side1.camZ>side1.z+3,'side camera stays perpendicular to the track '+JSON.stringify(side1));
       assert(Math.abs(side1.look)<0.05);
     }else{
-      await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();s.vx=3;s.y=ter.height(s.x,s.z||0)+.42;});
-      await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===-1,null,{timeout:3000});
-      await p.waitForTimeout(600);
+      await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.lean===1&&__WK_RIDE_STATE__().inp.steer===0,null,{timeout:3000});
+      await p.waitForTimeout(400);
       side1=await read(p);
+      const lean=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,pitch:__WK_RIDE_STATE__().s.pitch,steer:__WK_RIDE_STATE__().inp.steer}));
       await p.keyboard.up('KeyA');
-      const bar=await p.evaluate(()=>__WK_RIDE_STATE__().s.steer||0);
-      assert(side1.yaw<-0.15,'sample3d side view still steers once moving '+JSON.stringify({...side1,bar}));
+      assert.equal(lean.steer,0,'sample3d side view A/D no longer steer '+JSON.stringify({...side1,lean}));
+      assert.equal(lean.lean,1,'sample3d side view A tilts back '+JSON.stringify(lean));
+      assert(Math.abs(side1.yaw-side0.yaw)<0.08,'sample3d side view A must not yaw '+JSON.stringify({side0,side1}));
       assert(Math.abs(wrap(side1.meshYaw-side1.yaw))<0.4,'side view mesh follows heading');
       assert(side1.camZ>side1.z+3,'side camera stays on the world +Z side '+JSON.stringify(side1));
       assert(Math.abs(side1.camZ-side0.camZ)<2.5,'side camera must not orbit around the bike '+JSON.stringify({side0,side1}));
