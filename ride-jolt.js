@@ -133,7 +133,7 @@ export function createJoltRide({ P, profile = null }) {
   let mForward = 0, mPreviousForward = 1, mRight = 0, mBrake = 0;
   // Rider actions (Project Wheelie style). The rider is not a physics body, so a weight shift
   // is applied as the pitch torque of the rider's weight moving fore/aft over the bike.
-  let stoppieLean = 0, footDown = false, brkWas = false, brkUpT = 9, revArmed = false, leanPrev = 0, wheelSet = null, monoOn = false, stoppieOn = false, prevPitch = null, monoKick = 0, standOn = false, shapes = null, latScaleNow = 1, handBrake = 0, mode = 'ride';
+  let stoppieLean = 0, airT = 0, footDown = false, brkWas = false, brkUpT = 9, revArmed = false, leanPrev = 0, wheelSet = null, monoOn = false, stoppieOn = false, prevPitch = null, monoKick = 0, standOn = false, shapes = null, latScaleNow = 1, handBrake = 0, mode = 'ride';
   const RIDER_KG = 75, G = 9.81;
   let rideLift = 0, wheelR = S.backWheelRadius, destroyed = false;
   const scratch = {};
@@ -525,12 +525,13 @@ export function createJoltRide({ P, profile = null }) {
     const comH = Math.max(0.3, api.settings.comH ?? 0.9), wbC = api.settings.wb, cb = api.settings.comBack;
     const balance = Math.atan2(cb * wbC, comH), stoppieBalance = Math.atan2((1 - cb) * wbC, comH);
     const rearUp = !wheel(1).HasContact() && wheel(0).HasContact();
+    airT = airborne ? airT + dt : 0;
     let body_m = 0; // rider COM shift (m, + = back), limited by how far a rider can move on the bike
     if (airborne) {
       // In the air the rider holds the bike parallel to the flight path (lands both wheels), and the
       // lean input tips it nose-up/down from there (+-20 deg); past 85 % lean the rider yanks it round (to ~+-90 deg). Torque limit = 75 kg x 0.35 m.
       const vh = Math.hypot(vNow.GetX(), vNow.GetZ()), target = Math.max(-0.6, Math.min(0.6, Math.atan2(vNow.GetY(), Math.max(1, vh)))) + lean * 0.35
-        + Math.sign(lean) * Math.max(0, Math.abs(lean) - 0.85) * (globalThis.__WK_TUNE__?.yank ?? 8); // a full yank over-rotates: loop-out / endo
+        + Math.sign(lean) * Math.max(0, Math.abs(lean) - 0.85) * (globalThis.__WK_TUNE__?.yank ?? 8) * Math.min(1, Math.max(0, airT - 0.15) / 0.1); // a full yank in real flight over-rotates: loop-out / endo (not a wheel skipping off a bump)
       const I = api.settings.mass * 0.25, cap = RIDER_KG * G * 0.35;
       const tau = Math.max(-cap, Math.min(cap, I * 14 * (target - pitch) - I * 7 * pitchRate));
       body.AddTorque(new Jolt.Vec3(-a.right.x * tau, -a.right.y * tau, -a.right.z * tau));
