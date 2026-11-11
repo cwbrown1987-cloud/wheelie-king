@@ -174,14 +174,15 @@ try{
   // Side view from off-track glides the bike onto the rail; no snap on the first frames.
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:0,z:40,yaw:0.3,vx:4,vy:0,pitch:0,w:0,air:0,crashed:null,ground:[true,true]});s.y=ter.height(0,40)+.45;__WK_SCENE_VIEW__('side');});
   const mid=await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r((()=>{const st=__WK_RIDE_STATE__();return {z:st.s.z,mode:st.trackLock?.mode,dist:st.trackLock?.dist,vx:st.s.vx,t:st.trackLock?.t,blend:st.cameraBlend};})())))));
-  assert.equal(mid.mode,'gliding','return should start as a glide '+JSON.stringify(mid));
-  assert(mid.z>20,'must not snap onto the track in the first frames, z='+mid.z);
-  assert(mid.vx>2,'forward speed is kept during the glide, vx='+mid.vx);
+  assert.equal(mid.mode,'whipping','return should start as a camera whip '+JSON.stringify(mid));
+  assert(mid.z>20,'must not teleport on the first frames, z='+mid.z);
+  assert(mid.vx>2,'forward speed is kept, vx='+mid.vx);
   await p.waitForFunction(()=>__WK_RIDE_STATE__().trackLock?.mode==='locked'&&__WK_RIDE_STATE__().cameraBlend===0,null,{timeout:8000});
-  const swap=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();const {cam}=__WK_RIDE_SCENE__();return {z:st.s.z,dist:st.trackLock?.dist,mode:st.trackLock?.mode,view:st.cameraView,camZ:cam.position.z,vx:st.s.vx,dpadOn:getComputedStyle(document.querySelector('.ride-dpad')).display,leftOn:getComputedStyle(document.querySelector('.ride-dpad [data-t=steerLeft]')).display};});
+  const swap=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();const {cam}=__WK_RIDE_SCENE__();const h=st.trackLock?.heading||0,yaw=st.s.yaw||0;return {z:st.s.z,dist:st.trackLock?.dist,mode:st.trackLock?.mode,view:st.cameraView,camZ:cam.position.z,vx:st.s.vx,dYaw:Math.atan2(Math.sin(yaw-h),Math.cos(yaw-h)),dpadOn:getComputedStyle(document.querySelector('.ride-dpad')).display,leftOn:getComputedStyle(document.querySelector('.ride-dpad [data-t=steerLeft]')).display};});
   assert.equal(swap.view,'side');
   assert.equal(swap.mode,'locked');
   assert(swap.dist<1.2,'should finish on the track '+JSON.stringify(swap));
+  assert(Math.abs(swap.dYaw)<0.25,'must face forward along the track '+JSON.stringify(swap));
   assert.notEqual(swap.dpadOn,'none');
   assert.equal(swap.leftOn,'none','LEFT stays hidden once locked');
 

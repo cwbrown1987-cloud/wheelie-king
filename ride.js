@@ -403,7 +403,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     if (restarting && !P.pedal && P.batteryWh <= 0) s.battery = 0;
     pivot.position.set(s.x, s.y, s.z||0);
     pivot.rotation.set(0, -(s.yaw||0), 0);
-    lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;lookDrag=null;lookLast=null;
+    lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;lookDrag=null;lookLast=null;airClose=0;
     if(ter.track){
       if(cameraView==='side'){if(canStartTrackReturn(s))startTrackReturn(s,ter.track,trackLock);else trackLock.mode='pending';}
       else trackLock.mode='free';
@@ -490,11 +490,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   function close() { report(); onClose?.(); }
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
-  let cameraView='side',cameraBlend=0,cameraReady=false;
+  let cameraView='side',cameraBlend=0,cameraReady=false,airClose=0;
   const trackLock={mode:'free',t:0,dur:.9};
   function visualCam(){return ter.track&&cameraView==='side'&&trackLock.mode==='pending'?'chase':cameraView}
   function syncTrackChrome(){
-    const side=!!ter.track&&cameraView==='side'&&(trackLock.mode==='locked'||trackLock.mode==='gliding');
+    const side=!!ter.track&&cameraView==='side'&&(trackLock.mode==='locked'||trackLock.mode==='whipping'||trackLock.mode==='gliding');
     if(side)el.dataset.wkTrackSide='';else el.removeAttribute('data-wk-track-side');
     el.dataset.wkCam=visualCam();
   }
@@ -637,12 +637,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     // camera: side-on follow, zooms out with speed
     const crashFocus=crashRig?.focus(),sp=crashFocus?.speed??Math.hypot(s.vx,s.vy);
     camShake*=Math.exp(-8*cameraDt);
-    const targetBlend=visualCam()==='chase'?1:0;const swingDur=targetBlend>cameraBlend?.7:(trackLock.dur||.9);cameraBlend+=Math.max(-cameraDt/swingDur,Math.min(cameraDt/swingDur,targetBlend-cameraBlend));const uBlend=cameraBlend;const blend=uBlend*uBlend*uBlend*(uBlend*(uBlend*6-15)+10);
+    const targetBlend=visualCam()==='chase'?1:0;const swingDur=targetBlend>cameraBlend?.7:(trackLock.dur||.9);cameraBlend+=Math.max(-cameraDt/swingDur,Math.min(cameraDt/swingDur,targetBlend-cameraBlend));const uBlend=cameraBlend;const blend=uBlend*uBlend*(3-2*uBlend);
     let dist=6.5;
     if(freeRoam){
       const yaw=s.yaw||0,z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
       const k=1-Math.exp(-5.8*followDt);
-      if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.55;chaseLookY=roadY+.62;}
+      if(trackLock.justSnapped){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;trackLock.justSnapped=false;}
+      if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;}
       chasePosX+=(s.x-chasePosX)*k;chasePosZ+=(z-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-4.6*followDt));
       if(!lookDrag){
         const wn=9,zn=.85;
@@ -655,33 +656,41 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       const lookDist=Math.max(3,Math.abs(s.vx)*.4),landingY=ter.height(s.x+Math.cos(yaw)*lookDist,z+Math.sin(yaw)*lookDist);
       const horizonTarget=inAir?Math.min(chaseTakeoffY,landingY):roadY;
       chaseHorizon+=(horizonTarget-chaseHorizon)*(1-Math.exp(-(inAir?1.8:8)*followDt));
-      const rise=Math.max(0,s.y-chaseHorizon),camYTarget=chaseHorizon+2.55+rise*.14,lookYTarget=chaseHorizon+.62+rise*.08;
+      // Ease in closer while airborne so the whole bike and the landing stay in frame,
+      // then ease back out on landing (Descenders/MX-style tight follow, no pop).
+      airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?3.0:2.6)*followDt));
+      if(!inAir&&airClose<.02)airClose=0;
+      const rise=Math.max(0,s.y-chaseHorizon);
+      // Descenders/RR: stay close, sit a little above so a flip still fits, look down at the landing.
+      const camYTarget=chaseHorizon+2.15+rise*(.16+.05*airClose)-airClose*.05;
+      const lookYTarget=chaseHorizon+.52+rise*.08*(1-airClose*.35)+airClose*(landingY-chaseHorizon)*.32;
       const yRate=inAir?(camYTarget>chaseFollowY?1.3:2.0):6;
       chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
-      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?1.6:6)*followDt));
+      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?1.8:5.2)*followDt));
       cameraReady=true;
       const speedT=Math.max(0,Math.min(1,(sp-2.8)/8)),shake=(Math.random()-.5)*camShake;
       // Chase stays locked behind the rider (heading + tiny lag + optional swipe look).
-      // Raised slightly, looking further ahead along the heading so the lane reads.
+      // Close enough for bike detail (Wheelie Life / Descenders), looking ahead along the heading.
       // Side view sits perpendicular to the track (or +Z when there is no rail).
       const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
-      const chaseR=4.4+Math.min(1.5,sp*.1),sideR=6.6+Math.min(1.8,sp*.12);
+      const chaseR=(3.6+Math.min(1.25,sp*.08))*(1-.2*airClose),sideR=(6.6+Math.min(1.8,sp*.12))*(1-.12*airClose);
       dist=sideR;
       const ahead=6+Math.min(8,Math.abs(s.vx)*.65);
       const chaseX=chasePosX-cy*chaseR,chaseZ=chasePosZ-sy*chaseR;
       let sideX=chasePosX,sideZ=chasePosZ+sideR;
       if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
-      const camY=(s.y+1.2)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
+      const camY=(s.y+1.2+airClose*.35)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
       const lookX=s.x*(1-blend)+(chasePosX+cy*ahead)*blend;
       const lookZ=z*(1-blend)+(chasePosZ+sy*ahead)*blend;
-      const lookY=(s.y+.35)*(1-blend)+chaseLookY*blend;
+      const lookY=(s.y+.35-airClose*.08)*(1-blend)+chaseLookY*blend;
       if(!globalThis.__WK_CAM_HOLD__){
         cam.position.set(camX,camY,camZ);
         cam.lookAt(lookX,lookY,lookZ);
-        cam.fov=(46+8*speedT)*(1-blend)+(60+12*speedT)*blend;cam.updateProjectionMatrix();
+        cam.fov=(46+8*speedT)*(1-blend)+(64+8*speedT+5*airClose)*blend;cam.updateProjectionMatrix();
       }
-      lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead};
+      speedLineMat.opacity=0;speedLines.visible=false;
+      lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead,airClose};
       environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(1);
       put(viewLabel,'view',cameraView==='chase'?'▣ CHASE':'▣ SIDE VIEW');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
       syncTrackChrome();

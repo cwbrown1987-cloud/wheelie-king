@@ -66,14 +66,22 @@ export function makeTrack(points,{width=ARENA_TRACK_WIDTH,spacing=.75}={}){
     const span=(cum[i+1]??cum[i])-cum[i]||1;
     return interp(i,(s-cum[i])/span);
   }
-  function nearest(x,z){
-    let best=0,bestD=Infinity,bestT=0;
+  function nearest(x,z,hintYaw){
+    let best=0,bestD=Infinity,bestT=0,bestScore=Infinity;
+    const hy=hintYaw,hasHint=Number.isFinite(hy);
     for(let i=0;i<samples.length-1;i++){
       const ax=samples[i].x,az=samples[i].z,bx=samples[i+1].x-ax,bz=samples[i+1].z-az;
       const denom=bx*bx+bz*bz||1;
       const t=Math.max(0,Math.min(1,((x-ax)*bx+(z-az)*bz)/denom));
       const px=ax+bx*t,pz=az+bz*t,d=(x-px)*(x-px)+(z-pz)*(z-pz);
-      if(d<bestD){bestD=d;best=i;bestT=t;}
+      let score=d;
+      if(hasHint){
+        const heading=Math.atan2(bz,bx);
+        const turn=Math.abs(Math.atan2(Math.sin(hy-heading),Math.cos(hy-heading)));
+        // Prefer the segment that faces forward along travel when two hits are close.
+        score=d+turn*turn*1.6;
+      }
+      if(score<bestScore){bestScore=score;bestD=d;best=i;bestT=t;}
     }
     const p=interp(best,bestT);
     const dist=Math.sqrt(bestD);
@@ -93,52 +101,63 @@ export function canStartTrackReturn(s){
   return true;
 }
 
+export function snapToTrack(s,track,ter){
+  const n=track.nearest(s.x,s.z||0,s.yaw);
+  const oldX=s.x,oldZ=s.z||0,sBefore=n.s;
+  s.x=n.x;s.z=n.z;
+  // Always face forward along the rail (+s). Take the shortest yaw step.
+  s.yaw=(s.yaw||0)+wrapAngle(n.heading-(s.yaw||0));
+  if((s.vx||0)<0)s.vx=Math.abs(s.vx||0);
+  stickGround(s,ter,oldX,oldZ);
+  return {s:n.s,sBefore,heading:n.heading,dist:0,x:n.x,z:n.z};
+}
+
 export function startTrackReturn(s,track,lock){
-  const n=track.nearest(s.x,s.z||0);
-  const align=Math.abs(wrapAngle((s.yaw||0)-n.heading))<=Math.PI/2;
-  lock.t=0;lock.dur=Math.max(.9,Math.min(2.4,.8+n.dist*.028));lock.lat0=n.lat;lock.s0=n.s;lock.s=n.s;
-  lock.startYaw=s.yaw||0;lock.align=align?1:-1;lock.startX=s.x;lock.startZ=s.z||0;
-  lock.mode=n.dist<.45?'locked':'gliding';
-  if(lock.mode==='locked'){
-    s.x=n.x;s.z=n.z;
-    s.yaw=align?n.heading:n.heading+Math.PI;
+  const n=track.nearest(s.x,s.z||0,s.yaw);
+  lock.t=0;lock.dur=.9;lock.lat0=n.lat;lock.s0=n.s;lock.s=n.s;
+  lock.startYaw=s.yaw||0;lock.align=1;lock.startX=s.x;lock.startZ=s.z||0;
+  lock.snapped=false;lock.justSnapped=false;
+  if(n.dist<.45){
+    lock.mode='locked';
+    snapToTrack(s,track,null);
+  }else{
+    // Hold the bike still in world space; the camera whip hides the later teleport.
+    lock.mode='whipping';
   }
   return lock;
 }
 
 function stickGround(s,ter,oldX,oldZ){
-  if(!(s.ground?.[0]||s.ground?.[1])||!ter?.height)return;
+  if(!ter?.height)return;
+  if(!(s.ground?.[0]||s.ground?.[1]))return;
   s.y+=(ter.height(s.x,s.z||0)-ter.height(oldX,oldZ));
+}
+
+function lockToRail(s,track,ter,oldX,oldZ){
+  const n=track.nearest(s.x,s.z||0);
+  s.x=n.x;s.z=n.z;
+  s.yaw=n.heading;
+  stickGround(s,ter,oldX,oldZ);
+  return n;
 }
 
 export function stepTrackLock(s,ter,lock,dt){
   const track=ter?.track;
   if(!track||!lock||lock.mode==='free'||lock.mode==='pending')return lock;
   const oldX=s.x,oldZ=s.z||0;
-  if(lock.mode==='gliding'){
+  if(lock.mode==='whipping'){
     lock.t=(lock.t||0)+dt;
-    const u=easeInOut(lock.t/Math.max(.001,lock.dur||.9));
-    lock.s=Math.max(0,Math.min(track.length,(lock.s??lock.s0)+(s.vx||0)*dt*(lock.align||1)));
-    const p=track.pointAt(lock.s);
-    const lat=(lock.lat0||0)*(1-u);
-    s.x=p.x+p.nx*lat;s.z=p.z+p.nz*lat;
-    const target=lock.align>0?p.heading:p.heading+Math.PI;
-    s.yaw=lerpAngle(lock.startYaw,target,u);
-    stickGround(s,ter,oldX,oldZ);
-    if(lock.t>=lock.dur){
-      lock.mode='locked';
-      const n=track.nearest(s.x,s.z);
-      const ox=s.x,oz=s.z;
-      s.x=n.x;s.z=n.z;
-      s.yaw=lock.align>0?n.heading:n.heading+Math.PI;
-      stickGround(s,ter,ox,oz);
+    const peak=Math.max(.001,lock.dur||.9)*.45;
+    if(!lock.snapped&&lock.t>=peak){
+      const beforeS=track.nearest(s.x,s.z||0,s.yaw).s;
+      const snap=snapToTrack(s,track,ter);
+      lock.snapped=true;lock.justSnapped=true;lock.s=snap.s;lock.s0=beforeS;
     }
+    if(lock.snapped)lockToRail(s,track,ter,oldX,oldZ);
+    if(lock.t>=(lock.dur||.9))lock.mode='locked';
   }else if(lock.mode==='locked'){
-    const n=track.nearest(s.x,s.z||0);
-    s.x=n.x;s.z=n.z;
-    const align=Math.abs(wrapAngle((s.yaw||0)-n.heading))<=Math.PI/2;
-    s.yaw=align?n.heading:n.heading+Math.PI;
-    stickGround(s,ter,oldX,oldZ);
+    const n=lockToRail(s,track,ter,oldX,oldZ);
+    lock.s=n.s;
   }
   return lock;
 }
