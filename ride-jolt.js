@@ -1,8 +1,8 @@
 // Playground physics: a port of Jolt's own Samples/Tests/Vehicle/MotorcycleTest.cpp
 // (settings, controller usage and ProcessInput logic kept as in the sample).
-// Patches are marked "PATCH" with the reason. Flat ground only.
+// Patches are marked "PATCH" with the reason. Ground: flat floor + ramp MeshShapes + terrain HeightFieldShape.
 import initJolt from './vendor/jolt/jolt-physics.wasm.js';
-import { PLAYGROUND_RAMPS, rampProfile } from './ride-playground.js';
+import { PLAYGROUND_RAMPS, rampTriangles, TERRAIN, terrainHeight, playgroundHeight } from './ride-playground.js';
 
 const LAYER_NON_MOVING = 0, LAYER_MOVING = 1, NUM_OBJECT_LAYERS = 2;
 const DEG = Math.PI / 180;
@@ -133,7 +133,7 @@ export function createJoltRide({ P, profile = null }) {
   let mForward = 0, mPreviousForward = 1, mRight = 0, mBrake = 0;
   // Rider actions (Project Wheelie style). The rider is not a physics body, so a weight shift
   // is applied as the pitch torque of the rider's weight moving fore/aft over the bike.
-  let wheelSet = null, monoOn = false, stoppieOn = false, prevPitch = null, monoKick = 0, standOn = false, shapes = null, latScaleNow = 1, handBrake = 0, mode = 'ride';
+  let leanPrev = 0, wheelSet = null, monoOn = false, stoppieOn = false, prevPitch = null, monoKick = 0, standOn = false, shapes = null, latScaleNow = 1, handBrake = 0, mode = 'ride';
   const RIDER_KG = 75, G = 9.81;
   let rideLift = 0, wheelR = S.backWheelRadius, destroyed = false;
   const scratch = {};
@@ -159,15 +159,40 @@ export function createJoltRide({ P, profile = null }) {
       floorBody = bodyInterface.CreateBody(fs);
       bodyInterface.AddBody(floorBody.GetID(), Jolt.EActivation_DontActivate);
       Jolt.destroy(fs);
-      // Playground jumps (ride-playground.js): static convex hulls matching the drawn ramps.
-      if (profile) for (const r of PLAYGROUND_RAMPS) {
-        const hs = new Jolt.ConvexHullShapeSettings();
-        for (const [u, y] of rampProfile(r)) for (const zz of [-r.w / 2, r.w / 2]) hs.mPoints.push_back(new Jolt.Vec3(u, y, zz));
-        hs.mMaxConvexRadius = 0.01;
-        const shapeR = hs.Create().Get();
-        const rb = new Jolt.BodyCreationSettings(shapeR, new Jolt.RVec3(r.x, 0, r.z), new Jolt.Quat(0, 0, 0, 1), Jolt.EMotionType_Static, LAYER_NON_MOVING);
+      // Playground jumps (ride-playground.js): static MeshShapes from the same triangles as the drawn
+      // ramps (a curved kicker transition is concave, so a convex hull would flatten it).
+      const addStatic = (shape, x, z) => {
+        const rb = new Jolt.BodyCreationSettings(shape, new Jolt.RVec3(x, 0, z), new Jolt.Quat(0, 0, 0, 1), Jolt.EMotionType_Static, LAYER_NON_MOVING);
         rb.mFriction = 1.0;
         const b = bodyInterface.CreateBody(rb); bodyInterface.AddBody(b.GetID(), Jolt.EActivation_DontActivate); Jolt.destroy(rb);
+      };
+      if (profile) for (const r of PLAYGROUND_RAMPS) {
+        const tl = new Jolt.TriangleList(), tris = rampTriangles(r).filter(([a, b, c]) => {
+          const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+          return Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) > 1e-6;
+        });
+        tl.resize(tris.length);
+        tris.forEach((t, i) => { const tri = tl.at(i); for (let k = 0; k < 3; k++) tri.set_mV(k, new Jolt.Float3(t[k][0] - r.x, t[k][1], t[k][2] - r.z)); });
+        const ms = new Jolt.MeshShapeSettings(tl, new Jolt.PhysicsMaterialList());
+        const res = ms.Create(); if (res.HasError()) throw new Error('ramp mesh: ' + res.GetError().c_str());
+        addStatic(res.Get(), r.x, r.z); Jolt.destroy(tl);
+      }
+      // Uneven terrain lane: Jolt HeightFieldShape sampled from terrainHeight (0.5 m cells). Samples
+      // outside the lane are holes (cNoCollisionValue), so the flat floor carries the rest.
+      if (profile) {
+        const N = 320, CELL = 0.5, ox = TERRAIN.x0 - 2, oz = TERRAIN.z - N * CELL / 2;
+        const hs = new Jolt.HeightFieldShapeSettings();
+        hs.mOffset = new Jolt.Vec3(0, 0, 0); hs.mScale = new Jolt.Vec3(CELL, 1, CELL);
+        hs.mSampleCount = N; hs.mBlockSize = 4;
+        const hole = 3.4028234663852886e38; // HeightFieldShapeConstants::cNoCollisionValue (FLT_MAX)
+        const reach = TERRAIN.core + TERRAIN.bank + 1;
+        const hsamp = hs.mHeightSamples; hsamp.reserve(N * N);
+        for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+          const x = ox + i * CELL, z = oz + j * CELL, u = x - TERRAIN.x0;
+          hsamp.push_back( Math.abs(z - TERRAIN.z) > reach || u < -1.5 || u > TERRAIN.len + 1.5 ? hole : terrainHeight(x, z));
+        }
+        const res = hs.Create(); if (res.HasError()) throw new Error('terrain heightfield: ' + res.GetError().c_str());
+        addStatic(res.Get(), ox, oz); api.terrain = { shape: 'HeightFieldShape', samples: N, cell: CELL, x: ox, z: oz };
       }
 
       const C = joltSettingsFrom(profile, P);
@@ -233,6 +258,10 @@ export function createJoltRide({ P, profile = null }) {
       cs.mTransmission.mReverseGearRatios.clear();
       for (const g of C.engine.reverse) cs.mTransmission.mReverseGearRatios.push_back(g);
       cs.mTransmission.mClutchStrength = S.clutchStrength;
+      // PATCH (throttle latency): Jolt's auto gearbox starts in neutral and takes mSwitchTime 0.5 s +
+      // mClutchReleaseTime 0.3 s to engage 1st, so the throttle bit ~0.7 s late. A single-speed drive
+      // (e-motor / pedal chain from part data) has no gearbox: engage instantly.
+      if (C.engine.gears.length === 1) { cs.mTransmission.mSwitchTime = 0; cs.mTransmission.mClutchReleaseTime = 0.05; cs.mTransmission.mSwitchLatency = 0; }
       // Lean controller gains are absolute (N·m/rad, N·m·s/rad) and tuned for the sample's
       // 240 kg body. Scale them with mass so a lighter bike gets the same lean dynamics
       // (unscaled, the damping term goes unstable at 60 Hz and a 110 kg bike falls over).
@@ -313,12 +342,14 @@ export function createJoltRide({ P, profile = null }) {
   // PATCH (spawn/reset): place the sample body upright at a pose, at rest height.
   function adopt(s) {
     if (!api.ready) return;
-    const yaw = s.yaw || 0, v = s.vx || 0;
-    bodyInterface.SetPositionRotationAndVelocity(body.GetID(), new Jolt.RVec3(s.x || 0, api.restY, s.z || 0), quatFromYaw(Jolt, yaw),
+    const yaw = s.yaw || 0, v = s.vx || 0, x = s.x || 0, z = s.z || 0, C = api.settings;
+    // On the terrain/ramps: drop in level, just clear of the highest ground under either wheel.
+    const gh = profile ? Math.max(...[C.rearZ, 0, C.frontZ].map(d => playgroundHeight(x + Math.cos(yaw) * d, z + Math.sin(yaw) * d))) : 0;
+    bodyInterface.SetPositionRotationAndVelocity(body.GetID(), new Jolt.RVec3(x, api.restY + gh + (gh > 0 ? 0.05 : 0), z), quatFromYaw(Jolt, yaw),
       new Jolt.Vec3(Math.cos(yaw) * v, 0, Math.sin(yaw) * v), new Jolt.Vec3(0, 0, 0));
     for (let i = 0; i < 2; i++) wheel(i).SetAngularVelocity(v / wheelR);
     if (constraint.ResetWarmStart) constraint.ResetWarmStart();
-    mForward = 0; mPreviousForward = 1; mRight = 0; mBrake = 0;
+    mForward = 0; mPreviousForward = 1; mRight = 0; mBrake = 0; prevPitch = null; leanPrev = 0;
     bodyInterface.ActivateBody(body.GetID());
     writeState(s);
   }
@@ -334,51 +365,46 @@ export function createJoltRide({ P, profile = null }) {
     // drives the rear and uses Jolt's hand brake on one wheel. Slow: front locked = burnout.
     // Moving: rear dragged = rear-brake slide. Grip loss comes from the friction circle below.
     handBrake = 0; mode = 'ride';
-    if (inp.stoppie && brk > 0.05) {
-      // STOPPIE: the brake button is the front brake only (Jolt hand brake on the front wheel); the
-      // rider's forward weight shift (riderActions) and the brake lift the rear. Feather to balance.
+    // Body input (v2.0.1): lean > 0 = rider weight back, < 0 = forward. Throttle + weight back is a
+    // wheelie, front brake + weight forward is a stoppie. No trick buttons.
+    const lean = Math.max(-1, Math.min(1, inp.lean || 0)), back = Math.max(0, lean), fwdL = Math.max(0, -lean);
+    const frontUp = !wheel(0).HasContact() && wheel(1).HasContact();
+    if (fwdL > 0.15 && brk > 0.05 && thr <= 0.05) {
+      // STOPPIE: braking with the weight forward the rider squeezes the front lever only (Jolt hand brake
+      // on the front wheel); the forward weight shift (riderActions) and the brake lift the rear.
       mode = 'stoppie'; handBrake = brk; setHandBrakeWheel(0); wheelSet[0].mMaxHandBrakeTorque = (globalThis.__WK_TUNE__?.sb ?? 1) * 9.81 * api.settings.mass * api.settings.wheelR; mForward = 0; mBrake = 0; mPreviousForward = 1;
       return finishSteer(inp, dt);
     }
-    if (inp.burnout && !inp.mono && !inp.stoppie && thr <= 0.05) {
+    if (inp.burnout && back <= 0.1 && thr <= 0.05) {
       // BURNOUT toggled, waiting for throttle: front brake held, bike parked.
       mode = 'burnout-hold'; handBrake = 1; setHandBrakeWheel(0); mForward = 0; mBrake = 0; mPreviousForward = 1;
       return finishSteer(inp, dt);
     }
-    if (inp.mono && brk <= 0.05 && thr <= 0.05 && !wheel(0).HasContact() && wheel(1).HasContact()) {
-      // MONO, off the throttle with the front up: the rider covers the rear brake and dabs it as the bike
-      // goes past the balance point (how a real wheelie is saved). Touch players can only feather on/off.
+    if (back > 0.1 && frontUp) {
+      // Front up with the weight back: the rider covers the rear brake. Off the throttle (or braking) it
+      // dabs/holds the rear brake; on the throttle, wheelie control rolls drive off past the balance
+      // point (as real e-bikes/e-motos), so a touch thumb can't loop it by accident.
       const C = api.settings, a = axes(), pitch = Math.asin(Math.max(-1, Math.min(1, a.fwd.y)));
       const balance = Math.atan2(C.comBack * C.wb, Math.max(0.3, C.comH ?? 0.9));
       const rate = prevPitch == null ? 0 : (pitch - prevPitch) / Math.max(1e-3, dt);
-      const dab = Math.max(0, Math.min(1, 4 * (pitch - 0.85 * balance) + 0.6 * rate));
-      if (dab > 0) { mode = 'mono-brake'; handBrake = 0; mForward = 0; mBrake = dab; mPreviousForward = 1; return finishSteer(inp, dt); }
-    }
-    if (inp.mono && thr > 0.05 && brk <= 0.05 && !wheel(0).HasContact() && wheel(1).HasContact()) {
-      // MONO toggle = wheelie control (as on real e-bikes/e-motos): past the balance point the controller
-      // rolls drive off and the rider covers the rear brake, so an on/off touch thumb can't loop it.
-      const C = api.settings, a = axes(), pitch = Math.asin(Math.max(-1, Math.min(1, a.fwd.y)));
-      const balance = Math.atan2(C.comBack * C.wb, Math.max(0.3, C.comH ?? 0.9));
-      const rate = prevPitch == null ? 0 : (pitch - prevPitch) / Math.max(1e-3, dt);
-      const over = pitch - balance + 0.15 * rate;
-      if (over > 0) { mode = 'mono-wc'; handBrake = 0; mForward = thr * Math.max(0, 1 - 6 * over); mBrake = Math.min(1, 3 * over); mPreviousForward = 1; return finishSteer(inp, dt); }
-    }
-    if (inp.mono && brk > 0.05 && thr <= 0.05) {
-      // In a wheelie the brake button is the rear brake: a tap brings the nose down.
-      mode = 'mono-brake'; handBrake = 0; mForward = 0; mBrake = brk; mPreviousForward = 1;
-      return finishSteer(inp, dt);
-    }
-    if (inp.mono && thr > 0.05 && brk > 0.05 && !wheel(0).HasContact()) {
-      // Front up: throttle + brake is feathering against the rear brake to hold the balance point
-      // (front is airborne so Jolt's foot brake only acts on the rear). Not a drift.
-      mode = 'mono-feather'; handBrake = 0; mForward = thr; mBrake = brk; mPreviousForward = 1;
-      return finishSteer(inp, dt);
+      if (brk > 0.05) { mode = thr > 0.05 ? 'mono-feather' : 'mono-brake'; handBrake = 0; mForward = thr; mBrake = brk; mPreviousForward = 1; return finishSteer(inp, dt); }
+      if (thr <= 0.05) {
+        const dab = Math.max(0, Math.min(1, 4 * (pitch - 0.85 * balance) + 0.6 * rate));
+        if (dab > 0) { mode = 'mono-brake'; handBrake = 0; mForward = 0; mBrake = dab; mPreviousForward = 1; return finishSteer(inp, dt); }
+      } else {
+        const over = pitch - balance + 0.15 * rate;
+        if (over > 0) { mode = 'mono-wc'; handBrake = 0; mForward = thr * Math.max(0, 1 - 6 * over); mBrake = Math.min(1, 3 * over); mPreviousForward = 1; return finishSteer(inp, dt); }
+      }
     }
     if (thr > 0.05 && (brk > 0.05 || inp.burnout)) {
       const v = body.GetLinearVelocity(), speed = Math.hypot(v.GetX(), v.GetZ());
       mode = speed < 3 ? 'burnout' : 'drift';
       handBrake = mode === 'burnout' ? 1 : brk;
-      mPreviousForward = 1; mForward = mode === 'burnout' ? thr / (api.settings.launchCap || 1) : thr * 0.5; mBrake = 0; // front held: launch current limit lifted
+      // Burnout drive: just enough wheel torque to break the rear loose (1.5 x peak grip x rear load x R),
+      // capped by the launch-map lift; more only lifts the front against the locked brake.
+      const C = api.settings, Tfull = (profile?.engine?.torque || 0), Tspin = 1.5 * 1.2 * C.friction * (1 - C.comBack) * C.mass * 9.81 * C.wheelR;
+      const burnFrac = Tfull > 0 ? Math.min(1 / (C.launchCap || 1), Tspin / Tfull) : 1 / (C.launchCap || 1);
+      mPreviousForward = 1; mForward = mode === 'burnout' ? thr * burnFrac : thr * 0.5; mBrake = 0;
       setHandBrakeWheel(mode === 'burnout' ? 0 : 1);
       return finishSteer(inp, dt);
     }
@@ -397,6 +423,8 @@ export function createJoltRide({ P, profile = null }) {
       const velocity = v.GetX() * a.fwd.x + v.GetY() * a.fwd.y + v.GetZ() * a.fwd.z;
       if (mForward < 0) mForward = velocity < -REVERSE_MAX ? 0 : mForward * REVERSE_INPUT;
       else if (velocity < -0.1) mBrake = 1;
+      // PATCH (rest creep): stopped with no input the rider holds the brake (foot down), as a real rider does.
+      else if (mForward === 0 && Math.abs(velocity) < 0.3 && !inp.burnout) mBrake = 1;
     }
         finishSteer(inp, dt);
     // When leaned, don't use the brakes fully.
@@ -449,20 +477,25 @@ export function createJoltRide({ P, profile = null }) {
         wheelSet[k].mSuspensionSpring.mDamping = (w.damping ?? 0.5) + (standOn ? 0.15 : 0);
       }
     }
-    if (!!inp.mono !== monoOn) { monoOn = !!inp.mono; monoKick = monoOn ? 0.25 : 0; }
-    stoppieOn = !!inp.stoppie;
+    const lean = Math.max(-1, Math.min(1, inp.lean || 0)), back = Math.max(0, lean), fwdL = Math.max(0, -lean);
+    const thrOn = (inp.throttle || 0) > 0.05, brkOn = (inp.brake || 0) > 0.05;
+    // Wheelie = throttle + weight back. A quick pull back (lean rising fast) is the yank/clutch-up pop.
+    const wantMono = back > 0.1 && (thrOn || !wheel(0).HasContact());
+    const yank = dt > 0 ? (back - leanPrev) / dt : 0; leanPrev = back;
+    if (wantMono && !monoOn && thrOn) monoKick = 0.25 * Math.min(1, 0.4 + Math.max(0, yank) / 8);
+    monoOn = wantMono; if (!monoOn) monoKick = 0;
+    stoppieOn = fwdL > 0.1 && brkOn;
     const a = axes(), pitch = Math.asin(Math.max(-1, Math.min(1, a.fwd.y)));
     const pitchRate = prevPitch == null || dt <= 0 ? 0 : (pitch - prevPitch) / dt; prevPitch = pitch;
     const fwdLen = Math.hypot(a.fwd.x, a.fwd.z) || 1;
     const rollNow = Math.atan2((a.up.x * -a.fwd.z + a.up.z * a.fwd.x) / fwdLen, a.up.y);
-    // Weight shift (m, + = back): Up/Down lean fine-tunes, the wheelie toggle throws the rider
-    // back. Standing gives more reach.
+    // Weight shift (m, + = back). Standing gives more reach.
     const reach = standOn ? 1.5 : 1;
     const frontUp = !wheel(0).HasContact() && wheel(1).HasContact();
-    // Wheelie off with the front still up: the rider throws their weight forward to set it down.
+    const airborne = !wheel(0).HasContact() && !wheel(1).HasContact();
     const deficit = Math.max(0, Math.min(1, 1 - api.settings.liftRatio));
-    // Toggle on = 0.25 s yank: the rider pulls the bars and drives the pedals/throttle while the front
-    // is still down (how low-power bikes get it up). Weak drive = harder yank (up to ~520 N·m for 75 kg).
+    // The pop: the rider pulls the bars and drives the pedals/throttle while the front is still down
+    // (how low-power bikes get it up). Weak drive = harder yank (up to ~520 N·m for 75 kg).
     const vNow = body.GetLinearVelocity(), rolling = Math.hypot(vNow.GetX(), vNow.GetZ()) > 1.5;
     const pop = monoKick > 0 && rolling && wheel(0).HasContact() ? 0.45 + 0.3 * deficit : 0;
     // Balance points: COM straight over the rear (wheelie) or front (stoppie) contact patch.
@@ -470,19 +503,37 @@ export function createJoltRide({ P, profile = null }) {
     const balance = Math.atan2(cb * wbC, comH), stoppieBalance = Math.atan2((1 - cb) * wbC, comH);
     const rearUp = !wheel(1).HasContact() && wheel(0).HasContact();
     let body_m = 0; // rider COM shift (m, + = back), limited by how far a rider can move on the bike
-    if (monoOn) {
-      // The rider hangs back to lift, eases off near the balance point and pushes forward past it.
-      // It can't beat the motor: holding full throttle past balance still loops out.
-      body_m = Math.max(-0.28, Math.min(0.16 + 0.12 * deficit, 1.4 * (balance - pitch) - 0.3 * pitchRate)) + pop;
+    if (airborne) {
+      // In the air the rider holds the bike parallel to the flight path (lands both wheels), and the
+      // lean input tips it nose-up/down from there (+-20 deg). Torque limit = 75 kg x 0.35 m.
+      const vh = Math.hypot(vNow.GetX(), vNow.GetZ()), target = Math.max(-0.6, Math.min(0.6, Math.atan2(vNow.GetY(), Math.max(1, vh)))) + lean * 0.35;
+      const I = api.settings.mass * 0.25, cap = RIDER_KG * G * 0.35;
+      const tau = Math.max(-cap, Math.min(cap, I * 14 * (target - pitch) - I * 7 * pitchRate));
+      body.AddTorque(new Jolt.Vec3(-a.right.x * tau, -a.right.y * tau, -a.right.z * tau));
+    } else if (monoOn) {
+      // Wheelie: lean amount sets the target pitch (full pull = the balance point). The rider hangs back
+      // to lift, eases off near the target and pushes forward past it.
+      body_m = Math.max(-0.28, Math.min(0.16 + 0.12 * deficit, 1.4 * (back * balance - pitch) - 0.3 * pitchRate)) + pop;
     } else if (stoppieOn && (mode === 'stoppie' || rearUp)) {
-      // Stoppie: weight forward while the front brake bites; eases off and leans back near balance.
-      body_m = Math.max(-0.28, Math.min(0.2, 1.4 * (-0.85 * stoppieBalance - pitch) - 0.3 * pitchRate));
+      // Stoppie: weight forward while the front brake bites; lean amount sets how high the rear goes.
+      body_m = Math.max(-0.28, Math.min(0.2, 1.4 * (-0.85 * fwdL * stoppieBalance - pitch) - 0.3 * pitchRate));
     } else if (frontUp) body_m = -0.2;
     else if (rearUp) body_m = 0.2;
-    const shift = (body_m + Math.max(-1, Math.min(1, inp.lean || 0)) * 0.12 + (mode === 'burnout' ? -0.25 : 0)) * reach;
+    else body_m = lean * 0.12;
+    const shift = airborne ? 0 : (body_m + (mode === 'burnout' ? -0.25 : 0)) * reach;
     if (shift) {
       const tau = RIDER_KG * G * shift * Math.cos(pitch); // nose-up = negative about body right
       body.AddTorque(new Jolt.Vec3(-a.right.x * tau, -a.right.y * tau, -a.right.z * tau));
+    }
+    if ((mode === 'burnout' || mode === 'burnout-hold' || mode === 'drift') && !airborne) {
+      // Foot down: in a burnout/donut/drift the inside boot is on the ground and holds the bike up
+      // (a leg outrigger, ~75 kg x 0.45 m). It can't stop a high-side, only a slow topple.
+      const av = body.GetAngularVelocity(), fx = a.fwd.x, fz = a.fwd.z, fl = Math.hypot(fx, fz) || 1;
+      const rollRate = (av.GetX() * fx + av.GetZ() * fz) / fl, sp = Math.hypot(vNow.GetX(), vNow.GetZ());
+      const want = mode === 'drift' ? Math.max(-0.5, Math.min(0.5, rollNow)) * Math.min(1, sp / 8) : 0; // drift: keep its lean, stop the fall past it
+      const cap = RIDER_KG * G * 0.45, err = rollNow - want;
+      const TU = globalThis.__WK_TUNE__ || {}, tau = Math.max(-cap, Math.min(cap, -(cap * (TU.fk ?? 1.5)) * err - (cap * (TU.fd ?? 0.3)) * rollRate));
+      body.AddTorque(new Jolt.Vec3(fx / fl * tau, 0, fz / fl * tau));
     }
     if (mode === 'burnout') {
       // Rider's feet planted: ground friction on the boots (75 kg x 0.8) resists creeping.
@@ -499,7 +550,7 @@ export function createJoltRide({ P, profile = null }) {
       body.AddTorque(new Jolt.Vec3(fx / fl * tau, 0, fz / fl * tau));
     }
     if (monoKick > 0 && !rolling) monoKick = 0; // toggling at a standstill is just a stance change
-    if (monoKick > 0) { mForward = Math.max(mForward, 1); mBrake = 0; monoKick = Math.max(0, monoKick - dt); }
+    if (monoKick > 0) { if (thrOn) { mForward = Math.max(mForward, 1); mBrake = 0; } monoKick = Math.max(0, monoKick - dt); }
     if (Math.abs(rollNow) > 75 * DEG && !s.crashed) {
       s.crashed = 'FELL OVER';
       s.events = s.events || []; s.events.push({ type: 'crash', why: 'FELL OVER' });

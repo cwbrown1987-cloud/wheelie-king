@@ -70,6 +70,9 @@ function combine(acc, key, value) {
 // stats: garage stats (kg = whole-bike mass, nm/P/speed already include motor, battery,
 // sprockets and kits). build: slot -> part id (or ids). find: id -> part. anchors: garage
 // model anchors. base: platform numbers (wb, wheelR, comH, comBack, torque, power, vmax).
+// Rider as a power source: sprint ~700 W; 110 rpm cadence on BMX 44/16 gearing (2.75).
+export const HUMAN = Object.freeze({ sprintW: 700, cadenceRpm: 110, gearRatio: 44 / 16 });
+export const pedalTopSpeed = (ratio, wheelR) => HUMAN.cadenceRpm / 60 * (ratio || HUMAN.gearRatio) * 2 * Math.PI * (wheelR || 0.254);
 export function deriveRideProfile({ stats = {}, build = {}, find = () => null, anchors = {}, base = {}, forkAxis = null } = {}) {
   const A = { ...anchors };
   const R = A.wheelR || base.R || 0.33;
@@ -133,8 +136,10 @@ export function deriveRideProfile({ stats = {}, build = {}, find = () => null, a
     rear: { travel: ride.rearTravel ?? base.travelR ?? null, hz: ride.rearSpringHz ?? null, damping: ride.rearDamping ?? null },
     engine: {
       torque: (base.torque || 0) + (ride.torque || 0),
-      power: (base.power || 0) + (ride.power || 0),
-      topSpeed: Math.max(base.vmax || 0, ride.topSpeed || 0) || null,
+      // Pedal bikes: the rider is the motor. The shop 'speed' stat is cruising pace; a standing sprint
+      // (what the throttle button is) is ~700 W, and top speed is the cadence limit of the gearing.
+      power: (base.pedal ? Math.max(base.power || 0, HUMAN.sprintW) : (base.power || 0)) + (ride.power || 0),
+      topSpeed: Math.max(base.vmax || 0, ride.topSpeed || 0, base.pedal ? pedalTopSpeed(ride.gearRatio, ride.wheelR || R) : 0) || null,
       driveAxle: ride.driveAxle || base.driveAxle || 'rear',
     },
     friction: ride.friction ?? 1,

@@ -4,7 +4,7 @@ const gasIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 32l16-16
 const glyph={mono:'M4 20L28 6 M22 4l6 2-2 6',stand:'M16 2v10 M12 6h8',burnout:'M2 20c4-6 8 2 12-4s8 2 12-4',onehand:'M8 28V12 M8 12l14-8 M22 4v6',kneeknock:'M10 6l6 10-6 10 M22 6l-6 10 6 10',hop:'M16 6V0 M12 4l4-4 4 4',tailwhip:'M12 4C0-2-2 13 6 15 M2 14l4 1-1-5',barspin:'M22 3c9-5 12 6 5 8 M30 7l-3 4-3-3',superman:'M4 4l17 2 5 4 M12 5L5 9 M20 4l3-3',trick:'M6 7C18-5 34 4 29 13 M26 9l3 4 3-3'};
 const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label="${label}"><svg viewBox="0 0 32 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="5"/><circle cx="26" cy="17" r="5"/><path d="M7 17l7-9 5 9H7m7-9h9l3 9M12 5h6m2-3 4 5"/><path d="${glyph[key]}"/></g></svg><span>${label}</span></button>`;
 // Playground (Jolt) has its own working move set; air tricks and HOP are classic-only.
-const PLAYGROUND_MOVES=[['mono','MONO'],['stoppie','STOPPIE'],['burnout','BURNOUT'],['stand','STAND'],['onehand','ONE-HANDER'],['kneeknock','KNEE-KNOCK']];
+const PLAYGROUND_MOVES=[['burnout','BURNOUT'],['stand','STAND'],['onehand','ONE-HANDER'],['kneeknock','KNEE-KNOCK']];
 const moveButton=(key,label)=>`<button data-t="${key}" type="button" class="ride-move" aria-pressed="false">${label}</button>`;
 export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks"${playground?' hidden':''}>${trickButton('hop','HOP')}</div>
