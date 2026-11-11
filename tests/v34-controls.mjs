@@ -52,4 +52,13 @@ assert.equal(R.drift.mode,'drift');
 assert(R.drift.yawRate>1.5*R.turn.yawRate,'drift rotates much faster than a plain turn');
 assert(R.stand.stand.standing&&R.stand.stand.sag!==R.stand.sit.sag,'standing changes the suspension');
 assert(R.stand.stand.pitchDeg>R.stand.sit.pitchDeg,'standing gives more lean authority');
+{ // stock pedal BMX (250 W, rigid): toggle lifts at walking pace, feathered hold below its ~19° balance point
+  const pr={mass:96.4,comBack:.31,comH:.88,wheelbase:1,wheelR:.255,front:{travel:0,damping:.25},rear:{travel:0},engine:{torque:40,power:250,topSpeed:5,driveAxle:'rear'},friction:1,brakeTorque:1};
+  const P2={R:.255,wb:1,comBack:.31,comH:.88};const j=createJoltRide({P:P2,profile:pr});await j.start();const s={x:0,z:0,yaw:0,vx:0,events:[]};j.adopt(s);
+  for(let i=0;i<300&&s.vx<1.5;i++)j.step(s,P2,{throttle:1},dt);
+  const target=15/D;const f=(s)=>{const e=target-s.pitch-.35*(s.w||0);return e>=0?{mono:true,throttle:Math.min(1,.35+2.5*e)}:{mono:true,throttle:Math.max(0,.35+3*e),brake:e<-.03?Math.min(.8,-3*e):0};};
+  let up=0,best=0;for(let t=0;t<6&&!s.crashed;t+=dt){j.step(s,P2,f(s),dt);if(!s.ground[1]&&s.pitch>8/D){up+=dt;best=Math.max(best,up)}else up=0;}
+  R.bmxWheelie={held:best,crashed:s.crashed||null};assert(best>=3,'stock BMX wheelie holds 3 s+ '+JSON.stringify(R.bmxWheelie));
+}
+console.log(JSON.stringify({bmxWheelie:R.bmxWheelie}));
 console.log('v34-controls ok');

@@ -36,7 +36,9 @@ export function joltSettingsFrom(profile, P) {
   const wheelR = pr.wheelR || P?.R || S.backWheelRadius;
   const wb = pr.wheelbase || P?.wb || 1.5, comBack = pr.comBack ?? P?.comBack ?? 0.5;
   const axle = (w, minL, maxL, hz0) => {
-    const travel = w?.travel > 0.02 ? w.travel : maxL - minL;
+    // Rigid (travel 0 in part data, e.g. a stock BMX fork, or no shock): the tyre is the only
+    // compliance, ~3 cm. Unknown (no data) keeps the sample stroke.
+    const travel = w?.travel > 0.02 ? w.travel : (profile && Number.isFinite(w?.travel) ? 0.03 : maxL - minL);
     // Spring rate rule: the sample's Hz is for its 0.2 m stroke; a shorter stroke needs a
     // proportionally stiffer spring for the same sag ratio (Hz ~ 1/sqrt(travel)).
     const hz = w?.hz > 0 ? w.hz : (profile ? Math.max(1, Math.min(4, hz0 * Math.sqrt((S.backSuspMax - S.backSuspMin) / travel))) : hz0);
@@ -71,7 +73,7 @@ export function joltSettingsFrom(profile, P) {
     engine = { maxTorque: S.engineMaxTorque, minRPM: S.engineMinRPM, maxRPM: S.engineMaxRPM, curve: null, gears: S.gearRatios, reverse: S.reverseGearRatios, diff: S.differentialRatio, shiftUpRPM: S.shiftUpRPM, shiftDownRPM: S.shiftDownRPM };
   }
   return {
-    mass, wheelR, wb, comBack, comOffsetY, originH,
+    mass, wheelR, wb, comBack, comH: pr.comH ?? P?.comH ?? 0.9, comOffsetY, originH,
     rearZ: -wb * comBack, frontZ: wb * (1 - comBack),
     caster: pr.caster ?? S.caster, steerMax: pr.steerMax ?? S.maxSteer,
     front, rear, friction: pr.friction || 1,
@@ -390,7 +392,13 @@ export function createJoltRide({ P, profile = null }) {
     // Wheelie off with the front still up: the rider throws their weight forward to set it down.
     // Toggle on = 0.2 s pop: the rider yanks the bars while the front is still down (how low-power bikes get it up).
     const pop = monoKick > 0 && wheel(0).HasContact() ? 0.45 * Math.max(0, Math.min(1, 1 - api.settings.liftRatio)) : 0;
-    const shift = ((monoOn ? 0.16 + pop : frontUp ? -0.2 : 0) + Math.max(-1, Math.min(1, inp.lean || 0)) * 0.12 + (mode === 'burnout' ? -0.25 : 0)) * reach;
+    // Weak drive: the toggled rider also sits further back (up to a full lean-back) to make up for it.
+    const deficit = Math.max(0, Math.min(1, 1 - api.settings.liftRatio));
+    // The rider throws their weight back to lift, then eases to neutral as the bike nears its balance
+    // point (COM over the rear contact); past it, throttle-off / rear brake is the player's job.
+    const balance = Math.atan2(api.settings.comBack * api.settings.wb, Math.max(0.3, api.settings.comH ?? 0.9));
+    const ease = Math.max(0, Math.min(1, (balance - pitch) / (0.4 * balance)));
+    const shift = ((monoOn ? (0.16 + 0.12 * deficit) * ease + pop : frontUp ? -0.2 : 0) + Math.max(-1, Math.min(1, inp.lean || 0)) * 0.12 + (mode === 'burnout' ? -0.25 : 0)) * reach;
     if (shift) {
       const tau = RIDER_KG * G * shift * Math.cos(pitch); // nose-up = negative about body right
       body.AddTorque(new Jolt.Vec3(-a.right.x * tau, -a.right.y * tau, -a.right.z * tau));
