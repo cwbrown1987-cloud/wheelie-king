@@ -9,7 +9,7 @@ import { createSideCamera } from "./ride-camera.js";
 import { lightenForRide } from "./ride-lod.js";
 import { TIERS, pickTier, createQualityMonitor } from "./ride-quality.js";
 import { getTheme } from "./ride-themes.js";
-import { makeTerrain, makeFlatTerrain, makeSampleTerrain, makeState, step } from "./ride-physics.js";
+import { makeTerrain, makeFlatTerrain, makeSampleTerrain, makeArenaTerrain, makeState, step } from "./ride-physics.js";
 import { wrapAngle, crossedGate } from "./ride-freeroam.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
@@ -19,6 +19,7 @@ import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
 import {makeEnvironment} from './ride-environment.js';
 import {makeSampleWorld} from './ride-sample3d.js';
+import {makeArenaWorld} from './ride-arena.js';
 import {makeCrashRig} from './crash-rig.js';
 const COND_KEY = "wk-condition";
 export const loadCond = () => ({dirt:0,wear:{}}); // Repair/condition system paused at Chris's request.
@@ -43,7 +44,7 @@ globalThis.__WK_COND__ = { load: loadCond, save: saveCond, apply: applyCondition
 export function readRideLevel(){
   try{
     const q=new URLSearchParams(location.search).get('track');
-    if(q==='sample3d'||q==='sample-3d'||q==='flat'||q==='endless'||q==='trials'){
+    if(q==='sample3d'||q==='sample-3d'||q==='flat'||q==='endless'||q==='trials'||q==='arena'){
       const level=q==='sample-3d'?'sample3d':q==='endless'?'flat':q;
       if(!globalThis.__WK_TRACK_QUERY_APPLIED__){
         globalThis.__WK_TRACK_QUERY_APPLIED__=true;
@@ -52,7 +53,7 @@ export function readRideLevel(){
       }
     }
   }catch{}
-  try{const v=localStorage.getItem('wk-level');if(v==='flat'||v==='sample3d'||v==='trials')return v}catch{}
+  try{const v=localStorage.getItem('wk-level');if(v==='flat'||v==='sample3d'||v==='trials'||v==='arena')return v}catch{}
   return 'trials';
 }
 
@@ -102,7 +103,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   window.getSelection()?.removeAllRanges();
   const W = () => el.clientWidth || 900, H = () => el.clientHeight || 420;
   const R = new T.WebGLRenderer({ antialias: Q.aa,powerPreference:"high-performance" }); R.setPixelRatio(Math.min(maxPR, devicePixelRatio*el.getBoundingClientRect().width/W())); R.shadowMap.enabled = Q.shadows; R.outputColorSpace = T.SRGBColorSpace; R.toneMapping = T.ACESFilmicToneMapping;
-  R.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;touch-action:none"; el.appendChild(R.domElement);
+  R.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;touch-action:none;z-index:0"; el.appendChild(R.domElement);
   const scene = new T.Scene(); scene.background = new T.Color(TH.background); scene.fog = new T.Fog(TH.fog.color, TH.fog.near, TH.fog.far);
   const cam = new T.PerspectiveCamera(40, 16 / 9, 0.1, 400);
   const speedLineN=32,speedLinePos=new Float32Array(speedLineN*6),speedLineStreaks=Array.from({length:speedLineN},()=>({x:0,y:0,z:0,len:1}));
@@ -146,7 +147,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }
   const backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
   // terrain
-  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',ter=flat?makeFlatTerrain():sample3d?makeSampleTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat?500:ter.finish;const pts=ter.pts;
+  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',arena=level==='arena',freeRoam=sample3d||arena,ter=flat?makeFlatTerrain():sample3d?makeSampleTerrain():arena?makeArenaTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat||arena?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0],pts[0][1]-.45);pts.forEach(([x,y])=>shape.lineTo(x,y));[...pts].reverse().forEach(([x,y])=>shape.lineTo(x,y-.45));shape.closePath();
   const groundGeo = new T.ExtrudeGeometry(shape, { depth: 2.4, bevelEnabled: false }); groundGeo.translate(0, 0, -1.2);
   const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
@@ -160,13 +161,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   ter.puddles.forEach(([a, b]) => { const m = new T.Mesh(new T.PlaneGeometry(b - a, 2.3), new T.MeshStandardMaterial({ color: "#3d6f8f", roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.85 })); m.rotation.x = -Math.PI / 2; m.position.set((a + b) / 2, ter.h((a + b) / 2) + 0.04, 0); scene.add(m); });
   const flag = (x, col, label) => { const g = new T.Group(); const y = ter.h(x); const pole = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 2.6), new T.MeshStandardMaterial({ color: "#ddd" })); pole.position.set(x, y + 1.3, -1.6);
     const f = new T.Mesh(new T.PlaneGeometry(0.9, 0.55), new T.MeshStandardMaterial({ color: col, side: T.DoubleSide })); f.position.set(x + 0.45, y + 2.3, -1.6); g.add(pole, f); g.userData.label = label; scene.add(g); return g; };
-  ter.checkpoints.slice(1).forEach((x) => flag(x, "#39ff7a", "CP")); if(!flat){flag(ter.finish, "#ffffff", "FINISH"); flag(ter.finish, "#111111", "FINISH").position.z = 3.2;}
+  ter.checkpoints.slice(1).forEach((x) => flag(x, "#39ff7a", "CP")); if(!flat&&!arena&&isFinite(ter.finish)){flag(ter.finish, "#ffffff", "FINISH"); flag(ter.finish, "#111111", "FINISH").position.z = 3.2;}
   // parallax hills (far layers move slower thanks to perspective) + scrub
   const buildLegacy=()=>{const rnd = ((r) => () => ((r = (r * 16807) % 2147483647) / 2147483647))(9);
   [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= renderEnd + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(renderEnd + 120, -20); s.closePath();
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }};
-  const environment=sample3d?makeSampleWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;
+  const environment=arena?makeArenaWorld(T,scene,ter,{lowDetail,theme:TH.environment}):sample3d?makeSampleWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;if(flatMarkers)flatMarkers.visible=false;if(arena){ground.visible=false;dirtTop.visible=false;layers.foreground&& (layers.foreground.visible=false);}
   // the real garage bike, cloned
   const pivot = new T.Group(), body = new T.Group(); pivot.add(body); scene.add(pivot);
   let bike = preparedBike, A = src?.userData.wkAnchors;
@@ -199,14 +200,14 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0, steer: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0, steer: 0 }; let tilt = false, tiltLean = 0,paused=false; let pauseUi=null;
   let chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,prevGX=2,prevGZ=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
-  const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;const action=({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
+  const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ","w","a","s","d"].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;const action=({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   const ori = (e) => { if (tilt && e.gamma != null) { const land = Math.abs(window.orientation || screen.orientation?.angle || 0) === 90; const v = land ? (e.beta || 0) * Math.sign(window.orientation || screen.orientation?.angle || 1) : e.gamma; tiltLean = Math.max(-1, Math.min(1, -v / 25)); } };
   addEventListener("deviceorientation", ori);
   // HUD + touch controls (DOM over the canvas)
-  const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none"; el.appendChild(ui);
+  const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:4;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none"; el.appendChild(ui);
   ui.innerHTML = `<div class="ride-review-scrim" aria-hidden="true"></div><button type="button" class="ride-view-label" data-r="view" aria-label="Switch camera view" aria-pressed="false">▣ SIDE VIEW (2.5D)</button><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
-    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
+    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${arena?"ARENA":sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
    ${pauseMenuMarkup(level)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
    <div style="position:absolute;top:96px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
@@ -304,8 +305,8 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const held = new Map(); // pointerId -> control
   const leanControls=mountLeanControls(ui,touch);const steerSlider=mountSteerSlider(ui,touch);const tricksMenu=mountTricksMenu(ui);
   ui.querySelectorAll('[data-t]').forEach(b=>{const c=b.dataset.t;
-    b.addEventListener('pointerdown',e=>{e.preventDefault();if (reviewing || finished) return;b.setPointerCapture?.(e.pointerId);held.set(e.pointerId,c);touch[c]=1;if(c==='hop')hopQueued=true;if(['tailwhip','barspin','superman'].includes(c))s.stuntRequest={name:c,expires:.7};b.dataset.pressed='true';b.style.filter='brightness(1.5)'});
-    const up=e=>{if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if([...held.values()].includes(c))return;touch[c]=0;delete b.dataset.pressed;b.style.filter=''};
+    b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if (reviewing || finished) return;b.setPointerCapture?.(e.pointerId);held.set(e.pointerId,c);touch[c]=1;if(c==='hop')hopQueued=true;if(['tailwhip','barspin','superman'].includes(c))s.stuntRequest={name:c,expires:.7};b.dataset.pressed='true';b.style.filter='brightness(1.5)'},{passive:false});
+    const up=e=>{e.stopPropagation();if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if([...held.values()].includes(c))return;touch[c]=0;delete b.dataset.pressed;b.style.filter=''};
     for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,up);
   });
   const releaseControls=()=>{hopQueued=false;held.clear();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];leanControls.release();steerSlider.release();ui.querySelectorAll('[data-t]').forEach(b=>{b.style.filter='';delete b.dataset.pressed})};
@@ -477,7 +478,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       if (finishTime >= 1) finishPanel.hidden = false;
       if (!finishTumble) {
         s.vx = finishSpeed * Math.max(0, 1 - finishTime / (finishFall ? 7 : 5));
-        if(sample3d){const yaw=s.yaw||0;s.x+=s.vx*Math.cos(yaw)*realDt;s.z=(s.z||0)+s.vx*Math.sin(yaw)*realDt;s.y+=(ter.height(s.x,s.z)+finishHeight-s.y)*Math.min(1,realDt*8);}
+        if(freeRoam){const yaw=s.yaw||0;s.x+=s.vx*Math.cos(yaw)*realDt;s.z=(s.z||0)+s.vx*Math.sin(yaw)*realDt;s.y+=(ter.height(s.x,s.z)+finishHeight-s.y)*Math.min(1,realDt*8);}
         else {s.x += s.vx * realDt;s.y += (ter.h(s.x) + finishHeight - s.y) * Math.min(1, realDt * 8);}
         s.pitch *= Math.exp(-5 * realDt);
         if (finishFall && finishTime >= 5) {
@@ -489,9 +490,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     }
     if(!paused&&!reviewing){const qa=qualityMon.sample(cameraDt);if(qa){qualityLog.push(qa.type);if(qa.type==='down'){maxPR=Math.max(.75,maxPR*.8);if(R.shadowMap.enabled){R.shadowMap.enabled=false;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true})}}}}
     leanControls.update(dt);steerSlider.update(dt);
-    inp.throttle = Math.max(touch.throttle, keys.arrowup || keys.w ? 1 : 0); inp.brake = Math.max(touch.brake, keys.arrowdown || keys.s ? 1 : 0);
-    inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0)+(tilt?tiltLean:0)))*-1;
-    inp.steer = sample3d?(touch.steer||0):0;
+    inp.throttle = Math.max(touch.throttle, keys.w || (!freeRoam&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || (!freeRoam&&keys.arrowdown) ? 1 : 0);
+    const leanKey=freeRoam?((keys.arrowup||0)-(keys.arrowdown||0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
+    inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey+(tilt?tiltLean:0)))*-1;
+    inp.steer = freeRoam?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0))):0;
     inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });
     if (!s.crashed && !finished) {
@@ -509,13 +511,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
         photoDelay = ev.type === 'crash' ? .28 : 0;
       }
       if (ev.type === "trick") { hud.trick.textContent = ev.t + (ev.pts ? " +" + ev.pts : ""); hud.trick.style.opacity = 1; if (/FLIP/.test(ev.t)) flips += +(ev.t.match(/^(\d)x/)?.[1] || 1); }
-      if (ev.type === "land") { const rx = s.x - P.wb * P.comBack; for (let i = 0; i < 18; i++) emit(rx + (Math.random() - 0.5), ter.h(rx) + 0.05, (Math.random() - 0.5) * 4, Math.random() * 2.5, "#d9b48a", 0.9, 4); if (ev.v < -6) { msg = "HARD LANDING"; msgT = 0.8; wear.suspension = (wear.suspension || 0) + 0.04; } if(sample3d&&ev.v<-4)camShake=Math.min(.16,-ev.v*.022); }
+      if (ev.type === "land") { const rx = s.x - P.wb * P.comBack; for (let i = 0; i < 18; i++) emit(rx + (Math.random() - 0.5), ter.h(rx) + 0.05, (Math.random() - 0.5) * 4, Math.random() * 2.5, "#d9b48a", 0.9, 4); if (ev.v < -6) { msg = "HARD LANDING"; msgT = 0.8; wear.suspension = (wear.suspension || 0) + 0.04; } if(freeRoam&&ev.v<-4)camShake=Math.min(.16,-ev.v*.022); }
       if (ev.type === "bottom") { msg = "BOTTOMED OUT – MORE SUSPENSION!"; msgT = 1; wear.shock = (wear.shock || 0) + 0.02; }
       if (ev.type === "scrape") { for (let i = 0; i < 2; i++) emit(ev.x, ev.y, -s.vx * 0.3 - Math.random() * 2, Math.random() * 2, Math.random() > 0.5 ? "#ffd23d" : "#ff8c1a", 0.35, 6, 0.6); }
       if (ev.type === "crash") { msg = "CRASH! " + ev.why; msgT = 99; hud.trick.textContent = ""; for (let i = 0; i < 30; i++) emit(s.x, s.y, (Math.random() - 0.5) * 6, Math.random() * 4, "#c9844a", 1.2, 8); }
     }
     for (const k in s.wear) { wear[k] = (wear[k] || 0) + s.wear[k]; } s.wear = {};
-    if(s.burnout&&!s.crashed&&!paused){for(let i=0;i<3;i++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:s.x+P.wb*(P.driveAxle==='front'?1-P.comBack:-P.comBack),y:ter.h(s.x)+.12,z:(Math.random()-.5)*.35,vx:-.5-Math.random(),vy:.5+Math.random()*.6,life:1.8});}msg='BURNOUT';msgT=.2;}
+    if(s.burnout&&!s.crashed&&!paused){const yaw=freeRoam?(s.yaw||0):0,rear=P.wb*(P.driveAxle==='front'?1-P.comBack:-P.comBack),bx=s.x+Math.cos(yaw)*rear,bz=freeRoam?(s.z||0)+Math.sin(yaw)*rear:0,gy=(freeRoam?ter.height(bx,bz):ter.h(s.x))+.12;for(let i=0;i<3;i++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.1,y:gy,z:bz+(Math.random()-.5)*.35,vx:-Math.cos(yaw)*(.5+Math.random()),vy:.5+Math.random()*.6,life:1.8});}msg='BURNOUT';msgT=.2;}
     // roost + splash + dirt build-up
     const rx = s.x + Math.cos(s.pitch) * (-P.wb * P.comBack) + Math.sin(s.pitch) * hC, onRear = s.ground[0];
     if (!paused && onRear && inp.throttle && Math.abs(s.vx) > 0.5 && Math.random() < 0.8) emit(rx - P.R * 0.6, ter.h(rx) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, ter.inPuddle(rx) ? "#7fb4d6" : "#a8693a", 0.7);
@@ -527,11 +529,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     pm.instanceMatrix.needsUpdate = true;
     smokeParts.forEach((particle,i)=>{if(particle.life>0){particle.life-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;o3.position.set(particle.x,particle.y,particle.z);o3.scale.setScalar((1+(1-particle.life/1.8)*3)*Math.min(1,particle.life*3));}else o3.scale.setScalar(0);o3.updateMatrix();smoke.setMatrixAt(i,o3.matrix)});smoke.instanceMatrix.needsUpdate=true;
     // Rider and bike inherit momentum, then collide as separate constrained bodies.
-    const bikeZ=sample3d?(s.z||0):0,bikeYaw=sample3d?(s.yaw||0):0;
+    const bikeZ=freeRoam?(s.z||0):0,bikeYaw=freeRoam?(s.yaw||0):0;
     if(rewinding){pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,bikeYaw,s.pitch);}
     else if(s.crashed || finishTumble){if(!crashRig){stuntRig.restore();s.stunt=null;pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,bikeYaw,s.pitch);crashRig=makeCrashRig(T,scene,body,pivot,bike,A,riderModel,P,ter,s);releaseControls();if (!finished) { el.dataset.wkCrashed='true';recover.hidden=false; }}crashT+=dt;crashRig.step(dt);}
     else { pivot.position.set(s.x, s.y, bikeZ); pivot.rotation.z = s.pitch; }
-    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const leanT=sample3d?-(touch.steer||0)*Math.min(1,Math.abs(s.vx)/5)*.38:0;visRoll+=(leanT-visRoll)*(1-Math.exp(-10*Math.max(cameraDt,.001)));pivot.rotation.y=bikeYaw+spinVis;pivot.rotation.x=visRoll;}
+    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const leanT=freeRoam?-inp.steer*Math.min(1,Math.abs(s.vx)/5)*.38:0;visRoll+=(leanT-visRoll)*(1-Math.exp(-10*Math.max(cameraDt,.001)));pivot.rotation.y=bikeYaw+spinVis;pivot.rotation.x=visRoll;}
     // suspension: wheels slide toward the frame by compression*travel
     stuntRig.restore();
     const wheelDist=rewinding?rewindDx:s.vx*dt;
@@ -540,7 +542,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;if(!crashRig)riderModel.update({lean:inp.lean,superman:supermanPose});stuntRig.pose(s.stunt);
     // checkpoints / finish — sample3d uses street-width gates so dirt loops don't auto-finish
     const zNow=s.z||0, hw=sample3d?(ter.gates?.halfWidth??6.5):1e9;
-    const hitGate=x=>sample3d?((s.x>x&&Math.abs(zNow)<=hw)||crossedGate(prevGX,prevGZ,s.x,zNow,x,hw)):(s.x>x);
+    const hitGate=x=>arena?false:sample3d?((s.x>x&&Math.abs(zNow)<=hw)||crossedGate(prevGX,prevGZ,s.x,zNow,x,hw)):(s.x>x);
     while (cpI + 1 < ter.checkpoints.length && hitGate(ter.checkpoints[cpI + 1])) { cpI++; lastCP = ter.checkpoints[cpI] + 1; msg = "CHECKPOINT " + cpI; msgT = 1.2; }
     if (!finished && !s.crashed && hitGate(ter.finish)) {
       finished = true;
@@ -575,7 +577,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     camShake*=Math.exp(-8*cameraDt);
     const targetBlend=cameraView==='chase'?1:0;cameraBlend+=Math.max(-cameraDt/.4,Math.min(cameraDt/.4,targetBlend-cameraBlend));const blend=cameraBlend*cameraBlend*(3-2*cameraBlend);
     let dist=6.5;
-    if(sample3d){
+    if(freeRoam){
       const yaw=s.yaw||0,z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
       const k=1-Math.exp(-5.8*followDt);
       if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.45;}
@@ -659,7 +661,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     if(el.dataset.wkCam!==cameraView){el.dataset.wkCam=cameraView;if(cameraView!=='chase')steerSlider.release();}
     }
 
-    sun.position.set(s.x + 4, s.y + 10, (sample3d?(s.z||0):0)+6); sun.target.position.set(s.x, s.y, sample3d?(s.z||0):0);
+    sun.position.set(s.x + 4, s.y + 10, (freeRoam?(s.z||0):0)+6); sun.target.position.set(s.x, s.y, freeRoam?(s.z||0):0);
     sky.position.x = cam.position.x; sky.position.z=cam.position.z||0; sunDisc.position.x = cam.position.x + 40;
     // HUD
     put(hud.score,"score",Math.round(s.score).toLocaleString()); if(!flat)put(hud.best,"best","$ +" + Math.round(maxScore / 10).toLocaleString() + " · DIRT " + Math.round(Math.min(1, dirt) * 100) + "%");
@@ -669,6 +671,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;sty("transformOrigin","top left");sty("transform",`scale(${1/screenScale})`);sty("width",(w*screenScale)+"px");sty("height",(h*screenScale)+"px");sty("right","auto");sty("bottom","auto");const pixelRatio=Math.min(maxPR,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     layoutBackdrop(horizonTex||backdrop,w,h,Math.sin(s.x*.001)*TH.backdrop.sway,blend);
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;layers.foreground.position.x=tile;layers.update(tile);flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','FLAT ENDLESS · '+Math.floor(s.odo)+' m');}
+    if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','ARENA · '+Math.floor(s.odo)+' m');}
     // While the replay panel covers the game, the scene is frozen: draw it once and leave the GPU/main thread to the video decoder (fixes stuttery replays on phones).
     if (!reviewing || !hc.reviewDrawn) { R.render(scene, cam); hc.reviewDrawn = reviewing; }
     if (photoDelay >= 0 && realDt && (photoDelay -= realDt) <= 0) {
@@ -683,11 +686,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       photoCount++;
     }
   };
-  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');let cameraView='side',cameraBlend=0,cameraReady=false;el.dataset.wkCam='side';if(sample3d)el.dataset.wkFreeroam='';globalThis.__WK_SCENE_VIEW__=view=>{cameraView=view==='chase'?'chase':'side';el.dataset.wkCam=cameraView;if(!sample3d&&cameraView!=='chase')steerSlider.release();return cameraView};
+  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');let cameraView='side',cameraBlend=0,cameraReady=false;el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';globalThis.__WK_SCENE_VIEW__=view=>{cameraView=view==='chase'?'chase':'side';el.dataset.wkCam=cameraView;if(!freeRoam&&cameraView!=='chase')steerSlider.release();return cameraView};
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam});globalThis.__WK_REPLAY__=replay;
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:touch.steer||0,roll:pivot.rotation.x,z:pivot.position.z},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,roll:pivot.rotation.x,z:pivot.position.z},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
   function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }

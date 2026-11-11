@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const builder = readFileSync(new URL('../builder-mode.js', import.meta.url), 'utf8');
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-assert.equal(sw.match(/const CACHE = "([^"]+)"/)?.[1],'wk-v28-freeroam');
+assert.equal(sw.match(/const CACHE = "([^"]+)"/)?.[1],'wk-v29-arena');
 for(const f of ['./workshop-placement.js','./src/props/kit/index.js','./src/props/kit/bake.js','./src/rooms/workshop-room.js','./src/rooms/room-collision.js','./assets/workshop/art-room.jpg','./assets/workshop/art-room-brick.jpg','./rotate-lock.js'])assert(sw.includes(`"${f}"`),'sw SHELL missing '+f);
 assert(!sw.includes('racefix3'));
 assert(!sw.includes('art-prop-mask.png'),'art-room workshop no longer masks the art');

@@ -6,13 +6,11 @@ const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label
 export const rideControlsMarkup=()=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks">${trickButton('hop','HOP')}</div>
  <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back"><span class="ride-lean-glyph" aria-hidden="true">‹</span><span class="ride-tilt-copy"><small>TILT</small><small>BACK</small></span></button><button type="button" data-t="leanForward" aria-label="Lean forward"><span class="ride-lean-glyph" aria-hidden="true">›</span><span class="ride-tilt-copy"><small>TILT</small><small>FWD</small></span></button></div>
- <div class="ride-steer">
-  <div class="ride-steer-hint">STEER · drag · springs back</div>
-  <div class="ride-steer-pill" role="slider" aria-label="Steer" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0" tabindex="0">
-   <span class="ride-steer-chev" aria-hidden="true">‹</span>
-   <div class="ride-steer-track"><div class="ride-steer-knob"></div></div>
-   <span class="ride-steer-chev" aria-hidden="true">›</span>
-  </div>
+ <div class="ride-dpad" role="group" aria-label="Steer and tilt">
+  <button type="button" class="ride-dpad-up" data-t="leanForward" aria-label="Tilt forward"><span aria-hidden="true">▲</span><small>UP</small></button>
+  <button type="button" class="ride-dpad-left" data-t="steerLeft" aria-label="Steer left"><span aria-hidden="true">◀</span><small>LEFT</small></button>
+  <button type="button" class="ride-dpad-right" data-t="steerRight" aria-label="Steer right"><span aria-hidden="true">▶</span><small>RIGHT</small></button>
+  <button type="button" class="ride-dpad-down" data-t="leanBack" aria-label="Tilt back"><span aria-hidden="true">▼</span><small>DOWN</small></button>
  </div>
  <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button><div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div></div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
@@ -20,57 +18,13 @@ export const rideControlsMarkup=()=>`<div class="ride-controls">
 export function mountLeanControls(ui,touch){
  const release=()=>{touch.lean=0;touch.leanBack=0;touch.leanForward=0};release();return {update(){},release,state:()=>({active:!!(touch.leanBack||touch.leanForward),value:(touch.leanForward||0)-(touch.leanBack||0)})};
 }
-// Spring-back steering slider. On SAMPLE 3D it drives inp.steer (heading). Tilt stays on the TILT buttons.
+// Hold d-pad: LEFT/RIGHT set inp.steer, UP/DOWN are the existing tilt holds.
+// The analog slider was removed because a drag on it also swung the chase camera
+// (heading follow plus pointer events falling through the HUD).
 export function mountSteerSlider(ui,touch){
- const root=ui.querySelector('.ride-steer');
- const pill=root?.querySelector('.ride-steer-pill');
- const track=root?.querySelector('.ride-steer-track');
- const knob=root?.querySelector('.ride-steer-knob');
- touch.steer=0;
- let dragging=false,ptr=null,vel=0;
- const clamp=v=>Math.max(-1,Math.min(1,v));
- const set=v=>{
-  touch.steer=clamp(v);
-  if(knob)knob.style.left=`${(touch.steer+1)/2*100}%`;
-  pill?.setAttribute('aria-valuenow',touch.steer.toFixed(2));
- };
- const fromEvent=e=>{
-  const r=track.getBoundingClientRect();
-  const x=e.clientX;
-  if(!r.width)return touch.steer;
-  return clamp((x-r.left)/r.width*2-1);
- };
- const down=e=>{
-  const surface=ui.closest('[data-wk-ride-surface]')||document.querySelector('[data-wk-ride-surface]');
-  if(surface&&surface.dataset.wkCam!=='chase'&&!surface.hasAttribute('data-wk-freeroam'))return;
-  if(surface&&(surface.hasAttribute('data-wk-paused')||surface.hasAttribute('data-wk-crashed')||surface.hasAttribute('data-wk-finished')||surface.hasAttribute('data-wk-reviewing')))return;
-  e.preventDefault();e.stopPropagation();
-  dragging=true;ptr=e.pointerId;vel=0;
-  try{pill.setPointerCapture(e.pointerId)}catch{}
-  set(fromEvent(e));
- };
- const move=e=>{if(!dragging||e.pointerId!==ptr)return;e.preventDefault();set(fromEvent(e));};
- const up=e=>{
-  if(ptr==null)return;
-  if(e&&e.pointerId!==ptr&&e.type!=='lostpointercapture')return;
-  dragging=false;ptr=null;
-  try{if(e)pill.releasePointerCapture(e.pointerId)}catch{}
- };
- pill?.addEventListener('pointerdown',down);
- pill?.addEventListener('pointermove',move);
- for(const name of ['pointerup','pointercancel','lostpointercapture'])pill?.addEventListener(name,up);
- return {
-  update(dt){
-   if(dragging||(touch.steer===0&&vel===0))return;
-   const w=16,z=.9,a=-w*w*touch.steer-2*z*w*vel;
-   vel+=a*dt;
-   let next=touch.steer+vel*dt;
-   if(Math.abs(next)<.01&&Math.abs(vel)<.08){next=0;vel=0;}
-   set(next);
-  },
-  release(){dragging=false;ptr=null;vel=0;set(0);},
-  state:()=>({value:touch.steer||0,dragging})
- };
+ const release=()=>{touch.steer=0;touch.steerLeft=0;touch.steerRight=0};
+ release();
+ return {update(){},release,state:()=>({value:(touch.steerRight||0)-(touch.steerLeft||0),dragging:!!(touch.steerLeft||touch.steerRight)})};
 }
 export function mountTricksMenu(ui){
  const root=ui.querySelector('.ride-tricks:not(.ride-hop)');
@@ -86,7 +40,7 @@ export function mountTricksMenu(ui){
 }
 if(typeof document!=='undefined'){
  const style=document.createElement('style');style.textContent=`
- [data-wk-ride-surface]{--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}[data-wk-ride-surface] .ride-controls{position:absolute;left:14px;right:14px;bottom:18px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;align-items:end;gap:16px;pointer-events:auto;font:900 11px system-ui;--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}
+ [data-wk-ride-surface]{--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}[data-wk-ride-surface] .ride-controls{position:absolute;left:14px;right:14px;bottom:18px;z-index:4;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;align-items:end;gap:16px;pointer-events:auto;font:900 11px system-ui;--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}
  [data-wk-paused] [data-h="msg"]{top:12px!important;font-size:18px!important}[data-r="recover"][hidden]{display:none!important}[data-wk-crashed] .ride-controls{opacity:.35;pointer-events:none}[data-wk-crashed] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-controls{opacity:.4}[data-wk-paused] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-pause-fab,[data-wk-paused] .ride-pause-menu{pointer-events:auto} .ride-lean-buttons,.ride-drive-buttons{display:flex;align-items:end;gap:clamp(7px,1vw,14px)}.ride-drive-buttons{justify-self:end}.ride-lean-buttons button,.ride-drive{border:3px solid #c8c9c6;border-radius:50%;background:linear-gradient(145deg,#424743d9,#121616df);color:#f8f9f4;box-shadow:0 5px 12px #0009,inset 0 1px 2px #fff4;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
  .ride-lean-buttons button{width:var(--lean-size);height:var(--lean-size);font:700 calc(var(--lean-size)*.95) system-ui;line-height:.7;padding-bottom:9px;text-shadow:0 2px 3px #000}.ride-drive.brake{width:var(--lean-size);height:var(--lean-size)}.ride-drive.throttle{width:calc(var(--lean-size)*1.3);height:calc(var(--lean-size)*1.3);border-color:#a8e600;color:#b5f300;background:radial-gradient(circle at 40% 30%,#344028ed,#10170bed);box-shadow:0 0 17px #a4ff0033,0 5px 12px #0009}.ride-drive svg{width:70%;height:70%;filter:drop-shadow(0 3px 1px #0009)}
  .ride-glass{background:linear-gradient(135deg,#1c2d478f,#0a1428c4);border:1px solid #c7f4df66;border-radius:16px;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 10px 28px #000a,inset 0 1px #ffffff22;color:#edfdf4;pointer-events:auto}
@@ -151,8 +105,8 @@ if(typeof document!=='undefined'){
  .ride-pause-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
  .ride-pause-mode{display:flex;flex-direction:column;gap:6px;text-align:left}
  .ride-pause-mode-label{font:800 11px system-ui;color:#9be7bc;letter-spacing:.4px}
- .ride-pause-seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid #80fbb285;border-radius:11px;overflow:hidden}
- .ride-pause-seg button{border:0;border-radius:0;margin:0;background:#162820}
+ .ride-pause-seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #80fbb285;border-radius:11px;overflow:hidden}
+ .ride-pause-seg button{border:0;border-radius:0;margin:0;background:#162820;font-size:12px;padding:10px 8px}
  .ride-pause-seg button[aria-pressed=true]{background:linear-gradient(180deg,#3d6b55,#245440);color:#d9ffe8}
  .ride-pause-replay{margin-top:2px}
  .ride-replay-alert{position:absolute;top:50px;right:10px;padding:8px 12px;z-index:13;animation:ride-replay-pulse 1s alternate infinite}
@@ -279,20 +233,17 @@ if(typeof document!=='undefined'){
  .ride-replay:not(.is-theatre).is-tall-video .ride-replay-actions .ride-replay-playbtn{flex:1 1 0;width:auto;font-size:20px!important}
  .ride-replay:not(.is-theatre).is-tall-video .ride-replay-scrub{bottom:128px}
  
- .ride-drive-label,.ride-tilt-copy,.ride-steer{display:none}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]){--chase-accel:80px;--chase-brake:62px;--chase-hop:56px;--chase-tilt:58px;--chase-gap:8px;--chase-steer-h:62px} [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-controls{inset:0;left:14px;right:14px;top:0;bottom:18px;display:block;pointer-events:none;gap:0}
+ .ride-drive-label,.ride-tilt-copy,.ride-steer,.ride-dpad{display:none}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]){--chase-accel:80px;--chase-brake:62px;--chase-hop:56px;--chase-tilt:54px;--chase-gap:8px;--dpad-size:52px;--dpad-gap:6px} [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-controls{inset:0;left:14px;right:14px;top:0;bottom:18px;display:block;pointer-events:none;gap:0}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-controls>*{pointer-events:auto;position:absolute}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer{display:block;left:0;bottom:0;width:min(250px,46vw)}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-hint{position:absolute;left:8px;bottom:calc(var(--chase-steer-h) + 4px);font:700 9px system-ui,sans-serif;letter-spacing:.08em;color:#b7dcc8;text-shadow:0 2px 6px #000;pointer-events:none;white-space:nowrap}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-pill{display:flex;align-items:center;gap:8px;height:var(--chase-steer-h);padding:0 12px;border:1px solid #c7f4df66;border-radius:999px;background:linear-gradient(135deg,#1c2d478f,#0a1428c4);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 10px 28px #000a,inset 0 1px #ffffff22;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-chev{font:900 22px system-ui;color:#d9ffe8;width:18px;text-align:center;pointer-events:none}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-track{flex:1;height:10px;border-radius:999px;background:#0b1512cc;border:1px solid #80fbb255;position:relative;box-shadow:inset 0 1px 3px #000a;pointer-events:none}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-knob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#d9ffe8,#3d6b55);border:2px solid #c8ffd8;box-shadow:0 0 12px #39ff7a88,0 3px 6px #000a;pointer-events:none}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-lean-buttons{left:0;bottom:calc(var(--chase-steer-h) + 26px);display:flex;flex-direction:column;align-items:center;gap:10px}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-lean-buttons button{width:var(--chase-tilt);height:var(--chase-tilt);flex-direction:column;gap:0;font:800 11px system-ui;line-height:1.05;padding:0;letter-spacing:.04em}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-lean-glyph{font:900 15px system-ui;line-height:1;padding:0}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-tilt-copy{display:flex;flex-direction:column;align-items:center}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-tilt-copy small{font:800 8px system-ui;letter-spacing:.08em;opacity:.85}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer,[data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-lean-buttons{display:none!important}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad{display:grid;grid-template-columns:repeat(3,var(--dpad-size));grid-template-rows:repeat(3,var(--dpad-size));gap:var(--dpad-gap);left:0;bottom:0;width:calc(var(--dpad-size)*3 + var(--dpad-gap)*2);height:calc(var(--dpad-size)*3 + var(--dpad-gap)*2);pointer-events:auto;touch-action:none;z-index:4}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad button{width:var(--dpad-size);height:var(--dpad-size);margin:0;border-radius:14px;flex-direction:column;gap:0;padding:0;font:800 9px system-ui;letter-spacing:.04em;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad button span{font:900 14px system-ui;line-height:1}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-up{grid-column:2;grid-row:1}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-left{grid-column:1;grid-row:2}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-right{grid-column:3;grid-row:2}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-down{grid-column:2;grid-row:3}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive-buttons{right:0;bottom:0;display:flex;align-items:flex-end;gap:10px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive{flex-direction:column;gap:1px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive.brake{width:var(--chase-brake);height:var(--chase-brake)}
@@ -305,11 +256,8 @@ if(typeof document!=='undefined'){
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-tricks:not(.ride-hop){left:auto;right:calc(56px + var(--chase-gap));bottom:calc(var(--chase-accel) + var(--chase-gap) + var(--chase-hop) + var(--chase-gap));margin:0;justify-self:end;align-self:end;grid-column:auto;grid-row:auto}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-rewind{right:14px;bottom:calc(18px + var(--chase-accel) + var(--chase-gap) + var(--chase-hop) + var(--chase-gap))}
  @media(min-width:1000px){
-  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]){--chase-accel:96px;--chase-brake:74px;--chase-hop:66px;--chase-tilt:70px;--chase-steer-h:72px}
+  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]){--chase-accel:96px;--chase-brake:74px;--chase-hop:66px;--chase-tilt:66px;--dpad-size:62px}
   [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-controls{left:22px;right:22px;bottom:22px}
-  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer{width:300px}
-  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-hint{left:16px;font-size:11px}
-  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-steer-knob{width:34px;height:34px}
   [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-rewind{right:22px}
  }
 `;document.head.append(style);

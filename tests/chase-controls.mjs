@@ -1,4 +1,4 @@
-// Chase-cam HUD: throttle, brake, hop, air tilt, spring-back steer. SAMPLE 3D keeps this HUD in both views.
+// Chase-cam HUD: throttle, brake, hop, d-pad (LEFT/RIGHT steer, UP/DOWN tilt). SAMPLE 3D keeps this HUD in both views.
 import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
@@ -28,14 +28,18 @@ async function waitChase(p){
 function hud(p){
   return p.evaluate(()=>{
     const st=__WK_RIDE_STATE__();
-    const cs=n=>getComputedStyle(document.querySelector(n));
-    const box=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,display:getComputedStyle(e).display};};
+    const cs=n=>{const e=document.querySelector(n);return e?getComputedStyle(e):{display:'none'}};
+    const vis=s=>[...document.querySelectorAll(s)].find(e=>{const r=e.getBoundingClientRect();return getComputedStyle(e).display!=='none'&&r.width>0&&r.height>0;});
+    const box=s=>{const e=vis(s);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,display:getComputedStyle(e).display};};
     return {
       view:st.cameraView,cam:document.querySelector('[data-wk-ride-surface]')?.dataset.wkCam,
-      steerDisplay:cs('.ride-steer').display,leanGlyph:cs('.ride-lean-glyph').fontSize,
+      steerDisplay:cs('.ride-steer').display,dpadDisplay:cs('.ride-dpad').display,
+      leanButtons:cs('.ride-lean-buttons').display,
       tiltCopy:cs('.ride-tilt-copy').display,driveLabel:cs('.ride-drive-label').display,
       hop:box('[data-t=hop]'),throttle:box('[data-t=throttle]'),brake:box('[data-t=brake]'),
-      leanBack:box('[data-t=leanBack]'),steer:box('.ride-steer-pill'),
+      leanBack:box('.ride-dpad [data-t=leanBack]'),leanSide:box('.ride-lean-buttons [data-t=leanBack]'),
+      left:box('.ride-dpad [data-t=steerLeft]'),right:box('.ride-dpad [data-t=steerRight]'),
+      up:box('.ride-dpad [data-t=leanForward]'),down:box('.ride-dpad [data-t=leanBack]'),
       rewindHidden:!!document.querySelector('[data-r=rewind]')?.hidden,
       tricks:!!document.querySelector('.ride-tricks-toggle'),
       inp:{...st.inp},vx:st.s.vx,x:st.s.x,y:st.s.y,pitch:st.s.pitch,w:st.s.w,
@@ -64,12 +68,15 @@ try{
     const {p,errors}=await openRide(browser,{width:844,height:390,track:'sample3d'});
     const side=await hud(p);
     assert.equal(side.view,'side');
-    assert.notEqual(side.steerDisplay,'none','sample3d keeps the steer HUD in side view');
-    assert.notEqual(side.tiltCopy,'none','sample3d keeps tilt labels in side view');
+    assert.notEqual(side.dpadDisplay,'none','sample3d keeps the d-pad in side view');
+    assert.equal(side.steerDisplay,'none','slider is gone');
+    assert.equal(side.leanButtons,'none','separate tilt stack is replaced by the d-pad');
     assert.notEqual(side.driveLabel,'none');
     assert(side.hop.x>500,'sample3d hop stays on the right in both views');
     assert(side.throttle.x>400,'side throttle stays on the right');
-    assert(side.steer.y>side.leanBack.y,'slider sits below the tilt stack');
+    assert(side.left&&side.left.x<200,'LEFT sits on the left edge');
+    assert(side.up.y<side.down.y,'UP is above DOWN');
+    assert(side.left.x<side.right.x,'LEFT is left of RIGHT');
     assert(side.rewindHidden,'rewind stays hidden until a crash');
     if(shots)await p.screenshot({path:join(shots,'side-phone.png')});
 
@@ -77,14 +84,15 @@ try{
     await waitChase(p);
     const chase=await hud(p);
     assert.equal(chase.view,'chase');
-    assert.notEqual(chase.steerDisplay,'none','steer visible in chase');
-    assert.notEqual(chase.tiltCopy,'none','tilt labels visible in chase');
+    assert.notEqual(chase.dpadDisplay,'none','d-pad visible in chase');
+    assert.equal(chase.steerDisplay,'none','slider stays gone in chase');
+    assert.equal(chase.leanButtons,'none');
     assert.notEqual(chase.driveLabel,'none');
     assert(chase.hop.x>500,'chase hop moves to the right');
     assert(chase.throttle.x>500);
     assert(chase.brake.x>400);
-    assert(chase.leanBack.x<200,'tilt stays on the left edge');
-    assert(chase.steer.y>chase.leanBack.y,'slider sits below the tilt stack');
+    assert(chase.left&&chase.left.x<200,'d-pad stays on the left edge');
+    assert(chase.up.y<chase.down.y);
     assert(chase.rewindHidden);
     if(shots)await p.screenshot({path:join(shots,'chase-phone.png')});
 
@@ -121,7 +129,7 @@ try{
 
     // Tilt back in the air changes pitch (nose up)
     await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;Object.assign(s,{y:6,vy:1,vx:4,pitch:0,w:0,air:.3,wasAir:true,crashed:null,ground:[false,false]});});
-    const tilt=await p.getByRole('button',{name:'Lean back',exact:true}).boundingBox();
+    const tilt=await p.locator('.ride-dpad [data-t=leanBack]').boundingBox();
     const tiltPt={id:13,x:tilt.x+tilt.width/2,y:tilt.y+tilt.height/2};
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[tiltPt]});
     await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.lean===1,null,{timeout:3000});
@@ -131,9 +139,6 @@ try{
     assert(air.pitch>0.15||air.w>1,`tilt back should raise the nose in the air ${JSON.stringify(air)}`);
     if(shots)await p.screenshot({path:join(shots,'chase-phone-air-tilt.png')});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-
-    const hint=await p.locator('.ride-steer-hint').textContent();
-    assert.match(hint||'',/STEER/,'slider should be labelled as steer');
 
     // Whole bike+rider in frame, lower-middle on flat, chase FOV near 60 at low speed
     await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:16,vx:3,vy:0,pitch:0,w:0,air:0,wasAir:false,crashed:null,ground:[true,true]});s.y=ter.h(16)+.42;});
@@ -155,30 +160,48 @@ try{
     assert(frame.midY<0.1,'bike should sit in the lower half of the chase frame '+JSON.stringify(frame));
     assert(frame.fov>=59&&frame.fov<=64,'low-speed chase FOV should be about 60, got '+frame.fov);
 
-    // Slider is STEER: left is negative heading input, does not change wheelie lean, springs back
+    // LEFT is STEER: negative heading input, does not change wheelie lean, releases on lift
     await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;Object.assign(s,{y:6,vy:1,vx:4,pitch:0,w:0,air:.3,wasAir:true,crashed:null,ground:[false,false]});});
-    const pill=await p.locator('.ride-steer-pill').boundingBox();
-    assert(pill);
-    const mid={id:14,x:pill.x+pill.width*0.5,y:pill.y+pill.height/2};
-    const left={id:14,x:pill.x+pill.width*0.08,y:pill.y+pill.height/2};
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[mid]});
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[left]});
-    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer<-0.4,null,{timeout:3000});
+    const leftBox=await p.locator('.ride-dpad [data-t=steerLeft]').boundingBox();
+    assert(leftBox);
+    const left={id:14,x:leftBox.x+leftBox.width/2,y:leftBox.y+leftBox.height/2};
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[left]});
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===-1,null,{timeout:3000});
     await p.waitForTimeout(200);
-    const slid=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,pitch:__WK_RIDE_STATE__().s.pitch,w:__WK_RIDE_STATE__().s.w,roll:__WK_RIDE_STATE__().visual.roll,slider:__WK_RIDE_STATE__().visual.steer,steer:__WK_RIDE_STATE__().inp.steer}));
-    assert(slid.steer<-0.4,'left on the slider should steer left '+JSON.stringify(slid));
-    assert(Math.abs(slid.lean)<0.15,'slider must not steal tilt/lean '+JSON.stringify(slid));
+    const slid=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,pitch:__WK_RIDE_STATE__().s.pitch,w:__WK_RIDE_STATE__().s.w,roll:__WK_RIDE_STATE__().visual.roll,steer:__WK_RIDE_STATE__().inp.steer}));
+    assert.equal(slid.steer,-1,'LEFT should steer left '+JSON.stringify(slid));
+    assert(Math.abs(slid.lean)<0.15,'steer must not steal tilt/lean '+JSON.stringify(slid));
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().inp.steer)<0.05&&Math.abs(__WK_RIDE_STATE__().visual.steer)<0.05,null,{timeout:3000});
-    const sprung=await p.evaluate(()=>({steer:__WK_RIDE_STATE__().inp.steer,slider:__WK_RIDE_STATE__().visual.steer,lean:__WK_RIDE_STATE__().inp.lean}));
-    report.phone={accelerate:true,brake:true,hop:true,airTilt:air,sliderSteer:slid,sprung,frame,errors};
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===0,null,{timeout:3000});
+    const sprung=await p.evaluate(()=>({steer:__WK_RIDE_STATE__().inp.steer,lean:__WK_RIDE_STATE__().inp.lean}));
+
+    // Holding a HUD button at a standstill must not orbit the camera
+    await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:16,z:0,yaw:0,vx:0,vy:0,pitch:0,w:0,air:0,wasAir:false,crashed:null,ground:[true,true]});s.y=ter.height(16,0)+.42;});
+    await p.waitForFunction(()=>{
+      const {cam}=__WK_RIDE_SCENE__();
+      const cur={x:cam.position.x,y:cam.position.y,z:cam.position.z};
+      const prev=window.__WK_CAM_PREV__;
+      window.__WK_CAM_PREV__=cur;
+      if(!prev)return false;
+      return Math.hypot(cur.x-prev.x,cur.y-prev.y,cur.z-prev.z)<0.03;
+    },null,{timeout:5000});
+    const cam0=await p.evaluate(()=>{const {cam}=__WK_RIDE_SCENE__();return {x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:__WK_RIDE_STATE__().s.yaw||0};});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[left]});
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===-1,null,{timeout:3000});
+    await p.waitForTimeout(350);
+    const cam1=await p.evaluate(()=>{const {cam}=__WK_RIDE_SCENE__();return {x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:__WK_RIDE_STATE__().s.yaw||0,steer:__WK_RIDE_STATE__().inp.steer};});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    assert.equal(cam1.steer,-1);
+    assert(Math.abs(cam1.yaw)<0.05,'standstill steer must not yaw '+JSON.stringify(cam1));
+    assert(Math.hypot(cam1.x-cam0.x,cam1.y-cam0.y,cam1.z-cam0.z)<0.35,'HUD hold must not orbit the camera '+JSON.stringify({cam0,cam1}));
+    report.phone={accelerate:true,brake:true,hop:true,airTilt:air,steerHold:slid,released:sprung,camHold:{cam0,cam1},frame,errors};
 
     // View swap back to side keeps the same HUD (camera swap only) on sample3d
     await p.locator('[data-r=view]').tap();
     await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='side'&&__WK_RIDE_STATE__().cameraBlend===0,null,{timeout:8000});
     const back=await hud(p);
-    assert.notEqual(back.steerDisplay,'none','sample3d side view keeps the steer slider');
-    assert.notEqual(back.tiltCopy,'none');
+    assert.notEqual(back.dpadDisplay,'none','sample3d side view keeps the d-pad');
+    assert.equal(back.leanButtons,'none');
     assert(back.hop.x>500,'hop stays on the right in sample3d side view');
     const sideFov=await p.evaluate(()=>__WK_RIDE_SCENE__().cam.fov);
     assert(sideFov>=40&&sideFov<=58,'sample3d side follow FOV should stay mid, got '+sideFov);
@@ -192,7 +215,7 @@ try{
     await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
     await waitChase(p);
     const chase=await hud(p);
-    assert.notEqual(chase.steerDisplay,'none');
+    assert.notEqual(chase.dpadDisplay,'none');
     assert(chase.hop.x>600,'tablet hop on the right');
     await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.vx=0;});
     const gas=await p.locator('[data-t=throttle]').boundingBox();
@@ -213,14 +236,33 @@ try{
   {
     const {p,errors}=await openRide(browser,{width:844,height:390,track:null});
     const side=await hud(p);
-    assert.equal(side.steerDisplay,'none');
+    assert.equal(side.dpadDisplay,'none','Trials side view keeps the old lean buttons, not the d-pad');
+    assert(side.leanButtons!=='none');
     await p.locator('[data-r=view]').tap();
     await waitChase(p);
     const chase=await hud(p);
-    assert.notEqual(chase.steerDisplay,'none','chase HUD must apply on Trials too');
+    assert.notEqual(chase.dpadDisplay,'none','chase HUD must apply on Trials too');
     assert(chase.hop.x>500);
+
+    // Trials / Endless keep the old keys: arrows + WASD still drive and lean
+    await p.keyboard.down('ArrowUp');
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.throttle===1,null,{timeout:3000});
+    await p.keyboard.up('ArrowUp');
+    await p.keyboard.down('KeyA');
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.lean===1&&__WK_RIDE_STATE__().inp.steer===0,null,{timeout:3000});
+    await p.keyboard.up('KeyA');
+    await p.keyboard.down('KeyW');
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.throttle===1,null,{timeout:3000});
+    await p.keyboard.up('KeyW');
+    const prevented=await p.evaluate(()=>{
+      const ev=k=>{const e=new KeyboardEvent('keydown',{key:k,cancelable:true,bubbles:true});window.dispatchEvent(e);return e.defaultPrevented;};
+      return {w:ev('w'),arrow:ev('ArrowDown'),space:ev(' ')};
+    });
+    assert.equal(prevented.w,true);
+    assert.equal(prevented.arrow,true);
+    assert.equal(prevented.space,true);
     assert.deepEqual(errors,[]);
-    report.trials={chaseHud:true};
+    report.trials={chaseHud:true,legacyKeys:true,prevented};
     await p.close();
   }
 

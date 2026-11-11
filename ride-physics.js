@@ -38,6 +38,39 @@ export function makeSampleTerrain(){
   const {pts:rounded,h,slope}=roundedProfile(pts);
   return attachFreeRoam({pts:rounded,h,slope,puddles:[],checkpoints:[0,64,128],kickers:[48,108,154],finish:196,inPuddle:()=>false});
 }
+const ARENA_HALF=150;
+const ARENA_BUMPS=[[-30,40,8,6,.7],[20,-45,9,7,.85],[-60,-20,10,8,.6],[55,55,8,8,.75],[-80,70,12,9,.9],[90,-80,9,7,.65]];
+// x,z,len,width,peak,yaw  — small, medium, big, then one large ramp
+const ARENA_RAMPS=[
+  {name:'small',x:28,z:0,len:8,w:5,peak:1.05,lip:.72,yaw:0},
+  {name:'medium',x:70,z:22,len:10,w:6,peak:1.6,lip:.74,yaw:0},
+  {name:'big',x:70,z:-28,len:12,w:6.5,peak:2.3,lip:.76,yaw:0},
+  {name:'large',x:115,z:0,len:18,w:9,peak:4.2,lip:.82,yaw:0}
+];
+function arenaBump(x,z,mx,mz,rx,rz,peak){const dx=(x-mx)/rx,dz=(z-mz)/rz,r2=dx*dx+dz*dz;if(r2>=1)return 0;const t=1-r2;return peak*t*t}
+function arenaRamp(x,z,r){
+  const c=Math.cos(r.yaw||0),n=Math.sin(r.yaw||0),dx=x-r.x,dz=z-r.z,lx=dx*c+dz*n,lz=-dx*n+dz*c;
+  if(lx<0||lx>r.len||Math.abs(lz)>r.w/2)return 0;
+  const edge=1-Math.min(1,Math.max(0,(Math.abs(lz)-r.w/2+.85)/.85));
+  const t=lx/r.len,lip=r.lip||.72;
+  const h=t<=lip?r.peak*(t/lip)*(t/lip):r.peak*Math.pow(1-(t-lip)/(1-lip),2);
+  return h*edge;
+}
+export function makeArenaTerrain(){
+  function height(x,z){
+    let y=0;
+    for(const [mx,mz,rx,rz,peak] of ARENA_BUMPS)y=Math.max(y,arenaBump(x,z,mx,mz,rx,rz,peak));
+    for(const r of ARENA_RAMPS)y=Math.max(y,arenaRamp(x,z,r));
+    return y;
+  }
+  function slopeAt(x,z,yaw){const d=.3,c=Math.cos(yaw||0),n=Math.sin(yaw||0);return Math.atan2(height(x+c*d,z+n*d)-height(x-c*d,z-n*d),2*d)}
+  return {
+    pts:[[-ARENA_HALF,0],[ARENA_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,slopeAt,
+    puddles:[],checkpoints:[0],kickers:ARENA_RAMPS.map(r=>r.x),ramps:ARENA_RAMPS,bumps:ARENA_BUMPS,
+    finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,arena:true,boxes:[],
+    bounds:{xmin:-ARENA_HALF,xmax:ARENA_HALF,zmin:-ARENA_HALF,zmax:ARENA_HALF},gates:null
+  };
+}
 export function bikeParams(stats = {}) {
   const motorW=Math.max(0,stats.P??0),pedal=stats.powertrain?stats.powertrain==='human':motorW<200;
   return {

@@ -50,25 +50,23 @@ try{
   await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.()?.backdropLoaded,null,{timeout:90000});
 
-  // Slider steers while moving; no heading change at 0 speed.
+  // RIGHT steers while moving; no heading change at 0 speed.
   await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;Object.assign(s,{vx:0,vy:0,yaw:0,z:0,pitch:0,w:0,crashed:null,ground:[true,true]});});
-  const pill=await p.locator('.ride-steer-pill').boundingBox();
-  assert(pill,'steer slider missing');
+  const rightBox=await p.locator('.ride-dpad [data-t=steerRight]').boundingBox();
+  assert(rightBox,'steer RIGHT missing');
   const cdp=await p.context().newCDPSession(p);
-  const mid={id:41,x:pill.x+pill.width*0.5,y:pill.y+pill.height/2};
-  const right={id:41,x:pill.x+pill.width*0.92,y:pill.y+pill.height/2};
-  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[mid]});
-  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[right]});
-  await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer>0.4,null,{timeout:3000});
+  const right={id:41,x:rightBox.x+rightBox.width/2,y:rightBox.y+rightBox.height/2};
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[right]});
+  await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===1,null,{timeout:3000});
   await p.waitForTimeout(250);
   const stopped=await p.evaluate(()=>({yaw:__WK_RIDE_STATE__().s.yaw||0,steer:__WK_RIDE_STATE__().inp.steer,z:__WK_RIDE_STATE__().s.z||0}));
-  assert(stopped.steer>0.4);
+  assert.equal(stopped.steer,1);
   assert(Math.abs(stopped.yaw)<0.05,'must not turn at 0 speed '+JSON.stringify(stopped));
 
   await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.vx=4;s.yaw=0;});
   await p.waitForTimeout(350);
   const turning=await p.evaluate(()=>({yaw:__WK_RIDE_STATE__().s.yaw||0,z:__WK_RIDE_STATE__().s.z||0,steer:__WK_RIDE_STATE__().inp.steer,roll:__WK_RIDE_STATE__().visual.roll}));
-  assert(turning.yaw>0.08,'slider should yaw the bike while moving '+JSON.stringify(turning));
+  assert(turning.yaw>0.08,'RIGHT should yaw the bike while moving '+JSON.stringify(turning));
   assert(turning.z>0.05,'heading should take the bike off the centreline');
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 
@@ -128,13 +126,13 @@ try{
   const swap=await p.evaluate(()=>{
     const st=__WK_RIDE_STATE__();
     const {cam}=__WK_RIDE_SCENE__();
-    return {z:st.s.z,yaw:st.s.yaw,view:st.cameraView,camZ:cam.position.z,camX:cam.position.x,fov:cam.fov,steerOn:getComputedStyle(document.querySelector('.ride-steer')).display,pivotZ:st.visual.z};
+    return {z:st.s.z,yaw:st.s.yaw,view:st.cameraView,camZ:cam.position.z,camX:cam.position.x,fov:cam.fov,dpadOn:getComputedStyle(document.querySelector('.ride-dpad')).display,pivotZ:st.visual.z};
   });
   assert.equal(swap.view,'side');
   assert(Math.abs(swap.z-5)<0.8,'side view must not reset world z '+JSON.stringify(swap));
   assert(Math.abs(swap.pivotZ-swap.z)<0.2,'pivot follows z in side view '+JSON.stringify(swap));
   assert(Math.abs(swap.camZ-swap.z)>2,'side camera sits off to the side of the bike');
-  assert.notEqual(swap.steerOn,'none','steer HUD stays up in sample3d side view');
+  assert.notEqual(swap.dpadOn,'none','d-pad stays up in sample3d side view');
 
   await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
   await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='chase'&&__WK_RIDE_STATE__().cameraBlend===1,null,{timeout:8000});

@@ -2,7 +2,8 @@
 export function pauseMenuMarkup(level) {
   const flat = level === true || level === 'flat';
   const sample = level === 'sample3d';
-  const trials = !flat && !sample;
+  const arena = level === 'arena';
+  const trials = !flat && !sample && !arena;
   return `
 <button class="ride-pause-fab ride-glass" data-r="pause" aria-label="Pause ride" aria-expanded="false">
   <span class="ride-pause-fab-ico" aria-hidden="true">Ⅱ</span><span>PAUSE</span>
@@ -23,6 +24,7 @@ export function pauseMenuMarkup(level) {
       <button type="button" data-r="mode-trials" aria-pressed="${trials ? 'true' : 'false'}">Trials</button>
       <button type="button" data-r="mode-sample3d" aria-pressed="${sample ? 'true' : 'false'}">SAMPLE 3D</button>
       <button type="button" data-r="mode-endless" aria-pressed="${flat ? 'true' : 'false'}">Endless</button>
+      <button type="button" data-r="mode-arena" aria-pressed="${arena ? 'true' : 'false'}">ARENA</button>
     </div>
   </div>
   <button type="button" class="ride-pause-replay" data-r="menu-replay"><span aria-hidden="true">●</span> Replay last 20s</button>
@@ -31,7 +33,7 @@ export function pauseMenuMarkup(level) {
 }
 
 function levelOf(opts) {
-  if (opts?.level === 'flat' || opts?.level === 'sample3d' || opts?.level === 'trials') return opts.level;
+  if (opts?.level === 'flat' || opts?.level === 'sample3d' || opts?.level === 'trials' || opts?.level === 'arena') return opts.level;
   if (opts?.flat) return 'flat';
   return 'trials';
 }
@@ -45,12 +47,14 @@ export function mountRidePause(ui, opts) {
   const trialsBtn = ui.querySelector('[data-r="mode-trials"]');
   const sampleBtn = ui.querySelector('[data-r="mode-sample3d"]');
   const endlessBtn = ui.querySelector('[data-r="mode-endless"]');
+  const arenaBtn = ui.querySelector('[data-r="mode-arena"]');
   let current = levelOf(opts);
 
   function syncMode() {
     trialsBtn?.setAttribute('aria-pressed', String(current === 'trials'));
     sampleBtn?.setAttribute('aria-pressed', String(current === 'sample3d'));
     endlessBtn?.setAttribute('aria-pressed', String(current === 'flat'));
+    arenaBtn?.setAttribute('aria-pressed', String(current === 'arena'));
   }
 
   function syncFab(paused) {
@@ -100,6 +104,7 @@ export function mountRidePause(ui, opts) {
   trialsBtn?.addEventListener('click', () => pick('trials'));
   sampleBtn?.addEventListener('click', () => pick('sample3d'));
   endlessBtn?.addEventListener('click', () => pick('flat'));
+  arenaBtn?.addEventListener('click', () => pick('arena'));
   syncMode();
 
   return {
