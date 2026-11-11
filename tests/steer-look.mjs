@@ -57,7 +57,9 @@ try{
     await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===1,null,{timeout:3000});
     await p.waitForTimeout(450);
     const walk=await read(p);
-    assert(walk.yaw>0.2,'A/D must yaw the bike at a walking pace '+JSON.stringify(walk));
+    const bar=await p.evaluate(()=>__WK_RIDE_STATE__().s.steer||__WK_RIDE_STATE__().visual.bar||0);
+    assert(Math.abs(walk.yaw)<0.03,'A/D at a standstill must only turn the bars, not the bike '+JSON.stringify({...walk,bar}));
+    assert(bar>0.3,'bars should turn when D is held at a standstill, bar='+bar);
     assert(Math.abs(wrap(walk.meshYaw-walk.yaw))<0.4,'mesh world yaw must follow heading '+JSON.stringify(walk));
     assert(Math.abs(walk.look)<0.05,'keys must never look the camera '+JSON.stringify(walk));
     await p.keyboard.down('KeyW');
@@ -76,7 +78,7 @@ try{
     assert(Math.abs(behind.behind)<0.35,'chase cam should sit behind the rider, behind='+behind.behind+' '+JSON.stringify(behind));
 
     // Touch LEFT yaws the other way and does not start a look.
-    await p.evaluate((o)=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:o.x,z:o.z,yaw:0,vx:1.2,vy:0,pitch:0,w:0,air:0,crashed:null,ground:[true,true]});s.y=ter.height(o.x,o.z)+.42;},spawn);
+    await p.evaluate((o)=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:o.x,z:o.z,yaw:0,vx:3,vy:0,pitch:0,w:0,air:0,crashed:null,ground:[true,true]});s.y=ter.height(o.x,o.z)+.42;},spawn);
     await settle(p);
     const leftBox=await p.locator('.ride-dpad [data-t=steerLeft]').boundingBox();
     const cdp=await p.context().newCDPSession(p);
@@ -127,11 +129,13 @@ try{
       assert(side1.camZ>side1.z+3,'side camera stays perpendicular to the track '+JSON.stringify(side1));
       assert(Math.abs(side1.look)<0.05);
     }else{
+      await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();s.vx=3;s.y=ter.height(s.x,s.z||0)+.42;});
       await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===-1,null,{timeout:3000});
-      await p.waitForTimeout(500);
+      await p.waitForTimeout(600);
       side1=await read(p);
       await p.keyboard.up('KeyA');
-      assert(side1.yaw<-0.2,'side view must still yaw the bike '+JSON.stringify(side1));
+      const bar=await p.evaluate(()=>__WK_RIDE_STATE__().s.steer||0);
+      assert(side1.yaw<-0.15,'sample3d side view still steers once moving '+JSON.stringify({...side1,bar}));
       assert(Math.abs(wrap(side1.meshYaw-side1.yaw))<0.4,'side view mesh follows heading');
       assert(side1.camZ>side1.z+3,'side camera stays on the world +Z side '+JSON.stringify(side1));
       assert(Math.abs(side1.camZ-side0.camZ)<2.5,'side camera must not orbit around the bike '+JSON.stringify({side0,side1}));

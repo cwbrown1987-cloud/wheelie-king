@@ -55,12 +55,16 @@ export function createBikeMotion(root,build={},find=()=>null) {
  if(rearFender)capture(rearFender,'rear');
  const axleBolts=root.getObjectByName('frame:rearAxleBolts');
  if(axleBolts)capture(axleBolts,'rear');
+ const bars=root.getObjectByName('wk:model:bars'),stem=root.getObjectByName('wk:model:stem');
+ const steerParts=[fork,bars,stem].filter(Boolean);
+ for(const o of steerParts){o.updateMatrix();o.userData.wkSteerBase??=o.matrix.clone();}
+ const steerAxis=new T.Vector3(),steerPivot=new T.Vector3(),steerM=new T.Matrix4(),steerQ=new T.Quaternion();
  const forkTravel=Math.max(0,find(build.suspension)?.travel||0);
  let wheelPhase=0,rearWheelPhase=0,crankPhase=0,chainPhase=0,lastKey='',route=null;
  const matrix=new T.Matrix4(),p=A.swingPivot,_s=new T.Vector3(),_b=new T.Vector3(),_c=new T.Vector3(),_n=new T.Vector3(),_up=new T.Vector3(0,1,0),_shift=new T.Vector3(),_q0=new T.Quaternion(),_q1=new T.Quaternion(),_m1=new T.Matrix4(),_m2=new T.Matrix4(),_m3=new T.Matrix4(),_m4=new T.Matrix4(),_t=new T.Matrix4();let jockeyNodes=null;
  const rotate=(point,angle)=>{const dx=point[0]-p[0],dy=point[1]-p[1];return [p[0]+Math.cos(angle)*dx-Math.sin(angle)*dy,p[1]+Math.sin(angle)*dx+Math.cos(angle)*dy]};
  const state={wheelPhase:0,rearWheelPhase:0,crankPhase:0,chainPhase:0,rearAngle:0,rearAxle:[...A.rearAxle],shockArm:[...A.shockArm],frontAxle:[...A.frontAxle]};
- const update=({distance=0,frontDistance=distance,rearDistance=distance,driveDistance=distance,rearCompression=0,frontCompression=0,travelR=.045,travelF=.06}={})=>{
+ const update=({distance=0,frontDistance=distance,rearDistance=distance,driveDistance=distance,rearCompression=0,frontCompression=0,travelR=.045,travelF=.06,steerAngle=0}={})=>{
   wheelPhase-=frontDistance/A.wheelR;
   rearWheelPhase-=rearDistance/A.wheelR;
   const angular=-driveDistance/A.wheelR*(rearN/frontN);crankPhase+=angular;chainPhase+=angular*rF;
@@ -90,7 +94,17 @@ export function createBikeMotion(root,build={},find=()=>null) {
   const jockeys=rear?.userData.jockeys?[rotate([A.rearAxle[0]-.018,A.rearAxle[1]-.05],angle),rotate([A.rearAxle[0]+.028,A.rearAxle[1]-.12],angle)]:[];
   if(chain){const key=ra.map(v=>v.toFixed(5)).join(',')+':'+angle.toFixed(5);if(key!==lastKey||!route){route=chainRoute([{x:ra[0],y:ra[1],r:rR},...jockeys.map(c=>({x:c[0],y:c[1],r:PM.sprocketR(8)+.004})),{x:A.bb[0],y:A.bb[1],r:rF}]);lastKey=key;}PM.animateChain(chain,route,chainPhase);}
   if(rear){if(!jockeyNodes){jockeyNodes=[];rear.traverse(o=>{if(/^derailleur:jockey\d$/.test(o.name))jockeyNodes.push(o)})}const jr=chainPhase/(PM.sprocketR(8)+.004);for(const o of jockeyNodes)o.rotation.z=jr}
-  Object.assign(state,{wheelPhase,rearWheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa});return state;
+  const ht=A.headTop,hb=A.headBottom||ht;
+  if(ht){steerPivot.set(hb[0],hb[1],0);steerAxis.set(ht[0]-hb[0],ht[1]-hb[1],0);if(steerAxis.lengthSq()<1e-8)steerAxis.copy(forkDirection);else steerAxis.normalize();}
+  else{steerAxis.copy(forkDirection);steerPivot.set(A.frontAxle[0],A.frontAxle[1],0);}
+  // Right-hand rotation around an upward steerer would swing the wheel left, so flip the visual angle.
+  const steer=-(steerAngle||0);
+  steerQ.setFromAxisAngle(steerAxis,steer);
+  steerM.makeTranslation(steerPivot.x,steerPivot.y,steerPivot.z).multiply(_m1.makeRotationFromQuaternion(steerQ)).multiply(_m2.makeTranslation(-steerPivot.x,-steerPivot.y,-steerPivot.z));
+  for(const o of steerParts){o.matrixAutoUpdate=false;o.matrix.copy(steerM).multiply(o.userData.wkSteerBase);o.matrixWorldNeedsUpdate=true;}
+  for(const entry of rotors){if(!entry.front){entry.wheel.quaternion.identity();continue;}entry.wheel.position.applyMatrix4(steerM);entry.wheel.quaternion.copy(steerQ);}
+  for(const att of attachments){if(att.mount==='front'){att.o.matrix.premultiply(steerM);}}
+  Object.assign(state,{wheelPhase,rearWheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa,steerAngle:steerAngle||0});return state;
  };
  return {update,state};
 }

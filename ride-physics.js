@@ -113,7 +113,7 @@ const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   if (ter.loop && stepLoop(s, p, inp, dt, ter.loop)) return s;
-  if(ter.freeRoam)stepHeading(s,inp,dt);
+  if(ter.freeRoam)stepHeading(s,inp,dt,p);
   const startPitch=s.pitch,startW=s.w;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles
   const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR, p.travelF];

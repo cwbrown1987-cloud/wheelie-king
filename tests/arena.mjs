@@ -44,8 +44,9 @@ for(let i=0;i<30;i++)step(bo,motor,{throttle:1,brake:1,lean:0,hop:0,trick:0,whip
 assert(bo.burnout,'emoto brake+throttle at low speed should burnout');
 assert(Math.abs(bo.vx)<1,'burnout holds the bike in place, vx='+bo.vx);
 const yaw0=bo.yaw||0;
-for(let i=0;i<40;i++)step(bo,motor,{throttle:1,brake:1,lean:0,hop:0,trick:0,whip:0,steer:1},1/60,ter);
-assert((bo.yaw||0)-yaw0>0.4,'burnout + steer should pivot the bike, yaw='+bo.yaw);
+for(let i=0;i<60;i++)step(bo,motor,{throttle:1,brake:1,lean:0,hop:0,trick:0,whip:0,steer:1},1/60,ter);
+assert((bo.yaw||0)-yaw0>0.25,'burnout + steer should slide the rear around, yaw='+bo.yaw);
+assert((bo.yaw||0)-yaw0<0.9,'burnout slide should be slower than a snap-spin, yaw='+bo.yaw);
 assert(bo.burnout&&Math.abs(bo.vx)<1.2,'pivot stays a burnout, vx='+bo.vx);
 
 const jump=makeState(motor,24,ter);jump.z=0;jump.vx=8;jump.y=ter.height(24,0)+.5;
@@ -160,7 +161,7 @@ try{
   assert(Math.abs(piv.vx)<1.5,'bike should stay nearly in place');
 
   // Jump launch from the small kicker.
-  await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:24,z:0,yaw:0,vx:8,vy:0,pitch:0,w:0,crashed:null,ground:[true,true],air:0});s.y=ter.height(24,0)+.45;});
+  await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:24,z:0,yaw:0,vx:8,vy:0,pitch:0,w:0,crashed:null,ground:[true,true],air:0,steer:0,steerTarget:0});s.y=ter.height(24,0)+.45;});
   await p.waitForFunction(()=>{const s=__WK_RIDE_STATE__().s;return s.air>0.05||s.y>1.5||s.vy>1;},null,{timeout:4000});
   const air=await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;return {y:s.y,vy:s.vy,air:s.air,x:s.x};});
 

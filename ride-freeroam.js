@@ -62,17 +62,31 @@ export function attachFreeRoam(ter){
 
 export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 
-// Speed-scaled heading. Walking-pace pivot at low speed (so LEFT/RIGHT turn the bike
-// even when creeping); burnout still spins on the spot. Light air control.
-export function stepHeading(s,inp,dt){
+// Handlebar steering (kinematic bicycle). LEFT/RIGHT set a target bar angle;
+// yaw comes from v*tan(δ)/wheelbase. At a standstill the bars turn and the
+// bike does not spin. Burnout is the exception: a slower rear-tyre slide.
+export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=7*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
+export function maxSteerAngle(speed,vmax=12){
+  const t=Math.min(1,Math.abs(speed||0)/Math.max(8,vmax));
+  return STEER_MAX_LOW+(STEER_MAX_HIGH-STEER_MAX_LOW)*t;
+}
+export function stepHeading(s,inp,dt,p){
   const onG=!!(s.ground[0]||s.ground[1]);
-  const speed=s.vx||0, abs=Math.abs(speed);
-  if(s.burnout&&onG){s.yaw=(s.yaw||0)+(inp.steer||0)*1.65*dt;return s}
+  const v=s.vx||0,wb=Math.max(.9,p?.wb||1.25),vmax=p?.vmax||12;
+  const maxA=maxSteerAngle(v,vmax);
+  const target=Math.max(-1,Math.min(1,inp.steer||0))*maxA;
+  s.steerTarget=target;
+  const k=1-Math.exp(-Math.max(0,dt)/STEER_TAU);
+  s.steer=(s.steer||0)+(target-(s.steer||0))*k;
+  if(Math.abs(s.steer)<1e-5)s.steer=0;
+  s.curvature=Math.tan(s.steer)/wb;
+  if(s.burnout&&onG){
+    // Slow rear-slide: full lock ≈ 0.7 rad/s, scales with the bar angle.
+    s.yaw=(s.yaw||0)+(s.steer/STEER_MAX_LOW)*STEER_BURNOUT*dt;
+    return s;
+  }
   const airScale=onG?1:.2;
-  const walk=.9,peak=1.85;
-  const rate=(abs<.32?walk:walk+(peak-walk)*Math.min(1,(abs-.32)/3.1))*airScale;
-  const dir=abs<.05?1:Math.sign(speed);
-  s.yaw=(s.yaw||0)+(inp.steer||0)*dir*rate*dt;
+  s.yaw=(s.yaw||0)+v*Math.tan(s.steer)/wb*airScale*dt;
   return s;
 }
 

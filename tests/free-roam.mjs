@@ -23,12 +23,16 @@ assert(Math.abs(onRoad.x-onFlat.x)<0.2,'forward travel on the road is unchanged'
 assert(Math.abs(onRoad.z||0)<1e-6,'yaw 0 stays on z=0');
 
 const still=makeState(P,8,sample);still.vx=0;still.ground=[true,true];
-stepHeading(still,{steer:1},1/30);
-assert((still.yaw||0)>0.02,'walking-pace pivot at a standstill, yaw='+(still.yaw||0));
+stepHeading(still,{steer:1},1/30,P);
+assert(Math.abs(still.yaw||0)<1e-9,'standstill must not yaw, yaw='+(still.yaw||0));
+assert((still.steer||0)>0.05,'bars should start turning at a standstill');
+for(let i=0;i<40;i++)stepHeading(still,{steer:1},1/60,P);
+assert(Math.abs(still.yaw||0)<1e-9);
+assert((still.steer||0)>0.4,'bars ease toward lock at a standstill, steer='+still.steer);
 
-const roll=makeState(P,8,sample);roll.vx=3;const yaw0=roll.yaw||0;
-stepHeading(roll,{steer:1},1/30);
-assert((roll.yaw||0)>yaw0,'moving bike turns with steer');
+const roll=makeState(P,8,sample);roll.vx=3;roll.ground=[true,true];const yaw0=roll.yaw||0;
+for(let i=0;i<20;i++)stepHeading(roll,{steer:1},1/30,P);
+assert((roll.yaw||0)>yaw0,'moving bike turns with the bars');
 
 const wall=makeState(P,4,sample);wall.z=-8.5;wall.yaw=Math.PI/2;wall.vx=4;
 collideFreeRoam(wall,P,sample);
@@ -50,7 +54,7 @@ try{
   await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.()?.backdropLoaded,null,{timeout:90000});
 
-  // RIGHT yaws the bike itself, even at a walking pace; it does not orbit the camera.
+  // RIGHT at a standstill turns the bars only; once moving, heading follows the bicycle model.
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:8,vx:0,vy:0,yaw:0,z:0,pitch:0,w:0,crashed:null,ground:[true,true]});s.y=ter.height(8,0)+.42;});
   const rightBox=await p.locator('.ride-dpad [data-t=steerRight]').boundingBox();
   assert(rightBox,'steer RIGHT missing');
@@ -63,11 +67,14 @@ try{
     const st=__WK_RIDE_STATE__();
     return {yaw:st.s.yaw||0,meshYaw:st.visual.meshYaw,steer:st.inp.steer,z:st.s.z||0,look:st.visual.lookYaw||0,roll:st.visual.roll};
   });
+  const stoppedFull=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();return {yaw:st.s.yaw||0,meshYaw:st.visual.meshYaw,steer:st.inp.steer,bar:st.s.steer||st.visual.bar||0,z:st.s.z||0,look:st.visual.lookYaw||0,roll:st.visual.roll,mech:st.mechanical?.steerAngle||0};});
+  Object.assign(stopped,stoppedFull);
   assert.equal(stopped.steer,1);
-  assert(stopped.yaw>0.15,'walking-pace steer must yaw the bike '+JSON.stringify(stopped));
+  assert(Math.abs(stopped.yaw)<0.02,'standstill must not yaw the bike '+JSON.stringify(stopped));
+  assert(stopped.bar>0.3,'bars should turn at a standstill '+JSON.stringify(stopped));
   assert(Math.abs(stopped.meshYaw-stopped.yaw)<0.35,'bike mesh must follow heading '+JSON.stringify(stopped));
   assert(Math.abs(stopped.look)<0.05,'a HUD hold must not start a camera look '+JSON.stringify(stopped));
-  assert(stopped.roll< -0.05,'bike should lean into the turn');
+  assert(Math.abs(stopped.roll)<0.08,'no lean while stationary '+JSON.stringify(stopped));
 
   await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.vx=4;s.yaw=0;s.z=0;});
   await p.waitForTimeout(400);
@@ -149,7 +156,7 @@ try{
   await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='chase'&&__WK_RIDE_STATE__().cameraBlend===1,null,{timeout:8000});
   const chase=await p.evaluate(()=>{const {cam}=__WK_RIDE_SCENE__();const st=__WK_RIDE_STATE__();return {fov:cam.fov,z:st.s.z,radius:st.chaseCam.radius};});
   assert(chase.fov>=59,'chase FOV stays around 60 at low speed, got '+chase.fov);
-  assert(chase.radius>=4.3&&chase.radius<=6.2,'chase radius should be the halfway distance, got '+chase.radius);
+  assert(chase.radius>=3.2&&chase.radius<=5.2,'chase sits close behind the bike, got '+chase.radius);
 
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({freeRoam:true,stopped,turning,afterBump,bound,before,rew,swap,chase}));
