@@ -175,7 +175,7 @@ export function step(s, p, inp, dt, ter) {
       const tx = Math.cos(a), ty = Math.sin(a), vt = s.vx * tx + s.vy * ty;
       let ft = -vt * 2.2 * (i ? 1 : 1); // rolling resistance
       if (i === driven && (inp.throttle > 0 || (p.pedal&&s.pedalEffort>0)) && s.battery > 0) { const v = Math.max(Math.abs(vt), 1.2); const effort=p.pedal?Math.min(1,(s.pedalEffort||0)/.35):0; let drive = Math.min(p.torque * 4*(1+effort), p.power*(1+effort*.65) / v, p.mass * 9.8 * 0.4 * p.grip) * (p.pedal?Math.max(s.thr||0,effort*.85):(s.thr || 0)); if(p.pedal)drive+=Math.max(0,Math.sin(a))*p.mass*9.8*.95*Math.max(0,1-Math.max(0,vt-2)/3)*Math.max(s.thr||0,effort); { const rel0 = s.pitch - a; if (rel0 > 0.6 && !(inp.lean > 0)) drive *= Math.max(0.15, 1 - (rel0 - 0.6) * 3 - Math.max(0, s.w) * 0.25); } /* rider feathers the throttle at the balance point unless leaning back */ const speedLimit=p.vmax+(p.pedal?effort*.6:0); if (vt > speedLimit) drive *= Math.max(0, 1 - (vt - speedLimit)* (p.pedal?5:1)); drive = Math.min(drive, f * 1.15 * p.grip + 80);s.burnout=!p.pedal&&inp.brake>0&&Math.abs(s.vx)<3;ft+=s.burnout?0:drive; }
-      if (inp.brake > 0&&!s.reversing) { const bias = i === 1 ? 0.45 + 0.45 * Math.max(0, -inp.lean) : 0.55 - 0.3 * Math.max(0, -inp.lean); ft -= Math.sign(vt) * Math.min(f * 0.9 * p.grip, p.mass * 9 * bias) * inp.brake * Math.min(1, Math.abs(vt) * 2); }
+      if (inp.brake > 0&&!s.reversing&&!s.burnout) { const bias = i === 1 ? 0.45 + 0.45 * Math.max(0, -inp.lean) : 0.55 - 0.3 * Math.max(0, -inp.lean); ft -= Math.sign(vt) * Math.min(f * 0.9 * p.grip, p.mass * 9 * bias) * inp.brake * Math.min(1, Math.abs(vt) * 2); }
       if(i===driven&&s.reversing)ft-=Math.min(p.mass*1.4,p.torque*2,Math.max(40,f*.7))*inp.brake*Math.max(0,1-Math.max(0,-vt-2.5)*2);
       Fx += ft * tx; Fy += ft * ty; const rx = ox - nx * p.R, ry = oy - ny * p.R; T += rx * ft * ty - ry * ft * tx;
     } else s.comp[i] = Math.max(0, s.comp[i] - dt * 6);
@@ -190,7 +190,12 @@ export function step(s, p, inp, dt, ter) {
     const eng=(p.pedal?p.mass*0.12:p.mass*0.8)*shut*Math.min(1,Math.abs(s.vx)/3);
     Fx-=Math.sign(s.vx)*(roll+eng);
   }
-  if(s.burnout)Fx-=s.vx*p.mass*12;
+  if(s.burnout){
+    // Brake+throttle: creep slowly forward (~0.45 m/s) while the rear spins.
+    // Applied to Fx only so pitch / trick torque stays unchanged.
+    const creep=.45;
+    Fx+=(creep-s.vx)*p.mass*10;
+  }
   // Air control tapers near 9 rad/s; modest damping preserves takeoff momentum.
   if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*11*dt*Math.max(0,1-Math.max(0,Math.sign(inp.lean)*s.w-6)/3);
   // Arcade balance: slow the response near vertical, but leave an unstable

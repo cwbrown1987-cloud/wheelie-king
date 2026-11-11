@@ -32,7 +32,10 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       g.fillStyle=p>.65?'#8a6a42':p>.3?'#4a3824':'#7a5a38';g.globalAlpha=.4+.4*n;g.fillRect((n*w)|0,(m*h)|0,3,2)}
     g.globalAlpha=1;
   },256,256);
-  grassTex.repeat.set(22,22);packedDirt.repeat.set(22,22);
+  // World-locked UVs: tile in metres, never scroll or follow the bike/camera.
+  const TILE=(HALF*2)/22;
+  grassTex.repeat.set(1,1);packedDirt.repeat.set(1,1);
+  grassTex.offset.set(0,0);packedDirt.offset.set(0,0);
   const floorMat=mat('#5a8a4a',{map:grassTex,roughness:.94,vertexColors:true});
   floorMat.onBeforeCompile=(shader)=>{
     shader.uniforms.dirtMap={value:packedDirt};
@@ -51,6 +54,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   floor.rotation.x=-Math.PI/2;floor.name='environment:arena-floor';floor.receiveShadow=true;
   const pos=floor.geometry.attributes.position;
   const dirtCol=new Float32Array(pos.count*3);
+  const floorUv=new Float32Array(pos.count*2);
   const ramps=terrain.ramps||[];
   const smooth=(a,b,x)=>x<=a?1:x>=b?0:1-(x-a)/(b-a);
   for(let i=0;i<pos.count;i++){
@@ -70,8 +74,10 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       }
     }
     dirtCol[i*3]=Math.max(0,Math.min(1,dirt));dirtCol[i*3+1]=1;dirtCol[i*3+2]=1;
+    floorUv[i*2]=x/TILE;floorUv[i*2+1]=wz/TILE;
   }
   floor.geometry.setAttribute('color',new T.BufferAttribute(dirtCol,3));
+  floor.geometry.setAttribute('uv',new T.BufferAttribute(floorUv,2));
   floor.geometry.computeVertexNormals();sharedGeo.push(floor.geometry);root.add(floor);
 
   // Visible side-view track: a dirt/asphalt strip along the S through the kickers.
@@ -397,44 +403,48 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     }
   }
 
-  // Brief tyre skids behind the rear wheel (visual only).
-  const SKID=64;
-  const skidGeo=new T.PlaneGeometry(1.15,.2);skidGeo.rotateX(-Math.PI/2);sharedGeo.push(skidGeo);
-  const skidMat=new T.MeshBasicMaterial({color:'#1a1612',transparent:true,opacity:.4,depthWrite:false});sharedMat.push(skidMat);
+  // Thin rear-tyre marks, laid exactly at the rear contact patch (visual only).
+  const SKID=192,TYRE_W=.10,MARK_LEN=.16;
+  const skidGeo=new T.PlaneGeometry(MARK_LEN,TYRE_W);skidGeo.rotateX(-Math.PI/2);sharedGeo.push(skidGeo);
+  const skidMat=new T.MeshBasicMaterial({color:'#1a1612',transparent:true,opacity:.45,depthWrite:false});sharedMat.push(skidMat);
   const skidMesh=new T.InstancedMesh(skidGeo,skidMat,SKID);skidMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);skidMesh.frustumCulled=false;skidMesh.name='environment:skids';root.add(skidMesh);
   const skidParts=Array.from({length:SKID},()=>({life:0}));
-  const dummy=new T.Object3D();let skidI=0,skidAcc=0;
+  const dummy=new T.Object3D();let skidI=0,skidAcc=0,lastSkid=null;
   const hideSkids=()=>{dummy.scale.set(0,0,0);dummy.updateMatrix();for(let i=0;i<SKID;i++)skidMesh.setMatrixAt(i,dummy.matrix);skidMesh.instanceMatrix.needsUpdate=true};
 
   function update(_x,ctx){
-    const s=ctx?.s,dt=ctx?.dt||1/60;
+    const s=ctx?.s,dt=ctx?.dt||1/60,P=ctx?.P;
     if(!s){hideSkids();return;}
     if(!ctx.paused){
       const onG=!!(s.ground&&s.ground[0]);
       const yaw=s.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw);
-      const wb=ctx.P?.wb||1,com=ctx.P?.comBack||.42,rear=-wb*com;
-      const bx=s.x+c*rear,bz=(s.z||0)+n*rear,gy=h(bx,bz)+.016;
-      const steer=Math.abs(ctx.inp?.steer||0),braking=ctx.inp?.brake>0;
-      const sliding=onG&&Math.abs(s.vx)>1.1&&(s.burnout||braking||steer>.2||Math.abs(s.vx)>3.5);
+      const wb=P?.wb||1.34,com=P?.comBack||.42,rear=-wb*com;
+      const bx=s.x+c*rear,bz=(s.z||0)+n*rear,gy=h(bx,bz)+.012;
+      const slip=s.slip?s.slip[0]:0;
+      const yawRate=s.burnout?((s.steer||0)/(33*Math.PI/180))*.7:0;
+      const lat=Math.abs(yawRate)*wb;
+      const sliding=onG&&(s.burnout||Math.abs(slip)>1.4||lat>.2);
       if(sliding){
-        skidAcc+=Math.max(.8,Math.abs(s.vx))*dt;
-        if(skidAcc>.28||s.burnout){
+        const speed=Math.hypot(s.vx||0,lat)||Math.abs(slip);
+        skidAcc+=Math.max(.35,speed)*dt;
+        if(skidAcc>.09){
           skidAcc=0;
-          const p=skidParts[skidI++%SKID];
-          Object.assign(p,{life:3.1,x:bx,y:gy,z:bz,yaw,len:.7+Math.min(1.6,Math.abs(s.vx)*.1)});
+          const mark=skidParts[skidI++%SKID];
+          const vxw=(s.vx||0)*c-yawRate*wb*n,vzw=(s.vx||0)*n+yawRate*wb*c;
+          const markYaw=Math.hypot(vxw,vzw)>.05?Math.atan2(vzw,vxw):yaw;
+          Object.assign(mark,{life:5.8,x:bx,y:gy,z:bz,yaw:markYaw});
+          lastSkid={x:bx,y:gy,z:bz,width:TYRE_W};
         }
       }
     }
     for(let i=0;i<SKID;i++){
-      const p=skidParts[i];
-      if(p.life<=0){dummy.scale.set(0,0,0);dummy.position.set(0,-10,0);}
+      const mark=skidParts[i];
+      if(mark.life<=0){dummy.scale.set(0,0,0);dummy.position.set(0,-10,0);}
       else{
-        if(!ctx?.paused)p.life-=dt;
-        const t=Math.max(0,p.life/3.1);
-        dummy.position.set(p.x,p.y,p.z);
-        dummy.rotation.set(0,-p.yaw,0);
-        dummy.scale.set(p.len,.6,1);
-        dummy.scale.x*=(.7+.3*t);
+        if(!ctx?.paused)mark.life-=dt;
+        dummy.position.set(mark.x,mark.y,mark.z);
+        dummy.rotation.set(0,-mark.yaw,0);
+        dummy.scale.set(1,1,1);
       }
       dummy.updateMatrix();skidMesh.setMatrixAt(i,dummy.matrix);
     }
@@ -447,7 +457,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     isDirt:(x,z)=>{if(!terrain.track)return true;if(terrain.track.nearest(x,z).dist<(terrain.track.width||6)/2+3.5)return true;return (terrain.height(x,z)||0)>.04;},
     update,
     view(){},
-    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',colliders:colliders.length}),
+    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',uvWorld:true,tile:TILE,floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[grassTex.offset.x,grassTex.offset.y],dirtOffset:[packedDirt.offset.x,packedDirt.offset.y],skid:lastSkid,colliders:colliders.length}),
     dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();root.removeFromParent();}
   };
 }

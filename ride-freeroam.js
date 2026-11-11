@@ -81,8 +81,14 @@ export function stepHeading(s,inp,dt,p){
   if(Math.abs(s.steer)<1e-5)s.steer=0;
   s.curvature=Math.tan(s.steer)/wb;
   if(s.burnout&&onG){
-    // Slow rear-slide: full lock ≈ 0.7 rad/s, scales with the bar angle.
-    s.yaw=(s.yaw||0)+(s.steer/STEER_MAX_LOW)*STEER_BURNOUT*dt;
+    // Slow rear-slide around the parked front tyre: full lock ≈ 0.7 rad/s.
+    // The front axle is the pivot; the rear swings out into a donut.
+    const front=wb*(1-(p?.comBack??.42));
+    const yaw0=s.yaw||0,c0=Math.cos(yaw0),n0=Math.sin(yaw0);
+    const fx=s.x+c0*front,fz=(s.z||0)+n0*front;
+    s.yaw=yaw0+(s.steer/STEER_MAX_LOW)*STEER_BURNOUT*dt;
+    const c=Math.cos(s.yaw),n=Math.sin(s.yaw);
+    s.x=fx-c*front;s.z=fz-n*front;
     return s;
   }
   const airScale=onG?1:.2;
