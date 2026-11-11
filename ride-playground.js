@@ -1,11 +1,12 @@
 // PLAYGROUND: one big flat ground plane for movement testing. Single tiling
 // ambientCG Ground086 texture, world-locked UVs. The HDRI sky and sun live in ride.js.
 const SIZE=2000,TILE=6;
+const GROUND={Color:'./assets/ambientcg/Ground086/Ground086_1K-JPG_Color.jpg',NormalGL:'./assets/ambientcg/Ground086/Ground086_1K-JPG_NormalGL.jpg',Roughness:'./assets/ambientcg/Ground086/Ground086_1K-JPG_Roughness.jpg'};
 export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const root=new T.Group();root.name='wk:environment';root.userData.playground=true;scene.add(root);
   const texs=[];
   const load=(kind,srgb=false)=>{
-    const t=new T.TextureLoader().load(`./assets/ambientcg/Ground086/Ground086_1K-JPG_${kind}.jpg`);
+    const t=new T.TextureLoader().load(GROUND[kind]);
     if(srgb)t.colorSpace=T.SRGBColorSpace;
     t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(SIZE/TILE,SIZE/TILE);t.anisotropy=8;texs.push(t);return t;
   };
