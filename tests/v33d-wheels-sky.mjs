@@ -94,7 +94,7 @@ assert(env.trackTex==='Road008A','track: Road008A, got='+env.trackTex);
 assert(env.patchTex==='Road008C','track: Road008C patches, got='+env.patchTex);
 assert(env.dirtTex==='Ground086','dirt: Ground086, got='+env.dirtTex);
 assert(env.uvWorld===true,'track: world-space UVs');
-assert((env.skyline||0)>=16,'skyline: distant silhouettes, n='+env.skyline);
+assert.equal(env.skyline||0,0,'v33f: box skyline removed, n='+env.skyline);
 assert(a1.sky==='hdri-sunset_jhbcentral','sky: HDRI, got='+a1.sky);
 await p.waitForFunction(()=>__WK_RIDE_STATE__().backdropLoaded,null,{timeout:20000});
 assert(!(await p.evaluate(()=>{

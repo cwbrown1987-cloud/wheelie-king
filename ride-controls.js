@@ -243,7 +243,7 @@ if(typeof document!=='undefined'){
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-up{grid-column:2;grid-row:1}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-left{grid-column:1;grid-row:2}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-right{grid-column:3;grid-row:2}
- [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-down{grid-column:2;grid-row:3} [data-wk-ride-surface][data-wk-track-side] .ride-dpad-left,[data-wk-ride-surface][data-wk-track-side] .ride-dpad-right{display:none!important;pointer-events:none}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-down{grid-column:2;grid-row:3}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive-buttons{right:0;bottom:0;display:flex;align-items:flex-end;gap:10px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive{flex-direction:column;gap:1px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive.brake{width:var(--chase-brake);height:var(--chase-brake)}

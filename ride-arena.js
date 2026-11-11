@@ -148,8 +148,8 @@ function scatterArenaGrass(T,root,opts){
 import {makeArenaTrack} from './ride-track.js';
 import {rampLength,rampLipX} from './ride-physics.js';
 // TEST ARENA: a big flat square for free-roam speed, wheelies, burnouts and jumps.
-// No checkpoints or finish. A ring of city kit sits outside the walls; a farther
-// silhouette ring sits on the HDRI horizon (sky itself is in ride.js).
+// No checkpoints or finish. A ring of city kit sits outside the walls; the HDRI
+// (ride.js) is the only skyline.
 
 const HALF=150;
 
@@ -365,7 +365,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   }
 
   // Trees, palms, fences and cars just outside the walls for scale. No city-block skyline —
-  // the horizon silhouettes (below) and the HDRI are the only skyline.
+  // the HDRI is the only skyline.
   const carCols=['#c44c4c','#3d6cb0','#d2a84a','#3e8a5a','#8a8e96'];
   let bi=0,carN=0,treeN=0,hash=7;
   const rnd=()=>{hash=hash*1664525+1013904223&0x7fffffff;return (hash%1000)/1000};
@@ -423,21 +423,6 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       }
       cursor+=w+2.2+rnd()*1.6;
     }
-  }
-
-  // Distant skyline silhouettes, world-fixed on the horizon (not camera-parented).
-  const sil=new T.Group();sil.name='environment:skyline';root.add(sil);
-  const silMat=mat('#141018',{roughness:1,metalness:0,fog:true});
-  let silN=0;
-  for(let i=0;i<64;i++){
-    const a=(i/64)*Math.PI*2+((i*17)%7)*0.01;
-    const r=248+((i*13)%9);
-    const ht=10+((i*29)%23)+((i%5)===0?14:0);
-    const w=7+((i*11)%10),d=6+((i*7)%6);
-    const x=Math.cos(a)*r,z=Math.sin(a)*r;
-    const b=add(sil,box,silMat,x,ht/2,z,w,ht,d,a);
-    b.name='environment:skyline:'+(silN++);
-    b.castShadow=false;b.receiveShadow=false;
   }
 
   // Thin rear-tyre marks, laid exactly at the rear contact patch (visual only).
@@ -532,7 +517,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     surfaceAt,
     update,
     view(){},
-    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:0,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',trackTex:'Road008A',patchTex:'Road008C',dirtTex:'Ground086',grassTex:'grass_ground',uvWorld:true,tile:TILE,skyline:silN,overlays:[],floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[0,0],dirtOffset:[0,0],skid:lastSkid,colliders:colliders.length}),
+    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:0,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',trackTex:'Road008A',patchTex:'Road008C',dirtTex:'Ground086',grassTex:'grass_ground',uvWorld:true,tile:TILE,skyline:0,overlays:[],floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[0,0],dirtOffset:[0,0],skid:lastSkid,colliders:colliders.length}),
     dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();grassFx.entries?.forEach(e=>e.mesh.dispose());grassFx.group?.removeFromParent();root.removeFromParent();}
   };
 }

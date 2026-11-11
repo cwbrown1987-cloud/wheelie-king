@@ -13,7 +13,6 @@ import { getTheme } from "./ride-themes.js";
 import { makeTerrain, makeFlatTerrain, makeSampleTerrain, makeArenaTerrain, makeState, step } from "./ride-physics.js";
 import { createJoltRide, readRidePhysics, setRidePhysicsPref } from './ride-jolt.js';
 import { wrapAngle, crossedGate } from "./ride-freeroam.js";
-import { canStartTrackReturn, startTrackReturn, stepTrackLock } from "./ride-track.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
 import {rideControlsMarkup,mountLeanControls,mountSteerSlider,mountTricksMenu} from './ride-controls.js';
@@ -169,15 +168,40 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     worldSky=new T.Group();worldSky.name='wk:world-sky';scene.add(worldSky);
     sky.visible=false;sunDisc.visible=false;
     backdrop=new T.Texture();
-    new RGBELoader().load('./assets/hdri/sunset_jhbcentral_1k.hdr',hdr=>{
-      if(disposed){hdr.dispose();return;}
-      hdr.mapping=T.EquirectangularReflectionMapping;
-      scene.background=hdr;
-      try{const pmrem=new T.PMREMGenerator(R);scene.environment=pmrem.fromEquirectangular(hdr).texture;pmrem.dispose();}catch{}
-      sky.visible=false;sunDisc.visible=false;
-      legacyScenery.forEach(o=>o.visible=false);
-      backdropLoaded=true;
-    },undefined,()=>{if(!disposed){scene.background=new T.Color('#2a1824');backdropLoaded=true;}});
+    // Never render black: a soft sky/ground fill (matched to the HDRI) stays on until the
+    // environment is really installed. Phones without half-float render targets, or a failed
+    // .hdr load, get the tone-mapped LDR jpg of the same sky instead.
+    let skyFill=new T.HemisphereLight('#d5dde8','#6f6a66',1.1);skyFill.name='wk:sky-fill';scene.add(skyFill);
+    const dropFill=()=>{if(skyFill){skyFill.removeFromParent();skyFill.dispose?.();skyFill=null;}};
+    const gl=R.getContext(),caps=R.capabilities;
+    const halfFloatOk=caps.isWebGL2?!!(gl.getExtension('EXT_color_buffer_float')||gl.getExtension('EXT_color_buffer_half_float')):!!(gl.getExtension('OES_texture_half_float')&&gl.getExtension('OES_texture_half_float_linear')&&gl.getExtension('EXT_color_buffer_half_float'));
+    const installEnv=(tex,kind)=>{
+      if(disposed){tex.dispose();return false;}
+      tex.mapping=T.EquirectangularReflectionMapping;
+      let env=null;
+      try{const pmrem=new T.PMREMGenerator(R);env=pmrem.fromEquirectangular(tex).texture;pmrem.dispose();}catch(e){console.warn('PMREM failed',e);}
+      const glErr=gl.getError();
+      if(!env||glErr){env?.dispose();return false;}
+      scene.background=tex;scene.environment=env;skyKind=kind;
+      sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);
+      dropFill();backdropLoaded=true;return true;
+    };
+    const loadLdr=()=>{
+      if(disposed)return;
+      new T.TextureLoader().load('./assets/hdri/sunset_jhbcentral_1k_ldr.jpg',tex=>{
+        tex.colorSpace=T.SRGBColorSpace;
+        if(!installEnv(tex,'ldr-sunset_jhbcentral')){if(!disposed){scene.background=tex;tex.mapping=T.EquirectangularReflectionMapping;skyKind='ldr-fill';backdropLoaded=true;}}
+      },undefined,()=>{if(!disposed){scene.background=new T.Color('#9fb0c8');skyKind='fill-only';backdropLoaded=true;}});
+    };
+    if(!halfFloatOk||/[?&]sky=ldr\b/.test(location.search))loadLdr();
+    else fetch('./assets/hdri/sunset_jhbcentral_1k.hdr').then(r=>{
+      // A missing file comes back as the HTML app shell (200 text/html); never hand that to the parser.
+      if(!r.ok||/text\/html/.test(r.headers.get('content-type')||''))throw Error('hdr missing');
+      return r.blob();
+    }).then(blob=>{
+      const url=URL.createObjectURL(blob);
+      new RGBELoader().load(url,hdr=>{URL.revokeObjectURL(url);if(!hdr?.image?.data||!installEnv(hdr,'hdri-sunset_jhbcentral'))loadLdr();},undefined,()=>{URL.revokeObjectURL(url);loadLdr();});
+    }).catch(()=>loadLdr());
   }else{
     backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;if(attachWorldSky)attachWorldSky(horizonTex);else layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
   }
@@ -482,11 +506,6 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     pivot.position.set(s.x, s.y, s.z||0);
     pivot.rotation.set(0, -(s.yaw||0), 0);
     lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;lookDrag=null;lookLast=null;airClose=0;chasePosX=null;
-    if(ter.track){
-      if(cameraView==='side'){if(canStartTrackReturn(s))startTrackReturn(s,ter.track,trackLock);else trackLock.mode='pending';}
-      else trackLock.mode='free';
-      syncTrackChrome();
-    }
     crashT = 0;
     msg = restarting ? "GO!" : "RECOVERED";
     msgT = restarting ? 2 : .7;
@@ -569,22 +588,12 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   let cameraView='side',cameraBlend=0,cameraReady=false,airClose=0;
-  const trackLock={mode:'free',t:0,dur:.9};
-  function visualCam(){return ter.track&&cameraView==='side'&&trackLock.mode==='pending'?'chase':cameraView}
-  function syncTrackChrome(){
-    const side=!!ter.track&&cameraView==='side'&&(trackLock.mode==='locked'||trackLock.mode==='whipping'||trackLock.mode==='gliding');
-    if(side)el.dataset.wkTrackSide='';else el.removeAttribute('data-wk-track-side');
-    el.dataset.wkCam=visualCam();
-  }
+  let sideYaw=null;
+  // Camera only: switching view never touches the bike's pose or velocity.
   function setCameraView(view){
     const next=view==='chase'?'chase':'side';
     cameraView=next;
-    if(ter.track){
-      if(next==='chase')trackLock.mode='free';
-      else if(canStartTrackReturn(s))startTrackReturn(s,ter.track,trackLock);
-      else trackLock.mode='pending';
-    }
-    syncTrackChrome();
+    el.dataset.wkCam=cameraView;
     if(!freeRoam&&cameraView!=='chase')steerSlider.release();
     return cameraView;
   }
@@ -632,8 +641,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const sideView=!!freeRoam&&cameraView==='side';
     const leanKey=freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey+(tilt?tiltLean:0)))*-1;
-    const trackSide=!!ter.track&&cameraView==='side'&&trackLock.mode!=='free'&&trackLock.mode!=='pending';
-    inp.steer = freeRoam&&!trackSide&&!sideView?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0))):0;
+    // Side view: A/D lean (see leanKey), touch steer still steers.
+    inp.steer = freeRoam?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
     inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });
     if (!s.crashed && !finished) {
@@ -641,20 +650,17 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       if(useJolt){
         if(dt>0){
           jolt.step(s,P,inp,dt,ter,step);
-          if(ter.track)stepTrackLock(s,ter,trackLock,dt);
           if(capturing)replay.recordStep(s,dt,{dirt,wear,flips,maxScore,lastCP});
         }
       }else{
         const n = Math.ceil(dt * 480);
         for (let k = 0; k < n; k++) {
           step(s, P, inp, dt / n, ter);
-          if(ter.track)stepTrackLock(s,ter,trackLock,dt/n);
           if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
         }
       }
     }
     if (s.crashed) endSlow();
-    if(ter.track&&trackLock.mode==='pending'&&canStartTrackReturn(s)){startTrackReturn(s,ter.track,trackLock);syncTrackChrome();}
     // events -> FX, wear, messages
     for (const ev of s.events.splice(0)) {
       if (!flat && photoCount < 3 && photoDelay < 0 &&
@@ -786,15 +792,17 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     // camera: side-on follow, zooms out with speed
     const crashFocus=crashRig?.focus(),sp=crashFocus?.speed??Math.hypot(s.vx,s.vy);
     camShake*=Math.exp(-8*cameraDt);
-    const targetBlend=visualCam()==='chase'?1:0;const swingDur=targetBlend>cameraBlend?.7:(trackLock.dur||.9);cameraBlend+=Math.max(-cameraDt/swingDur,Math.min(cameraDt/swingDur,targetBlend-cameraBlend));const uBlend=cameraBlend;const blend=uBlend*uBlend*(3-2*uBlend);
+    const targetBlend=cameraView==='chase'?1:0;const swingDur=targetBlend>cameraBlend?.7:.9;cameraBlend+=Math.max(-cameraDt/swingDur,Math.min(cameraDt/swingDur,targetBlend-cameraBlend));const uBlend=cameraBlend;const blend=uBlend*uBlend*(3-2*uBlend);
     let dist=6.5;
     if(freeRoam){
       const yaw=s.yaw||0,z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
       const lookT=arena?0.10:0;
       const tx=s.x+Math.cos(yaw)*(s.vx||0)*lookT, tz=z+Math.sin(yaw)*(s.vx||0)*lookT;
       const k=1-Math.exp(-(arena?(inAir?14:12):5.8)*followDt);
+      // Playground side view sits on the bike's right. It follows the heading only while
+      // rolling, so a donut or burnout does not spin the camera round with it.
+      if(arena){if(sideYaw==null||!Number.isFinite(sideYaw))sideYaw=yaw;else if(Math.abs(s.vx||0)>1.5&&!crashRig)sideYaw+=wrapAngle(yaw-sideYaw)*(1-Math.exp(-2.4*followDt));}
       if(!crashRig){
-        if(trackLock.justSnapped){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;trackLock.justSnapped=false;}
         if(chasePosX==null||!Number.isFinite(chasePosX)||!Number.isFinite(chasePosZ)||!Number.isFinite(chaseFollowY)||!Number.isFinite(tx)||!Number.isFinite(tz)||Math.hypot(s.x-chasePosX,z-chasePosZ)>8){chasePosX=Number.isFinite(tx)?tx:s.x;chasePosZ=Number.isFinite(tz)?tz:z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;if(arena)airClose=0;}
         chasePosX+=(tx-chasePosX)*k;chasePosZ+=(tz-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-(arena?10:8)*followDt));
       }
@@ -819,7 +827,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         const chaseR=4.6,sideR=7.2,ahead=1.4;dist=sideR;
         const chaseX=chasePosX-cy*chaseR,chaseZ=chasePosZ-sy*chaseR;
         let sideX=chasePosX,sideZ=chasePosZ+sideR;
-        if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
+        if(arena&&sideYaw!=null){sideX=chasePosX-Math.sin(sideYaw)*sideR;sideZ=chasePosZ+Math.cos(sideYaw)*sideR;}
         const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
         const camY=chaseFollowY+lookPitch*2.6*blend+shake;
         const lookX=fx*(1-blend)+(chasePosX+cy*ahead)*blend,lookZ=fz*(1-blend)+(chasePosZ+sy*ahead)*blend,lookY=(fy+.35)*(1-blend)+chaseLookY*blend;
@@ -865,7 +873,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const followX=chasePosX*(1-airClose)+s.x*airClose,followZ=chasePosZ*(1-airClose)+z*airClose;
       const chaseX=followX-cy*chaseR,chaseZ=followZ-sy*chaseR;
       let sideX=chasePosX,sideZ=chasePosZ+sideR;
-      if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
+      if(arena&&sideYaw!=null){sideX=chasePosX-Math.sin(sideYaw)*sideR;sideZ=chasePosZ+Math.cos(sideYaw)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
       const midY=(s.y+groundY)*.5;
       const camY=((s.y+1.2)*(1-airClose)+(midY+.35)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
@@ -911,7 +919,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const chaseX=followX-cy*chaseR,chaseZ=followZ-sy*chaseR;
       const sideR=6.8+Math.min(1.6,sp*.10);
       let sideX=chasePosX,sideZ=chasePosZ+sideR;
-      if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
+      if(arena&&sideYaw!=null){sideX=chasePosX-Math.sin(sideYaw)*sideR;sideZ=chasePosZ+Math.cos(sideYaw)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
       const camY=((s.y+1.2)*(1-airClose)+(s.y+.6)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
       const lookX=s.x*(1-blend)+(followX+cy*lookAhead+airClose*(pred.x-s.x)*.18)*blend;
@@ -928,7 +936,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       }
       environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(1);
       put(viewLabel,'view',cameraView==='chase'?'▣ CHASE':'▣ SIDE VIEW');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
-      syncTrackChrome();
+      if(el.dataset.wkCam!==cameraView)el.dataset.wkCam=cameraView;
     } else {
     const sc=sideCam.update(reviewing ? 0 : cameraDt,{x:s.x,y:s.y,vx:s.vx,vy:s.vy,speed:sp,grounded:!!(s.ground[0]||s.ground[1]),groundY:ter.h(s.x),landingY:ter.h(s.x+Math.max(2,s.vx*.35)),inLoop:!!s.loopRide,focus:crashFocus,reduceMotion:reduceMotion.matches});dist=sc.dist;
     const angle=blend*Math.PI/2;
@@ -1037,7 +1045,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       photoCount++;
     }
   };
-  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';if(ter.track&&cameraView==='side'){startTrackReturn(s,ter.track,trackLock);syncTrackChrome();}globalThis.__WK_SCENE_VIEW__=setCameraView;
+  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';globalThis.__WK_SCENE_VIEW__=setCameraView;
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam,renderer:R,body,pivot});globalThis.__WK_REPLAY__=replay;
@@ -1047,8 +1055,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     return Object.assign(touch,patch||{});
   };
 
-  globalThis.__WK_SET_PHYSICS__=setPhysics;globalThis.__WK_RIDE_STATE__ = () => ({ s, P, physics, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,sky:skyKind,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
-  function stop(save=true) {if(disposed)return;disposed=true;try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_SET_PHYSICS__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');el.removeAttribute('data-wk-track-side');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
+  globalThis.__WK_SET_PHYSICS__=setPhysics;globalThis.__WK_RIDE_STATE__ = () => ({ s, P, physics, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,sky:skyKind,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  function stop(save=true) {if(disposed)return;disposed=true;try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_SET_PHYSICS__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }

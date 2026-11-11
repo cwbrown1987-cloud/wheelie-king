@@ -316,6 +316,8 @@ export function createJoltRide({ ter, P, colliders }) {
   let Jolt, jolt, physicsSystem, bodyInterface, motoBody, constraint, controller;
   let currentRight = 0, hasLanded = false, airOff = 0, settleT = 0.8, adoptClearance = 1.08, syncWheelT = 0;
   const knockProps = [];
+  let reverseHoldT = 0, wasBurnout = false, wasReversing = false;
+  const REVERSE_DELAY = 0.3, REVERSE_MAX = 2.2, REVERSE_INPUT = 0.4, HOLD_BRAKE = 0.3;
   let recoverCool = 0, csTorque = 0, suspMaxF = 0.36, suspMaxR = 0.34, suspTravelF = 0.14, suspTravelR = 0.12;
   let bothOffSteps = 0, leftRampFace = false;
   let wheelR = 0.33, joltMass = 115;
@@ -428,6 +430,10 @@ export function createJoltRide({ ter, P, colliders }) {
       cs.mEngine.mMinRPM = 800;
       cs.mEngine.mMaxRPM = 9000;
       if (cs.mEngine.mAngularDamping !== undefined) cs.mEngine.mAngularDamping = 0.05;
+      // v33f: Jolt's default 0.5 kg·m² engine inertia, seen through first gear
+      // (12.8:1 on a 0.33 m wheel), adds ~750 kg of effective mass, so the launch
+      // crawled at ~3 m/s². An e-moto rotor is light; 0.12 keeps rpm smooth.
+      if (cs.mEngine.mInertia !== undefined) cs.mEngine.mInertia = 0.12;
       cs.mTransmission.mShiftDownRPM = 2000;
       cs.mTransmission.mShiftUpRPM = 7500;
       // 2 Nm of clutch could not carry 70–80 Nm. Jolt's default is 10.
@@ -789,7 +795,17 @@ export function createJoltRide({ ter, P, colliders }) {
     const wantGo = inp.throttle > 0.5, wantStop = inp.brake > 0.5;
     // Front hand-brake is the burnout workaround only. Never latch it on a
     // 16 m/s run-up: Jolt locks a wheel when brakeTorque exceeds I*w/dt.
-    const burnout = wantGo && wantStop && speed < 2.0;
+    // Small hysteresis so a burnout that briefly touches 2 m/s does not drop out and launch.
+    const burnout = wantGo && wantStop && speed < (wasBurnout ? 3.0 : 2.0);
+    // v33f: letting go of a burnout with no throttle must not launch the bike on the
+    // stored wheel/engine spin (it ran off at ~10 m/s). Match them to ground speed.
+    if (wasBurnout && !burnout && !wantGo && onG) {
+      const yb = yawFromQuat(motoBody.GetRotation().GetX(), motoBody.GetRotation().GetY(), motoBody.GetRotation().GetZ(), motoBody.GetRotation().GetW());
+      const fwdB = v.GetX() * Math.cos(yb) + v.GetZ() * Math.sin(yb);
+      setWheels(fwdB / Math.max(0.2, wheelR));
+      syncEngineToSpeed(fwdB);
+    }
+    wasBurnout = burnout;
     const pose = poseOf();
     const groundY = ter && ter.height ? (ter.height(pose.x, pose.z) || 0) : 0;
     // Lean-steer on a takeoff or during a burnout yaws the bike unexpectedly.
@@ -798,11 +814,32 @@ export function createJoltRide({ ter, P, colliders }) {
     const canSteer = burnout || speed > 0.55;
     let forward = 0, brake = 0, handBrake = 0;
     if (burnout) {
-      forward = 1; handBrake = 1; brake = 0;
+      // v33f: the lighter engine revs up faster; full throttle against the front brake
+      // stood the bike on its tail. 0.6 still spins the rear hard.
+      forward = 0.6; handBrake = 1; brake = 0;
       api.usedHandBrakeWorkaround = true;
     } else {
       forward = Math.max(0, Math.min(1, inp.throttle || 0));
       brake = Math.max(0, Math.min(1, inp.brake || 0));
+      // MotorcycleTest-style reverse: only BRAKE held at (near) standstill backs up,
+      // slowly. Nothing else may drive the bike backwards.
+      const yawNow = yawFromQuat(pose.qx, pose.qy, pose.qz, pose.qw);
+      const fwdVel = v.GetX() * Math.cos(yawNow) + v.GetZ() * Math.sin(yawNow);
+      if (onG && wantStop && !wantGo && fwdVel < 0.35) reverseHoldT += dt; else reverseHoldT = 0;
+      const reversing = reverseHoldT > REVERSE_DELAY;
+      if (wasReversing && !reversing) {
+        // Leaving reverse: drop the stored reverse spin so the bike just stops.
+        setWheels(fwdVel / Math.max(0.2, wheelR));
+        syncEngineToSpeed(fwdVel);
+      }
+      wasReversing = reversing;
+      if (reversing) {
+        forward = fwdVel < -REVERSE_MAX ? 0 : -REVERSE_INPUT;
+        brake = 0;
+      } else if (onG && forward < 0.05 && brake < 0.05 && speed < 0.4) {
+        // Standstill hold: no input at rest means the bike stays put.
+        brake = HOLD_BRAKE;
+      }
     }
     // Gentle anti-wheelie: cut rear torque when the front unloads or the
     // nose-up pitch rate is high — same idea as traction/wheelie control.
