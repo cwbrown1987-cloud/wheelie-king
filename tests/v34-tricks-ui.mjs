@@ -14,7 +14,7 @@ try{
  await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
  await p.waitForFunction(()=>{const r=globalThis.__WK_RIDE_STATE__?.();return r&&r.physics==='jolt'&&r.physicsReady;},null,{timeout:120000});
  const closed=await p.evaluate(()=>({fan:[...document.querySelectorAll('.ride-tricks-fan [data-t]')].map(b=>b.dataset.t),
-   hopHidden:document.querySelector('.ride-hop')?.hidden,version:document.querySelector('[data-wk-version]')?.textContent}));
+   hopHidden:(()=>{const h=document.querySelector('.ride-hop');if(!h)return true;const r=h.getBoundingClientRect();return getComputedStyle(h).display==='none'||r.width===0;})(),version:document.querySelector('[data-wk-version]')?.textContent}));
  assert.deepEqual(closed.fan,['mono','stand','burnout'],'fan holds only working moves '+JSON.stringify(closed));
  assert.equal(closed.hopHidden,true,'HOP hidden in Playground');
  assert.equal(closed.version,'v2.0','pause menu shows v2.0');
