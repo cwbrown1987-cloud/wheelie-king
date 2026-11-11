@@ -73,6 +73,8 @@ function combine(acc, key, value) {
 // Rider as a power source: sprint ~700 W; 110 rpm cadence on BMX 44/16 gearing (2.75).
 export const HUMAN = Object.freeze({ sprintW: 700, cadenceRpm: 110, gearRatio: 44 / 16 });
 export const pedalTopSpeed = (ratio, wheelR) => HUMAN.cadenceRpm / 60 * (ratio || HUMAN.gearRatio) * 2 * Math.PI * (wheelR || 0.254);
+// Garage stats: kg = 9 + sum of part kg (app.js). The 9 kg is bolts, cables and bearings on every platform.
+export const PLATFORM_BASE_KG = 9;
 export function deriveRideProfile({ stats = {}, build = {}, find = () => null, anchors = {}, base = {}, forkAxis = null } = {}) {
   const A = { ...anchors };
   const R = A.wheelR || base.R || 0.33;
@@ -100,8 +102,10 @@ export function deriveRideProfile({ stats = {}, build = {}, find = () => null, a
   // rider sit at the platform's own COM.
   const wb = A.frontAxle[0] - A.rearAxle[0];
   const partKg = parts.reduce((a, p) => a + p.kg, 0);
-  const totalKg = Number.isFinite(stats.kg) ? stats.kg : partKg;
-  const bareKg = Math.max(0, totalKg - partKg);
+  // Total mass comes from the fitted parts (so a heavier frame or battery reaches physics) plus the
+  // platform's own hardware, the same PLATFORM_BASE_KG the garage adds to its parts total. stats.kg is
+  // only a fallback when no part could be resolved.
+  const bareKg = partKg > 0 ? PLATFORM_BASE_KG : Math.max(0, (Number.isFinite(stats.kg) ? stats.kg : 0));
   const baseCom = [A.rearAxle[0] + wb * (base.comBack ?? 0.42), groundY + (base.comH ?? 0.95)];
   const riderAt = [A.seatTop[0], A.seatTop[1] + 0.25]; // seated rider COM ~0.25 m above the seat
   const masses = [{ kg: bareKg, at: baseCom }, { kg: RIDER_KG, at: riderAt }, ...parts.map(p => ({ kg: p.kg, at: p.at }))];
