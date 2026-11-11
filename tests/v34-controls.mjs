@@ -19,7 +19,7 @@ const R={};
   ({j,s}=await bike());toSpeed(j,s,15/3.6);run(j,s,feather,1.2);const liftedDeg=s.pitch*D;run(j,s,()=>({mono:false}),2);
   R.wheelie={held,liftedDeg,afterOffPitchDeg:s.pitch*D,frontDown:s.ground[1],crashedAfter:s.crashed||null};
 }
-{ // overcooked: toggle on and pin it
+{ // overcooked: toggle on and pin it. v2.0: the MONO toggle is wheelie control, so it must NOT loop
   const {j,s}=await bike();toSpeed(j,s,12/3.6);let t=0;
   for(;t<5&&!s.crashed;t+=dt)j.step(s,P,{mono:true,throttle:1,lean:1},dt);
   R.loopOut={crashed:s.crashed||null,t};
@@ -46,7 +46,7 @@ console.log(JSON.stringify(R,(k,v)=>typeof v==='number'?+v.toFixed(3):v,1));
 assert(R.wheelie.held.seconds>=2&&R.wheelie.held.maxDeg<70,'feathered wheelie holds 2 s+');
 assert(R.wheelie.liftedDeg>10,'toggle lifts the front');
 assert(R.wheelie.frontDown&&Math.abs(R.wheelie.afterOffPitchDeg)<6&&!R.wheelie.crashedAfter,'toggle off sets it down upright');
-assert.equal(R.loopOut.crashed,'LOOPED OUT');
+assert.notEqual(R.loopOut.crashed,'LOOPED OUT','wheelie control: a pinned MONO does not loop');
 assert(R.burnout.rearSurface>5&&R.burnout.maxVx<1.5&&R.burnout.mode,'burnout spins the rear in place');
 assert.equal(R.drift.mode,'drift');
 assert(R.drift.yawRate>1.5*R.turn.yawRate,'drift rotates much faster than a plain turn');

@@ -23,8 +23,15 @@ export function getLaunchOptions({extraArgs = [], forceGpu = false} = {}) {
   return opts;
 }
 
-export function launchBrowser(opts) {
-  return chromium.launch(getLaunchOptions(opts));
+// v2.0 beta opens straight into the Playground (autostart.js). Tests start in the Garage as before;
+// tests/autostart.mjs removes this flag to check the real default boot.
+const NO_AUTOSTART = () => { try { if (sessionStorage.getItem('wk-autostart') == null) sessionStorage.setItem('wk-autostart', 'off'); } catch {} };
+export async function launchBrowser(opts) {
+  const browser = await chromium.launch(getLaunchOptions(opts));
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (o) => { const c = await newContext(o); await c.addInitScript(NO_AUTOSTART); return c; };
+  browser.newPage = async (o) => { const c = await browser.newContext(o); const p = await c.newPage(); p.on('close', () => c.close().catch(() => {})); return p; };
+  return browser;
 }
 
 /** Merge page options; under WK_FAST=1 set deviceScaleFactor to 1 when unset. */
@@ -41,4 +48,11 @@ export function isGpu() {
 
 export function isFast() {
   return process.env.WK_FAST === '1' || process.env.WK_FAST === 'true';
+}
+
+/** Chris's classic side-scroller (Trials/Endless) is dev-only in v2.0: reachable via ?legacy=1. */
+export function withLegacy(url, mode = '1') {
+  const u = new URL(url);
+  u.searchParams.set('legacy', mode);
+  return u.toString();
 }

@@ -4,7 +4,7 @@
 // override), so new parts never need code here. Parts with no ride block are
 // cosmetic: they only add their mass (if any) at their anchor.
 // Optional part fields (all data, no code):
-//   attach: { seat|pegs|bars|rearHub|frontHub: [x, y] }  rider/wheel attach points this part provides
+//   attach: { seat|pegs|bars|rearHub|frontHub: [x, y], gripHalfWidth|pegHalfWidth: m }  rider/wheel attach points this part provides
 //           (e.g. a future `pegs` slot part carries attach.pegs; the frame can carry seat/bars).
 //   durability: number   reserved for part damage (later: tyre pops after long burnouts, bent rims).
 //   damagedVisual: string|object  reserved: model/texture to show when damaged.
@@ -116,8 +116,15 @@ export function deriveRideProfile({ stats = {}, build = {}, find = () => null, a
       return c > 10 * Math.PI / 180 && c < 40 * Math.PI / 180 ? c : null;
     })();
   // Attach points (bike-model metres): model anchors, overridden by any fitted part's `attach`.
-  const attach = { seat: A.seatTop, pegs: A.pegs || A.feet || A.bb, bars: A.headTop, rearHub: A.rearAxle, frontHub: A.frontAxle };
-  for (const p of parts) if (p.attach) for (const [k, v] of Object.entries(p.attach)) if (Array.isArray(v) && v.length >= 2) attach[k] = v;
+  // seat/pegs/bars/hubs are points [x, y]; *HalfWidth are lateral offsets (m). bars = the grips.
+  const attach = { seat: A.seatTop, pegs: A.pegs || A.feet || A.bb, bars: A.hand || [A.headTop[0] - 0.04, A.headTop[1] + 0.2],
+    rearHub: A.rearAxle, frontHub: A.frontAxle, gripHalfWidth: A.handWidth || 0.18, pegHalfWidth: 0.145, cranks: null };
+  for (const p of parts) if (p.attach) for (const [k, v] of Object.entries(p.attach)) {
+    if (Array.isArray(v) && v.length >= 2) attach[k] = v; else if (Number.isFinite(v)) attach[k] = v;
+  }
+  // Pedal bikes: feet go round the cranks centred on the pegs point (crank part length, default 0.14 m).
+  const crank = parts.find(p => /crank/.test(p.slot));
+  if (crank && !parts.some(p => p.slot === 'pegs')) attach.cranks = Number(find(crank.id)?.length) > 0.05 ? Number(find(crank.id).length) : 0.14;
   return {
     mass, comBack: (cx - A.rearAxle[0]) / wb, comH: cy - groundY,
     wheelbase: ride.wheelbase || wb, wheelR: ride.wheelR || R, caster,

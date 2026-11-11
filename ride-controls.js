@@ -1,10 +1,11 @@
 const driveButton=(kind,label,icon)=>`<button type="button" class="ride-drive ${kind}" data-t="${kind}" aria-label="${label}">${icon}<span class="ride-drive-label">${kind==='throttle'?'ACCELERATE':'BRAKE'}</span></button>`;
 const brakeIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4"><circle cx="32" cy="32" r="23"/><circle cx="32" cy="32" r="15"/><circle cx="32" cy="32" r="6"/><path d="M32 9v8M32 47v8M9 32h8M47 32h8M16 16l6 6M42 42l6 6M16 48l6-6M42 22l6-6"/></g></svg>';
 const gasIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 32l16-16 16 16M16 48l16-16 16 16" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const glyph={mono:'M4 20L28 6 M22 4l6 2-2 6',stand:'M16 2v10 M12 6h8',burnout:'M2 20c4-6 8 2 12-4s8 2 12-4',hop:'M16 6V0 M12 4l4-4 4 4',tailwhip:'M12 4C0-2-2 13 6 15 M2 14l4 1-1-5',barspin:'M22 3c9-5 12 6 5 8 M30 7l-3 4-3-3',superman:'M4 4l17 2 5 4 M12 5L5 9 M20 4l3-3',trick:'M6 7C18-5 34 4 29 13 M26 9l3 4 3-3'};
+const glyph={mono:'M4 20L28 6 M22 4l6 2-2 6',stand:'M16 2v10 M12 6h8',burnout:'M2 20c4-6 8 2 12-4s8 2 12-4',onehand:'M8 28V12 M8 12l14-8 M22 4v6',kneeknock:'M10 6l6 10-6 10 M22 6l-6 10 6 10',hop:'M16 6V0 M12 4l4-4 4 4',tailwhip:'M12 4C0-2-2 13 6 15 M2 14l4 1-1-5',barspin:'M22 3c9-5 12 6 5 8 M30 7l-3 4-3-3',superman:'M4 4l17 2 5 4 M12 5L5 9 M20 4l3-3',trick:'M6 7C18-5 34 4 29 13 M26 9l3 4 3-3'};
 const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label="${label}"><svg viewBox="0 0 32 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="5"/><circle cx="26" cy="17" r="5"/><path d="M7 17l7-9 5 9H7m7-9h9l3 9M12 5h6m2-3 4 5"/><path d="${glyph[key]}"/></g></svg><span>${label}</span></button>`;
 // Playground (Jolt) has its own working move set; air tricks and HOP are classic-only.
-const PLAYGROUND_MOVES=[['mono','WHEELIE'],['stand','STAND'],['burnout','BURNOUT']];
+const PLAYGROUND_MOVES=[['mono','MONO'],['stoppie','STOPPIE'],['burnout','BURNOUT'],['stand','STAND'],['onehand','ONE-HANDER'],['kneeknock','KNEE-KNOCK']];
+const moveButton=(key,label)=>`<button data-t="${key}" type="button" class="ride-move" aria-pressed="false">${label}</button>`;
 export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks"${playground?' hidden':''}>${trickButton('hop','HOP')}</div>
  <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back"><span class="ride-lean-glyph" aria-hidden="true">‹</span><span class="ride-tilt-copy"><small>TILT</small><small>BACK</small></span></button><button type="button" data-t="leanForward" aria-label="Lean forward"><span class="ride-lean-glyph" aria-hidden="true">›</span><span class="ride-tilt-copy"><small>TILT</small><small>FWD</small></span></button></div>
@@ -14,7 +15,8 @@ export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-contr
   <button type="button" class="ride-dpad-right" data-t="steerRight" aria-label="Steer right"><span aria-hidden="true">▶</span><small>RIGHT</small></button>
   <button type="button" class="ride-dpad-down" data-t="leanBack" aria-label="Tilt back"><span aria-hidden="true">▼</span><small>DOWN</small></button>
  </div>
- <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button><div class="ride-tricks-fan">${(playground?PLAYGROUND_MOVES:[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']]).map(([key,label])=>trickButton(key,label)).join('')}</div></div>
+ <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button>${playground?`<div class="ride-tricks-fan ride-moves" role="group" aria-label="Moves">${PLAYGROUND_MOVES.map(([k,l])=>moveButton(k,l)).join('')}</div>`:`<div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div>`}</div>
+ <div class="ride-brake-lock" hidden>BRAKE LOCK</div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
 </div>`;
 export function mountLeanControls(ui,touch){
@@ -35,7 +37,17 @@ export function mountTricksMenu(ui,{autoClose=true}={}){
  let timer=null;
  const close=()=>{root.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');clearTimeout(timer);timer=null};
  const arm=()=>{clearTimeout(timer);if(autoClose)timer=setTimeout(close,2000)};
- const open=()=>{root.classList.add('is-open');toggle.setAttribute('aria-expanded','true');arm()};
+ const place=()=>{const list=root.querySelector('.ride-moves');if(!list)return;
+  // A plain vertical list beside the TRICKS button (to its left), clear of the top toolbar.
+  // Measure-and-correct so it lands right even inside a transformed HUD container.
+  const r=toggle.getBoundingClientRect(),h=list.offsetHeight,w=list.offsetWidth,wantRight=r.left-16;let wantTop=Math.max(44,Math.min(r.bottom-h,innerHeight-h-8));
+  // Clear anything in the top toolbar (pause, view, ...) that sits above the TRICKS button in the list's column.
+  for(const e of document.querySelectorAll('[data-r]')){if(e===toggle||list.contains(e)||!e.offsetParent)continue;const b=e.getBoundingClientRect();
+    if(b.bottom<=r.top&&b.right>wantRight-w&&b.left<wantRight&&b.bottom>wantTop-2&&b.top<wantTop+h)wantTop=Math.max(wantTop,b.bottom+6);}
+  list.style.right='0px';list.style.top='0px';const m=list.getBoundingClientRect();
+  list.style.right=(m.right-wantRight)+'px';list.style.top=(wantTop-m.top)+'px';};
+ const open=()=>{root.classList.add('is-open');toggle.setAttribute('aria-expanded','true');place();arm()};
+ addEventListener('resize',()=>{if(root.classList.contains('is-open'))place()});
  toggle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(root.classList.contains('is-open'))close();else open()});
  root.querySelector('.ride-tricks-fan')?.addEventListener('pointerdown',arm,true);
  return {close,state:()=>({open:root.classList.contains('is-open')})};
@@ -43,7 +55,13 @@ export function mountTricksMenu(ui,{autoClose=true}={}){
 if(typeof document!=='undefined'){
  const style=document.createElement('style');style.textContent=`
  [data-wk-ride-surface]{--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}[data-wk-ride-surface] .ride-controls{position:absolute;left:14px;right:14px;bottom:18px;z-index:4;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;align-items:end;gap:16px;pointer-events:auto;font:900 11px system-ui;--lean-size:clamp(48px,6vw,82px);--trick-size:clamp(44px,5.1vw,74px)}
- [data-wk-paused] [data-h="msg"]{top:12px!important;font-size:18px!important}[data-r="recover"][hidden]{display:none!important}.ride-hop[hidden]{display:none!important}[data-wk-crashed] .ride-controls{opacity:.35;pointer-events:none}[data-wk-crashed] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-controls{opacity:.4}[data-wk-paused] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-pause-fab,[data-wk-paused] .ride-pause-menu{pointer-events:auto} .ride-lean-buttons,.ride-drive-buttons{display:flex;align-items:end;gap:clamp(7px,1vw,14px)}.ride-drive-buttons{justify-self:end}.ride-lean-buttons button,.ride-drive{border:3px solid #c8c9c6;border-radius:50%;background:linear-gradient(145deg,#424743d9,#121616df);color:#f8f9f4;box-shadow:0 5px 12px #0009,inset 0 1px 2px #fff4;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
+ [data-wk-ride-surface] .ride-tricks .ride-tricks-fan.ride-moves{position:fixed!important;left:auto!important;bottom:auto!important;display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;gap:5px!important;width:auto!important;margin:0!important;z-index:30!important;grid-template-columns:none!important}
+ [data-wk-ride-surface] .ride-tricks .ride-moves .ride-move{width:clamp(128px,15vw,170px)!important;height:clamp(40px,calc((100vh - 110px)/6.6),52px)!important;min-height:40px;padding:0 12px!important;border:2px solid #8fb7cf!important;border-radius:10px!important;background:#142131ee!important;color:#f1f7ff!important;font:900 clamp(13px,1.6vw,17px)/1 system-ui,sans-serif!important;letter-spacing:.05em;text-align:left;box-shadow:0 3px 8px #0008;pointer-events:auto;touch-action:none}
+ [data-wk-ride-surface] .ride-tricks .ride-moves .ride-move[aria-pressed=true]{background:#ffd23f!important;color:#14110a!important;border-color:#fff3b0!important}
+ [data-wk-ride-surface] .ride-tricks .ride-moves .ride-move[aria-pressed=true]::after{content:' ON';font-size:.75em}
+ .ride-brake-lock{position:absolute;right:max(10px,env(safe-area-inset-right));bottom:calc(var(--lean-size,64px)*1.3 + 34px);padding:5px 10px;border-radius:8px;background:#ff4d3a;color:#fff;font:900 13px system-ui;letter-spacing:.08em;box-shadow:0 2px 8px #0009;pointer-events:none;z-index:31}
+ .ride-brake-lock[hidden]{display:none!important}
+ [data-wk-paused] [data-h="msg"]{top:12px!important;font-size:18px!important}[data-r="recover"][hidden]{display:none!important}.ride-hop[hidden],.ride-pause-mode[hidden],[data-r="level"][hidden]{display:none!important}[data-wk-crashed] .ride-controls{opacity:.35;pointer-events:none}[data-wk-crashed] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-controls{opacity:.4}[data-wk-paused] .ride-controls button{pointer-events:none}[data-wk-paused] .ride-pause-fab,[data-wk-paused] .ride-pause-menu{pointer-events:auto} .ride-lean-buttons,.ride-drive-buttons{display:flex;align-items:end;gap:clamp(7px,1vw,14px)}.ride-drive-buttons{justify-self:end}.ride-lean-buttons button,.ride-drive{border:3px solid #c8c9c6;border-radius:50%;background:linear-gradient(145deg,#424743d9,#121616df);color:#f8f9f4;box-shadow:0 5px 12px #0009,inset 0 1px 2px #fff4;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
  .ride-lean-buttons button{width:var(--lean-size);height:var(--lean-size);font:700 calc(var(--lean-size)*.95) system-ui;line-height:.7;padding-bottom:9px;text-shadow:0 2px 3px #000}.ride-drive.brake{width:var(--lean-size);height:var(--lean-size)}.ride-drive.throttle{width:calc(var(--lean-size)*1.3);height:calc(var(--lean-size)*1.3);border-color:#a8e600;color:#b5f300;background:radial-gradient(circle at 40% 30%,#344028ed,#10170bed);box-shadow:0 0 17px #a4ff0033,0 5px 12px #0009}.ride-drive svg{width:70%;height:70%;filter:drop-shadow(0 3px 1px #0009)}
  .ride-glass{background:linear-gradient(135deg,#1c2d478f,#0a1428c4);border:1px solid #c7f4df66;border-radius:16px;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 10px 28px #000a,inset 0 1px #ffffff22;color:#edfdf4;pointer-events:auto}
  .ride-glass[hidden],.ride-tricks .ride-slow[hidden]{display:none}

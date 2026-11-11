@@ -1,6 +1,6 @@
 // Menus opened over a ride (More / Settings, Shop / Garage views) must not record: the replay video, the Drop In
 // buffer and its capture clock hold live riding only, so a clip never shows the bike sitting still for the menu time.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 const browser=await launchBrowser({extraArgs:['--autoplay-policy=no-user-gesture-required']});
 const MENU_MS=+(process.env.WK_MENU_MS||10000);
@@ -8,7 +8,7 @@ try{
  const p=await browser.newPage(pageOptions({viewport:{width:1024,height:460},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
  const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
- await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
+ await p.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.evaluate(()=>document.querySelector('[data-destination=race]').click());
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});

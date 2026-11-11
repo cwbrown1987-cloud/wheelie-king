@@ -1,6 +1,7 @@
 import { stepLoop } from './ride-loop.js';
 import {roundedProfile} from './terrain-profile.js';
-import { attachFreeRoam, stepHeading, collideFreeRoam } from './ride-freeroam.js';
+import { rampHeight } from './ride-playground.js';
+import { stepHeading, collideFreeRoam } from './ride-freeroam.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
 // Units: metres, kg, seconds. x forward, y up. pitch: + = nose up (wheelie).
 export function makeTerrain(seed = 1) {
@@ -33,15 +34,10 @@ export function makeTerrain(seed = 1) {
   return { pts:rounded, h, slope, puddles, checkpoints, kickers, finish, inPuddle, loop };
 }
 export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
-export function makeSampleTerrain(){
-  const pts=[[-20,0],[0,0],[36,0],[48,0],[56,1.15],[64,0],[78,0],[96,0],[108,1.5],[116,.25],[128,0],[144,0],[154,1.9],[162,.35],[176,0],[196,0],[246,0]];
-  const {pts:rounded,h,slope}=roundedProfile(pts);
-  return attachFreeRoam({pts:rounded,h,slope,puddles:[],checkpoints:[0,64,128],kickers:[48,108,154],finish:196,inPuddle:()=>false});
-}
 // Playground: one big flat plane (Jolt drives the bike there).
 const PLAYGROUND_HALF=1000;
 export function makePlaygroundTerrain(){
-  const height=()=>0;
+  const height=(x,z=0)=>rampHeight(x,z);
   return {
     pts:[[-PLAYGROUND_HALF,0],[PLAYGROUND_HALF,0]],h:()=>0,slope:()=>0,height,slopeAt:()=>0,
     puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,boxes:[],

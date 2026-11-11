@@ -1,5 +1,5 @@
 // Settings fits and scrolls on phones (landscape 1024x460); replay panel's Drop In row fits.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 const browser=await launchBrowser();const URL0=process.env.WK_TEST_URL||'http://127.0.0.1:8931/';const shots=process.env.WK_MENU_SHOTS;
 const touchScroll=async(p,box,dy)=>{const c=await p.context().newCDPSession(p);const x=box.x+box.width/2,y=box.y+box.height*.7;await c.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});for(let i=1;i<=8;i++){await c.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-dy*i/8}]});await p.waitForTimeout(16);}await c.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await p.waitForTimeout(400);};
@@ -25,7 +25,7 @@ try{
  // replay panel in phone landscape: scrubber and Drop In visible without scrolling
  const p=await browser.newPage(pageOptions({viewport:{width:1024,height:460},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
- await p.goto(URL0);await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
+ await p.goto(withLegacy(URL0));await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.locator('[data-wk-nav="race"],[data-destination="race"]').first().tap().catch(()=>p.getByRole('button',{name:'⚑ Race',exact:true}).click());
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
  await p.keyboard.down('ArrowUp');await p.waitForTimeout(1500);await p.keyboard.up('ArrowUp');

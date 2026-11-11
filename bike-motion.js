@@ -124,7 +124,13 @@ export function createBikeMotion(root,build={},find=()=>null) {
   for(const att of attachments){if(att.mount==='front'){att.o.matrix.premultiply(steerM);}}
   Object.assign(state,{wheelPhase,rearWheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa,steerAngle:steerAngle||0,rotors:rotors.length,rotorParts:rotors.reduce((n,e)=>n+e.parts.length,0)});return state;
  };
- return {update,state};
+ // Visible wheel check: each rotor's first spinning mesh, rotation about the axle relative to the bike root
+ // (from world matrices, i.e. what is drawn), plus the front wheel's steer yaw.
+ const _pm=new T.Matrix4(),_pq=new T.Quaternion(),_pe=new T.Euler();
+ const probe=()=>{root.updateMatrixWorld(true);const inv=_pm.copy(root.matrixWorld).invert();
+  return rotors.map(r=>{const o=r.parts[0]?.o;if(!o)return {front:r.front,parts:0};_pq.setFromRotationMatrix(_m1.multiplyMatrices(inv,o.matrixWorld));_pe.setFromQuaternion(_pq,'YXZ');
+   return {front:r.front,parts:r.parts.length,spinZ:_pe.z,steerY:_pe.y,name:o.name||o.type}})};
+ return {update,state,probe};
 }
 
 // Local test bench: stationary by default; explicit controls demonstrate the mechanics.

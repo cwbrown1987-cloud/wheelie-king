@@ -1,4 +1,4 @@
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 
 // Every menu/panel must fit the phone screen and scroll by touch when its content is taller.
@@ -32,7 +32,7 @@ try {
     const page = await browser.newPage(pageOptions({viewport:vp,hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.addInitScript(() => localStorage.setItem('wk-level', 'trials'));
-    await page.goto(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/');
+    await page.goto(withLegacy(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/'));
     await page.waitForFunction(() => document.querySelector('[data-wk-room-ready]'), {timeout:90000});
     const workshop = await page.evaluate(audit);
     await page.getByRole('button', {name:'⚑ Race', exact:true}).evaluate(b => b.click());

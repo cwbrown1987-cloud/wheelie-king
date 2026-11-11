@@ -3,7 +3,7 @@ import {join} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
 import {root,stageRuntime} from './package.mjs';
 
-const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-camera','ride-loop','ride-finish','ride-lod','ride-quality','ride-themes','quality-lifecycle','ride-landings','wheelie-balance','air-control','ride-controls','crash-physics','crash-ride','race-balance','ride-pause-replay','check-update','replay-blocks','ride-gallery','boot-loader','replay-playback','panel-scroll','no-page-scroll','ride-rewind','rotate-lock','crash-bar','ride-tricks-menu','rider-outfit','ride-midground','sample-3d-track','sample3d-physics','ride-view-toggle','chase-controls','free-roam','handlebar-steer','steer-look','ad-tilt-side','v34-flat'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
+const profiles={static:[],player:['player-rooms','garage-drag','manage-rides'],scene:['scene-depth','terrain-ride'],polish:['spawn-polish','sticker-picker'],vehicles:['vehicle-platforms'],builder:['part-fitment','basic-crazy','unlimited-zoom','check-update','replay-blocks','ride-gallery','boot-loader','simple-builder','workshop-batch','workshop-presentation','workshop-mobile','shop-space'],ride:['ride-camera','ride-loop','ride-finish','ride-lod','ride-quality','ride-themes','quality-lifecycle','ride-landings','wheelie-balance','air-control','ride-controls','crash-physics','crash-ride','race-balance','ride-pause-replay','check-update','replay-blocks','ride-gallery','boot-loader','replay-playback','panel-scroll','no-page-scroll','ride-rewind','rotate-lock','crash-bar','ride-tricks-menu','rider-outfit','ride-midground','ride-view-toggle','chase-controls','handlebar-steer','v34-flat','autostart','v2-rider'],mechanics:['bike-motion','trax-mechanics'],modular:['modular-builds']};
 profiles.gpu=['claude-gpu'];
 profiles.transitions=['screen-transitions'];
 profiles.rooms=['workshop-kit','workshop-storage','shared-world','world-room','workshop-presentation','garage-drag','player-rooms','manage-rides','workshop-mobile','gizmo-stand','object-handles'];
@@ -33,14 +33,14 @@ function resolveChangedTests(){
   {re:/^ride-camera/, tests:['ride-camera']},
   {re:/^(ride\.js|ride-loop|ride-physics|ride-tricks|ride-environment|ride-scenery|race-launch)/, tests:['ride-loop','ride-finish','slow-mo','race-balance','crash-ride','ride-rewind']},
   {re:/^(ride-controls|panel-scroll|rotate-lock|index\.html)/, tests:['ride-controls','panel-scroll','no-page-scroll','menus-fit','rotate-lock','crash-bar','ride-tricks-menu','chase-controls']},
-  {re:/^ride\.js$/, tests:['chase-controls','ride-view-toggle','free-roam','steer-look','ad-tilt-side']},
-  {re:/ride-freeroam|^ride-physics\.js$/, tests:['free-roam','handlebar-steer','sample3d-physics','steer-look']},
+  {re:/^ride\.js$/, tests:['chase-controls','ride-view-toggle','autostart','v34-tricks-ui','v2-playground-rewind']},
+  {re:/ride-freeroam|^ride-physics\.js$/, tests:['handlebar-steer']},
   {re:/^(ride-(playground|jolt|pause|profile|controls)|version)\.js$/, tests:['v34-flat','v34-parts','v34-controls','v34-rewind','v2-new-frame','v34-tricks-ui','v2-playground-rewind']},
   {re:/^(ride-quality|ride-lod|ride-themes)/, tests:['ride-quality','ride-lod','ride-themes','quality-lifecycle']},
   {re:/^crash-/, tests:['crash-physics','crash-ride']},
-  {re:/^(ride-sample3d|ride-physics)\.js$/, tests:['sample-3d-track']},
   {re:/^ride-environment/, tests:['ride-midground','scene-depth','race-balance']},
   {re:/^(rider-model|rider-spec|gear-models|gear-catalogue|gear-state)/, tests:['rider-outfit']},
+  {re:/^(rider-ubc|vendor\/GLTFLoader)/, tests:['v2-rider']},
 
   {re:/^sticker-/, tests:['sticker-picker','sticker-frame']},
   {re:/^player-/, tests:['player-rooms','manage-rides']},
@@ -52,7 +52,7 @@ function resolveChangedTests(){
   {re:/^bike-motion/, tests:['bike-motion']},
   {re:/^vehicle-/, tests:['vehicle-platforms']},
   {re:/^modular-/, tests:['modular-builds']},
-  {re:/^(boot-loader|sw\.js|manifest\.webmanifest|index\.html|rotate-lock)/, tests:['boot-loader','check-update','rotate-lock']},
+  {re:/^(boot-loader|sw\.js|manifest\.webmanifest|index\.html|rotate-lock|autostart)/, tests:['boot-loader','check-update','rotate-lock','autostart']},
   {re:/^(app\.js|builder-|partmodels|parts3d|fitment|gear-)/, tests:['simple-builder','part-fitment','shop-space','basic-crazy','menus-fit']},
   {re:/^terrain-/, tests:['terrain-ride','scene-depth']},
   {re:/^(screen-|workshop-navigation)/, tests:['screen-transitions']},

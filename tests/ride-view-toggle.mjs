@@ -1,5 +1,5 @@
-// The side/chase pill must toggle on a real phone tap, on Trials and SAMPLE 3D.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+// The side/chase pill must toggle on a real phone tap on the Legacy Trials ride (?legacy=1). SAMPLE 3D was removed in v2.0.
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 
@@ -10,7 +10,7 @@ async function openRide(browser, track){
   const p=await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
   const errors=[];p.on('pageerror',e=>errors.push(e.message));
   const base=process.env.WK_TEST_URL||'http://127.0.0.1:8931/';
-  const url=track?base.replace(/\/?$/,'/')+'?track='+track:base;
+  const url=withLegacy(base,track||'trials');
   await p.addInitScript(lv=>{if(lv)localStorage.setItem('wk-level',lv);else localStorage.setItem('wk-level','trials');}, track||'trials');
   await p.goto(url);
   await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
@@ -29,7 +29,7 @@ async function tapPill(p){
 const browser=await launchBrowser();
 try{
   const results=[];
-  for(const track of [null,'sample3d']){
+  for(const track of [null]){
     const {p,errors,name}=await openRide(browser,track);
     const start=await p.evaluate(()=>{
       const st=__WK_RIDE_STATE__();

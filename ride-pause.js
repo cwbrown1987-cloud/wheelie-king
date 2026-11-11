@@ -1,10 +1,9 @@
 import {WK_VERSION} from './version.js';
 // Pause FAB + centred frosted-glass menu (matches ride-glass / lounge .glass).
-export function pauseMenuMarkup(level) {
+export function pauseMenuMarkup(level, { legacy = false } = {}) {
   const flat = level === true || level === 'flat';
-  const sample = level === 'sample3d';
   const arena = level === 'arena';
-  const trials = !flat && !sample && !arena;
+  const trials = !flat && !arena;
   return `
 <button class="ride-pause-fab ride-glass" data-r="pause" aria-label="Pause ride" aria-expanded="false">
   <span class="ride-pause-fab-ico" aria-hidden="true">Ⅱ</span><span>PAUSE</span>
@@ -20,11 +19,10 @@ export function pauseMenuMarkup(level) {
     <button type="button" data-r="menu-respawn"><span aria-hidden="true">↺</span> Respawn</button>
     <button type="button" data-r="menu-restart"><span aria-hidden="true">↻</span> Restart</button>
   </div>
-  <div class="ride-pause-mode" role="group" aria-label="Race mode">
+  <div class="ride-pause-mode" role="group" aria-label="Race mode"${legacy ? '' : ' hidden'}>
     <span class="ride-pause-mode-label">Mode</span>
     <div class="ride-pause-seg">
       <button type="button" data-r="mode-trials" aria-pressed="${trials ? 'true' : 'false'}">Trials</button>
-      <button type="button" data-r="mode-sample3d" aria-pressed="${sample ? 'true' : 'false'}">SAMPLE 3D</button>
       <button type="button" data-r="mode-endless" aria-pressed="${flat ? 'true' : 'false'}">Endless</button>
       <button type="button" data-r="mode-arena" aria-pressed="${arena ? 'true' : 'false'}">PLAYGROUND</button>
     </div>
@@ -35,7 +33,7 @@ export function pauseMenuMarkup(level) {
 }
 
 function levelOf(opts) {
-  if (opts?.level === 'flat' || opts?.level === 'sample3d' || opts?.level === 'trials' || opts?.level === 'arena') return opts.level;
+  if (opts?.level === 'flat' || opts?.level === 'trials' || opts?.level === 'arena') return opts.level;
   if (opts?.flat) return 'flat';
   return 'trials';
 }
@@ -47,14 +45,12 @@ export function mountRidePause(ui, opts) {
   const fab = ui.querySelector('[data-r="pause"]');
   const menu = ui.querySelector('.ride-pause-menu');
   const trialsBtn = ui.querySelector('[data-r="mode-trials"]');
-  const sampleBtn = ui.querySelector('[data-r="mode-sample3d"]');
   const endlessBtn = ui.querySelector('[data-r="mode-endless"]');
   const arenaBtn = ui.querySelector('[data-r="mode-arena"]');
   let current = levelOf(opts);
 
   function syncMode() {
     trialsBtn?.setAttribute('aria-pressed', String(current === 'trials'));
-    sampleBtn?.setAttribute('aria-pressed', String(current === 'sample3d'));
     endlessBtn?.setAttribute('aria-pressed', String(current === 'flat'));
     arenaBtn?.setAttribute('aria-pressed', String(current === 'arena'));
   }
@@ -104,7 +100,6 @@ export function mountRidePause(ui, opts) {
   ui.querySelector('[data-r="menu-replay"]').onclick = () => { menu.hidden = true; onReplay?.(); };
   ui.querySelector('[data-r="menu-gallery"]')?.addEventListener('click', () => { menu.hidden = true; onGallery?.(); });
   trialsBtn?.addEventListener('click', () => pick('trials'));
-  sampleBtn?.addEventListener('click', () => pick('sample3d'));
   endlessBtn?.addEventListener('click', () => pick('flat'));
   arenaBtn?.addEventListener('click', () => pick('arena'));
   syncMode();

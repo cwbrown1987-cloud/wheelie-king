@@ -1,6 +1,6 @@
 // Landscape only: the manifest is landscape, and a touch device in portrait gets a style-B
 // "rotate your phone" overlay that pauses the ride. Desktop portrait does not show it.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
@@ -17,7 +17,7 @@ try{
  const p=await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
  const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
- await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
+ await p.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  const landscape=await p.evaluate(()=>{
   const el=document.querySelector('.wk-rotate-lock');

@@ -1,6 +1,6 @@
 // After a crash, hold REWIND walks the ride-buffer backward at 2x; release restores that state's velocity.
 // Repeated rewind-and-resume cycles keep the buffer inside its 20s cap.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 
@@ -11,7 +11,7 @@ try{
  const p=await browser.newPage(pageOptions({viewport:{width:1280,height:720},serviceWorkers:'block'}));
  const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
- await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
+ await p.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
  await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
@@ -117,7 +117,7 @@ try{
   const phone=await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'}));
   phone.on('pageerror',e=>errors.push(e.message));
   await phone.addInitScript(()=>localStorage.setItem('wk-level','trials'));
-  await phone.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
+  await phone.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
   await phone.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
   await phone.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
   await phone.getByRole('button',{name:'⚑ Race',exact:true}).click();

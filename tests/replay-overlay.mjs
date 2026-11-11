@@ -1,6 +1,6 @@
 // Replay overlay: all controls on the video, no scrolling at phone landscape (1024x460, 844x390, 915x412);
 // every control visible and hit-testable; a touch drag on the tall seek bar moves the playhead.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 const URL0=process.env.WK_TEST_URL||'http://127.0.0.1:8931/',shots=process.env.WK_REPLAY_SHOTS;
 const browser=await launchBrowser({extraArgs:['--autoplay-policy=no-user-gesture-required']});
@@ -9,7 +9,7 @@ try{
   const p=await browser.newPage(pageOptions({viewport:{width:w,height:h},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
   const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
-  await p.goto(URL0);await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
+  await p.goto(withLegacy(URL0));await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
   await p.evaluate(()=>document.querySelector('[data-destination=race]').click());
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
   await p.keyboard.down('ArrowUp');await p.waitForTimeout(4500);await p.keyboard.up('ArrowUp');
@@ -72,7 +72,7 @@ try{
   const p=await browser.newPage(pageOptions({viewport:{width:w,height:h},deviceScaleFactor:1,serviceWorkers:'block'}));
   const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
-  await p.goto(URL0);await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
+  await p.goto(withLegacy(URL0));await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
   await p.evaluate(()=>document.querySelector('[data-destination=race]').click());
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
   await p.keyboard.down('ArrowUp');await p.waitForTimeout(4500);await p.keyboard.up('ArrowUp');

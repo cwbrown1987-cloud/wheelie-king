@@ -1,6 +1,6 @@
 // Pause → Replay → scrub stays in Replay; Drop In restores the exact frame (mid-trick); 3 Drop Ins in a row keep
 // the game running (regression: .is-dropping left the next replay panel invisible and the game frozen).
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 const browser=await launchBrowser({extraArgs:['--autoplay-policy=no-user-gesture-required']});
 const shots=process.env.WK_REPLAY_SHOTS;
@@ -8,7 +8,7 @@ try{
  const p=await browser.newPage(pageOptions({viewport:{width:1024,height:460},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
  const errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
- await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
+ await p.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});

@@ -1,6 +1,6 @@
 // Slow-mo: locked until the first Trials finish, hidden until then, works on the ground,
 // and flashes a one-time style-B "SLOW MO UNLOCKED" toast on first unlock.
-import {launchBrowser,pageOptions} from './_browser.mjs';
+import {launchBrowser,pageOptions,withLegacy} from './_browser.mjs';
 import assert from 'node:assert/strict';
 
 const browser=await launchBrowser();
@@ -8,7 +8,7 @@ try{
   const page=await browser.newPage(pageOptions({viewport:{width:844,height:390},hasTouch:true,serviceWorkers:'block'}));
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{localStorage.setItem('wk-level','trials');localStorage.removeItem('wk-trials-completed');});
-  await page.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
+  await page.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
   await page.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),{timeout:60000});
   await page.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await page.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded);

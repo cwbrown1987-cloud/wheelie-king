@@ -82,6 +82,7 @@ await runBootSequence({
     await import("./race-launch.js");
     progress?.(0.65);
     await import("./app.js");
+    import("./autostart.js");
     import("./stickers-dd.js");
     progress?.(0.75);
     // Warm default workshop: wait for view, preload backdrop-ish textures, compile shaders.
