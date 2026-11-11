@@ -664,20 +664,23 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       const landingY=pred.y,range=Math.hypot(pred.x-s.x,pred.z-z);
       const horizonTarget=inAir?Math.min(chaseTakeoffY,landingY):roadY;
       chaseHorizon+=(horizonTarget-chaseHorizon)*(1-Math.exp(-(inAir?1.8:8)*followDt));
-      // Jump framing: ease back/up/out on take-off (~0.5 s), ease back in after landing. No FOV punch.
-      airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?2.3:2.0)*followDt));
+      // Close air chase (Descenders/RR): stay ~4–5 m behind the bike, rise with it,
+      // and look at the bike with only a slight bias toward the landing. No FOV punch.
+      airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?2.8:2.5)*followDt));
       if(!inAir&&airClose<.02)airClose=0;
       const rise=Math.max(0,s.y-chaseHorizon);
-      const camYTarget=chaseHorizon+2.15+rise*.16+airClose*(1.15+Math.min(3.2,rise*.38));
-      const lookYTarget=chaseHorizon+.52+rise*.08*(1-airClose*.4)+airClose*((landingY+s.y)*.5-chaseHorizon)*.7;
-      const yRate=inAir?(camYTarget>chaseFollowY?2.1:2.4):5.2;
+      const groundCamY=chaseHorizon+2.15+rise*.16,airCamY=s.y+1.35;
+      const groundLookY=chaseHorizon+.52+rise*.08,airLookY=s.y+.3+(landingY-(s.y+.3))*.18;
+      const camYTarget=groundCamY*(1-airClose)+airCamY*airClose;
+      const lookYTarget=groundLookY*(1-airClose)+airLookY*airClose;
+      const yRate=inAir?8:5.2;
       chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
-      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?2.1:5.0)*followDt));
+      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?8:5.0)*followDt));
       cameraReady=true;
       const speedT=Math.max(0,Math.min(1,(sp-2.8)/8)),shake=(Math.random()-.5)*camShake;
       const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
       const chaseR0=3.6+Math.min(1.25,sp*.08);
-      const chaseR=chaseR0+airClose*(2.4+Math.min(5.0,rise*.55)+Math.min(2.8,range*.1));
+      const chaseR=chaseR0*(1-airClose)+(4.4+Math.min(.4,sp*.02))*airClose;
       const groundY=Math.min(roadY,landingY);
       const span=Math.max(2.4,s.y-groundY)+2.4;
       const sideFov=(46+8*speedT)*Math.PI/180;
@@ -685,15 +688,17 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       const sideR0=6.6+Math.min(1.8,sp*.12);
       const sideR=sideR0+airClose*Math.max(0,fitR-sideR0+1.2);
       dist=sideR;
-      const ahead=6+Math.min(8,Math.abs(s.vx)*.65)+airClose*Math.min(6,range*.35);
-      const chaseX=chasePosX-cy*chaseR,chaseZ=chasePosZ-sy*chaseR;
+      const ahead=6+Math.min(8,Math.abs(s.vx)*.65);
+      const lookAhead=ahead*(1-airClose)+1.6*airClose;
+      const followX=chasePosX*(1-airClose)+s.x*airClose,followZ=chasePosZ*(1-airClose)+z*airClose;
+      const chaseX=followX-cy*chaseR,chaseZ=followZ-sy*chaseR;
       let sideX=chasePosX,sideZ=chasePosZ+sideR;
       if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
       const midY=(s.y+groundY)*.5;
       const camY=((s.y+1.2)*(1-airClose)+(midY+.35)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
-      const lookX=s.x*(1-blend)+(chasePosX+cy*ahead)*blend;
-      const lookZ=z*(1-blend)+(chasePosZ+sy*ahead)*blend;
+      const lookX=s.x*(1-blend)+(followX+cy*lookAhead+airClose*(pred.x-s.x)*.12)*blend;
+      const lookZ=z*(1-blend)+(followZ+sy*lookAhead+airClose*(pred.z-z)*.12)*blend;
       const lookY=((s.y+.35)*(1-airClose)+midY*airClose)*(1-blend)+chaseLookY*blend;
       if(!globalThis.__WK_CAM_HOLD__){
         cam.position.set(camX,camY,camZ);

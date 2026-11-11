@@ -192,7 +192,7 @@ try{
   if(afterLand.mode==='whipping'&&!(afterLand.t>0.2))assert(afterLand.z>8,'still off-track until the hidden snap, z='+afterLand.z);
   await p.waitForFunction(()=>__WK_RIDE_STATE__().trackLock?.mode==='locked'&&__WK_RIDE_STATE__().cameraBlend===0,null,{timeout:8000});
 
-  // Airborne chase eases back and up to frame the jump, then eases back in on landing, with no pop.
+  // Airborne chase stays close behind the bike, rises with it, then eases back after landing, with no pop.
   await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
   await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='chase'&&__WK_RIDE_STATE__().cameraBlend===1,null,{timeout:8000});
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:-40,z:0,yaw:0,vx:6,vy:0,pitch:0,w:0,air:0,crashed:null,ground:[true,true]});s.y=ter.height(-40,0)+.45;});
@@ -201,9 +201,9 @@ try{
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{vy:4,y:ter.height(s.x,s.z||0)+3.4,air:.3,ground:[false,false],wasAir:true,crashed:null});});
   await p.waitForFunction(()=>(__WK_RIDE_STATE__().chaseCam?.airClose||0)>0.55,null,{timeout:4000});
   const flown=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();return {r:st.chaseCam?.radius,y:st.chaseCam?.camY,air:st.chaseCam?.airClose||0,clear:st.chaseCam?.clearance};});
-  assert(flown.air>0.55,'air camera should ease into jump framing, '+JSON.stringify({grounded,flown}));
-  assert(flown.r>grounded.r+0.4,'chase should sit further back in the air, '+JSON.stringify({grounded,flown}));
-  assert(flown.y>grounded.y+0.2,'chase should sit higher in the air, '+JSON.stringify({grounded,flown}));
+  assert(flown.air>0.55,'air camera should ease into a close follow, '+JSON.stringify({grounded,flown}));
+  assert(flown.r>=3.8&&flown.r<=5.5,'chase should stay about 4–5 m behind in the air, '+JSON.stringify({grounded,flown}));
+  assert(flown.y>grounded.y+0.2,'chase should rise with the bike, '+JSON.stringify({grounded,flown}));
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{vy:0,air:0,wasAir:false,ground:[true,true]});s.y=ter.height(s.x,s.z||0)+.45;});
   await p.waitForFunction(()=>(__WK_RIDE_STATE__().chaseCam?.airClose||0)<0.12,null,{timeout:4000});
   const landed=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();return {r:st.chaseCam?.radius,air:st.chaseCam?.airClose||0};});
