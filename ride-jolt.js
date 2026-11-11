@@ -587,7 +587,10 @@ export function createJoltRide({ P, profile = null }) {
     let rpm = 0, gear = 1;
     try { rpm = controller.GetEngine().GetCurrentRPM(); gear = controller.GetTransmission().GetCurrentGear(); } catch {}
     return { p: [p.GetX(), p.GetY(), p.GetZ()], q: [q.GetX(), q.GetY(), q.GetZ(), q.GetW()], v: [v.GetX(), v.GetY(), v.GetZ()], w: [w.GetX(), w.GetY(), w.GetZ()],
-      wheels: [wheel(0).GetAngularVelocity(), wheel(1).GetAngularVelocity()], rpm, gear, mono: monoOn, stand: standOn, prevForward: mPreviousForward };
+      wheels: [wheel(0).GetAngularVelocity(), wheel(1).GetAngularVelocity()], rpm, gear, mono: monoOn, stand: standOn, prevForward: mPreviousForward,
+      // full controller state so a rewind doesn't snap the bars straight (QA #7)
+      right: mRight, steerAngle: [wheel(0).GetSteerAngle(), wheel(1).GetSteerAngle()], rot: [wheel(0).GetRotationAngle(), wheel(1).GetRotationAngle()],
+      stoppie: stoppieOn, lever: [leverFeel, leverRamp] };
   }
   function restore(snap, s) {
     if (!api.ready || !snap) return false;
@@ -597,7 +600,11 @@ export function createJoltRide({ P, profile = null }) {
     try { controller.GetEngine().SetCurrentRPM(snap.rpm); controller.GetTransmission().Set(snap.gear, 1); } catch {}
     if (standOn !== !!snap.stand) { standOn = !!snap.stand; bodyInterface.SetShape(id, standOn ? shapes.stand : shapes.sit, false, Jolt.EActivation_Activate); }
     monoOn = !!snap.mono; monoKick = 0; prevPitch = null; mPreviousForward = snap.prevForward ?? 1;
-    mForward = 0; mRight = 0; mBrake = 0; handBrake = 0; mode = 'ride';
+    mForward = 0; mRight = snap.right ?? 0; mBrake = 0; handBrake = 0; mode = 'ride';
+    stoppieOn = !!snap.stoppie; if (snap.lever) [leverFeel, leverRamp] = snap.lever;
+    if (snap.steerAngle) for (let i = 0; i < 2; i++) wheel(i).SetSteerAngle(snap.steerAngle[i]);
+    if (snap.rot) for (let i = 0; i < 2; i++) wheel(i).SetRotationAngle(snap.rot[i]);
+    controller.SetDriverInput?.(0, mRight, 0, 0);
     if (constraint.ResetWarmStart) constraint.ResetWarmStart();
     bodyInterface.ActivateBody(id);
     if (s) writeState(s);

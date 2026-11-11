@@ -3,6 +3,10 @@
 import {TRAX_RADIUS,traxGeometry} from './trax-bike.js';
 import {baseId,canonicalBuild} from './modular-catalogue.js';
 import {VEHICLES,prototypeFor,vehicleFit,vehicleReady} from './vehicle-platforms.js';
+// Frame class from FRAME_STD data, not hard-coded ids (QA #11): a triple-clamp head is a moto frame,
+// a straight 20" head takes a quill stem, anything else is threadless.
+export const isMotoFrame = (fid) => FRAME_STD[fid]?.head === 'triple';
+export const stemInterface = (fid) => { const f = FRAME_STD[fid]; return !f ? 'threadless' : f.head === 'triple' ? 'moto' : f.head === 'straight' && f.wheel === '20' ? 'quill' : 'threadless'; };
 export const FRAME_STD = {
   trax_lime: {bb:'68',drop:'135qr',head:'straight',seat:25.4,brake:['rim'],shock:'trax-short',batt:[],wheel:'20',alloy:false},
   bmx:       { bb: "bmx", drop: "110", head: "straight", seat: 25.4, brake: ["rim"], shock: null, batt: [], wheel: "20", alloy: false },
@@ -25,7 +29,7 @@ const GEO = {
 for(const [id,v]of Object.entries(VEHICLES)){FRAME_STD[id]={bb:id,drop:id,head:id,seat:0,brake:[id],shock:id,batt:v.powertrain==='electric'?['deck']:[],wheel:id};GEO[id]={R:v.wheelR,x:v.geometry};}
 const TYRE_R = { "24": .315, "27.5": 0.355, "29": 0.375, "26f": 0.37 };
 globalThis.__WK_FRAMEGEO__ = (frameId,R,build={})=>{
- const f=baseId(frameId),moto=['moto','emoto'].includes(f),x=GEO[f]?.x(R)||(moto?{rear:[-.52,R],bb:[0,.36],seat:[-.14,.86],htT:[.6,.93],htB:[.66,.7],front:[.82,R],tr:.03}:{rear:[-.37,R],bb:[0,R+.035],seat:[-.1,.7],htT:[.5,.74],htB:[.545,.58],front:[.63,R],tr:f==='rbmx'?.022:.017});
+ const f=baseId(frameId),moto=isMotoFrame(f),x=GEO[f]?.x(R)||(moto?{rear:[-.52,R],bb:[0,.36],seat:[-.14,.86],htT:[.6,.93],htB:[.66,.7],front:[.82,R],tr:.03}:{rear:[-.37,R],bb:[0,R+.035],seat:[-.1,.7],htT:[.5,.74],htB:[.545,.58],front:[.63,R],tr:f==='rbmx'?.022:.017});
  const travel=P(baseId(build.suspension))?.travel||0,dx=x.front[0]-x.htB[0]-.012,L=R+.048+travel*.8,needed=R+Math.sqrt(Math.max(.01,L*L-dx*dx))+.03,raise=Math.max(0,needed-x.htB[1]);
  x.htB[1]+=raise;x.htT[1]+=raise;return x;
 };
@@ -77,7 +81,7 @@ export function fit(build, id) {
     if(p.family&&p.family!==fid||p.families&&!p.families.includes(fid))return no('mounting points do not match this main frame');
     if(p.slot==='rear_frame'&&!f.shock)return no('this welded rigid rear triangle is part of the main frame');
   } else if(p.slot==='stem') {
-    const type=['moto','emoto'].includes(fid)?'moto':['bmx','rbmx','trax_lime'].includes(fid)?'quill':'threadless';
+    const type=stemInterface(fid);
     if(p.interface!==type)return no('stem/steerer mounting interface does not match');
     const bars=P(build.bars);if(bars&&bars.clamp!==p.clamp)return no('bar clamp diameter does not match the fitted handlebar');
   } else if(p.slot==='bars') {
@@ -123,7 +127,7 @@ export function fit(build, id) {
     if (f.bb === "moto" && !p.pegs) return no("moto frame has no pedal bottom bracket");
     if (id === "crank_mid" && !["mid"].includes(P(build.motor)?.kind)) return no("mid-drive cranks bolt to a mid-drive motor");
   } else if(['fender_f','wing','fender_r','bash'].includes(p.slot)) {
-    if((p.id.includes('mx')||p.id.includes('neon')||p.slot==='wing'||p.id==='bash_skid')&&!['moto','emoto'].includes(fid))return no('moto bodywork mounting points do not match this bicycle frame');
+    if((p.id.includes('mx')||p.id.includes('neon')||p.slot==='wing'||p.id==='bash_skid')&&!isMotoFrame(fid))return no('moto bodywork mounting points do not match this bicycle frame');
   } else if (p.slot === "frame") {
     // switching frames: the frame itself always fits; the other parts get re-checked as warnings
   }
