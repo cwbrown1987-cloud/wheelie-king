@@ -11,6 +11,7 @@ import { TIERS, pickTier, createQualityMonitor } from "./ride-quality.js";
 import { getTheme } from "./ride-themes.js";
 import { makeTerrain, makeFlatTerrain, makeSampleTerrain, makeArenaTerrain, makeState, step } from "./ride-physics.js";
 import { wrapAngle, crossedGate } from "./ride-freeroam.js";
+import { canStartTrackReturn, startTrackReturn, stepTrackLock } from "./ride-track.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
 import {rideControlsMarkup,mountLeanControls,mountSteerSlider,mountTricksMenu} from './ride-controls.js';
@@ -211,7 +212,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${arena?"ARENA":sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
    ${pauseMenuMarkup(level)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
-   <div style="position:absolute;top:96px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
+   <div style="position:absolute;top:96px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="heading" style="font-size:13px;letter-spacing:.06em;opacity:.9"></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
    <div data-h="trick" style="position:absolute;top:22%;width:100%;text-align:center;font-size:34px;color:#39ff7a;text-shadow:0 0 14px #000"></div>
    <div data-h="msg" style="position:absolute;top:36%;width:100%;text-align:center;font-size:26px;text-shadow:0 0 10px #000"></div>
    <button class="ride-replay-alert ride-glass" data-r="replay" hidden>● REPLAY</button>
@@ -403,6 +404,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     pivot.position.set(s.x, s.y, s.z||0);
     pivot.rotation.set(0, -(s.yaw||0), 0);
     lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;lookDrag=null;lookLast=null;
+    if(ter.track){
+      if(cameraView==='side'){if(canStartTrackReturn(s))startTrackReturn(s,ter.track,trackLock);else trackLock.mode='pending';}
+      else trackLock.mode='free';
+      syncTrackChrome();
+    }
     crashT = 0;
     msg = restarting ? "GO!" : "RECOVERED";
     msgT = restarting ? 2 : .7;
@@ -484,7 +490,27 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   function close() { report(); onClose?.(); }
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
-  const viewLabel=ui.querySelector('.ride-view-label');viewLabel?.addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();if(reviewing||finished)return;cameraView=cameraView==='chase'?'side':'chase';});const hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
+  let cameraView='side',cameraBlend=0,cameraReady=false;
+  const trackLock={mode:'free',t:0,dur:.9};
+  function visualCam(){return ter.track&&cameraView==='side'&&trackLock.mode==='pending'?'chase':cameraView}
+  function syncTrackChrome(){
+    const side=!!ter.track&&cameraView==='side'&&(trackLock.mode==='locked'||trackLock.mode==='gliding');
+    if(side)el.dataset.wkTrackSide='';else el.removeAttribute('data-wk-track-side');
+    el.dataset.wkCam=visualCam();
+  }
+  function setCameraView(view){
+    const next=view==='chase'?'chase':'side';
+    cameraView=next;
+    if(ter.track){
+      if(next==='chase')trackLock.mode='free';
+      else if(canStartTrackReturn(s))startTrackReturn(s,ter.track,trackLock);
+      else trackLock.mode='pending';
+    }
+    syncTrackChrome();
+    if(!freeRoam&&cameraView!=='chase')steerSlider.release();
+    return cameraView;
+  }
+  const viewLabel=ui.querySelector('.ride-view-label');viewLabel?.addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();if(reviewing||finished)return;setCameraView(cameraView==='chase'?'side':'chase');});const hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
   const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),rotateLocked=document.body.classList.contains('wk-portrait-lock'),realDt = paused || reviewing || rewinding || rotateLocked ? 0 : Math.min(0.05,cameraDt);
     let timeScale = 1;
     if (slowMo) timeScale = .62;
@@ -526,17 +552,20 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     inp.throttle = Math.max(touch.throttle, keys.w || (!freeRoam&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || (!freeRoam&&keys.arrowdown) ? 1 : 0);
     const leanKey=freeRoam?((keys.arrowup||0)-(keys.arrowdown||0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey+(tilt?tiltLean:0)))*-1;
-    inp.steer = freeRoam?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0))):0;
+    const trackSide=!!ter.track&&cameraView==='side'&&trackLock.mode!=='free'&&trackLock.mode!=='pending';
+    inp.steer = freeRoam&&!trackSide?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0))):0;
     inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });
     if (!s.crashed && !finished) {
       const n = Math.ceil(dt * 480);
       for (let k = 0; k < n; k++) {
         step(s, P, inp, dt / n, ter);
+        if(ter.track)stepTrackLock(s,ter,trackLock,dt/n);
         if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
       }
     }
     if (s.crashed) endSlow();
+    if(ter.track&&trackLock.mode==='pending'&&canStartTrackReturn(s)){startTrackReturn(s,ter.track,trackLock);syncTrackChrome();}
     // events -> FX, wear, messages
     for (const ev of s.events.splice(0)) {
       if (!flat && photoCount < 3 && photoDelay < 0 &&
@@ -608,12 +637,12 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     // camera: side-on follow, zooms out with speed
     const crashFocus=crashRig?.focus(),sp=crashFocus?.speed??Math.hypot(s.vx,s.vy);
     camShake*=Math.exp(-8*cameraDt);
-    const targetBlend=cameraView==='chase'?1:0;cameraBlend+=Math.max(-cameraDt/.4,Math.min(cameraDt/.4,targetBlend-cameraBlend));const blend=cameraBlend*cameraBlend*(3-2*cameraBlend);
+    const targetBlend=visualCam()==='chase'?1:0;const swingDur=targetBlend>cameraBlend?.7:(trackLock.dur||.9);cameraBlend+=Math.max(-cameraDt/swingDur,Math.min(cameraDt/swingDur,targetBlend-cameraBlend));const uBlend=cameraBlend;const blend=uBlend*uBlend*uBlend*(uBlend*(uBlend*6-15)+10);
     let dist=6.5;
     if(freeRoam){
       const yaw=s.yaw||0,z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
       const k=1-Math.exp(-5.8*followDt);
-      if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.45;}
+      if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.55;chaseLookY=roadY+.62;}
       chasePosX+=(s.x-chasePosX)*k;chasePosZ+=(z-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-4.6*followDt));
       if(!lookDrag){
         const wn=9,zn=.85;
@@ -626,33 +655,36 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       const lookDist=Math.max(3,Math.abs(s.vx)*.4),landingY=ter.height(s.x+Math.cos(yaw)*lookDist,z+Math.sin(yaw)*lookDist);
       const horizonTarget=inAir?Math.min(chaseTakeoffY,landingY):roadY;
       chaseHorizon+=(horizonTarget-chaseHorizon)*(1-Math.exp(-(inAir?1.8:8)*followDt));
-      const rise=Math.max(0,s.y-chaseHorizon),camYTarget=chaseHorizon+2.15+rise*.14,lookYTarget=chaseHorizon+.45+rise*.08;
+      const rise=Math.max(0,s.y-chaseHorizon),camYTarget=chaseHorizon+2.55+rise*.14,lookYTarget=chaseHorizon+.62+rise*.08;
       const yRate=inAir?(camYTarget>chaseFollowY?1.3:2.0):6;
       chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
       chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?1.6:6)*followDt));
       cameraReady=true;
       const speedT=Math.max(0,Math.min(1,(sp-2.8)/8)),shake=(Math.random()-.5)*camShake;
       // Chase stays locked behind the rider (heading + tiny lag + optional swipe look).
-      // Side view stays on the world +Z side so a yaw is visible as the bike itself turning.
+      // Raised slightly, looking further ahead along the heading so the lane reads.
+      // Side view sits perpendicular to the track (or +Z when there is no rail).
       const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
       const chaseR=4.4+Math.min(1.5,sp*.1),sideR=6.6+Math.min(1.8,sp*.12);
       dist=sideR;
+      const ahead=6+Math.min(8,Math.abs(s.vx)*.65);
       const chaseX=chasePosX-cy*chaseR,chaseZ=chasePosZ-sy*chaseR;
-      const sideX=chasePosX,sideZ=chasePosZ+sideR;
+      let sideX=chasePosX,sideZ=chasePosZ+sideR;
+      if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
       const camY=(s.y+1.2)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
-      const lookX=s.x*(1-blend)+(chasePosX+cy*5)*blend;
-      const lookZ=z*(1-blend)+(chasePosZ+sy*5)*blend;
+      const lookX=s.x*(1-blend)+(chasePosX+cy*ahead)*blend;
+      const lookZ=z*(1-blend)+(chasePosZ+sy*ahead)*blend;
       const lookY=(s.y+.35)*(1-blend)+chaseLookY*blend;
       if(!globalThis.__WK_CAM_HOLD__){
         cam.position.set(camX,camY,camZ);
         cam.lookAt(lookX,lookY,lookZ);
         cam.fov=(46+8*speedT)*(1-blend)+(60+12*speedT)*blend;cam.updateProjectionMatrix();
       }
-      lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw};
-      environment.update(s.x);environment.view(1);
+      lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead};
+      environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(1);
       put(viewLabel,'view',cameraView==='chase'?'▣ CHASE':'▣ SIDE VIEW');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
-      if(el.dataset.wkCam!==cameraView)el.dataset.wkCam=cameraView;
+      syncTrackChrome();
     } else {
     const sc=sideCam.update(reviewing ? 0 : cameraDt,{x:s.x,y:s.y,vx:s.vx,vy:s.vy,speed:sp,grounded:!!(s.ground[0]||s.ground[1]),groundY:ter.h(s.x),landingY:ter.h(s.x+Math.max(2,s.vx*.35)),inLoop:!!s.loopRide,focus:crashFocus,reduceMotion:reduceMotion.matches});dist=sc.dist;
     const angle=blend*Math.PI/2;
@@ -699,7 +731,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       speedLineGeo.attributes.position.needsUpdate=true;
     }
     lastChaseCam={fov:cam.fov,radius:dist*(1-blend)+(5.8+Math.min(1.2,sp*.08))*blend,camY:cam.position.y,lookY:chaseLookY,clearance:Math.max(0,s.y-ter.h(s.x)),followY:chaseFollowY};
-    environment.update(s.x);environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
+    environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
     if(el.dataset.wkCam!==cameraView){el.dataset.wkCam=cameraView;if(cameraView!=='chase')steerSlider.release();}
     }
 
@@ -707,7 +739,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     sky.position.x = cam.position.x; sky.position.z=cam.position.z||0; sunDisc.position.x = cam.position.x + 40;
     // HUD
     put(hud.score,"score",Math.round(s.score).toLocaleString()); if(!flat)put(hud.best,"best","$ +" + Math.round(maxScore / 10).toLocaleString() + " · DIRT " + Math.round(Math.min(1, dirt) * 100) + "%");
-    putHtml(hud.speed,'speed',Math.round(sp * 3.6) + "<small style='font-size:14px'> km/h</small>"); put(hud.wheelie,'wheelie',s.balance ? `${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s` : s.bestWheelie ? `BEST MONO ${s.bestWheelie.toFixed(1)}s` : "");
+    putHtml(hud.speed,'speed',Math.round(sp * 3.6) + "<small style='font-size:14px'> km/h</small>");
+    if(freeRoam&&hud.heading){const deg=((Math.atan2(Math.sin(s.yaw||0),Math.cos(s.yaw||0))*180/Math.PI)+360)%360;const card=['N','NE','E','SE','S','SW','W','NW'][Math.round(deg/45)%8];put(hud.heading,'heading',card+' · '+Math.round(deg)+'°')}
+    else if(hud.heading)put(hud.heading,'heading','');
+    put(hud.wheelie,'wheelie',s.balance ? `${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s` : s.bestWheelie ? `BEST MONO ${s.bestWheelie.toFixed(1)}s` : "");
     put(hud.batt,'batt',P.powertrain==='petrol'?'FUEL '+Math.round(s.battery*100)+'% · '+(stats.cc??find(build.motor)?.cc??'')+'cc':P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"); {const pw = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%"; if(hc.pw!==pw){hc.pw=pw;hud.prog.firstChild.style.width = pw;}}
     if (s.trickT <= 0 && hud.trick.style.opacity!=='0') hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; put(hud.msg,'msg',paused?"PAUSED":msgT > 0 ? msg : "");
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;sty("transformOrigin","top left");sty("transform",`scale(${1/screenScale})`);sty("width",(w*screenScale)+"px");sty("height",(h*screenScale)+"px");sty("right","auto");sty("bottom","auto");const pixelRatio=Math.min(maxPR,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
@@ -728,12 +763,12 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       photoCount++;
     }
   };
-  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');let cameraView='side',cameraBlend=0,cameraReady=false;el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';globalThis.__WK_SCENE_VIEW__=view=>{cameraView=view==='chase'?'chase':'side';el.dataset.wkCam=cameraView;if(!freeRoam&&cameraView!=='chase')steerSlider.release();return cameraView};
+  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';if(ter.track&&cameraView==='side'){startTrackReturn(s,ter.track,trackLock);syncTrackChrome();}globalThis.__WK_SCENE_VIEW__=setCameraView;
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam});globalThis.__WK_REPLAY__=replay;
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
-  function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');el.removeAttribute('data-wk-track-side');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }

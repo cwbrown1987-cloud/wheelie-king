@@ -17,6 +17,11 @@ assert(ter.height(76,22)>1.0,'medium kicker is in the height field');
 assert(ter.height(78,-28)>1.5,'big kicker is in the height field');
 assert(ter.height(128,0)>3.0,'large ramp is in the height field');
 assert(ter.ramps.length===4);
+assert(ter.track,'arena terrain exposes a side-view track');
+assert(ter.track.onTrack(28,0),'small kicker sits on the track');
+assert(ter.track.onTrack(70,22),'medium kicker sits on the track');
+assert(ter.track.onTrack(115,0),'large kicker sits on the track');
+assert(!ter.track.onTrack(0,40),'z=40 is off the track');
 
 const motor=bikeParams({P:4000,kg:40,driveAxle:'rear',powertrain:'electric',batteryWh:1000});
 const pedal=bikeParams({powertrain:'human'});
@@ -73,6 +78,9 @@ try{
       hasSampleBtn:!!document.querySelector('[data-r="mode-sample3d"]'),
       label:document.querySelector('[data-r="level"]')?.textContent,
       dpadOn:getComputedStyle(document.querySelector('.ride-dpad')).display,
+      leftOn:getComputedStyle(document.querySelector('.ride-dpad [data-t=steerLeft]')).display,
+      rightOn:getComputedStyle(document.querySelector('.ride-dpad [data-t=steerRight]')).display,
+      view:st.cameraView, lock:st.trackLock, z:st.s.z||0,
       env:st.environment
     };
   });
@@ -86,8 +94,21 @@ try{
   assert.equal(start.hasSampleBtn,true);
   assert.match(start.label||'',/ARENA/);
   assert.notEqual(start.dpadOn,'none','arena keeps the free-roam d-pad');
+  assert.equal(start.view,'side','arena opens in side view');
+  assert.equal(start.lock?.mode,'locked','spawn is locked to the track');
+  assert(start.lock?.onTrack,'spawn should be on the track '+JSON.stringify(start.lock));
+  assert.equal(start.leftOn,'none','LEFT is hidden in side view');
+  assert.equal(start.rightOn,'none','RIGHT is hidden in side view');
   assert.equal(start.env?.arena,true);
   assert.equal(start.env?.midground,false);
+  assert(start.env?.landmarks===true,'arena should report landmarks');
+  assert((start.env?.buildings||0)>=20,'city ring should surround the arena, buildings='+start.env?.buildings);
+  assert((start.env?.poles||0)>=20,'light poles along the walls');
+
+
+  // Off-track tests run in chase so the rail does not pull the bike back.
+  await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
+  await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='chase'&&__WK_RIDE_STATE__().cameraBlend===1&&__WK_RIDE_STATE__().trackLock?.mode==='free',null,{timeout:8000});
 
   // Top speed on the flat.
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:-110,z:80,yaw:0,vx:0,vy:0,pitch:0,w:0,crashed:null,ground:[true,true],air:0});s.y=ter.height(-110,80)+.45;});
@@ -150,16 +171,23 @@ try{
   assert(held.x<=held.max+0.05,'wall should hold, '+JSON.stringify(held));
   assert(!held.crashed);
 
-  // Side view is still a camera swap of the same world.
-  await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:0,z:12,yaw:0.3,vx:0,vy:0,crashed:null});s.y=ter.height(0,12)+.45;__WK_SCENE_VIEW__('side');});
-  await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='side'&&__WK_RIDE_STATE__().cameraBlend===0,null,{timeout:8000});
-  await p.waitForTimeout(200);
-  const swap=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();const {cam}=__WK_RIDE_SCENE__();return {z:st.s.z,pivotZ:st.visual.z,view:st.cameraView,camZ:cam.position.z,dpadOn:getComputedStyle(document.querySelector('.ride-dpad')).display};});
+  // Side view from off-track glides the bike onto the rail; no snap on the first frames.
+  await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:0,z:40,yaw:0.3,vx:4,vy:0,pitch:0,w:0,air:0,crashed:null,ground:[true,true]});s.y=ter.height(0,40)+.45;__WK_SCENE_VIEW__('side');});
+  const mid=await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r((()=>{const st=__WK_RIDE_STATE__();return {z:st.s.z,mode:st.trackLock?.mode,dist:st.trackLock?.dist,vx:st.s.vx,t:st.trackLock?.t,blend:st.cameraBlend};})())))));
+  assert.equal(mid.mode,'gliding','return should start as a glide '+JSON.stringify(mid));
+  assert(mid.z>20,'must not snap onto the track in the first frames, z='+mid.z);
+  assert(mid.vx>2,'forward speed is kept during the glide, vx='+mid.vx);
+  await p.waitForFunction(()=>__WK_RIDE_STATE__().trackLock?.mode==='locked'&&__WK_RIDE_STATE__().cameraBlend===0,null,{timeout:8000});
+  const swap=await p.evaluate(()=>{const st=__WK_RIDE_STATE__();const {cam}=__WK_RIDE_SCENE__();return {z:st.s.z,dist:st.trackLock?.dist,mode:st.trackLock?.mode,view:st.cameraView,camZ:cam.position.z,vx:st.s.vx,dpadOn:getComputedStyle(document.querySelector('.ride-dpad')).display,leftOn:getComputedStyle(document.querySelector('.ride-dpad [data-t=steerLeft]')).display};});
   assert.equal(swap.view,'side');
-  assert(Math.abs(swap.z-12)<0.8,'side view keeps world z '+JSON.stringify(swap));
+  assert.equal(swap.mode,'locked');
+  assert(swap.dist<1.2,'should finish on the track '+JSON.stringify(swap));
   assert.notEqual(swap.dpadOn,'none');
+  assert.equal(swap.leftOn,'none','LEFT stays hidden once locked');
 
-  // Free-roam keys: W/S throttle-brake, A/D steer, arrows tilt, Space hop. No page scroll.
+  // Free-roam keys in chase: W/S throttle-brake, A/D steer, arrows tilt, Space hop. No page scroll.
+  await p.evaluate(()=>__WK_SCENE_VIEW__('chase'));
+  await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='chase'&&__WK_RIDE_STATE__().trackLock?.mode==='free',null,{timeout:8000});
   await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:-40,z:80,yaw:0,vx:0,vy:0,pitch:0,w:0,crashed:null,ground:[true,true],air:0});s.y=ter.height(-40,80)+.45;window.scrollTo(0,0);});
   await p.keyboard.down('KeyW');
   await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.throttle===1,null,{timeout:3000});

@@ -1,6 +1,7 @@
 import { stepLoop } from './ride-loop.js';
 import {roundedProfile} from './terrain-profile.js';
 import { attachFreeRoam, stepHeading, collideFreeRoam } from './ride-freeroam.js';
+import { makeArenaTrack } from './ride-track.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
 // Units: metres, kg, seconds. x forward, y up. pitch: + = nose up (wheelie).
 export function makeTerrain(seed = 1) {
@@ -67,7 +68,7 @@ export function makeArenaTerrain(){
   return {
     pts:[[-ARENA_HALF,0],[ARENA_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,slopeAt,
     puddles:[],checkpoints:[0],kickers:ARENA_RAMPS.map(r=>r.x),ramps:ARENA_RAMPS,bumps:ARENA_BUMPS,
-    finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,arena:true,boxes:[],
+    finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,arena:true,boxes:[],track:makeArenaTrack(),
     bounds:{xmin:-ARENA_HALF,xmax:ARENA_HALF,zmin:-ARENA_HALF,zmax:ARENA_HALF},gates:null
   };
 }
