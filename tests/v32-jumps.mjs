@@ -1,17 +1,27 @@
 // v32: smooth visible jumps, wheel spin, mesh follow, camera lag, coast, dive.
 import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
-import {makeArenaTerrain,rampProfile,bikeParams,makeState,step} from '../ride-physics.js';
+import {makeArenaTerrain,rampProfile,rampLength,rampLipX,rampHeightAt,bikeParams,makeState,step} from '../ride-physics.js';
 
 const ter=makeArenaTerrain();
 assert.equal(ter.ramps.length,5);
+const dLx=1e-4;
 for(const r of ter.ramps){
-  const at=r.kind==='table'?r.up:r.lip,dt=1e-4;
-  const left=(rampProfile(r,at)-rampProfile(r,at-dt))/dt;
-  const right=(rampProfile(r,at+dt)-rampProfile(r,at))/dt;
-  const base=(rampProfile(r,dt)-rampProfile(r,0))/dt;
-  assert(Math.abs(base)<0.5,'zero-ish slope at the base '+r.name+' '+base);
-  assert(Math.abs(left)<0.5&&Math.abs(right)<0.5,'rounded lip '+r.name+' '+JSON.stringify({left,right}));
+  const len=rampLength(r);
+  const slope=(lx,h=1e-4)=>(rampHeightAt(r,lx+h)-rampHeightAt(r,lx-h))/(2*h);
+  assert(Math.abs(slope(dLx))<0.5,'zero-ish slope at the base '+r.name+' '+slope(dLx));
+  if(r.kind==='table'){
+    const lip=rampLipX(r);
+    assert(Math.abs(slope(lip-dLx))<0.6&&Math.abs(slope(lip+dLx))<0.6,'table lip rounded '+r.name);
+  }else{
+    // Takeoff face is C1; the lip itself is a launch edge (steep, then a backside drop).
+    const mid=r.takeoff*0.5, land0=r.takeoff+r.back+r.gap, land1=len-dLx;
+    const midL=slope(mid-0.05),midR=slope(mid+0.05);
+    assert(Math.abs(midL-midR)<0.15,'takeoff face C1 '+r.name+' '+JSON.stringify({midL,midR}));
+    assert(slope(r.takeoff-dLx)>0.2,'kicker has a real launch slope '+r.name+' '+slope(r.takeoff-dLx));
+    assert(Math.abs(slope(land0+0.05))<0.5,'landing starts rounded '+r.name+' '+slope(land0+0.05));
+    assert(Math.abs(slope(land1))<0.4,'landing ends rounded '+r.name+' '+slope(land1));
+  }
 }
 const motor=bikeParams({P:4000,kg:40,driveAxle:'rear',powertrain:'electric',batteryWh:1000});
 const jump=makeState(motor,24,ter);jump.z=0;jump.vx=8;jump.y=ter.height(24,0)+.5;

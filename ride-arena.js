@@ -1,4 +1,5 @@
 import {makeArenaTrack} from './ride-track.js';
+import {rampLength,rampLipX} from './ride-physics.js';
 // TEST ARENA: a big flat square for free-roam speed, wheelies, burnouts and jumps.
 // Painted skyline stays the far backdrop in ride.js. No checkpoints or finish.
 // A ring of sample3d-style city kit sits outside the walls so speed and turns read.
@@ -126,8 +127,8 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   const windowMat=mat('#d1c8e0',{map:facade,emissive:'#8e6875',emissiveMap:facade,emissiveIntensity:.18,roughness:.4});
 
   const cylY=new T.CylinderGeometry(1,1,1,10);
-  const coneGeo=new T.CylinderGeometry(.04,.18,.46,8);
-  const lampPole=new T.CylinderGeometry(.045,.06,4.2,6);
+  const coneGeo=new T.CylinderGeometry(.06,.27,.70,8);
+  const lampPole=new T.CylinderGeometry(.06,.08,7,6);
   const lampHead=new T.BoxGeometry(.36,.1,.24);
   const post=new T.BoxGeometry(.08,1.15,.08);
   const rail=new T.BoxGeometry(3.2,.06,.05);
@@ -151,7 +152,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
 
   // Light poles every 25 m just inside the walls.
   let poleN=0;
-  const placePole=(x,z)=>{const y=h(x,z);add(root,lampPole,dark,x,y+2.1,z);add(root,lampHead,warm,x,y+4.25,z);poleN++;};
+  const placePole=(x,z)=>{const y=h(x,z);add(root,lampPole,dark,x,y+3.5,z);add(root,lampHead,warm,x,y+7.05,z);poleN++;};
   for(let t=-137.5;t<=137.5;t+=25){
     placePole(t,HALF-3.2);placePole(t,-(HALF-3.2));
     placePole(HALF-3.2,t);placePole(-(HALF-3.2),t);
@@ -160,8 +161,8 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   // Traffic cones: rows and a few gates. Keep the z=80 clear-speed lane empty.
   const coneAt=(x,z)=>{
     const y=h(x,z);
-    add(root,coneGeo,coneMat,x,y+.23,z,1,1,1);
-    add(root,cylY,coneStripe,x,y+.28,z,.16,.04,.16);
+    add(root,coneGeo,coneMat,x,y+.35,z,1,1,1);
+    add(root,cylY,coneStripe,x,y+.46,z,.24,.06,.24);
   };
   for(let x=-36;x<=36;x+=4)coneAt(x,50);
   for(let x=-28;x<=28;x+=4.5)coneAt(x,-62);
@@ -171,7 +172,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   for(const x of [8,16,22]){coneAt(x,2.3);coneAt(x,-2.3)}
   for(const x of [90,98,106]){coneAt(x,3.2);coneAt(x,-3.2)}
   // gates onto the medium / big kicker lanes
-  coneAt(52,24.6);coneAt(52,19.4);coneAt(52,-25.6);coneAt(52,-30.4);
+  coneAt(46,14.8);coneAt(46,9.2);coneAt(52,-25.6);coneAt(52,-30.4);
 
   // Scattered barrels and tyre stacks, off the runways and the z=80 lane.
   const dumps=[[-42,30],[-88,24],[42,-52],[-24,-88],[88,48],[-70,-48],[48,88],[-100,40],[100,-70],[-20,100],[20,-110],[60,60]];
@@ -191,7 +192,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   for(const r of (terrain.ramps||[])){
     const col=laneCols[r.name]||'#d7d0a4';
     const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw);
-    const len=Math.max(14,r.len*1.8),w=Math.max(3.2,r.w*.7);
+    const rlen=rampLength(r),len=Math.max(14,rlen*1.4),w=Math.max(3.2,r.w*.7);
     const midX=r.x-c*len/2, midZ=r.z-n*len/2;
     const lane=new T.Mesh(new T.PlaneGeometry(len,w),mat(col,{roughness:.6,emissive:col,emissiveIntensity:.16,transparent:true,opacity:.55}));
     sharedGeo.push(lane.geometry);
@@ -216,31 +217,31 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   const edgeMat=mat('#5a3a1c',{roughness:.9,emissive:'#2a1808',emissiveIntensity:.08,side:T.DoubleSide});
   const shadowMat=mat('#000000',{transparent:true,opacity:.32,depthWrite:false});
   for(const r of (terrain.ramps||[])){
-    const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw);
-    const nx=Math.max(18,Math.round(r.len*3)),nz=Math.max(8,Math.round(r.w*3));
+    const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),rlen=rampLength(r);
+    const nx=Math.max(24,Math.round(rlen*3)),nz=Math.max(8,Math.round(r.w*3));
     const pos=[],uv=[],idx=[];
     for(let iz=0;iz<=nz;iz++)for(let ix=0;ix<=nx;ix++){
-      const lx=ix/nx*r.len,lz=(iz/nz-0.5)*r.w;
+      const lx=ix/nx*rlen,lz=(iz/nz-0.5)*r.w;
       const x=r.x+c*lx-n*lz,z=r.z+n*lx+c*lz,y=h(x,z)+.04;
       pos.push(x,y,z);uv.push(lx/4, (lz+r.w/2)/2);
       if(ix<nx&&iz<nz){const a=iz*(nx+1)+ix,b=a+1,d=a+nx+1,e=d+1;idx.push(a,d,b,b,d,e)}
     }
     const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);
     const body=new T.Mesh(g,jumpMat);body.name='environment:jump:'+r.name;body.receiveShadow=true;body.castShadow=!lowDetail;body.renderOrder=3;root.add(body);
-    // Lip stripe
-    const lipT=r.kind==='table'?(r.up||.32):(r.lip||.7);
-    const lx=r.len*lipT,stripe=new T.BoxGeometry(0.28,0.1,r.w*.92);sharedGeo.push(stripe);
-    const midX=r.x+c*lx,midZ=r.z+n*lx,lipY=h(midX,midZ)+.1;
-    const lip=new T.Mesh(stripe,lipMat);lip.position.set(midX,lipY,midZ);lip.rotation.y=-yaw;lip.name='environment:jump-lip:'+r.name;lip.castShadow=!lowDetail;root.add(lip);
-    if(r.kind==='table'){
-      const lx2=r.len*(r.down||.64),midX2=r.x+c*lx2,midZ2=r.z+n*lx2;
-      const lip2=new T.Mesh(stripe,lipMat);lip2.position.set(midX2,h(midX2,midZ2)+.1,midZ2);lip2.rotation.y=-yaw;lip2.name='environment:jump-lip2:'+r.name;root.add(lip2);
-    }
+    // Lip stripe (and a landing-start stripe on kickers / table down-edge)
+    const stripe=new T.BoxGeometry(0.28,0.1,r.w*.92);sharedGeo.push(stripe);
+    const mark=(lx,tag)=>{
+      const midX=r.x+c*lx,midZ=r.z+n*lx,lipY=h(midX,midZ)+.1;
+      const lip=new T.Mesh(stripe,lipMat);lip.position.set(midX,lipY,midZ);lip.rotation.y=-yaw;lip.name='environment:jump-lip'+tag+':'+r.name;lip.castShadow=!lowDetail;root.add(lip);
+    };
+    mark(rampLipX(r),'');
+    if(r.kind==='table') mark(rlen*(r.down||.64),'2');
+    else mark((r.takeoff||0)+(r.back||0)+(r.gap||0),'2');
     // Side outline / edge rails
     for(const side of [-1,1]){
       const ep=[],ei=[];
       for(let ix=0;ix<=nx;ix++){
-        const lx=ix/nx*r.len,lz=side*r.w/2;
+        const lx=ix/nx*rlen,lz=side*r.w/2;
         const x=r.x+c*lx-n*lz,z=r.z+n*lx+c*lz,y=h(x,z);
         ep.push(x,0.02,z, x,y+.06,z);
         if(ix<nx){const a=ix*2;ei.push(a,a+2,a+1,a+1,a+2,a+3)}
@@ -249,10 +250,10 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       const rail=new T.Mesh(eg,edgeMat);rail.name='environment:jump-edge:'+r.name;rail.castShadow=!lowDetail;root.add(rail);
     }
     // Soft ground shadow
-    const sh=new T.Mesh(new T.PlaneGeometry(r.len+2.2,r.w+2.4),shadowMat);
+    const sh=new T.Mesh(new T.PlaneGeometry(rlen+2.2,r.w+2.4),shadowMat);
     sharedGeo.push(sh.geometry);
     sh.rotation.x=-Math.PI/2;sh.rotation.z=-yaw;
-    sh.position.set(r.x+c*(r.len/2),0.02,r.z+n*(r.len/2));
+    sh.position.set(r.x+c*(rlen/2),0.02,r.z+n*(rlen/2));
     sh.name='environment:jump-shadow:'+r.name;sh.renderOrder=0;root.add(sh);
   }
 
@@ -288,7 +289,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   }
 
   function car(x,z,yaw,col){
-    const y=h(x,z),g=new T.Group();g.position.set(x,y,z);g.rotation.y=yaw;g.name='environment:car';
+    const y=h(x,z),g=new T.Group();g.position.set(x,y,z);g.rotation.y=yaw;g.scale.setScalar(2.2);g.name='environment:car';
     add(g,carBody,mat(col,{metalness:.28,roughness:.42}),0,.26,0);
     add(g,carCabin,glass,-.08,.62,0);
     for(const [wx,wz] of [[-.65,.42],[-.65,-.42],[.7,.42],[.7,-.42]])add(g,wheel,dark,wx,.2,wz);

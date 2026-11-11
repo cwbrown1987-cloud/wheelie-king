@@ -44,39 +44,51 @@ const ARENA_BUMPS=[[-30,40,8,6,.7],[20,-45,9,7,.85],[-60,-20,10,8,.6],[55,55,8,8
 // Curved kickers along the S-track, plus a tabletop on the opening straight.
 // The off-track "big" kicker stays a 3D hit. Copies get a heading in makeArenaTerrain.
 export const ARENA_RAMPS=[
-  {name:'table',kind:'table',x:-48,z:0,len:16,w:7.2,peak:1.45,up:.32,down:.64,yaw:0},
-  {name:'small',kind:'kicker',x:28,z:0,len:10,w:5.6,peak:1.55,lip:.84,yaw:0},
-  {name:'medium',kind:'kicker',x:70,z:22,len:12,w:6.4,peak:2.15,lip:.84,yaw:0},
-  {name:'big',kind:'kicker',x:70,z:-28,len:12,w:6.5,peak:2.5,lip:.84,yaw:0},
-  {name:'large',kind:'kicker',x:115,z:0,len:20,w:9,peak:3.9,lip:.84,yaw:0}
+  {name:'table',kind:'table',x:-52,z:0,len:20,w:6,peak:1.95,up:.30,down:.62,yaw:0},
+  // Kickers: steep lip (quarter-sine takeoff), short backside, gap, rounded landing.
+  {name:'small',kind:'kicker',x:22,z:0,w:5.8,takeoff:7,peak:1.1,back:1.1,gap:5,land:8,landPeak:0.95,yaw:0},
+  {name:'medium',kind:'kicker',x:54,z:12,w:5.8,takeoff:6.8,peak:2.05,back:1.1,gap:5.5,land:8,landPeak:1.7,yaw:0},
+  {name:'big',kind:'kicker',x:70,z:-28,w:6,takeoff:7.5,peak:2.2,back:1.2,gap:7.5,land:10,landPeak:1.85,yaw:0},
+  {name:'large',kind:'kicker',x:112,z:0,w:6.2,takeoff:8.5,peak:3.3,back:1.4,gap:10,land:12,landPeak:2.7,yaw:0}
 ];
 function arenaBump(x,z,mx,mz,rx,rz,peak){const dx=(x-mx)/rx,dz=(z-mz)/rz,r2=dx*dx+dz*dz;if(r2>=1)return 0;const t=1-r2;return peak*t*t}
-// Smooth C1 profile: zero slope at the base, no kink at the lip.
-export function rampProfile(r,t){
-  t=Math.max(0,Math.min(1,t));
-  const peak=r.peak;
-  // Raised-cosine faces: zero slope at the base, lip and landing (no kinks).
+export function rampLength(r){
+  if(r.kind==='table')return r.len;
+  return (r.takeoff||0)+(r.back||0)+(r.gap||0)+(r.land||0);
+}
+export function rampLipX(r){return r.kind==='table'?(r.up||.32)*r.len:(r.takeoff||0)}
+// Smooth ridden faces: 0 slope at the base and at both ends of the landing. The lip is a
+// launch edge (steep), then a short backside the rider does not roll.
+export function rampHeightAt(r,lx){
   if(r.kind==='table'){
-    const a=r.up||.32,b=r.down||.64;
+    const len=r.len,t=Math.max(0,Math.min(1,lx/len)),peak=r.peak,a=r.up||.32,b=r.down||.64;
     if(t<=a)return peak*(1-Math.cos(Math.PI*t/a))/2;
     if(t<b)return peak;
     return peak*(1+Math.cos(Math.PI*(t-b)/(1-b)))/2;
   }
-  const lip=r.lip||.7;
-  if(t<=lip)return peak*(1-Math.cos(Math.PI*t/lip))/2;
-  return peak*(1+Math.cos(Math.PI*(t-lip)/(1-lip)))/2;
+  const a=r.takeoff,b=r.back||1.2,g=r.gap||0,L=r.land||0,peak=r.peak;
+  if(lx<0||lx>a+b+g+L)return 0;
+  if(lx<=a)return peak*(1-Math.cos(Math.PI*lx/(2*a)));
+  if(lx<=a+b){const u=(lx-a)/b;return peak*(1-u)*(1-u)}
+  if(lx<=a+b+g)return 0;
+  const u=(lx-(a+b+g))/L,peakL=r.landPeak??peak*.85,up=Math.min(.35,(r.landUp??Math.min(1.2,L*.22))/L);
+  if(u<=up)return peakL*(1-Math.cos(Math.PI*u/up))/2;
+  return peakL*(1+Math.cos(Math.PI*(u-up)/(1-up)))/2;
 }
+export function rampProfile(r,t){return rampHeightAt(r,t*rampLength(r))}
 export function arenaRamp(x,z,r){
-  const c=Math.cos(r.yaw||0),n=Math.sin(r.yaw||0),dx=x-r.x,dz=z-r.z,lx=dx*c+dz*n,lz=-dx*n+dz*c;
-  if(lx<0||lx>r.len||Math.abs(lz)>r.w/2)return 0;
+  const c=Math.cos(r.yaw||0),n=Math.sin(r.yaw||0),dx=x-r.x,dz=z-r.z,lx=dx*c+dz*n,lz=-dx*n+dz*c,len=rampLength(r);
+  if(lx<0||lx>len||Math.abs(lz)>r.w/2)return 0;
   const fade=.9,u=Math.max(0,Math.min(1,(Math.abs(lz)-(r.w/2-fade))/fade)),edge=1-u*u*(3-2*u);
-  return rampProfile(r,lx/r.len)*edge;
+  return rampHeightAt(r,lx)*edge;
 }
 export function makeArenaTerrain(){
   const track=makeArenaTrack();
   const ramps=ARENA_RAMPS.map(r=>{
     const n=track.nearest(r.x,r.z);
-    return {...r,yaw:r.name==='big'?0:n.heading};
+    // On the main x-straight keep yaw at 0 so the prism stays on the ribbon.
+    const onStraight=Math.abs(r.z)<1;
+    return {...r,yaw:r.name==='big'||onStraight?0:n.heading};
   });
   function height(x,z){
     let y=0;

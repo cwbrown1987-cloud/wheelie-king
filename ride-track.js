@@ -2,7 +2,7 @@
 // and eases back onto when returning from free roam. Arena first; sample3d later.
 import {wrapAngle} from './ride-freeroam.js';
 
-export const ARENA_TRACK_WIDTH=10;
+export const ARENA_TRACK_WIDTH=6;
 // Gentle S through the small, medium and large kickers. The big kicker at
 // (70,-28) stays a 3D off-track hit. Points are [x,z] in metres.
 export const ARENA_TRACK_POINTS=[

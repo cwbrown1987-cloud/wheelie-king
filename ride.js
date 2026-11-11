@@ -659,41 +659,46 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
         if(Math.abs(lookPitch)<.012&&Math.abs(lookVP)<.08){lookPitch=0;lookVP=0;}
       }
       if(!inAir)chaseTakeoffY=roadY;
-      const lookDist=Math.max(3,Math.abs(s.vx)*.4),landingY=ter.height(s.x+Math.cos(yaw)*lookDist,z+Math.sin(yaw)*lookDist);
+      // Ballistic landing prediction (step along heading under gravity until we meet terrain).
+      const pred=(()=>{let px=s.x,pz=z,py=s.y,pvy=s.vy||0,dt=1/30,cy0=Math.cos(yaw),sy0=Math.sin(yaw),ride=P.R||.33;for(let i=0;i<90;i++){pvy-=9.8*dt;px+=cy0*(s.vx)*dt;pz+=sy0*(s.vx)*dt;py+=pvy*dt;const g=ter.height(px,pz);if(py<=g+ride&&pvy<=0)return {x:px,z:pz,y:g,t:i*dt};}return {x:px,z:pz,y:ter.height(px,pz),t:3};})();
+      const landingY=pred.y,range=Math.hypot(pred.x-s.x,pred.z-z);
       const horizonTarget=inAir?Math.min(chaseTakeoffY,landingY):roadY;
       chaseHorizon+=(horizonTarget-chaseHorizon)*(1-Math.exp(-(inAir?1.8:8)*followDt));
-      // Ease in closer while airborne so the whole bike and the landing stay in frame,
-      // then ease back out on landing (Descenders/MX-style tight follow, no pop).
-      airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?3.0:2.6)*followDt));
+      // Jump framing: ease back/up/out on take-off (~0.5 s), ease back in after landing. No FOV punch.
+      airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?2.3:2.0)*followDt));
       if(!inAir&&airClose<.02)airClose=0;
       const rise=Math.max(0,s.y-chaseHorizon);
-      // Descenders/RR: stay close, sit a little above so a flip still fits, look down at the landing.
-      const camYTarget=chaseHorizon+2.15+rise*(.16+.05*airClose)-airClose*.05;
-      const lookYTarget=chaseHorizon+.52+rise*.08*(1-airClose*.35)+airClose*(landingY-chaseHorizon)*.32;
-      const yRate=inAir?(camYTarget>chaseFollowY?1.3:2.0):6;
+      const camYTarget=chaseHorizon+2.15+rise*.16+airClose*(1.15+Math.min(3.2,rise*.38));
+      const lookYTarget=chaseHorizon+.52+rise*.08*(1-airClose*.4)+airClose*((landingY+s.y)*.5-chaseHorizon)*.7;
+      const yRate=inAir?(camYTarget>chaseFollowY?2.1:2.4):5.2;
       chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
-      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?1.8:5.2)*followDt));
+      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?2.1:5.0)*followDt));
       cameraReady=true;
       const speedT=Math.max(0,Math.min(1,(sp-2.8)/8)),shake=(Math.random()-.5)*camShake;
-      // Chase stays locked behind the rider (heading + tiny lag + optional swipe look).
-      // Close enough for bike detail (Wheelie Life / Descenders), looking ahead along the heading.
-      // Side view sits perpendicular to the track (or +Z when there is no rail).
       const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
-      const chaseR=(3.6+Math.min(1.25,sp*.08))*(1-.2*airClose),sideR=(6.6+Math.min(1.8,sp*.12))*(1-.12*airClose);
+      const chaseR0=3.6+Math.min(1.25,sp*.08);
+      const chaseR=chaseR0+airClose*(2.4+Math.min(5.0,rise*.55)+Math.min(2.8,range*.1));
+      const groundY=Math.min(roadY,landingY);
+      const span=Math.max(2.4,s.y-groundY)+2.4;
+      const sideFov=(46+8*speedT)*Math.PI/180;
+      const fitR=(span/2)/Math.tan(sideFov/2);
+      const sideR0=6.6+Math.min(1.8,sp*.12);
+      const sideR=sideR0+airClose*Math.max(0,fitR-sideR0+1.2);
       dist=sideR;
-      const ahead=6+Math.min(8,Math.abs(s.vx)*.65);
+      const ahead=6+Math.min(8,Math.abs(s.vx)*.65)+airClose*Math.min(6,range*.35);
       const chaseX=chasePosX-cy*chaseR,chaseZ=chasePosZ-sy*chaseR;
       let sideX=chasePosX,sideZ=chasePosZ+sideR;
       if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
-      const camY=(s.y+1.2+airClose*.35)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
+      const midY=(s.y+groundY)*.5;
+      const camY=((s.y+1.2)*(1-airClose)+(midY+.35)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
       const lookX=s.x*(1-blend)+(chasePosX+cy*ahead)*blend;
       const lookZ=z*(1-blend)+(chasePosZ+sy*ahead)*blend;
-      const lookY=(s.y+.35-airClose*.08)*(1-blend)+chaseLookY*blend;
+      const lookY=((s.y+.35)*(1-airClose)+midY*airClose)*(1-blend)+chaseLookY*blend;
       if(!globalThis.__WK_CAM_HOLD__){
         cam.position.set(camX,camY,camZ);
         cam.lookAt(lookX,lookY,lookZ);
-        cam.fov=(46+8*speedT)*(1-blend)+(64+8*speedT+5*airClose)*blend;cam.updateProjectionMatrix();
+        cam.fov=(46+8*speedT)*(1-blend)+(64+8*speedT)*blend;cam.updateProjectionMatrix();
       }
       speedLineMat.opacity=0;speedLines.visible=false;
       lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead,airClose};
@@ -781,7 +786,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';if(ter.track&&cameraView==='side'){startTrackReturn(s,ter.track,trackLock);syncTrackChrome();}globalThis.__WK_SCENE_VIEW__=setCameraView;
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
-  globalThis.__WK_RIDE_SCENE__=()=>({scene,cam,renderer:R});globalThis.__WK_REPLAY__=replay;
+  globalThis.__WK_RIDE_SCENE__=()=>({scene,cam,renderer:R,body,pivot});globalThis.__WK_REPLAY__=replay;
   globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
   function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');el.removeAttribute('data-wk-track-side');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
