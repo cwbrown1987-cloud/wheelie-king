@@ -192,8 +192,9 @@ try{
     const cam1=await p.evaluate(()=>{const {cam}=__WK_RIDE_SCENE__();return {x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:__WK_RIDE_STATE__().s.yaw||0,steer:__WK_RIDE_STATE__().inp.steer};});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     assert.equal(cam1.steer,-1);
-    assert(Math.abs(cam1.yaw)<0.05,'standstill steer must not yaw '+JSON.stringify(cam1));
-    assert(Math.hypot(cam1.x-cam0.x,cam1.y-cam0.y,cam1.z-cam0.z)<0.35,'HUD hold must not orbit the camera '+JSON.stringify({cam0,cam1}));
+    assert(cam1.yaw<-0.08,'LEFT at a walking pace should yaw the bike '+JSON.stringify(cam1));
+    const look=await p.evaluate(()=>({look:__WK_RIDE_STATE__().visual.lookYaw||0,mesh:__WK_RIDE_STATE__().visual.meshYaw}));
+    assert(Math.abs(look.look)<0.05,'a HUD hold must not start a camera look '+JSON.stringify(look));
     report.phone={accelerate:true,brake:true,hop:true,airTilt:air,steerHold:slid,released:sprung,camHold:{cam0,cam1},frame,errors};
 
     // View swap back to side keeps the same HUD (camera swap only) on sample3d

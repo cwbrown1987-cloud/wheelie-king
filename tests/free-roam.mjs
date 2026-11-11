@@ -22,9 +22,9 @@ assert(Math.abs(onRoad.vx-onFlat.vx)<0.15,'forward speed on the road is unchange
 assert(Math.abs(onRoad.x-onFlat.x)<0.2,'forward travel on the road is unchanged');
 assert(Math.abs(onRoad.z||0)<1e-6,'yaw 0 stays on z=0');
 
-const still=makeState(P,8,sample);still.vx=0;
+const still=makeState(P,8,sample);still.vx=0;still.ground=[true,true];
 stepHeading(still,{steer:1},1/30);
-assert.equal(still.yaw||0,0,'no turn at a standstill');
+assert((still.yaw||0)>0.02,'walking-pace pivot at a standstill, yaw='+(still.yaw||0));
 
 const roll=makeState(P,8,sample);roll.vx=3;const yaw0=roll.yaw||0;
 stepHeading(roll,{steer:1},1/30);
@@ -50,24 +50,35 @@ try{
   await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.()?.backdropLoaded,null,{timeout:90000});
 
-  // RIGHT steers while moving; no heading change at 0 speed.
-  await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;Object.assign(s,{vx:0,vy:0,yaw:0,z:0,pitch:0,w:0,crashed:null,ground:[true,true]});});
+  // RIGHT yaws the bike itself, even at a walking pace; it does not orbit the camera.
+  await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:8,vx:0,vy:0,yaw:0,z:0,pitch:0,w:0,crashed:null,ground:[true,true]});s.y=ter.height(8,0)+.42;});
   const rightBox=await p.locator('.ride-dpad [data-t=steerRight]').boundingBox();
   assert(rightBox,'steer RIGHT missing');
   const cdp=await p.context().newCDPSession(p);
   const right={id:41,x:rightBox.x+rightBox.width/2,y:rightBox.y+rightBox.height/2};
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[right]});
   await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer===1,null,{timeout:3000});
-  await p.waitForTimeout(250);
-  const stopped=await p.evaluate(()=>({yaw:__WK_RIDE_STATE__().s.yaw||0,steer:__WK_RIDE_STATE__().inp.steer,z:__WK_RIDE_STATE__().s.z||0}));
+  await p.waitForTimeout(400);
+  const stopped=await p.evaluate(()=>{
+    const st=__WK_RIDE_STATE__();
+    return {yaw:st.s.yaw||0,meshYaw:st.visual.meshYaw,steer:st.inp.steer,z:st.s.z||0,look:st.visual.lookYaw||0,roll:st.visual.roll};
+  });
   assert.equal(stopped.steer,1);
-  assert(Math.abs(stopped.yaw)<0.05,'must not turn at 0 speed '+JSON.stringify(stopped));
+  assert(stopped.yaw>0.15,'walking-pace steer must yaw the bike '+JSON.stringify(stopped));
+  assert(Math.abs(stopped.meshYaw-stopped.yaw)<0.35,'bike mesh must follow heading '+JSON.stringify(stopped));
+  assert(Math.abs(stopped.look)<0.05,'a HUD hold must not start a camera look '+JSON.stringify(stopped));
+  assert(stopped.roll< -0.05,'bike should lean into the turn');
 
-  await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.vx=4;s.yaw=0;});
-  await p.waitForTimeout(350);
-  const turning=await p.evaluate(()=>({yaw:__WK_RIDE_STATE__().s.yaw||0,z:__WK_RIDE_STATE__().s.z||0,steer:__WK_RIDE_STATE__().inp.steer,roll:__WK_RIDE_STATE__().visual.roll}));
+  await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.vx=4;s.yaw=0;s.z=0;});
+  await p.waitForTimeout(400);
+  const turning=await p.evaluate(()=>{
+    const st=__WK_RIDE_STATE__();
+    return {yaw:st.s.yaw||0,z:st.s.z||0,steer:st.inp.steer,roll:st.visual.roll,meshYaw:st.visual.meshYaw,look:st.visual.lookYaw||0};
+  });
   assert(turning.yaw>0.08,'RIGHT should yaw the bike while moving '+JSON.stringify(turning));
   assert(turning.z>0.05,'heading should take the bike off the centreline');
+  assert(Math.abs(turning.meshYaw-turning.yaw)<0.35,'moving mesh must follow heading');
+  assert(Math.abs(turning.look)<0.05,'steer must not orbit the camera');
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 
   // Buildings / world bounds are a soft stop, no crash.

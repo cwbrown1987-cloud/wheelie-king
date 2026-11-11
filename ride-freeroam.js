@@ -62,19 +62,17 @@ export function attachFreeRoam(ter){
 
 export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 
-// Speed-scaled heading. No turn at a standstill; light air control.
-// Turn rate builds from a creep (so you can turn around when rolling) up to a mid-speed peak.
+// Speed-scaled heading. Walking-pace pivot at low speed (so LEFT/RIGHT turn the bike
+// even when creeping); burnout still spins on the spot. Light air control.
 export function stepHeading(s,inp,dt){
   const onG=!!(s.ground[0]||s.ground[1]);
   const speed=s.vx||0, abs=Math.abs(speed);
-  // Existing burnout already holds you in place and spins the driven wheel.
-  // While it is lit, steer pivots the bike on the spot (no forward speed needed).
   if(s.burnout&&onG){s.yaw=(s.yaw||0)+(inp.steer||0)*1.65*dt;return s}
-  if(abs<.32)return s;
-  const groundScale=Math.max(0,Math.min(1,(abs-.32)/3.1));
   const airScale=onG?1:.2;
-  const rate=1.85*groundScale*airScale;
-  s.yaw=(s.yaw||0)+(inp.steer||0)*Math.sign(speed)*rate*dt;
+  const walk=.9,peak=1.85;
+  const rate=(abs<.32?walk:walk+(peak-walk)*Math.min(1,(abs-.32)/3.1))*airScale;
+  const dir=abs<.05?1:Math.sign(speed);
+  s.yaw=(s.yaw||0)+(inp.steer||0)*dir*rate*dt;
   return s;
 }
 
