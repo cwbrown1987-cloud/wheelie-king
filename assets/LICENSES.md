@@ -15,4 +15,5 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | Asset | Path | Source | Authors | Use |
 | --- | --- | --- | --- | --- |
 | sunset_jhbcentral 1K HDR | `hdri/sunset_jhbcentral_1k.hdr` | https://polyhaven.com/a/sunset_jhbcentral | Dimitrios Savva (Photography), Greg Zaal (Processing) | Arena world-fixed HDRI sky (low-res for mobile) |
-| Grass Medium 01 (1K glTF) | `polyhaven/grass_medium_01/` | https://polyhaven.com/a/grass_medium_01 | Rob Tuytel (Photography), Rico Cilliers (Modeling) | Arena InstancedMesh tufts |
+| Grass Medium 01 (1K glTF) | `polyhaven/grass_medium_01/` | https://polyhaven.com/a/grass_medium_01 | Rob Tuytel (Photography), Rico Cilliers (Modeling) | Playground InstancedMesh tufts |
+| Grass Ground 1K (diff, nor_gl, arm) | `polyhaven/grass_ground/` | https://polyhaven.com/a/grass_ground | Charlotte Baglioni | Playground grass floor, world-space UVs |

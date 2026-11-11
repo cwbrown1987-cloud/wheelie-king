@@ -105,7 +105,8 @@ try{
   assert.equal(start.env?.arena,true);
   assert.equal(start.env?.midground,false);
   assert(start.env?.landmarks===true,'arena should report landmarks');
-  assert((start.env?.buildings||0)>=20,'city ring should surround the arena, buildings='+start.env?.buildings);
+  assert.equal(start.env?.buildings,0,'Playground skyline is silhouettes only, not a city-block ring');
+  assert((start.env?.skyline||0)>=16,'horizon silhouettes should sit on the horizon, n='+start.env?.skyline);
   assert((start.env?.poles||0)>=20,'light poles along the walls');
 
 

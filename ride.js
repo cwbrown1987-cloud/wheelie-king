@@ -116,13 +116,23 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const _slO=new T.Vector3(),_slX=new T.Vector3(),_slY=new T.Vector3(),_slZ=new T.Vector3();
   const resetSpeedStreak=st=>{st.x=(Math.random()<.5?-1:1)*(.85+Math.random()*1.55);st.y=(Math.random()-.42)*1.35;st.z=-(3.2+Math.random()*7);st.len=1.1+Math.random()*2;};
   speedLineStreaks.forEach(resetSpeedStreak);
-  scene.add(new T.HemisphereLight(TH.hemi.sky, TH.hemi.ground, TH.hemi.intensity)); const sun = new T.DirectionalLight(TH.sun.color, TH.sun.intensity); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',arena=level==='arena',freeRoam=sample3d||arena;
+  // Playground is lit only by the HDRI (PMREM environment) and one directional sun. Legacy keeps hemi+sun.
+  let hemi=null;
+  if(!arena){hemi=new T.HemisphereLight(TH.hemi.sky, TH.hemi.ground, TH.hemi.intensity);scene.add(hemi);}
+  const sun = new T.DirectionalLight(TH.sun.color, TH.sun.intensity); sun.name='wk:sun'; sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias=-0.0009;sun.shadow.normalBias=0.04;sun.shadow.radius=2;
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 2, far: 48 }); scene.add(sun, sun.target);
+  // Brightest cluster on sunset_jhbcentral_1k (RGBE flipY), unit vector toward the sun.
+  const sunDir=new T.Vector3(0.7477,0.1340,0.6504).normalize();
+  if(arena){
+    sun.color.set('#ffc090');sun.intensity=1.85;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
+    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=0.88;
+  }
   // sky gradient + sun disc
   const sky = new T.Mesh(new T.PlaneGeometry(900, 260), new T.ShaderMaterial({ depthWrite: false, fog: false, uniforms: {}, vertexShader: "varying float v;void main(){v=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: `varying float v;void main(){gl_FragColor=vec4(mix(vec3(${TH.sky.low.map(n=>Number(n).toFixed(3)).join(",")}),vec3(${TH.sky.high.map(n=>Number(n).toFixed(3)).join(",")}),smoothstep(.35,.8,v)),1.);}` }));
-  sky.position.set(0, 40, -120); scene.add(sky);
-  const sunDisc = new T.Mesh(new T.CircleGeometry(9, 32), new T.MeshBasicMaterial({ color: TH.sunDisc, fog: false })); sunDisc.position.set(40, 30, -110); scene.add(sunDisc);
+  sky.position.set(0, 40, -120);
+  const sunDisc = new T.Mesh(new T.CircleGeometry(9, 32), new T.MeshBasicMaterial({ color: TH.sunDisc, fog: false })); sunDisc.position.set(40, 30, -110);
   const legacyScenery=[];let backdropLoaded=false,horizonTex=null;let attachWorldSky=null,worldSky=null,worldSkyTex=null;
   function composeHorizonBackdrop(image){
     // Lift the painted city into the visible sky band (above the 3D wall) and keep a full sunset sky, so the
@@ -150,14 +160,14 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     }
   }
   // terrain
-  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',arena=level==='arena',freeRoam=sample3d||arena;
+  if(!arena){scene.add(sky);scene.add(sunDisc);}
+  else{scene.fog=null;}
   let skyKind=arena?'hdri-sunset_jhbcentral':'painted';
   let backdrop=null;
   if(arena){
     // World-fixed HDRI sky. A marker group stops the render loop installing the painted billboard.
     worldSky=new T.Group();worldSky.name='wk:world-sky';scene.add(worldSky);
     sky.visible=false;sunDisc.visible=false;
-    if(scene.fog){scene.fog.near=220;scene.fog.far=520;scene.fog.color.set('#2a1824');}
     backdrop=new T.Texture();
     new RGBELoader().load('./assets/hdri/sunset_jhbcentral_1k.hdr',hdr=>{
       if(disposed){hdr.dispose();return;}
@@ -174,11 +184,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const ter=flat?makeFlatTerrain():sample3d?makeSampleTerrain():arena?makeArenaTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat||arena?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0],pts[0][1]-.45);pts.forEach(([x,y])=>shape.lineTo(x,y));[...pts].reverse().forEach(([x,y])=>shape.lineTo(x,y-.45));shape.closePath();
   const groundGeo = new T.ExtrudeGeometry(shape, { depth: 2.4, bevelEnabled: false }); groundGeo.translate(0, 0, -1.2);
-  const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
+  const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; if(!arena)scene.add(ground);
   const strip = []; pts.forEach(([x, y]) => strip.push(x, y + 0.02, 1.2, x, y + 0.02, -1.2)); const sg = new T.BufferGeometry(); sg.setAttribute("position", new T.Float32BufferAttribute(strip, 3));
   const idx = []; for (let i = 0; i < pts.length - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } sg.setIndex(idx); sg.computeVertexNormals();
-  const layers=roadLayers(T,scene,pts,sg);
-  const dirtTop = new T.Mesh(sg, new T.MeshStandardMaterial({ map:layers.topMap,roughness: .38,metalness:.16, side: T.DoubleSide })); dirtTop.receiveShadow = true; scene.add(dirtTop);
+  const layers=arena?{foreground:null,topMap:null}:roadLayers(T,scene,pts,sg);
+  const dirtTop = arena?null:new T.Mesh(sg, new T.MeshStandardMaterial({ map:layers.topMap,roughness: .38,metalness:.16, side: T.DoubleSide })); if(dirtTop){dirtTop.receiveShadow = true; scene.add(dirtTop);}
   const loopMesh = ter.loop ? makeLoopMesh(T, ter.loop) : null;
   if (loopMesh) scene.add(loopMesh);
   let flatMarkers;if(flat){flatMarkers=new T.InstancedMesh(new T.BoxGeometry(2,.006,.055),new T.MeshStandardMaterial({color:'#7ed4ed',emissive:'#174b63',emissiveIntensity:.5,roughness:.7}),82);const marker=new T.Object3D();for(let i=0;i<82;i++){marker.position.set(-200+(i%41)*10,.028,i<41?-1.05:1.05);marker.updateMatrix();flatMarkers.setMatrixAt(i,marker.matrix)}scene.add(flatMarkers);}
@@ -194,7 +204,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const environment=arena?makeArenaWorld(T,scene,ter,{lowDetail,theme:TH.environment}):sample3d?makeSampleWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
   let physics=arena?readRidePhysics():'classic';
   let jolt=null;
-if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;if(arena){ground.visible=false;dirtTop.visible=false;layers.foreground&& (layers.foreground.visible=false);}
+if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;
   if(arena){
     R.shadowMap.enabled=true;
     const sz=Q.shadows?1024:512;sun.shadow.mapSize.set(sz,sz);
@@ -970,12 +980,23 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     }
 
     const sunZ=freeRoam?(s.z||0):0;
-    const sdx=8,sdy=20,sdz=6,slen=Math.hypot(sdx,sdy,sdz);
-    sun.position.set(s.x+sdx,s.y+sdy,sunZ+sdz);sun.target.position.set(s.x,s.y,sunZ);sun.target.updateMatrixWorld();
-    if(R.shadowMap.enabled){
-      const ext=12;
-      Object.assign(sun.shadow.camera,{left:-ext,right:ext,top:ext,bottom:-ext,near:2,far:slen+28});
-      sun.shadow.camera.updateProjectionMatrix();
+    if(arena){
+      const dist=36;
+      sun.position.set(s.x+sunDir.x*dist,s.y+sunDir.y*dist,sunZ+sunDir.z*dist);
+      sun.target.position.set(s.x,s.y,sunZ);sun.target.updateMatrixWorld();
+      if(R.shadowMap.enabled){
+        const ext=10;
+        Object.assign(sun.shadow.camera,{left:-ext,right:ext,top:ext,bottom:-ext,near:1,far:dist+18});
+        sun.shadow.camera.updateProjectionMatrix();
+      }
+    }else{
+      const sdx=8,sdy=20,sdz=6,slen=Math.hypot(sdx,sdy,sdz);
+      sun.position.set(s.x+sdx,s.y+sdy,sunZ+sdz);sun.target.position.set(s.x,s.y,sunZ);sun.target.updateMatrixWorld();
+      if(R.shadowMap.enabled){
+        const ext=12;
+        Object.assign(sun.shadow.camera,{left:-ext,right:ext,top:ext,bottom:-ext,near:2,far:slen+28});
+        sun.shadow.camera.updateProjectionMatrix();
+      }
     }
     const blobOn=!R.shadowMap.enabled;
     if(contactBlobs){

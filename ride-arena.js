@@ -157,41 +157,38 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   const root=new T.Group();root.name='wk:environment';root.userData.arena=true;scene.add(root);
   const sharedTex=[],sharedMat=[],sharedGeo=[];
   const mat=(color,more={})=>{const m=new T.MeshStandardMaterial({color,roughness:.88,...more});sharedMat.push(m);return m};
-  const canvasTex=(draw,w=512,h=512)=>{const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;sharedTex.push(t);return t};
-  const loadAcg=(id,kind,srgb=false)=>{
-    const tex=new T.TextureLoader().load(`./assets/ambientcg/${id}/${id}_1K-JPG_${kind}.jpg`);
+  const loadAcg=(id,kind,srgb=false,recolor=false)=>{
+    const tex=new T.TextureLoader().load(`./assets/ambientcg/${id}/${id}_1K-JPG_${kind}.jpg`,t=>{
+      if(!recolor||!t.image)return;
+      const img=t.image,c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+      const x=c.getContext('2d');x.drawImage(img,0,0);
+      const d=x.getImageData(0,0,c.width,c.height),px=d.data;
+      for(let i=0;i<px.length;i+=4){
+        if(px[i]-px[i+2]>40&&px[i+1]-px[i+2]>40){px[i]=px[i+1]=px[i+2]=245;}
+      }
+      x.putImageData(d,0,0);t.image=c;t.needsUpdate=true;
+    });
     if(srgb)tex.colorSpace=T.SRGBColorSpace;
     tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.anisotropy=8;sharedTex.push(tex);return tex;
   };
-  const roadACol=loadAcg('Road008A','Color',true),roadANor=loadAcg('Road008A','NormalGL'),roadARough=loadAcg('Road008A','Roughness');
-  const roadCCol=loadAcg('Road008C','Color',true),roadCNor=loadAcg('Road008C','NormalGL'),roadCRough=loadAcg('Road008C','Roughness');
+  const roadACol=loadAcg('Road008A','Color',true,true),roadANor=loadAcg('Road008A','NormalGL'),roadARough=loadAcg('Road008A','Roughness');
+  const roadCCol=loadAcg('Road008C','Color',true,true),roadCNor=loadAcg('Road008C','NormalGL'),roadCRough=loadAcg('Road008C','Roughness');
   const dirtColMap=loadAcg('Ground086','Color',true),dirtNor=loadAcg('Ground086','NormalGL'),dirtRough=loadAcg('Ground086','Roughness');
   const add=(parent,geo,m,x,y,z,sx=1,sy=1,sz=1,rotY=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.y=rotY;o.castShadow=o.receiveShadow=!lowDetail;parent.add(o);return o};
   const h=(x,z)=>terrain.height(x,z)||0;
   const colliders=[];
 
-  const grassTex=canvasTex((g,w,h)=>{
-    g.fillStyle='#3f7a3a';g.fillRect(0,0,w,h);
-    for(let i=0;i<2800;i++){
-      const n=Math.abs(Math.sin(i*12.9898)*43758.5453)%1,m=Math.abs(Math.sin(i*78.233)*24634.863)%1,p=Math.abs(Math.sin(i*3.71+n)*91873.4)%1;
-      g.fillStyle=p>.7?'#5a9a48':p>.4?'#2f6a32':'#4a8a3e';
-      g.globalAlpha=.35+.5*n;g.fillRect((n*w)|0,(m*h)|0,2+(p>.8?3:1),2);
-    }
-    g.globalAlpha=1;
-    for(let i=0;i<90;i++){const n=Math.abs(Math.sin(i*41.2)*23421.2)%1,m=Math.abs(Math.sin(i*9.3)*8123.4)%1;
-      g.fillStyle='rgba(90,70,30,.18)';g.fillRect((n*w)|0,(m*h)|0,6,3)}
-  },256,256);
-  const packedDirt=canvasTex((g,w,h)=>{
-    g.fillStyle='#6a5134';g.fillRect(0,0,w,h);
-    for(let i=0;i<2200;i++){const n=Math.abs(Math.sin(i*12.9898)*43758.5453)%1,m=Math.abs(Math.sin(i*78.233)*24634.863)%1,p=Math.abs(Math.sin(i*17.1)*5123)%1;
-      g.fillStyle=p>.65?'#8a6a42':p>.3?'#4a3824':'#7a5a38';g.globalAlpha=.4+.4*n;g.fillRect((n*w)|0,(m*h)|0,3,2)}
-    g.globalAlpha=1;
-  },256,256);
+  const loadPh=(file,srgb=false)=>{
+    const tex=new T.TextureLoader().load('./assets/polyhaven/grass_ground/'+file);
+    if(srgb)tex.colorSpace=T.SRGBColorSpace;
+    tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.anisotropy=8;sharedTex.push(tex);return tex;
+  };
+  const grassCol=loadPh('grass_ground_diff_1k.jpg',true);
+  const grassNor=loadPh('grass_ground_nor_gl_1k.jpg');
+  const grassArm=loadPh('grass_ground_arm_1k.jpg');
   // World-locked UVs: tile in metres, never scroll or follow the bike/camera.
-  const TILE=(HALF*2)/22;
-  grassTex.repeat.set(1,1);packedDirt.repeat.set(1,1);
-  grassTex.offset.set(0,0);packedDirt.offset.set(0,0);
-  const floorMat=mat('#5a8a4a',{map:grassTex,roughness:.94,vertexColors:true});
+  const TILE=10;
+  const floorMat=mat('#ffffff',{map:grassCol,normalMap:grassNor,roughnessMap:grassArm,roughness:1,metalness:0,vertexColors:true});
   floorMat.onBeforeCompile=(shader)=>{
     shader.uniforms.dirtMap={value:dirtColMap};
     shader.fragmentShader=shader.fragmentShader
@@ -203,7 +200,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       #endif`)
       .replace('#include <color_fragment>','');
   };
-  floorMat.customProgramCacheKey=()=> 'wk-grass-dirt-ground086';
+  floorMat.customProgramCacheKey=()=> 'wk-grass-ground-ground086';
   const segs=lowDetail?80:150;
   const grassFx={ready:false,entries:[],group:null,cull:GRASS_CULL};
   const floor=new T.Mesh(new T.PlaneGeometry(HALF*2,HALF*2,segs,segs),floorMat);
@@ -248,67 +245,25 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
           const x=s.x+s.nx*half*side,z=s.z+s.nz*half*side,y=h(x,z)+yOff;
           const k=(i*2+(side<0?0:1))*3;pos[k]=x;pos[k+1]=y;pos[k+2]=z;
         }
-        if(i<n-1){const a=i*2,b=a+1,c=a+2,d=a+3;idx.push(a,c,b,b,c,d)}
+        if(i<n-1){const a=i*2,b=a+1,c=a+2,d=a+3;idx.push(a,b,c,b,d,c)}
       }
       const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);return g;
     };
-    const trackMat=mat('#888',{map:roadACol,normalMap:roadANor,roughnessMap:roadARough,roughness:1,metalness:0,normalScale:new T.Vector2(.7,.7)});
+    const trackMat=mat('#ffffff',{map:roadACol,normalMap:roadANor,roughnessMap:roadARough,roughness:1,metalness:0,normalScale:new T.Vector2(.8,.8)});
     trackMat.onBeforeCompile=(shader)=>{
       shader.uniforms.roadC={value:roadCCol};
-      shader.uniforms.roadCNor={value:roadCNor};
-      shader.uniforms.roadCRough={value:roadCRough};
-      shader.fragmentShader=shader.fragmentShader
-        .replace('#include <map_pars_fragment>','#include <map_pars_fragment>\nuniform sampler2D roadC;')
-        .replace('#include <map_fragment>',`#ifdef USE_MAP
-        vec2 cell=floor(vMapUv*0.35);
-        float n=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);
-        float patch=step(0.78,n);
-        vec4 roadA=texture2D(map,vMapUv);
-        vec4 roadCv=texture2D(roadC,vMapUv);
-        diffuseColor*=mix(roadA,roadCv,patch);
-      #endif`);
+      shader.fragmentShader=shader.fragmentShader.replace('#include <map_pars_fragment>','#include <map_pars_fragment>\nuniform sampler2D roadC;').replace('#include <map_fragment>',
+        '#ifdef USE_MAP\nvec4 roadA=texture2D(map,vMapUv);vec4 roadCv=texture2D(roadC,vMapUv);float useC=step(0.78,fract(sin(dot(floor(vMapUv.yy*0.5),vec2(127.1,311.7)))*43758.5453));diffuseColor*=mix(roadA,roadCv,useC);\n#endif');
     };
-    trackMat.customProgramCacheKey=()=> 'wk-road008-patches';
-    const tg=strip(hw,.03);
+    trackMat.customProgramCacheKey=()=> 'wk-road008-patches-v3';
+    const tg=strip(hw,.04);
+
     const uv=new Float32Array(tg.attributes.position.count*2);
-    // World-space UVs in metres (tile ~4 m), never scroll with the bike.
-    const posAttr=tg.attributes.position;
-    for(let i=0;i<posAttr.count;i++){uv[i*2]=posAttr.getX(i)/4;uv[i*2+1]=posAttr.getZ(i)/4}
+    // Along-track UVs (world-locked): U across the strip, V along metres, so the baked lanes follow the S.
+    for(let i=0;i<n;i++){const s=samp[i].s/12;uv[i*4]=0;uv[i*4+1]=s;uv[i*4+2]=1;uv[i*4+3]=s}
     tg.setAttribute('uv',new T.BufferAttribute(uv,2));
-    const m=new T.Mesh(tg,trackMat);m.name='environment:arena-track';m.userData.trackTex='Road008A';m.receiveShadow=true;m.renderOrder=1;root.add(m);
-    const edge=mat('#f0e2a0',{roughness:.65,emissive:'#c9b56a',emissiveIntensity:.18,side:T.DoubleSide});
-    for(const side of [-1,1]){
-      const g=strip(.16,.04);
-      // shift the narrow strip to each edge
-      const pos=g.attributes.position;
-      for(let i=0;i<pos.count;i++){
-        const s=samp[i>>1];
-        pos.setX(i,s.x+s.nx*(hw-.12)*side+s.nx*(i%2?-.16:.16)*side*.15);
-        pos.setZ(i,s.z+s.nz*(hw-.12)*side+s.nz*(i%2?-.16:.16)*side*.15);
-        pos.setY(i,h(pos.getX(i),pos.getZ(i))+.04);
-      }
-      pos.needsUpdate=true;g.computeVertexNormals();
-      const e=new T.Mesh(g,edge);e.name='environment:arena-track-edge';e.receiveShadow=true;e.renderOrder=2;root.add(e);
-    }
-    const dash=mat('#ece6d0',{roughness:.7,emissive:'#d8d0b0',emissiveIntensity:.1,side:T.DoubleSide});
-    const on=2.2,off=1.6,period=on+off;let run=0,segStart=0;
-    const dashPos=[],dashIdx=[];
-    const pushVert=(x,y,z)=>{const i=dashPos.length/3;dashPos.push(x,y,z);return i};
-    for(let i=0;i<n-1;i++){
-      const a=samp[i],b=samp[i+1],ds=b.s-a.s;
-      const mid=run%period;
-      if(mid<on){
-        const hw2=.11;
-        const aL=pushVert(a.x+a.nx*hw2,h(a.x,a.z)+.045,a.z+a.nz*hw2);
-        const aR=pushVert(a.x-a.nx*hw2,h(a.x,a.z)+.045,a.z-a.nz*hw2);
-        const bL=pushVert(b.x+b.nx*hw2,h(b.x,b.z)+.045,b.z+b.nz*hw2);
-        const bR=pushVert(b.x-b.nx*hw2,h(b.x,b.z)+.045,b.z-b.nz*hw2);
-        dashIdx.push(aL,bL,aR,aR,bL,bR);
-      }
-      run+=ds;
-    }
-    const dg=new T.BufferGeometry();dg.setAttribute('position',new T.Float32BufferAttribute(dashPos,3));dg.setIndex(dashIdx);dg.computeVertexNormals();sharedGeo.push(dg);
-    const dmesh=new T.Mesh(dg,dash);dmesh.name='environment:arena-track-dash';dmesh.receiveShadow=true;dmesh.renderOrder=2;root.add(dmesh);
+    tg.computeBoundingSphere();tg.computeBoundingBox();
+    const m=new T.Mesh(tg,trackMat);m.name='environment:arena-track';m.userData.trackTex='Road008A';m.receiveShadow=true;m.renderOrder=1;trackMat.side=T.DoubleSide;root.add(m);
   })();
 
   // Cardinal wall colours so each side of the square reads at a glance.
@@ -333,9 +288,6 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   const trunkMat=mat('#5a3a22',{roughness:.95});
   const leafMat=mat('#2f6a34',{roughness:.9});
   const palmLeaf=mat('#3d8a3a',{roughness:.88,side:T.DoubleSide});
-  const facade=(()=>{const t=canvasTex((x,w,h)=>{x.fillStyle='#4a4e62';x.fillRect(0,0,w,h);for(let a=10;a<w;a+=18)for(let y=12;y<h;y+=24){x.fillStyle=(a+y)%36<18?'#e8c48a':'#6e88aa';x.globalAlpha=.45;x.fillRect(a,y,8,12)}x.globalAlpha=1;},256,512);t.wrapS=t.wrapT=T.ClampToEdgeWrapping;t.repeat.set(1,1);return t;})();
-  const windowMat=mat('#d1c8e0',{map:facade,emissive:'#8e6875',emissiveMap:facade,emissiveIntensity:.18,roughness:.4});
-
   const cylY=new T.CylinderGeometry(1,1,1,10);
   const coneGeo=new T.CylinderGeometry(.06,.27,.70,8);
   const lampPole=new T.CylinderGeometry(.06,.08,7,6);
@@ -398,49 +350,10 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     }
   }
 
-  // Coloured run-up lanes and chevrons into each kicker, aligned with the ramp heading.
-  const laneCols={table:'#e8d36a',small:'#5ec8ff',medium:'#f0a33a',big:'#e26bff',large:'#7dff6a'};
-  const arrowShape=(()=>{const s=new T.Shape();s.moveTo(.9,0);s.lineTo(-.45,.55);s.lineTo(-.2,0);s.lineTo(-.45,-.55);s.closePath();const g=new T.ShapeGeometry(s);g.rotateX(-Math.PI/2);sharedGeo.push(g);return g})();
-  for(const r of (terrain.ramps||[])){
-    const col=laneCols[r.name]||'#d7d0a4';
-    const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw);
-    const rlen=rampLength(r),len=Math.max(14,rlen*1.4),w=Math.max(3.2,r.w*.7);
-    const midX=r.x-c*len/2, midZ=r.z-n*len/2;
-    const lane=new T.Mesh(new T.PlaneGeometry(len,w),mat(col,{roughness:.6,emissive:col,emissiveIntensity:.16,transparent:true,opacity:.55}));
-    sharedGeo.push(lane.geometry);
-    lane.rotation.x=-Math.PI/2;lane.rotation.z=-yaw;lane.position.set(midX,h(midX,midZ)+.03,midZ);lane.name='environment:runway:'+r.name;lane.receiveShadow=true;root.add(lane);
-    const chevMat=mat(col,{emissive:col,emissiveIntensity:.35,side:T.DoubleSide,roughness:.55});
-    for(let i=0;i<3;i++){
-      const d=2.2+i*2.1,ax=r.x-c*d,az=r.z-n*d;
-      const a=add(root,arrowShape,chevMat,ax,h(ax,az)+.04,az,1,1,1,yaw);
-      a.rotation.y=yaw-Math.PI/2;a.name='environment:arrow:'+r.name;
-    }
-  }
-
-  // Bright, outlined jump bodies so they read from side and chase at a distance.
-  const jumpDirtTex=canvasTex((g,w,h)=>{
-    g.fillStyle='#d2a05a';g.fillRect(0,0,w,h);
-    for(let i=0;i<2200;i++){const n=Math.abs(Math.sin(i*37.71)*23421.2)%1,m=Math.abs(Math.sin(i*11.13)*91873.4)%1;
-      g.fillStyle=n>.6?'#e8c07a':n>.3?'#b8843e':'#8a5a28';g.globalAlpha=.55;g.fillRect((n*w)|0,(m*h)|0,3,2)}
-    g.globalAlpha=1;
-  },256,256);
-  const jumpMat=mat('#d4a056',{map:jumpDirtTex,roughness:.86,emissive:'#7a4a18',emissiveIntensity:.12});
+  // Lip markers only — the ramp surface is the Ground086 floor, not a second dirt mesh.
   const lipMat=mat('#ffe27a',{roughness:.45,emissive:'#ffcc44',emissiveIntensity:.55,side:T.DoubleSide});
-  const edgeMat=mat('#5a3a1c',{roughness:.9,emissive:'#2a1808',emissiveIntensity:.08,side:T.DoubleSide});
-  const shadowMat=mat('#000000',{transparent:true,opacity:.32,depthWrite:false});
   for(const r of (terrain.ramps||[])){
     const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),rlen=rampLength(r);
-    const nx=Math.max(24,Math.round(rlen*3)),nz=Math.max(8,Math.round(r.w*3));
-    const pos=[],uv=[],idx=[];
-    for(let iz=0;iz<=nz;iz++)for(let ix=0;ix<=nx;ix++){
-      const lx=ix/nx*rlen,lz=(iz/nz-0.5)*r.w;
-      const x=r.x+c*lx-n*lz,z=r.z+n*lx+c*lz,y=h(x,z)+.04;
-      pos.push(x,y,z);uv.push(lx/4, (lz+r.w/2)/2);
-      if(ix<nx&&iz<nz){const a=iz*(nx+1)+ix,b=a+1,d=a+nx+1,e=d+1;idx.push(a,d,b,b,d,e)}
-    }
-    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);
-    const body=new T.Mesh(g,jumpMat);body.name='environment:jump:'+r.name;body.receiveShadow=true;body.castShadow=!lowDetail;body.renderOrder=3;root.add(body);
-    // Lip stripe (and a landing-start stripe on kickers / table down-edge)
     const stripe=new T.BoxGeometry(0.28,0.1,r.w*.92);sharedGeo.push(stripe);
     const mark=(lx,tag)=>{
       const midX=r.x+c*lx,midZ=r.z+n*lx,lipY=h(midX,midZ)+.1;
@@ -449,37 +362,11 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     mark(rampLipX(r),'');
     if(r.kind==='table') mark(rlen*(r.down||.64),'2');
     else mark((r.takeoff||0)+(r.back||0)+(r.gap||0),'2');
-    // Side outline / edge rails
-    for(const side of [-1,1]){
-      const ep=[],ei=[];
-      for(let ix=0;ix<=nx;ix++){
-        const lx=ix/nx*rlen,lz=side*r.w/2;
-        const x=r.x+c*lx-n*lz,z=r.z+n*lx+c*lz,y=h(x,z);
-        ep.push(x,0.02,z, x,y+.06,z);
-        if(ix<nx){const a=ix*2;ei.push(a,a+2,a+1,a+1,a+2,a+3)}
-      }
-      const eg=new T.BufferGeometry();eg.setAttribute('position',new T.Float32BufferAttribute(ep,3));eg.setIndex(ei);eg.computeVertexNormals();sharedGeo.push(eg);
-      const rail=new T.Mesh(eg,edgeMat);rail.name='environment:jump-edge:'+r.name;rail.castShadow=!lowDetail;root.add(rail);
-    }
-    // Soft ground shadow
-    const sh=new T.Mesh(new T.PlaneGeometry(rlen+2.2,r.w+2.4),shadowMat);
-    sharedGeo.push(sh.geometry);
-    sh.rotation.x=-Math.PI/2;sh.rotation.z=-yaw;
-    sh.position.set(r.x+c*(rlen/2),0.02,r.z+n*(rlen/2));
-    sh.name='environment:jump-shadow:'+r.name;sh.renderOrder=0;root.add(sh);
   }
 
-  // City ring outside the walls — sample3d kit: mixed buildings, trees, palms, fences, cars.
-  const builds=new T.Group();builds.name='environment:buildings';root.add(builds);
-  const types=[
-    {w:6,ht:7.2,d:5.5,col:'#4a4e68'},{w:8,ht:11,d:6,col:'#5c4a62'},{w:5,ht:14.5,d:5.5,col:'#3e4a58'},
-    {w:7,ht:8.2,d:6.2,col:'#55506a'},{w:9,ht:12.2,d:7,col:'#4a3e52'},{w:6,ht:5.6,d:5,col:'#5a5a52'},
-    {w:10,ht:9.4,d:6.5,col:'#6a4a32'},{w:5,ht:16,d:5,col:'#3a4860'},{w:8,ht:6.6,d:6,col:'#4a3a28'},
-    {w:7,ht:10.4,d:5.8,col:'#4e3e58'},{w:9,ht:8.8,d:6.4,col:'#3a3a42'},{w:6,ht:13.2,d:5.6,col:'#42465c'}
-  ];
+  // Trees, palms, fences and cars just outside the walls for scale. No city-block skyline —
+  // the horizon silhouettes (below) and the HDRI are the only skyline.
   const carCols=['#c44c4c','#3d6cb0','#d2a84a','#3e8a5a','#8a8e96'];
-  const cyan=mat('#6ee8ff',{emissive:'#20b9ff',emissiveIntensity:1.6});
-  const violet=mat('#d59aff',{emissive:'#9850ff',emissiveIntensity:1.2});
   let bi=0,carN=0,treeN=0,hash=7;
   const rnd=()=>{hash=hash*1664525+1013904223&0x7fffffff;return (hash%1000)/1000};
 
@@ -508,65 +395,33 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     root.add(g);carN++;colliders.push({kind:'box',x,z,hx:2.3,hz:1.1,y0:y,y1:y+1.2});
   }
 
-  function placeBuilding(x,z,spec,ix,iz){
-    const m=mat(spec.col,{map:facade,roughness:.86});
-    const b=add(builds,box,m,x,spec.ht/2,z,spec.w,spec.ht,spec.d,0);b.name='environment:building:'+(bi++);
-    const fx=x+ix*spec.d/2,fz=z+iz*spec.d/2,faceYaw=Math.atan2(ix,iz);
-    add(builds,box,windowMat,fx,spec.ht*.55,fz,spec.w*.86,spec.ht*.62,.08,faceYaw);
-    if(spec.ht>10)add(builds,box,spec.ht>13?cyan:violet,x,spec.ht+.04,z,spec.w*.65,.06,.22);
-  }
-
-  // Four sides just outside the wall. (ix,iz) is the inward (arena-facing) direction.
   const sides=[
-    {along:'x',sign:1, ix:0,iz:-1},   // north +Z, windows face -Z
-    {along:'x',sign:-1,ix:0,iz:1},    // south -Z, windows face +Z
-    {along:'z',sign:1, ix:-1,iz:0},   // east +X, windows face -X
-    {along:'z',sign:-1,ix:1,iz:0}     // west -X, windows face +X
+    {along:'x',sign:1, ix:0,iz:-1},
+    {along:'x',sign:-1,ix:0,iz:1},
+    {along:'z',sign:1, ix:-1,iz:0},
+    {along:'z',sign:-1,ix:1,iz:0}
   ];
   for(const side of sides){
-    let cursor=-HALF+5, prev=-1, ti=side.sign>0?0:3;
-    const gap0=2.2;
+    let cursor=-HALF+5;
     while(cursor<HALF-5){
-      ti=(ti+1+((cursor|0)%3===0?1:0))%types.length;
-      if(ti===prev)ti=(ti+1)%types.length;
-      const spec=types[ti];prev=ti;
-      const mid=cursor+spec.w/2;
+      const w=6+((cursor|0)%5), mid=cursor+w/2;
       if(mid>HALF-5)break;
-      const depth=158+spec.d/2;
-      const x=side.along==='x'?mid:side.sign*depth;
-      const z=side.along==='z'?mid:side.sign*depth;
-      placeBuilding(x,z,spec,side.ix,side.iz);
-      // fence posts along the inner kerb (just outside the wall)
       const fx=side.along==='x'?mid:side.sign*(HALF+2.4);
       const fz=side.along==='z'?mid:side.sign*(HALF+2.4);
       add(root,post,wood,fx,.58,fz);
-      add(root,rail,wood,fx, .82,fz, side.along==='x'?spec.w/3.2:1,1,side.along==='z'?spec.w/3.2:1, side.along==='z'?Math.PI/2:0);
-      // tree or palm in the gap, not the same every time
+      add(root,rail,wood,fx, .82,fz, side.along==='x'?w/3.2:1,1,side.along==='z'?w/3.2:1, side.along==='z'?Math.PI/2:0);
       if(!lowDetail && rnd()>.35){
-        const gx=side.along==='x'?cursor+spec.w+1.1:side.sign*(HALF+5.5);
-        const gz=side.along==='z'?cursor+spec.w+1.1:side.sign*(HALF+5.5);
+        const gx=side.along==='x'?cursor+w+1.1:side.sign*(HALF+5.5);
+        const gz=side.along==='z'?cursor+w+1.1:side.sign*(HALF+5.5);
         tree(gx,gz,rnd()>.5?'palm':'tree');
       }
-      // a few parked cars along the outer kerb
       if(rnd()>.72){
-        const cx=side.along==='x'?mid-spec.w*.2:side.sign*(HALF+5);
-        const cz=side.along==='z'?mid-spec.w*.2:side.sign*(HALF+5);
+        const cx=side.along==='x'?mid-w*.2:side.sign*(HALF+5);
+        const cz=side.along==='z'?mid-w*.2:side.sign*(HALF+5);
         const yaw=side.along==='x'?(rnd()>.5?0:Math.PI):(rnd()>.5?Math.PI/2:-Math.PI/2);
-        car(cx,cz,yaw,carCols[(carN+ti)%carCols.length]);
+        car(cx,cz,yaw,carCols[(carN)%carCols.length]);
       }
-      cursor+=spec.w+gap0+rnd()*1.6;
-    }
-    // mid-distance taller towers, sparser, further out
-    if(!lowDetail){
-      for(let t=-120;t<=120;t+=28+((t/7)|0)%5){
-        const spec=types[(Math.abs(t/7)+ti+4)%types.length];
-        const tall={...spec,ht:spec.ht+4+rnd()*5,w:spec.w*.85,d:spec.d};
-        if(Math.abs(t)<8)continue;
-        const depth=182+tall.d/2;
-        const x=side.along==='x'?t:side.sign*depth;
-        const z=side.along==='z'?t:side.sign*depth;
-        placeBuilding(x,z,tall,side.ix,side.iz);
-      }
+      cursor+=w+2.2+rnd()*1.6;
     }
   }
 
@@ -671,13 +526,13 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   scatterArenaGrass(T,root,{h,terrain,ramps,lowDetail,sharedMat,sharedGeo,sharedTex,grassFx});
 
   return {
-    roadMap:grassTex,
+    roadMap:grassCol,
     colliders,
     isDirt:(x,z)=>surfaceAt(x,z)==='dirt',
     surfaceAt,
     update,
     view(){},
-    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',trackTex:'Road008A',patchTex:'Road008C',dirtTex:'Ground086',uvWorld:true,tile:TILE,skyline:silN,floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[grassTex.offset.x,grassTex.offset.y],dirtOffset:[0,0],skid:lastSkid,colliders:colliders.length}),
+    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:0,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',trackTex:'Road008A',patchTex:'Road008C',dirtTex:'Ground086',grassTex:'grass_ground',uvWorld:true,tile:TILE,skyline:silN,overlays:[],floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[0,0],dirtOffset:[0,0],skid:lastSkid,colliders:colliders.length}),
     dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();grassFx.entries?.forEach(e=>e.mesh.dispose());grassFx.group?.removeFromParent();root.removeFromParent();}
   };
 }
