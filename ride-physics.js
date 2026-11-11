@@ -120,7 +120,7 @@ export function makeState(p, x = 2, ter) {
   const pitch=Math.atan2(ter.h(x+front)-ter.h(x+rear),p.wb),c=Math.cos(pitch),s=Math.sin(pitch);
   const y=Math.max(...[rear,front].map(dx=>wheelContact(ter,x+dx*c+h*s,p.R).height-(dx*s-h*c)))+.012;
   return { x, y, z: 0, yaw: 0, vx: 0, vy: 0, pitch, w: 0, comp: [0, 0], ground: [false, false], air: 0, airRot: 0, wasAir: false, crashed: null, wheelieT: 0, stoppieT: 0, score: 0, trick: "", trickT: 0,
-    spin: 0, spinV: 0, wear: {}, events: [], battery: 1, odo: 0, wheelSpin: [0, 0] }; }
+    spin: 0, spinV: 0, wear: {}, events: [], battery: 1, odo: 0, wheelSpin: [0, 0], wheelOmega: [0, 0], slip: [0, 0] }; }
 const rot = (x, y, a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 // Sample the tyre footprint so sharp ledges meet the round tyre before its
 // axle crosses them. Using only ground directly under the axle caused popping
@@ -223,8 +223,21 @@ export function step(s, p, inp, dt, ter) {
   }
   for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R,s).height-(s.y+oy);s.comp[i]=compression(i,depth);}
   onG=s.ground[0]||s.ground[1];
-  for (let i = 0; i < 2; i++) s.wheelSpin[i] += s.vx / p.R * dt;
-  if(s.burnout)s.wheelSpin[driven]+=Math.min(18,4+p.power/1500)/p.R*dt;
+  // Wheel spin vs ground speed (for smoke / visuals). Does not change Fx, pitch or trick physics.
+  if(!s.wheelOmega)s.wheelOmega=[s.vx/p.R,s.vx/p.R];
+  if(!s.slip)s.slip=[0,0];
+  for(let i=0;i<2;i++){
+    const locked=s.vx/p.R;
+    let target=locked;
+    if(s.ground[i]){
+      if(i===driven&&s.burnout)target=locked+Math.min(18,4+p.power/1500)/p.R;
+      else if(i===driven&&!p.pedal&&(s.thr||0)>.25)target=locked+(s.thr)*Math.min(14,3+p.power/1800)/p.R*Math.max(0,1-Math.abs(s.vx)/8);
+      else if(inp.brake>0&&!s.reversing)target=locked*(1-.85*inp.brake);
+      s.wheelOmega[i]+=(target-s.wheelOmega[i])*(1-Math.exp(-12*dt));
+      s.slip[i]=s.wheelOmega[i]*p.R-s.vx;
+    }else{s.slip[i]=0;}
+    s.wheelSpin[i]+=s.wheelOmega[i]*dt;
+  }
   if (inp.throttle > 0 && s.ground[driven] && !p.pedal) s.battery = Math.max(0, s.battery - inp.throttle * p.power * dt / 3600 / (p.energyType?Math.max(.000001,p.batteryWh):Math.max(50,p.batteryWh)));
   // tricks & scoring
   if (s.trickT > 0) s.trickT -= dt;

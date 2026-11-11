@@ -13,27 +13,65 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   const canvasTex=(draw,w=512,h=512)=>{const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;sharedTex.push(t);return t};
   const add=(parent,geo,m,x,y,z,sx=1,sy=1,sz=1,rotY=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.y=rotY;o.castShadow=o.receiveShadow=!lowDetail;parent.add(o);return o};
   const h=(x,z)=>terrain.height(x,z)||0;
+  const colliders=[];
 
-  const grid=canvasTex((g,w,h)=>{
-    g.fillStyle='#3a3b44';g.fillRect(0,0,w,h);
-    for(let i=0;i<w;i++){const n=(Math.sin(i*12.9898)*43758.5453)%1;g.fillStyle=`rgba(0,0,0,${0.04+Math.abs(n)*0.08})`;g.fillRect(i,0,1,h);}
-    g.strokeStyle='#2a2b32';g.lineWidth=6;g.beginPath();
-    for(let i=0;i<=8;i++){const p=i*w/8;g.moveTo(p,0);g.lineTo(p,h);g.moveTo(0,p);g.lineTo(w,p);}g.stroke();
-    g.strokeStyle='#c9c28a';g.lineWidth=3;g.setLineDash([28,22]);
-    g.beginPath();g.moveTo(w/2,0);g.lineTo(w/2,h);g.moveTo(0,h/2);g.lineTo(w,h/2);g.stroke();
-    g.setLineDash([]);g.strokeStyle='#d7d0a4';g.lineWidth=2;
-    g.strokeRect(10,10,w-20,h-20);
-  });
-  grid.repeat.set(60,60);
-  const asphalt=mat('#44454f',{map:grid,roughness:.72});
+  const grassTex=canvasTex((g,w,h)=>{
+    g.fillStyle='#3f7a3a';g.fillRect(0,0,w,h);
+    for(let i=0;i<2800;i++){
+      const n=Math.abs(Math.sin(i*12.9898)*43758.5453)%1,m=Math.abs(Math.sin(i*78.233)*24634.863)%1,p=Math.abs(Math.sin(i*3.71+n)*91873.4)%1;
+      g.fillStyle=p>.7?'#5a9a48':p>.4?'#2f6a32':'#4a8a3e';
+      g.globalAlpha=.35+.5*n;g.fillRect((n*w)|0,(m*h)|0,2+(p>.8?3:1),2);
+    }
+    g.globalAlpha=1;
+    for(let i=0;i<90;i++){const n=Math.abs(Math.sin(i*41.2)*23421.2)%1,m=Math.abs(Math.sin(i*9.3)*8123.4)%1;
+      g.fillStyle='rgba(90,70,30,.18)';g.fillRect((n*w)|0,(m*h)|0,6,3)}
+  },256,256);
+  const packedDirt=canvasTex((g,w,h)=>{
+    g.fillStyle='#6a5134';g.fillRect(0,0,w,h);
+    for(let i=0;i<2200;i++){const n=Math.abs(Math.sin(i*12.9898)*43758.5453)%1,m=Math.abs(Math.sin(i*78.233)*24634.863)%1,p=Math.abs(Math.sin(i*17.1)*5123)%1;
+      g.fillStyle=p>.65?'#8a6a42':p>.3?'#4a3824':'#7a5a38';g.globalAlpha=.4+.4*n;g.fillRect((n*w)|0,(m*h)|0,3,2)}
+    g.globalAlpha=1;
+  },256,256);
+  grassTex.repeat.set(22,22);packedDirt.repeat.set(22,22);
+  const floorMat=mat('#5a8a4a',{map:grassTex,roughness:.94,vertexColors:true});
+  floorMat.onBeforeCompile=(shader)=>{
+    shader.uniforms.dirtMap={value:packedDirt};
+    shader.fragmentShader=shader.fragmentShader
+      .replace('#include <map_pars_fragment>','#include <map_pars_fragment>\nuniform sampler2D dirtMap;')
+      .replace('#include <map_fragment>',`#ifdef USE_MAP
+        vec4 grassC=texture2D(map,vMapUv);
+        vec4 dirtC=texture2D(dirtMap,vMapUv);
+        diffuseColor*=mix(grassC,dirtC,vColor.r);
+      #endif`)
+      .replace('#include <color_fragment>','');
+  };
+  floorMat.customProgramCacheKey=()=> 'wk-grass-dirt';
   const segs=lowDetail?80:150;
-  const floor=new T.Mesh(new T.PlaneGeometry(HALF*2,HALF*2,segs,segs),asphalt);
+  const floor=new T.Mesh(new T.PlaneGeometry(HALF*2,HALF*2,segs,segs),floorMat);
   floor.rotation.x=-Math.PI/2;floor.name='environment:arena-floor';floor.receiveShadow=true;
   const pos=floor.geometry.attributes.position;
+  const dirtCol=new Float32Array(pos.count*3);
+  const ramps=terrain.ramps||[];
+  const smooth=(a,b,x)=>x<=a?1:x>=b?0:1-(x-a)/(b-a);
   for(let i=0;i<pos.count;i++){
-    const x=pos.getX(i),z=pos.getY(i);
-    pos.setZ(i,terrain.height(x,-z));
+    const x=pos.getX(i),z=pos.getY(i),wz=-z;
+    pos.setZ(i,terrain.height(x,wz));
+    let dirt=0;
+    if(terrain.track){
+      const n=terrain.track.nearest(x,wz);
+      dirt=Math.max(dirt,smooth((terrain.track.width||6)/2+.5,(terrain.track.width||6)/2+3.5,n.dist));
+    }
+    for(const r of ramps){
+      const yaw=r.yaw||0,c=Math.cos(yaw),s=Math.sin(yaw),dx=x-r.x,dz=wz-r.z,lx=dx*c+dz*s,lz=-dx*s+dz*c;
+      const len=(r.len||((r.takeoff||0)+(r.back||0)+(r.gap||0)+(r.land||0)));
+      if(lx>-2.5&&lx<len+2.5){
+        const along=lx<0?smooth(0,2.5,-lx):lx>len?smooth(0,2.5,lx-len):1;
+        dirt=Math.max(dirt,smooth(r.w/2+.4,r.w/2+3.2,Math.abs(lz))*along);
+      }
+    }
+    dirtCol[i*3]=Math.max(0,Math.min(1,dirt));dirtCol[i*3+1]=1;dirtCol[i*3+2]=1;
   }
+  floor.geometry.setAttribute('color',new T.BufferAttribute(dirtCol,3));
   floor.geometry.computeVertexNormals();sharedGeo.push(floor.geometry);root.add(floor);
 
   // Visible side-view track: a dirt/asphalt strip along the S through the kickers.
@@ -152,7 +190,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
 
   // Light poles every 25 m just inside the walls.
   let poleN=0;
-  const placePole=(x,z)=>{const y=h(x,z);add(root,lampPole,dark,x,y+3.5,z);add(root,lampHead,warm,x,y+7.05,z);poleN++;};
+  const placePole=(x,z)=>{const y=h(x,z);add(root,lampPole,dark,x,y+3.5,z);add(root,lampHead,warm,x,y+7.05,z);poleN++;colliders.push({kind:'cyl',x,z,r:.12,y0:y,y1:y+7.1});};
   for(let t=-137.5;t<=137.5;t+=25){
     placePole(t,HALF-3.2);placePole(t,-(HALF-3.2));
     placePole(HALF-3.2,t);placePole(-(HALF-3.2),t);
@@ -163,6 +201,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     const y=h(x,z);
     add(root,coneGeo,coneMat,x,y+.35,z,1,1,1);
     add(root,cylY,coneStripe,x,y+.46,z,.24,.06,.24);
+    colliders.push({kind:'cyl',x,z,r:.18,y0:y,y1:y+.7});
   };
   for(let x=-36;x<=36;x+=4)coneAt(x,50);
   for(let x=-28;x<=28;x+=4.5)coneAt(x,-62);
@@ -293,7 +332,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     add(g,carBody,mat(col,{metalness:.28,roughness:.42}),0,.26,0);
     add(g,carCabin,glass,-.08,.62,0);
     for(const [wx,wz] of [[-.65,.42],[-.65,-.42],[.7,.42],[.7,-.42]])add(g,wheel,dark,wx,.2,wz);
-    root.add(g);carN++;
+    root.add(g);carN++;colliders.push({kind:'box',x,z,hx:2.3,hz:1.1,y0:y,y1:y+1.2});
   }
 
   function placeBuilding(x,z,spec,ix,iz){
@@ -403,10 +442,12 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   }
 
   return {
-    roadMap:grid,
+    roadMap:grassTex,
+    colliders,
+    isDirt:(x,z)=>{if(!terrain.track)return true;if(terrain.track.nearest(x,z).dist<(terrain.track.width||6)/2+3.5)return true;return (terrain.height(x,z)||0)>.04;},
     update,
     view(){},
-    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length}),
+    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',colliders:colliders.length}),
     dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();root.removeFromParent();}
   };
 }

@@ -190,7 +190,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const NP = 260, pm = new T.InstancedMesh(new T.BoxGeometry(0.06, 0.06, 0.06), new T.MeshBasicMaterial({ color: "#fff" }), NP); pm.userData.wkFx = 1; pm.frustumCulled = false; scene.add(pm);
   const parts = Array.from({ length: NP }, () => ({ life: 0 })); let pi = 0; const o3 = new T.Object3D(), col = new T.Color();
   const smoke=new T.InstancedMesh(new T.SphereGeometry(.12,8,6),new T.MeshBasicMaterial({color:'#c5cec5',transparent:true,opacity:.32,depthWrite:false}),96),smokeParts=Array.from({length:96},()=>({life:0}));let smokeIndex=0;smoke.frustumCulled=false;smoke.userData.wkFx=1;scene.add(smoke);
-  const emit = (x, y, vx, vy, c, life = 0.8, g = 9.8, sz = 1) => { const p = parts[pi = (pi + 1) % NP]; Object.assign(p, { x, y, z: (Math.random() - 0.5) * 0.6, vx, vy, life, max: life, g, sz }); pm.setColorAt(pi, col.set(c)); pm.instanceColor.needsUpdate = true; };
+  const emit = (x, y, vx, vy, c, life = 0.8, g = 9.8, sz = 1, z) => { const p = parts[pi = (pi + 1) % NP]; Object.assign(p, { x, y, z: z==null?(Math.random()-.5)*.6:z+(Math.random()-.5)*.2, vx, vy, vz:(Math.random()-.5)*1.2, life, max: life, g, sz }); pm.setColorAt(pi, col.set(c)); pm.instanceColor.needsUpdate = true; };
   for (let i = 0; i < NP; i++) pm.setColorAt(i, col.set("#fff"));
   const slowKey = 'wk-trials-completed';
   let slowUnlocked = !flat && localStorage.getItem(slowKey) === '1';
@@ -580,7 +580,21 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       if (ev.type === "crash") { msg = "CRASH! " + ev.why; msgT = 99; hud.trick.textContent = ""; for (let i = 0; i < 30; i++) emit(s.x, s.y, (Math.random() - 0.5) * 6, Math.random() * 4, "#c9844a", 1.2, 8); }
     }
     for (const k in s.wear) { wear[k] = (wear[k] || 0) + s.wear[k]; } s.wear = {};
-    if(s.burnout&&!s.crashed&&!paused){const yaw=freeRoam?(s.yaw||0):0,rear=P.wb*(P.driveAxle==='front'?1-P.comBack:-P.comBack),bx=s.x+Math.cos(yaw)*rear,bz=freeRoam?(s.z||0)+Math.sin(yaw)*rear:0,gy=(freeRoam?ter.height(bx,bz):ter.h(s.x))+.12;for(let i=0;i<8;i++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.16,y:gy,z:bz+(Math.random()-.5)*.5,vx:-Math.cos(yaw)*(.4+Math.random()*.9),vy:.45+Math.random()*.7,life:2.2});}msg='BURNOUT';msgT=.25;}
+    if(!s.crashed&&!paused){
+      const yaw=freeRoam?(s.yaw||0):0,cy=Math.cos(yaw),sy=Math.sin(yaw);
+      const axles=[-P.wb*P.comBack,P.wb*(1-P.comBack)];
+      for(let i=0;i<2;i++){
+        if(!s.ground[i])continue;
+        const slip=s.slip?s.slip[i]:(s.burnout&&i===(P.driveAxle==='front'?1:0)?8:0);
+        if(Math.abs(slip)<1.4)continue;
+        const bx=s.x+cy*axles[i],bz=freeRoam?(s.z||0)+sy*axles[i]:0,gy=(freeRoam?ter.height(bx,bz):ter.h(bx))+.08;
+        const n=Math.min(4,1+Math.abs(slip)*.35);
+        for(let k=0;k<n;k++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.14,y:gy,z:bz+(Math.random()-.5)*.14,vx:-cy*(.3+Math.random()*.8)+(Math.random()-.5)*.4,vy:.4+Math.random()*.75,life:1.4+Math.random()*.8});}
+        const onDirt=freeRoam?(environment.isDirt?.(bx,bz)??((ter.track&&ter.track.nearest(bx,bz).dist<(ter.track.width||6)/2+3.5)||ter.height(bx,bz)>.04)):true;
+        if(onDirt)for(let k=0;k<Math.min(3,1+Math.abs(slip)*.2);k++)emit(bx,gy,-cy*(2+Math.random()*3+Math.abs(slip)*.15),1.2+Math.random()*2.4,'#8a5a32',.55,9.8,.9,bz);
+      }
+      if(s.burnout){msg='BURNOUT';msgT=.25;}
+    }
     // roost + splash + dirt build-up
     const rx = s.x + Math.cos(s.pitch) * (-P.wb * P.comBack) + Math.sin(s.pitch) * hC, onRear = s.ground[0];
     if (!paused && onRear && inp.throttle && Math.abs(s.vx) > 0.5 && Math.random() < 0.8) emit(rx - P.R * 0.6, ter.h(rx) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, ter.inPuddle(rx) ? "#7fb4d6" : "#a8693a", 0.7);
@@ -588,13 +602,13 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     else if (s.ground[0] || s.ground[1]) dirt += dt * 0.0015 * Math.abs(s.vx);
     if ((fxT += dt) > 0.6) { fxT = 0; applyCondition(bike, { dirt: Math.min(1, dirt), wear: {} }); const fr = bike.getObjectByName("wk:part:fender_r"); if (fr) { const w = 0; fr.visible = w < 1; if (w >= 0.4 && w < 1) fr.rotation.z = -0.12; } }
     // particles update
-    for (let i = 0; i < NP; i++) { const p = parts[i]; if (p.life > 0) { p.life -= dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y < ter.h(p.x)) { p.y = ter.h(p.x); p.vy *= -0.2; p.vx *= 0.5; } o3.position.set(p.x, p.y, p.z); o3.scale.setScalar(Math.max(0.01, p.life / p.max) * p.sz); } else o3.scale.setScalar(0); o3.updateMatrix(); pm.setMatrixAt(i, o3.matrix); }
+    for (let i = 0; i < NP; i++) { const p = parts[i]; if (p.life > 0) { p.life -= dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z=(p.z||0)+(p.vz||0)*dt; const gy=freeRoam?ter.height(p.x,p.z||0):ter.h(p.x); if (p.y < gy) { p.y = gy; p.vy *= -0.2; p.vx *= 0.5; p.vz=(p.vz||0)*.5; } o3.position.set(p.x, p.y, p.z); o3.scale.setScalar(Math.max(0.01, p.life / p.max) * p.sz); } else o3.scale.setScalar(0); o3.updateMatrix(); pm.setMatrixAt(i, o3.matrix); }
     pm.instanceMatrix.needsUpdate = true;
     smokeParts.forEach((particle,i)=>{if(particle.life>0){particle.life-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;o3.position.set(particle.x,particle.y,particle.z);o3.scale.setScalar((1+(1-particle.life/1.8)*3)*Math.min(1,particle.life*3));}else o3.scale.setScalar(0);o3.updateMatrix();smoke.setMatrixAt(i,o3.matrix)});smoke.instanceMatrix.needsUpdate=true;
     // Rider and bike inherit momentum, then collide as separate constrained bodies.
     const bikeZ=freeRoam?(s.z||0):0,bikeYaw=freeRoam?(s.yaw||0):0;
     if(rewinding){pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,-bikeYaw,s.pitch);}
-    else if(s.crashed || finishTumble){if(!crashRig){stuntRig.restore();s.stunt=null;pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,-bikeYaw,s.pitch);crashRig=makeCrashRig(T,scene,body,pivot,bike,A,riderModel,P,ter,s);releaseControls();if (!finished) { el.dataset.wkCrashed='true';recover.hidden=false; }}crashT+=dt;crashRig.step(dt);}
+    else if(s.crashed || finishTumble){if(!crashRig){stuntRig.restore();s.stunt=null;pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,-bikeYaw,s.pitch);crashRig=makeCrashRig(T,scene,body,pivot,bike,A,riderModel,P,ter,s,environment.colliders||[]);releaseControls();if (!finished) { el.dataset.wkCrashed='true';recover.hidden=false; }}crashT+=dt;crashRig.step(dt);}
     else { pivot.position.set(s.x, s.y, bikeZ); pivot.rotation.z = s.pitch; }
     spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=freeRoam?Math.max(-.42,Math.min(.42,-(s.vx||0)*(s.vx||0)*kappa/9.8)):0;visRoll+=(leanT-visRoll)*(1-Math.exp(-14*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
     // suspension: wheels slide toward the frame by compression*travel
@@ -605,7 +619,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     visDive+=(diveT-visDive)*(1-Math.exp(-8*Math.max(dt,.001)));
     visSquat+=(squatT-visSquat)*(1-Math.exp(-8*Math.max(dt,.001)));
     const wheelDist=rewinding?rewindDx:s.vx*dt;
-    if(mechanical)mechanical.update({distance:wheelDist,frontDistance:rewinding?rewindDx:s.burnout&&P.driveAxle==='front'?dt*Math.min(18,4+P.power/1500):s.vx*dt,rearDistance:rewinding?rewindDx:s.burnout&&P.driveAxle!=='front'?dt*Math.min(18,4+P.power/1500):s.vx*dt,driveDistance:rewinding?rewindDx:s.burnout?(find(build.motor)?.kind==="mid"?dt*Math.min(18,4+P.power/1500):0):inp.throttle>0||find(build.motor)?.nopedal||s.reversing?s.vx*dt:0,rearCompression:crashRig?0:Math.min(1,(build.shock?s.comp[0]||0:0)+visSquat),frontCompression:crashRig?0:Math.min(1,(s.comp[1]||0)+visDive),travelR:P.travelR,travelF:P.travelF,steerAngle:s.steer||0});
+    if(mechanical)mechanical.update({distance:wheelDist,frontDistance:rewinding?rewindDx:(s.wheelOmega?s.wheelOmega[1]:s.vx/P.R)*P.R*dt,rearDistance:rewinding?rewindDx:(s.wheelOmega?s.wheelOmega[0]:s.vx/P.R)*P.R*dt,driveDistance:rewinding?rewindDx:(s.wheelOmega?s.wheelOmega[P.driveAxle==='front'?1:0]:s.vx/P.R)*P.R*dt,rearCompression:crashRig?0:Math.min(1,(build.shock?s.comp[0]||0:0)+visSquat),frontCompression:crashRig?0:Math.min(1,(s.comp[1]||0)+visDive),travelR:P.travelR,travelF:P.travelF,steerAngle:s.steer||0});
     else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
     supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;if(!crashRig)riderModel.update({lean:inp.lean,superman:supermanPose});stuntRig.pose(s.stunt);
     // checkpoints / finish — sample3d uses street-width gates so dirt loops don't auto-finish
@@ -648,9 +662,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     if(freeRoam){
       const yaw=s.yaw||0,z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
       const k=1-Math.exp(-5.8*followDt);
-      if(trackLock.justSnapped){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;trackLock.justSnapped=false;}
-      if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;}
-      chasePosX+=(s.x-chasePosX)*k;chasePosZ+=(z-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-8*followDt));
+      if(!crashRig){
+        if(trackLock.justSnapped){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;trackLock.justSnapped=false;}
+        if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;}
+        chasePosX+=(s.x-chasePosX)*k;chasePosZ+=(z-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-8*followDt));
+      }
       if(!lookDrag){
         const wn=9,zn=.85;
         lookVY+=(-wn*wn*lookYaw-2*zn*wn*lookVY)*followDt;lookYaw+=lookVY*followDt;
@@ -659,6 +675,31 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
         if(Math.abs(lookPitch)<.012&&Math.abs(lookVP)<.08){lookPitch=0;lookVP=0;}
       }
       if(!inAir)chaseTakeoffY=roadY;
+      if(crashRig){
+        const f=crashFocus||crashRig.focus(),fx=f.x,fy=f.y,fz=f.z||0,fyaw=f.yaw??yaw;
+        const ck=1-Math.exp(-8*followDt);
+        if(chasePosX==null){chasePosX=fx;chasePosZ=fz;chaseYaw=fyaw;chaseFollowY=fy+1.5;chaseLookY=fy+.4;}
+        chasePosX+=(fx-chasePosX)*ck;chasePosZ+=(fz-chasePosZ)*ck;
+        chaseYaw+=wrapAngle(fyaw-chaseYaw)*(1-Math.exp(-6*followDt));
+        chaseFollowY+=(fy+1.5-chaseFollowY)*ck;chaseLookY+=(fy+.4-chaseLookY)*ck;
+        cameraReady=true;
+        const speedT=Math.max(0,Math.min(1,(sp-2.8)/8)),shake=(Math.random()-.5)*camShake;
+        const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
+        const chaseR=4.6,sideR=7.2,ahead=1.4;dist=sideR;
+        const chaseX=chasePosX-cy*chaseR,chaseZ=chasePosZ-sy*chaseR;
+        let sideX=chasePosX,sideZ=chasePosZ+sideR;
+        if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
+        const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
+        const camY=chaseFollowY+lookPitch*2.6*blend+shake;
+        const lookX=fx*(1-blend)+(chasePosX+cy*ahead)*blend,lookZ=fz*(1-blend)+(chasePosZ+sy*ahead)*blend,lookY=(fy+.35)*(1-blend)+chaseLookY*blend;
+        if(!globalThis.__WK_CAM_HOLD__){
+          cam.position.set(camX,camY,camZ);
+          cam.lookAt(lookX,lookY,lookZ);
+          cam.fov=(46+8*speedT)*(1-blend)+(64+8*speedT)*blend;cam.updateProjectionMatrix();
+        }
+        speedLineMat.opacity=0;speedLines.visible=false;
+        lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,fy-ter.height(fx,fz)),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead,airClose,crash:true};
+      } else {
       // Ballistic landing prediction (step along heading under gravity until we meet terrain).
       const pred=(()=>{let px=s.x,pz=z,py=s.y,pvy=s.vy||0,dt=1/30,cy0=Math.cos(yaw),sy0=Math.sin(yaw),ride=P.R||.33;for(let i=0;i<90;i++){pvy-=9.8*dt;px+=cy0*(s.vx)*dt;pz+=sy0*(s.vx)*dt;py+=pvy*dt;const g=ter.height(px,pz);if(py<=g+ride&&pvy<=0)return {x:px,z:pz,y:g,t:i*dt};}return {x:px,z:pz,y:ter.height(px,pz),t:3};})();
       const landingY=pred.y,range=Math.hypot(pred.x-s.x,pred.z-z);
@@ -707,6 +748,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       }
       speedLineMat.opacity=0;speedLines.visible=false;
       lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead,airClose};
+      }
       environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(1);
       put(viewLabel,'view',cameraView==='chase'?'▣ CHASE':'▣ SIDE VIEW');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
       syncTrackChrome();
@@ -792,7 +834,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam,renderer:R,body,pivot});globalThis.__WK_REPLAY__=replay;
-  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  globalThis.__WK_RIDE_STATE__ = () => ({ s, P, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
   function stop(save=true) {if(disposed)return;disposed=true;if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');el.removeAttribute('data-wk-track-side');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }

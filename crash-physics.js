@@ -1,11 +1,11 @@
 // Position-based articulated bodies. Metres/seconds; no DOM or rendering dependency.
 const length=v=>Math.hypot(...v),sub=(a,b)=>a.map((x,i)=>x-b[i]);
-export function constrainedBody(joints,links,{velocity=[0,0,0],angular=0,origin=[0,0,0],ground=()=>0,eject=false}={}){
+export function constrainedBody(joints,links,{velocity=[0,0,0],angular=0,origin=[0,0,0],ground=()=>0,eject=false,constrain=null}={}){
  const points=Object.fromEntries(Object.entries(joints).map(([key,p])=>{const r=p.position,rel=sub(r,origin);return [key,{position:[...r],velocity:[velocity[0]-angular*rel[1]+(eject?.55:0),velocity[1]+angular*rel[0]+(eject?.7:0),velocity[2]+(eject?.35:0)],radius:p.radius??.05,inv:1/(p.mass||1)}]}));
  const bones=links.map(([a,b,radius=0,min,max])=>({a,b,radius,length:length(sub(points[a].position,points[b].position)),min,max}));
  const neighbours=new Set(bones.flatMap(b=>[b.a+':'+b.b,b.b+':'+b.a])),names=Object.keys(points);let sleeping=false,quiet=0,contacts=0,impacts=[];
  function movePair(a,b,target){const v=sub(b.position,a.position),d=length(v);if(d<1e-9)return;const error=(d-target)/d,total=a.inv+b.inv;for(let k=0;k<3;k++){a.position[k]+=v[k]*error*a.inv/total;b.position[k]-=v[k]*error*b.inv/total}}
- function contact(p){const floor=ground(p.position[0],p.position[2])+p.radius;if(p.position[1]<floor){p.position[1]=floor;return true}return false}
+ function contact(p){const floor=ground(p.position[0],p.position[2])+p.radius;let hit=false;if(p.position[1]<floor){p.position[1]=floor;hit=true}if(constrain&&constrain(p))hit=true;return hit}
  return {points,step(dt){impacts=[];if(sleeping||dt<=0)return;const n=Math.ceil(Math.min(.05,dt)*180),h=Math.min(.05,dt)/n;
   for(let s=0;s<n;s++){
    const previous={},incoming={},touch=new Set();contacts=0;
