@@ -1,4 +1,4 @@
-// Chase-cam HUD: throttle, brake, hop, air tilt, spring-back steer (cosmetic only), view swap.
+// Chase-cam HUD: throttle, brake, hop, air tilt, spring-back steer. SAMPLE 3D keeps this HUD in both views.
 import {launchBrowser,pageOptions} from './_browser.mjs';
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
@@ -64,12 +64,12 @@ try{
     const {p,errors}=await openRide(browser,{width:844,height:390,track:'sample3d'});
     const side=await hud(p);
     assert.equal(side.view,'side');
-    assert.equal(side.steerDisplay,'none','steer must be hidden in side view');
-    assert.equal(side.tiltCopy,'none');
-    assert.equal(side.driveLabel,'none');
-    assert(side.hop.x<300,'side hop stays on the left');
+    assert.notEqual(side.steerDisplay,'none','sample3d keeps the steer HUD in side view');
+    assert.notEqual(side.tiltCopy,'none','sample3d keeps tilt labels in side view');
+    assert.notEqual(side.driveLabel,'none');
+    assert(side.hop.x>500,'sample3d hop stays on the right in both views');
     assert(side.throttle.x>400,'side throttle stays on the right');
-    assert(side.leanBack.y>side.hop.y,'side lean sits on the bottom row');
+    assert(side.steer.y>side.leanBack.y,'slider sits below the tilt stack');
     assert(side.rewindHidden,'rewind stays hidden until a crash');
     if(shots)await p.screenshot({path:join(shots,'side-phone.png')});
 
@@ -133,7 +133,7 @@ try{
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 
     const hint=await p.locator('.ride-steer-hint').textContent();
-    assert.match(hint||'',/TILT/,'slider should be labelled as tilt');
+    assert.match(hint||'',/STEER/,'slider should be labelled as steer');
 
     // Whole bike+rider in frame, lower-middle on flat, chase FOV near 60 at low speed
     await p.evaluate(()=>{const {s,ter}=__WK_RIDE_STATE__();Object.assign(s,{x:16,vx:3,vy:0,pitch:0,w:0,air:0,wasAir:false,crashed:null,ground:[true,true]});s.y=ter.h(16)+.42;});
@@ -155,7 +155,7 @@ try{
     assert(frame.midY<0.1,'bike should sit in the lower half of the chase frame '+JSON.stringify(frame));
     assert(frame.fov>=59&&frame.fov<=64,'low-speed chase FOV should be about 60, got '+frame.fov);
 
-    // Slider is temporary tilt: left = lean back (nose up), springs back, no cosmetic roll
+    // Slider is STEER: left is negative heading input, does not change wheelie lean, springs back
     await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;Object.assign(s,{y:6,vy:1,vx:4,pitch:0,w:0,air:.3,wasAir:true,crashed:null,ground:[false,false]});});
     const pill=await p.locator('.ride-steer-pill').boundingBox();
     assert(pill);
@@ -163,28 +163,25 @@ try{
     const left={id:14,x:pill.x+pill.width*0.08,y:pill.y+pill.height/2};
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[mid]});
     await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[left]});
-    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.lean>0.4,null,{timeout:3000});
-    await p.waitForTimeout(350);
-    const slid=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,pitch:__WK_RIDE_STATE__().s.pitch,w:__WK_RIDE_STATE__().s.w,roll:__WK_RIDE_STATE__().visual.roll,z:__WK_RIDE_STATE__().visual.z,slider:__WK_RIDE_STATE__().visual.steer,steer:__WK_RIDE_STATE__().inp.steer}));
-    assert(slid.lean>0.4,'left on the slider should lean back '+JSON.stringify(slid));
-    assert(slid.pitch>0.15||slid.w>1,'slider tilt should raise the nose in the air '+JSON.stringify(slid));
-    assert.equal(slid.roll,0,'cosmetic steer roll should be gone');
-    assert.equal(slid.z,0);
-    assert.equal(slid.steer,0);
+    await p.waitForFunction(()=>__WK_RIDE_STATE__().inp.steer<-0.4,null,{timeout:3000});
+    await p.waitForTimeout(200);
+    const slid=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,pitch:__WK_RIDE_STATE__().s.pitch,w:__WK_RIDE_STATE__().s.w,roll:__WK_RIDE_STATE__().visual.roll,slider:__WK_RIDE_STATE__().visual.steer,steer:__WK_RIDE_STATE__().inp.steer}));
+    assert(slid.steer<-0.4,'left on the slider should steer left '+JSON.stringify(slid));
+    assert(Math.abs(slid.lean)<0.15,'slider must not steal tilt/lean '+JSON.stringify(slid));
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().inp.lean)<0.05&&Math.abs(__WK_RIDE_STATE__().visual.steer)<0.05,null,{timeout:3000});
-    const sprung=await p.evaluate(()=>({lean:__WK_RIDE_STATE__().inp.lean,slider:__WK_RIDE_STATE__().visual.steer}));
-    report.phone={accelerate:true,brake:true,hop:true,airTilt:air,sliderTilt:slid,sprung,frame,errors};
+    await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().inp.steer)<0.05&&Math.abs(__WK_RIDE_STATE__().visual.steer)<0.05,null,{timeout:3000});
+    const sprung=await p.evaluate(()=>({steer:__WK_RIDE_STATE__().inp.steer,slider:__WK_RIDE_STATE__().visual.steer,lean:__WK_RIDE_STATE__().inp.lean}));
+    report.phone={accelerate:true,brake:true,hop:true,airTilt:air,sliderSteer:slid,sprung,frame,errors};
 
-    // View swap back to side hides chase chrome
+    // View swap back to side keeps the same HUD (camera swap only) on sample3d
     await p.locator('[data-r=view]').tap();
     await p.waitForFunction(()=>__WK_RIDE_STATE__().cameraView==='side'&&__WK_RIDE_STATE__().cameraBlend===0,null,{timeout:8000});
     const back=await hud(p);
-    assert.equal(back.steerDisplay,'none');
-    assert.equal(back.tiltCopy,'none');
-    assert(back.hop.x<300,'hop returns to the left in side view');
+    assert.notEqual(back.steerDisplay,'none','sample3d side view keeps the steer slider');
+    assert.notEqual(back.tiltCopy,'none');
+    assert(back.hop.x>500,'hop stays on the right in sample3d side view');
     const sideFov=await p.evaluate(()=>__WK_RIDE_SCENE__().cam.fov);
-    assert.equal(sideFov,40,'side-view FOV must stay 40');
+    assert(sideFov>=40&&sideFov<=58,'sample3d side follow FOV should stay mid, got '+sideFov);
     assert.deepEqual(errors,[]);
     await p.close();
   }
