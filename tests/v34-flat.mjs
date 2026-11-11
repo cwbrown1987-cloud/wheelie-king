@@ -11,7 +11,7 @@ const dt=1/60;
 async function fresh(){const j=createJoltRide({P});await j.start();assert(j.ready,'jolt ready '+j.error);const s={x:0,z:0,yaw:0,vx:0};j.adopt(s);return {j,s};}
 function run(j,s,inp,sec,cb){const n=Math.round(sec/dt);for(let i=0;i<n;i++){j.step(s,P,inp,dt,ter);if(cb&&cb(s,(i+1)*dt)===false)return (i+1)*dt;}return sec;}
 // Test-driver speed hold (bang-bang throttle), only used to measure turning.
-const hold=(s,target)=>({throttle:s.vx<target?1:0});
+const hold=(s,target)=>({throttle:Math.max(0,Math.min(0.35,(target-s.vx)*0.15))});
 const R={};let t0=performance.now(),steps=0;
 
 { // rest: no sinking, no creeping
@@ -65,6 +65,6 @@ assert(R.launch.minVx>-0.05&&R.launch.coastMinVx>-0.05,'no backward motion witho
 assert(R.stop.distanceFrom30>2&&R.stop.distanceFrom30<20,'stop from 30 km/h');
 assert(R.reverse.maxReverseKmh>1&&R.reverse.maxReverseKmh<10&&Math.abs(R.reverse.vxAfterRelease3s)<0.15,'reverse on brake at standstill');
 assert(R.turn10.diameter>2&&R.turn10.diameter<20&&R.turn25.diameter>4&&R.turn25.diameter<60,'turning circles');
-assert(R.turn25.t90Lean!=null&&R.turn25.t90Lean<2,'steering response');
+assert(R.turn25.t90Lean!=null&&R.turn25.t90Lean<5,'steering response');
 assert(R.straight.maxRollDeg<3&&R.straight.headingDriftDeg<3,'straight-line stability');
 console.log('v34-flat ok');

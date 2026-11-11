@@ -1,10 +1,12 @@
 const driveButton=(kind,label,icon)=>`<button type="button" class="ride-drive ${kind}" data-t="${kind}" aria-label="${label}">${icon}<span class="ride-drive-label">${kind==='throttle'?'ACCELERATE':'BRAKE'}</span></button>`;
 const brakeIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4"><circle cx="32" cy="32" r="23"/><circle cx="32" cy="32" r="15"/><circle cx="32" cy="32" r="6"/><path d="M32 9v8M32 47v8M9 32h8M47 32h8M16 16l6 6M42 42l6 6M16 48l6-6M42 22l6-6"/></g></svg>';
 const gasIcon='<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 32l16-16 16 16M16 48l16-16 16 16" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const glyph={hop:'M16 6V0 M12 4l4-4 4 4',tailwhip:'M12 4C0-2-2 13 6 15 M2 14l4 1-1-5',barspin:'M22 3c9-5 12 6 5 8 M30 7l-3 4-3-3',superman:'M4 4l17 2 5 4 M12 5L5 9 M20 4l3-3',trick:'M6 7C18-5 34 4 29 13 M26 9l3 4 3-3'};
+const glyph={mono:'M4 20L28 6 M22 4l6 2-2 6',stand:'M16 2v10 M12 6h8',burnout:'M2 20c4-6 8 2 12-4s8 2 12-4',hop:'M16 6V0 M12 4l4-4 4 4',tailwhip:'M12 4C0-2-2 13 6 15 M2 14l4 1-1-5',barspin:'M22 3c9-5 12 6 5 8 M30 7l-3 4-3-3',superman:'M4 4l17 2 5 4 M12 5L5 9 M20 4l3-3',trick:'M6 7C18-5 34 4 29 13 M26 9l3 4 3-3'};
 const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label="${label}"><svg viewBox="0 0 32 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="5"/><circle cx="26" cy="17" r="5"/><path d="M7 17l7-9 5 9H7m7-9h9l3 9M12 5h6m2-3 4 5"/><path d="${glyph[key]}"/></g></svg><span>${label}</span></button>`;
-export const rideControlsMarkup=()=>`<div class="ride-controls">
- <div class="ride-hop ride-tricks">${trickButton('hop','HOP')}</div>
+// Playground (Jolt) has its own working move set; air tricks and HOP are classic-only.
+const PLAYGROUND_MOVES=[['mono','WHEELIE'],['stand','STAND'],['burnout','BURNOUT']];
+export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-controls">
+ <div class="ride-hop ride-tricks"${playground?' hidden':''}>${trickButton('hop','HOP')}</div>
  <div class="ride-lean-buttons"><button type="button" data-t="leanBack" aria-label="Lean back"><span class="ride-lean-glyph" aria-hidden="true">‹</span><span class="ride-tilt-copy"><small>TILT</small><small>BACK</small></span></button><button type="button" data-t="leanForward" aria-label="Lean forward"><span class="ride-lean-glyph" aria-hidden="true">›</span><span class="ride-tilt-copy"><small>TILT</small><small>FWD</small></span></button></div>
  <div class="ride-dpad" role="group" aria-label="Steer and tilt">
   <button type="button" class="ride-dpad-up" data-t="leanForward" aria-label="Tilt forward"><span aria-hidden="true">▲</span><small>UP</small></button>
@@ -12,7 +14,7 @@ export const rideControlsMarkup=()=>`<div class="ride-controls">
   <button type="button" class="ride-dpad-right" data-t="steerRight" aria-label="Steer right"><span aria-hidden="true">▶</span><small>RIGHT</small></button>
   <button type="button" class="ride-dpad-down" data-t="leanBack" aria-label="Tilt back"><span aria-hidden="true">▼</span><small>DOWN</small></button>
  </div>
- <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button><div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div></div>
+ <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button><div class="ride-tricks-fan">${(playground?PLAYGROUND_MOVES:[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']]).map(([key,label])=>trickButton(key,label)).join('')}</div></div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
 </div>`;
 export function mountLeanControls(ui,touch){
@@ -26,13 +28,13 @@ export function mountSteerSlider(ui,touch){
  release();
  return {update(){},release,state:()=>({value:(touch.steerRight||0)-(touch.steerLeft||0),dragging:!!(touch.steerLeft||touch.steerRight)})};
 }
-export function mountTricksMenu(ui){
+export function mountTricksMenu(ui,{autoClose=true}={}){
  const root=ui.querySelector('.ride-tricks:not(.ride-hop)');
  const toggle=root?.querySelector('[data-r=tricks]');
  if(!root||!toggle)return {close(){},state:()=>({open:false})};
  let timer=null;
  const close=()=>{root.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');clearTimeout(timer);timer=null};
- const arm=()=>{clearTimeout(timer);timer=setTimeout(close,2000)};
+ const arm=()=>{clearTimeout(timer);if(autoClose)timer=setTimeout(close,2000)};
  const open=()=>{root.classList.add('is-open');toggle.setAttribute('aria-expanded','true');arm()};
  toggle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(root.classList.contains('is-open'))close();else open()});
  root.querySelector('.ride-tricks-fan')?.addEventListener('pointerdown',arm,true);

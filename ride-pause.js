@@ -1,3 +1,4 @@
+import {WK_VERSION} from './version.js';
 // Pause FAB + centred frosted-glass menu (matches ride-glass / lounge .glass).
 export function pauseMenuMarkup(level) {
   const flat = level === true || level === 'flat';
@@ -12,6 +13,7 @@ export function pauseMenuMarkup(level) {
   <header class="ride-pause-head">
     <strong>PAUSED</strong>
     <p>Take a breath · drop back in when ready</p>
+    <small class="ride-pause-version" data-wk-version>v${WK_VERSION}</small>
   </header>
   <button type="button" class="ride-pause-primary" data-r="menu-resume"><span aria-hidden="true">▶</span> Resume</button>
   <div class="ride-pause-row">
