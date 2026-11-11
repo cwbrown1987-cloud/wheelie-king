@@ -133,7 +133,7 @@ export function createJoltRide({ P, profile = null }) {
   let mForward = 0, mPreviousForward = 1, mRight = 0, mBrake = 0;
   // Rider actions (Project Wheelie style). The rider is not a physics body, so a weight shift
   // is applied as the pitch torque of the rider's weight moving fore/aft over the bike.
-  let leanPrev = 0, wheelSet = null, monoOn = false, stoppieOn = false, prevPitch = null, monoKick = 0, standOn = false, shapes = null, latScaleNow = 1, handBrake = 0, mode = 'ride';
+  let brkWas = false, brkUpT = 9, revArmed = false, leanPrev = 0, wheelSet = null, monoOn = false, stoppieOn = false, prevPitch = null, monoKick = 0, standOn = false, shapes = null, latScaleNow = 1, handBrake = 0, mode = 'ride';
   const RIDER_KG = 75, G = 9.81;
   let rideLift = 0, wheelR = S.backWheelRadius, destroyed = false;
   const scratch = {};
@@ -361,6 +361,16 @@ export function createJoltRide({ P, profile = null }) {
     mForward = 0; mBrake = 0;
     if (thr > 0.05) mForward = thr;
     else if (brk > 0.05) mForward = -brk;
+    // PATCH (brake holds, double-tap reverses): holding BRAKE to a stop, or at a standstill, holds the
+    // bike (slopes too); a quick release + press again while stopped (within 0.4 s) is reverse.
+    {
+      const v = body.GetLinearVelocity(), a = axes(), vf = v.GetX() * a.fwd.x + v.GetY() * a.fwd.y + v.GetZ() * a.fwd.z;
+      const pressed = brk > 0.05 && thr <= 0.05;
+      if (pressed && !brkWas) revArmed = Math.abs(vf) < 0.5 && brkUpT < 0.4;
+      if (!pressed) { if (brkWas) brkUpT = 0; brkUpT += dt; revArmed = false; }
+      brkWas = pressed;
+      if (pressed && !revArmed && vf < 0.3) { mForward = 0; mBrake = brk; }
+    }
     // PATCH (burnout / drift, missing from the sample where Up simply wins): throttle + brake
     // drives the rear and uses Jolt's hand brake on one wheel. Slow: front locked = burnout.
     // Moving: rear dragged = rear-brake slide. Grip loss comes from the friction circle below.

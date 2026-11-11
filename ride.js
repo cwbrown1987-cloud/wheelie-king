@@ -648,7 +648,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     leanControls.update(dt);steerSlider.update(dt);
     inp.throttle = Math.max(touch.throttle, keys.w || ((!freeRoam||arena)&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || ((!freeRoam||arena)&&keys.arrowdown) ? 1 : 0);
     const sideView=!!freeRoam&&cameraView==='side';
-    const leanKey=arena?((keys[' ']?1:0)-(keys.shift?1:0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
+    const leanKey=arena?((keys[' ']||(sideView&&keys.d)?1:0)-(keys.shift||(sideView&&keys.a)?1:0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey-(touch.dragLean||0)))*-1;
     // Side view: A/D lean (see leanKey), touch steer still steers.
     inp.steer = freeRoam?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
