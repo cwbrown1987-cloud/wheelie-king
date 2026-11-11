@@ -41,34 +41,54 @@ export function makeSampleTerrain(){
 }
 const ARENA_HALF=150;
 const ARENA_BUMPS=[[-30,40,8,6,.7],[20,-45,9,7,.85],[-60,-20,10,8,.6],[55,55,8,8,.75],[-80,70,12,9,.9],[90,-80,9,7,.65]];
-// x,z,len,width,peak,yaw  — small, medium, big, then one large ramp
-const ARENA_RAMPS=[
-  {name:'small',x:28,z:0,len:8,w:5,peak:1.05,lip:.72,yaw:0},
-  {name:'medium',x:70,z:22,len:10,w:6,peak:1.6,lip:.74,yaw:0},
-  {name:'big',x:70,z:-28,len:12,w:6.5,peak:2.3,lip:.76,yaw:0},
-  {name:'large',x:115,z:0,len:18,w:9,peak:4.2,lip:.82,yaw:0}
+// Curved kickers along the S-track, plus a tabletop on the opening straight.
+// The off-track "big" kicker stays a 3D hit. Copies get a heading in makeArenaTerrain.
+export const ARENA_RAMPS=[
+  {name:'table',kind:'table',x:-48,z:0,len:16,w:7.2,peak:1.45,up:.32,down:.64,yaw:0},
+  {name:'small',kind:'kicker',x:28,z:0,len:10,w:5.6,peak:1.55,lip:.84,yaw:0},
+  {name:'medium',kind:'kicker',x:70,z:22,len:12,w:6.4,peak:2.15,lip:.84,yaw:0},
+  {name:'big',kind:'kicker',x:70,z:-28,len:12,w:6.5,peak:2.5,lip:.84,yaw:0},
+  {name:'large',kind:'kicker',x:115,z:0,len:20,w:9,peak:3.9,lip:.84,yaw:0}
 ];
 function arenaBump(x,z,mx,mz,rx,rz,peak){const dx=(x-mx)/rx,dz=(z-mz)/rz,r2=dx*dx+dz*dz;if(r2>=1)return 0;const t=1-r2;return peak*t*t}
-function arenaRamp(x,z,r){
+// Smooth C1 profile: zero slope at the base, no kink at the lip.
+export function rampProfile(r,t){
+  t=Math.max(0,Math.min(1,t));
+  const peak=r.peak;
+  // Raised-cosine faces: zero slope at the base, lip and landing (no kinks).
+  if(r.kind==='table'){
+    const a=r.up||.32,b=r.down||.64;
+    if(t<=a)return peak*(1-Math.cos(Math.PI*t/a))/2;
+    if(t<b)return peak;
+    return peak*(1+Math.cos(Math.PI*(t-b)/(1-b)))/2;
+  }
+  const lip=r.lip||.7;
+  if(t<=lip)return peak*(1-Math.cos(Math.PI*t/lip))/2;
+  return peak*(1+Math.cos(Math.PI*(t-lip)/(1-lip)))/2;
+}
+export function arenaRamp(x,z,r){
   const c=Math.cos(r.yaw||0),n=Math.sin(r.yaw||0),dx=x-r.x,dz=z-r.z,lx=dx*c+dz*n,lz=-dx*n+dz*c;
   if(lx<0||lx>r.len||Math.abs(lz)>r.w/2)return 0;
-  const edge=1-Math.min(1,Math.max(0,(Math.abs(lz)-r.w/2+.85)/.85));
-  const t=lx/r.len,lip=r.lip||.72;
-  const h=t<=lip?r.peak*(t/lip)*(t/lip):r.peak*Math.pow(1-(t-lip)/(1-lip),2);
-  return h*edge;
+  const fade=.9,u=Math.max(0,Math.min(1,(Math.abs(lz)-(r.w/2-fade))/fade)),edge=1-u*u*(3-2*u);
+  return rampProfile(r,lx/r.len)*edge;
 }
 export function makeArenaTerrain(){
+  const track=makeArenaTrack();
+  const ramps=ARENA_RAMPS.map(r=>{
+    const n=track.nearest(r.x,r.z);
+    return {...r,yaw:r.name==='big'?0:n.heading};
+  });
   function height(x,z){
     let y=0;
     for(const [mx,mz,rx,rz,peak] of ARENA_BUMPS)y=Math.max(y,arenaBump(x,z,mx,mz,rx,rz,peak));
-    for(const r of ARENA_RAMPS)y=Math.max(y,arenaRamp(x,z,r));
+    for(const r of ramps)y=Math.max(y,arenaRamp(x,z,r));
     return y;
   }
   function slopeAt(x,z,yaw){const d=.3,c=Math.cos(yaw||0),n=Math.sin(yaw||0);return Math.atan2(height(x+c*d,z+n*d)-height(x-c*d,z-n*d),2*d)}
   return {
     pts:[[-ARENA_HALF,0],[ARENA_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,slopeAt,
-    puddles:[],checkpoints:[0],kickers:ARENA_RAMPS.map(r=>r.x),ramps:ARENA_RAMPS,bumps:ARENA_BUMPS,
-    finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,arena:true,boxes:[],track:makeArenaTrack(),
+    puddles:[],checkpoints:[0],kickers:ramps.map(r=>r.x),ramps,bumps:ARENA_BUMPS,
+    finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,arena:true,boxes:[],track,
     bounds:{xmin:-ARENA_HALF,xmax:ARENA_HALF,zmin:-ARENA_HALF,zmax:ARENA_HALF},gates:null
   };
 }
@@ -150,6 +170,14 @@ export function step(s, p, inp, dt, ter) {
   }
   let onG = s.ground[0] || s.ground[1];
   Fx -= 0.32 * s.vx * Math.abs(s.vx);
+  // Extra linear coasting drag + engine braking. Applied to Fx only so it
+  // does not add pitch torque (wheelie / trick physics stay as they are).
+  if(!s.reversing&&!s.burnout&&Math.abs(s.vx)>0.05){
+    const shut=Math.max(0,1-(s.thr||0));
+    const roll=p.mass*0.28;
+    const eng=(p.pedal?p.mass*0.12:p.mass*0.8)*shut*Math.min(1,Math.abs(s.vx)/3);
+    Fx-=Math.sign(s.vx)*(roll+eng);
+  }
   if(s.burnout)Fx-=s.vx*p.mass*12;
   // Air control tapers near 9 rad/s; modest damping preserves takeoff momentum.
   if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*11*dt*Math.max(0,1-Math.max(0,Math.sign(inp.lean)*s.w-6)/3);

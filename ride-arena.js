@@ -23,7 +23,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     g.setLineDash([]);g.strokeStyle='#d7d0a4';g.lineWidth=2;
     g.strokeRect(10,10,w-20,h-20);
   });
-  grid.repeat.set(30,30);
+  grid.repeat.set(60,60);
   const asphalt=mat('#44454f',{map:grid,roughness:.72});
   const segs=lowDetail?80:150;
   const floor=new T.Mesh(new T.PlaneGeometry(HALF*2,HALF*2,segs,segs),asphalt);
@@ -51,8 +51,20 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       }
       const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);return g;
     };
-    const dirt=mat('#2c281f',{roughness:.92,color:'#2c281f'});
-    const m=new T.Mesh(strip(hw,.03),dirt);m.name='environment:arena-track';m.receiveShadow=true;m.renderOrder=1;root.add(m);
+    const dirtTex=canvasTex((g,w,h)=>{
+      g.fillStyle='#4a3a28';g.fillRect(0,0,w,h);
+      for(let i=0;i<1800;i++){const n=Math.abs(Math.sin(i*12.9898)*43758.5453)%1,m=Math.abs(Math.sin(i*78.233)*24634.863)%1;
+        g.fillStyle=n>.55?'#6a5133':'#3a2c1e';g.globalAlpha=.35+.4*m;g.fillRect((n*w)|0,(m*h)|0,2,2)}
+      g.globalAlpha=1;g.strokeStyle='#c9b17a';g.lineWidth=3;g.setLineDash([18,16]);
+      g.beginPath();g.moveTo(w/2,0);g.lineTo(w/2,h);g.stroke();g.setLineDash([]);
+    },256,256);
+    dirtTex.repeat.set(1,1);
+    const dirt=mat('#6b5134',{map:dirtTex,roughness:.92});
+    const tg=strip(hw,.03);
+    const uv=new Float32Array(tg.attributes.position.count*2);
+    for(let i=0;i<n;i++){const s=samp[i].s/3.2;uv[i*4]=s;uv[i*4+1]=0;uv[i*4+2]=s;uv[i*4+3]=1}
+    tg.setAttribute('uv',new T.BufferAttribute(uv,2));
+    const m=new T.Mesh(tg,dirt);m.name='environment:arena-track';m.receiveShadow=true;m.renderOrder=1;root.add(m);
     const edge=mat('#f0e2a0',{roughness:.65,emissive:'#c9b56a',emissiveIntensity:.18,side:T.DoubleSide});
     for(const side of [-1,1]){
       const g=strip(.16,.04);
@@ -173,22 +185,75 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     }
   }
 
-  // Coloured run-up lanes and chevrons into each kicker.
-  const laneCols={small:'#5ec8ff',medium:'#f0a33a',big:'#e26bff',large:'#7dff6a'};
+  // Coloured run-up lanes and chevrons into each kicker, aligned with the ramp heading.
+  const laneCols={table:'#e8d36a',small:'#5ec8ff',medium:'#f0a33a',big:'#e26bff',large:'#7dff6a'};
   const arrowShape=(()=>{const s=new T.Shape();s.moveTo(.9,0);s.lineTo(-.45,.55);s.lineTo(-.2,0);s.lineTo(-.45,-.55);s.closePath();const g=new T.ShapeGeometry(s);g.rotateX(-Math.PI/2);sharedGeo.push(g);return g})();
   for(const r of (terrain.ramps||[])){
     const col=laneCols[r.name]||'#d7d0a4';
+    const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw);
     const len=Math.max(14,r.len*1.8),w=Math.max(3.2,r.w*.7);
-    const midX=r.x-len/2, midZ=r.z;
+    const midX=r.x-c*len/2, midZ=r.z-n*len/2;
     const lane=new T.Mesh(new T.PlaneGeometry(len,w),mat(col,{roughness:.6,emissive:col,emissiveIntensity:.16,transparent:true,opacity:.55}));
     sharedGeo.push(lane.geometry);
-    lane.rotation.x=-Math.PI/2;lane.position.set(midX,h(midX,midZ)+.03,midZ);lane.name='environment:runway:'+r.name;lane.receiveShadow=true;root.add(lane);
+    lane.rotation.x=-Math.PI/2;lane.rotation.z=-yaw;lane.position.set(midX,h(midX,midZ)+.03,midZ);lane.name='environment:runway:'+r.name;lane.receiveShadow=true;root.add(lane);
     const chevMat=mat(col,{emissive:col,emissiveIntensity:.35,side:T.DoubleSide,roughness:.55});
     for(let i=0;i<3;i++){
-      const ax=r.x-2.2-i*2.1, az=r.z;
-      const a=add(root,arrowShape,chevMat,ax,h(ax,az)+.04,az,1,1,1);
-      a.rotation.y=-Math.PI/2;a.name='environment:arrow:'+r.name;
+      const d=2.2+i*2.1,ax=r.x-c*d,az=r.z-n*d;
+      const a=add(root,arrowShape,chevMat,ax,h(ax,az)+.04,az,1,1,1,yaw);
+      a.rotation.y=yaw-Math.PI/2;a.name='environment:arrow:'+r.name;
     }
+  }
+
+  // Bright, outlined jump bodies so they read from side and chase at a distance.
+  const jumpDirtTex=canvasTex((g,w,h)=>{
+    g.fillStyle='#d2a05a';g.fillRect(0,0,w,h);
+    for(let i=0;i<2200;i++){const n=Math.abs(Math.sin(i*37.71)*23421.2)%1,m=Math.abs(Math.sin(i*11.13)*91873.4)%1;
+      g.fillStyle=n>.6?'#e8c07a':n>.3?'#b8843e':'#8a5a28';g.globalAlpha=.55;g.fillRect((n*w)|0,(m*h)|0,3,2)}
+    g.globalAlpha=1;
+  },256,256);
+  const jumpMat=mat('#d4a056',{map:jumpDirtTex,roughness:.86,emissive:'#7a4a18',emissiveIntensity:.12});
+  const lipMat=mat('#ffe27a',{roughness:.45,emissive:'#ffcc44',emissiveIntensity:.55,side:T.DoubleSide});
+  const edgeMat=mat('#5a3a1c',{roughness:.9,emissive:'#2a1808',emissiveIntensity:.08,side:T.DoubleSide});
+  const shadowMat=mat('#000000',{transparent:true,opacity:.32,depthWrite:false});
+  for(const r of (terrain.ramps||[])){
+    const yaw=r.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw);
+    const nx=Math.max(18,Math.round(r.len*3)),nz=Math.max(8,Math.round(r.w*3));
+    const pos=[],uv=[],idx=[];
+    for(let iz=0;iz<=nz;iz++)for(let ix=0;ix<=nx;ix++){
+      const lx=ix/nx*r.len,lz=(iz/nz-0.5)*r.w;
+      const x=r.x+c*lx-n*lz,z=r.z+n*lx+c*lz,y=h(x,z)+.04;
+      pos.push(x,y,z);uv.push(lx/4, (lz+r.w/2)/2);
+      if(ix<nx&&iz<nz){const a=iz*(nx+1)+ix,b=a+1,d=a+nx+1,e=d+1;idx.push(a,d,b,b,d,e)}
+    }
+    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);
+    const body=new T.Mesh(g,jumpMat);body.name='environment:jump:'+r.name;body.receiveShadow=true;body.castShadow=!lowDetail;body.renderOrder=3;root.add(body);
+    // Lip stripe
+    const lipT=r.kind==='table'?(r.up||.32):(r.lip||.7);
+    const lx=r.len*lipT,stripe=new T.BoxGeometry(0.28,0.1,r.w*.92);sharedGeo.push(stripe);
+    const midX=r.x+c*lx,midZ=r.z+n*lx,lipY=h(midX,midZ)+.1;
+    const lip=new T.Mesh(stripe,lipMat);lip.position.set(midX,lipY,midZ);lip.rotation.y=-yaw;lip.name='environment:jump-lip:'+r.name;lip.castShadow=!lowDetail;root.add(lip);
+    if(r.kind==='table'){
+      const lx2=r.len*(r.down||.64),midX2=r.x+c*lx2,midZ2=r.z+n*lx2;
+      const lip2=new T.Mesh(stripe,lipMat);lip2.position.set(midX2,h(midX2,midZ2)+.1,midZ2);lip2.rotation.y=-yaw;lip2.name='environment:jump-lip2:'+r.name;root.add(lip2);
+    }
+    // Side outline / edge rails
+    for(const side of [-1,1]){
+      const ep=[],ei=[];
+      for(let ix=0;ix<=nx;ix++){
+        const lx=ix/nx*r.len,lz=side*r.w/2;
+        const x=r.x+c*lx-n*lz,z=r.z+n*lx+c*lz,y=h(x,z);
+        ep.push(x,0.02,z, x,y+.06,z);
+        if(ix<nx){const a=ix*2;ei.push(a,a+2,a+1,a+1,a+2,a+3)}
+      }
+      const eg=new T.BufferGeometry();eg.setAttribute('position',new T.Float32BufferAttribute(ep,3));eg.setIndex(ei);eg.computeVertexNormals();sharedGeo.push(eg);
+      const rail=new T.Mesh(eg,edgeMat);rail.name='environment:jump-edge:'+r.name;rail.castShadow=!lowDetail;root.add(rail);
+    }
+    // Soft ground shadow
+    const sh=new T.Mesh(new T.PlaneGeometry(r.len+2.2,r.w+2.4),shadowMat);
+    sharedGeo.push(sh.geometry);
+    sh.rotation.x=-Math.PI/2;sh.rotation.z=-yaw;
+    sh.position.set(r.x+c*(r.len/2),0.02,r.z+n*(r.len/2));
+    sh.name='environment:jump-shadow:'+r.name;sh.renderOrder=0;root.add(sh);
   }
 
   // City ring outside the walls — sample3d kit: mixed buildings, trees, palms, fences, cars.
