@@ -24,7 +24,7 @@ export function pauseMenuMarkup(level) {
       <button type="button" data-r="mode-trials" aria-pressed="${trials ? 'true' : 'false'}">Trials</button>
       <button type="button" data-r="mode-sample3d" aria-pressed="${sample ? 'true' : 'false'}">SAMPLE 3D</button>
       <button type="button" data-r="mode-endless" aria-pressed="${flat ? 'true' : 'false'}">Endless</button>
-      <button type="button" data-r="mode-arena" aria-pressed="${arena ? 'true' : 'false'}">ARENA</button>
+      <button type="button" data-r="mode-arena" aria-pressed="${arena ? 'true' : 'false'}">PLAYGROUND</button>
     </div>
   </div>
   ${arena ? `<div class="ride-pause-mode" role="group" aria-label="Physics">

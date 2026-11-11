@@ -5,6 +5,7 @@ import { makeLoopMesh } from './ride-loop.js';
 // Wheelie King ride (v16). MotoX-Mayhem-style side-on 3D ride using the REAL garage bike (cloned, with its parts and stickers).
 // Physics: ride-physics.js (pure 2D, reusable for a later 3D mode). This file is only rendering, input, FX, HUD and saving condition.
 import * as T from "./vendor/three.module.js";
+import { RGBELoader } from "./vendor/RGBELoader.js";
 import { createSideCamera } from "./ride-camera.js";
 import { lightenForRide } from "./ride-lod.js";
 import { TIERS, pickTier, createQualityMonitor } from "./ride-quality.js";
@@ -46,8 +47,8 @@ globalThis.__WK_COND__ = { load: loadCond, save: saveCond, apply: applyCondition
 export function readRideLevel(){
   try{
     const q=new URLSearchParams(location.search).get('track');
-    if(q==='sample3d'||q==='sample-3d'||q==='flat'||q==='endless'||q==='trials'||q==='arena'){
-      const level=q==='sample-3d'?'sample3d':q==='endless'?'flat':q;
+    if(q==='sample3d'||q==='sample-3d'||q==='flat'||q==='endless'||q==='trials'||q==='arena'||q==='playground'){
+      const level=q==='sample-3d'?'sample3d':q==='endless'?'flat':q==='playground'?'arena':q;
       if(!globalThis.__WK_TRACK_QUERY_APPLIED__){
         globalThis.__WK_TRACK_QUERY_APPLIED__=true;
         try{localStorage.setItem('wk-level',level)}catch{}
@@ -55,7 +56,7 @@ export function readRideLevel(){
       }
     }
   }catch{}
-  try{const v=localStorage.getItem('wk-level');if(v==='flat'||v==='sample3d'||v==='trials'||v==='arena')return v}catch{}
+  try{const v=localStorage.getItem('wk-level');if(v==='playground')return 'arena';if(v==='flat'||v==='sample3d'||v==='trials'||v==='arena')return v}catch{}
   return 'trials';
 }
 
@@ -148,9 +149,29 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       tex.repeat.set(rx,ry);tex.offset.set(ox,oy);
     }
   }
-  const backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;if(attachWorldSky)attachWorldSky(horizonTex);else layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
   // terrain
-  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',arena=level==='arena',freeRoam=sample3d||arena,ter=flat?makeFlatTerrain():sample3d?makeSampleTerrain():arena?makeArenaTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat||arena?500:ter.finish;const pts=ter.pts;
+  const level=readRideLevel(),flat=level==='flat',sample3d=level==='sample3d',arena=level==='arena',freeRoam=sample3d||arena;
+  let skyKind=arena?'hdri-sunset_jhbcentral':'painted';
+  let backdrop=null;
+  if(arena){
+    // World-fixed HDRI sky. A marker group stops the render loop installing the painted billboard.
+    worldSky=new T.Group();worldSky.name='wk:world-sky';scene.add(worldSky);
+    sky.visible=false;sunDisc.visible=false;
+    if(scene.fog){scene.fog.near=220;scene.fog.far=520;scene.fog.color.set('#2a1824');}
+    backdrop=new T.Texture();
+    new RGBELoader().load('./assets/hdri/sunset_jhbcentral_1k.hdr',hdr=>{
+      if(disposed){hdr.dispose();return;}
+      hdr.mapping=T.EquirectangularReflectionMapping;
+      scene.background=hdr;
+      try{const pmrem=new T.PMREMGenerator(R);scene.environment=pmrem.fromEquirectangular(hdr).texture;pmrem.dispose();}catch{}
+      sky.visible=false;sunDisc.visible=false;
+      legacyScenery.forEach(o=>o.visible=false);
+      backdropLoaded=true;
+    },undefined,()=>{if(!disposed){scene.background=new T.Color('#2a1824');backdropLoaded=true;}});
+  }else{
+    backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;if(attachWorldSky)attachWorldSky(horizonTex);else layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
+  }
+  const ter=flat?makeFlatTerrain():sample3d?makeSampleTerrain():arena?makeArenaTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat||arena?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0],pts[0][1]-.45);pts.forEach(([x,y])=>shape.lineTo(x,y));[...pts].reverse().forEach(([x,y])=>shape.lineTo(x,y-.45));shape.closePath();
   const groundGeo = new T.ExtrudeGeometry(shape, { depth: 2.4, bevelEnabled: false }); groundGeo.translate(0, 0, -1.2);
   const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; scene.add(ground);
@@ -174,22 +195,6 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   let physics=arena?readRidePhysics():'classic';
   let jolt=null;
 if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;if(arena){ground.visible=false;dirtTop.visible=false;layers.foreground&& (layers.foreground.visible=false);}
-  // Arena: the painted city becomes a world-fixed cylinder so the ground stays put
-  // while you ride and turn. Screen-space scene.background no longer pans with s.x.
-  attachWorldSky=(tex)=>{
-    if(!arena||!tex?.image||worldSky)return;
-    const w=2048,h=512,c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
-    const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#3a2a58');g.addColorStop(.35,'#c97a6a');g.addColorStop(.7,'#6a5a78');g.addColorStop(1,'#5c4c68');
-    x.fillStyle=g;x.fillRect(0,0,w,h);
-    const cw=(w*.4)|0,cx=((w-cw)/2)|0;
-    x.drawImage(tex.image,0,0,tex.image.width,tex.image.height*.55,cx,0,cw,h*.75);
-    worldSkyTex=new T.CanvasTexture(c);worldSkyTex.colorSpace=T.SRGBColorSpace;worldSkyTex.wrapS=T.RepeatWrapping;worldSkyTex.wrapT=T.ClampToEdgeWrapping;
-    const geo=new T.CylinderGeometry(280,280,72,64,1,true);
-    worldSky=new T.Mesh(geo,new T.MeshBasicMaterial({map:worldSkyTex,side:T.BackSide,fog:false,depthWrite:false}));
-    worldSky.position.set(0,24,0);worldSky.name='wk:world-sky';worldSky.frustumCulled=false;scene.add(worldSky);
-    scene.background=new T.Color('#5c4c68');sky.visible=false;sunDisc.visible=false;
-  };
-  if(horizonTex)attachWorldSky(horizonTex);
   if(arena){
     R.shadowMap.enabled=true;
     const sz=Q.shadows?1024:512;sun.shadow.mapSize.set(sz,sz);
@@ -269,7 +274,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   // HUD + touch controls (DOM over the canvas)
   const ui = document.createElement("div"); ui.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:4;font-family:'Bungee',Impact,sans-serif;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none"; el.appendChild(ui);
   ui.innerHTML = `<div class="ride-review-scrim" aria-hidden="true"></div><button type="button" class="ride-view-label" data-r="view" aria-label="Switch camera view" aria-pressed="false">▣ SIDE VIEW (2.5D)</button><div class="ride-toolbar" style="position:absolute;top:8px;left:8px;display:flex;gap:8px;pointer-events:auto">
-    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${arena?"ARENA":sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
+    <button data-r="back" style="${btnCss("#222", 54, 44)}">←</button><button data-r="reset" aria-label="Reset ride" style="${btnCss("#222", 48, 44)}">↻</button><button data-r="tilt" style="${btnCss("#222", 96, 44)}">TILT: OFF</button><button data-r="level" title="Change course and start a new run" style="${btnCss("#214632", 130, 44)}">${arena?"PLAYGROUND":sample3d?"SAMPLE 3D":("ENDLESS "+(flat?"∞":"OFF"))}</button></div>
    ${pauseMenuMarkup(level)}
    <div style="position:absolute;top:8px;right:10px;text-align:right;text-shadow:0 2px 6px #000"><div data-h="score" style="font-size:30px;color:#39ff7a">0</div><div data-h="best" style="font-size:13px;opacity:.85"></div></div>
    <div style="position:absolute;top:96px;left:10px;text-shadow:0 2px 6px #000"><div data-h="speed" style="font-size:34px">0<small> km/h</small></div><div data-h="heading" style="font-size:13px;letter-spacing:.06em;opacity:.9"></div><div data-h="wheelie" style="font-size:15px;color:#ffd23d"></div><div data-h="batt" style="font-size:13px;opacity:.85"></div><div data-h="prog" style="width:150px;height:6px;background:#0006;border-radius:3px;margin-top:6px"><div style="height:100%;width:0;background:#39ff7a;border-radius:3px"></div></div></div>
@@ -720,7 +725,20 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     visDive+=(diveT-visDive)*(1-Math.exp(-8*Math.max(dt,.001)));
     visSquat+=(squatT-visSquat)*(1-Math.exp(-8*Math.max(dt,.001)));
     const wheelDist=rewinding?rewindDx:s.vx*dt;
-    if(mechanical)mechanical.update({distance:wheelDist,frontDistance:rewinding?rewindDx:(s.wheelOmega?s.wheelOmega[1]:s.vx/P.R)*P.R*dt,rearDistance:rewinding?rewindDx:(s.wheelOmega?s.wheelOmega[0]:s.vx/P.R)*P.R*dt,driveDistance:rewinding?rewindDx:(s.wheelOmega?s.wheelOmega[P.driveAxle==='front'?1:0]:s.vx/P.R)*P.R*dt,rearCompression:crashRig?0:Math.min(1,(build.shock?s.comp[0]||0:0)+visSquat),frontCompression:crashRig?0:Math.min(1,(s.comp[1]||0)+visDive),travelR:P.travelR,travelF:P.travelF,steerAngle:s.steer||0});
+    const axleR=P.R||A.wheelR||.33;
+    const omegaAt=i=>{const w=Array.isArray(s.wheelOmega)?s.wheelOmega[i]:NaN;return Number.isFinite(w)?w:null};
+    const axleDist=i=>{
+      if(rewinding)return rewindDx;
+      const w=omegaAt(i);
+      // A leftover [0,0] array is truthy; only a finite omega should drive spin.
+      // In classic air (or a stale zero after handover) fall back to travel speed.
+      if(w!=null&&!(jolt?.air&&Math.abs(w)<1e-3&&Math.abs(s.vx)>0.4))return w*axleR*dt;
+      return (Number.isFinite(s.vx)?s.vx:0)*dt;
+    };
+    const mech={distance:wheelDist,frontDistance:axleDist(1),rearDistance:axleDist(0),driveDistance:axleDist(P.driveAxle==='front'?1:0),rearCompression:crashRig?0:Math.min(1,(build.shock?s.comp[0]||0:0)+visSquat),frontCompression:crashRig?0:Math.min(1,(s.comp[1]||0)+visDive),travelR:P.travelR,travelF:P.travelF,steerAngle:s.steer||0};
+    const burnoutRear=!!(s.burnout&&Math.abs(omegaAt(0)||0)<8);
+    if(burnoutRear)mech.rearDistance=Math.max(mech.rearDistance,18*axleR*dt);
+    if(mechanical)mechanical.update(mech);
     else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
     supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;if(!crashRig)riderModel.update({lean:inp.lean,superman:supermanPose});stuntRig.pose(s.stunt);
     // checkpoints / finish — sample3d uses street-width gates so dirt loops don't auto-finish
@@ -981,9 +999,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     put(hud.batt,'batt',P.powertrain==='petrol'?'FUEL '+Math.round(s.battery*100)+'% · '+(stats.cc??find(build.motor)?.cc??'')+'cc':P.pedal ? "PEDAL POWER" : "BATTERY " + Math.round(s.battery * 100) + "%"); {const pw = Math.max(0, Math.min(100, s.x / ter.finish * 100)) + "%"; if(hc.pw!==pw){hc.pw=pw;hud.prog.firstChild.style.width = pw;}}
     if (s.trickT <= 0 && hud.trick.style.opacity!=='0') hud.trick.style.opacity = Math.max(0, +hud.trick.style.opacity - dt * 2); msgT -= dt; put(hud.msg,'msg',paused?"PAUSED":msgT > 0 ? msg : "");
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;sty("transformOrigin","top left");sty("transform",`scale(${1/screenScale})`);sty("width",(w*screenScale)+"px");sty("height",(h*screenScale)+"px");sty("right","auto");sty("bottom","auto");const pixelRatio=Math.min(maxPR,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
-    if(!worldSky)layoutBackdrop(horizonTex||backdrop,w,h,arena?0:Math.sin(s.x*.001)*TH.backdrop.sway,blend);
+    if(!worldSky&&!arena)layoutBackdrop(horizonTex||backdrop,w,h,Math.sin(s.x*.001)*TH.backdrop.sway,blend);
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;layers.foreground.position.x=tile;layers.update(tile);flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','FLAT ENDLESS · '+Math.floor(s.odo)+' m');}
-    if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','ARENA · '+Math.floor(s.odo)+' m');}
+    if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','PLAYGROUND · '+Math.floor(s.odo)+' m');}
     // While the replay panel covers the game, the scene is frozen: draw it once and leave the GPU/main thread to the video decoder (fixes stuttery replays on phones).
     if (!reviewing || !hc.reviewDrawn) { R.render(scene, cam); hc.reviewDrawn = reviewing; }
     if (photoDelay >= 0 && realDt && (photoDelay -= realDt) <= 0) {
@@ -1008,8 +1026,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     return Object.assign(touch,patch||{});
   };
 
-  globalThis.__WK_SET_PHYSICS__=setPhysics;globalThis.__WK_RIDE_STATE__ = () => ({ s, P, physics, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
-  function stop(save=true) {if(disposed)return;disposed=true;try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_SET_PHYSICS__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');el.removeAttribute('data-wk-track-side');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();if(worldSky){worldSky.geometry.dispose();worldSky.material.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
+  globalThis.__WK_SET_PHYSICS__=setPhysics;globalThis.__WK_RIDE_STATE__ = () => ({ s, P, physics, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null, dirt, wear, flips, finished, inp, ter, level, sample3d, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),cameraView,cameraBlend,trackLock:ter.track?{mode:trackLock.mode,t:trackLock.t,dur:trackLock.dur,...ter.track.nearest(s.x,s.z||0),align:trackLock.align||0}:null,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,sky:skyKind,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  function stop(save=true) {if(disposed)return;disposed=true;try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_SET_PHYSICS__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku); removeEventListener("deviceorientation", ori);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');el.removeAttribute('data-wk-track-side');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }

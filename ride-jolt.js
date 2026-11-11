@@ -394,8 +394,11 @@ export function createJoltRide({ ter, P, colliders }) {
       front.mRadius = wheelR;
       front.mWidth = 0.10;
       front.mSuspensionMinLength = 0.22;
-      front.mSuspensionMaxLength = 0.22 + travelF;
-      front.mSuspensionSpring.mFrequency = 1.6;
+      // Extra travel plus a slightly firmer, damped spring so a hard run-up
+      // does not slam the front fork into the stop.
+      front.mSuspensionMaxLength = 0.22 + travelF + 0.04;
+      front.mSuspensionSpring.mFrequency = 1.85;
+      try { if (front.mSuspensionSpring.mDamping !== undefined) front.mSuspensionSpring.mDamping = 0.55; } catch {}
       front.mMaxBrakeTorque = 220;
       front.mMaxHandBrakeTorque = 0;
       front.mInertia = 0.9;
@@ -633,9 +636,16 @@ export function createJoltRide({ ter, P, colliders }) {
     s.ground = [onR, onF];
     s.wheelOmega = s.wheelOmega || [0, 0];
     s.slip = s.slip || [0, 0];
+    s.wheelAngle = s.wheelAngle || [0, 0];
     s.wheelOmega[0] = omegaR; s.wheelOmega[1] = omegaF;
     s.slip[0] = omegaR * wheelR - vxFwd;
     s.slip[1] = omegaF * wheelR - vxFwd;
+    try {
+      const wr = Jolt.castObject(wR, Jolt.WheelWV);
+      const wf = Jolt.castObject(wF, Jolt.WheelWV);
+      if (wr.GetRotationAngle) s.wheelAngle[0] = wr.GetRotationAngle();
+      if (wf.GetRotationAngle) s.wheelAngle[1] = wf.GetRotationAngle();
+    } catch {}
     s.steer = currentRight * 33 * Math.PI / 180;
     if ([s.x, s.y, s.z, s.yaw, s.vx].every(Number.isFinite)) {
       lastGood = { x: s.x, y: s.y, z: s.z, yaw: s.yaw, pitch: s.pitch, vx: s.vx, vy: s.vy, w: 0, ground: [true, true] };

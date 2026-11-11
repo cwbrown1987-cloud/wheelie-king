@@ -148,8 +148,8 @@ function scatterArenaGrass(T,root,opts){
 import {makeArenaTrack} from './ride-track.js';
 import {rampLength,rampLipX} from './ride-physics.js';
 // TEST ARENA: a big flat square for free-roam speed, wheelies, burnouts and jumps.
-// Painted skyline stays the far backdrop in ride.js. No checkpoints or finish.
-// A ring of sample3d-style city kit sits outside the walls so speed and turns read.
+// No checkpoints or finish. A ring of city kit sits outside the walls; a farther
+// silhouette ring sits on the HDRI horizon (sky itself is in ride.js).
 
 const HALF=150;
 
@@ -158,6 +158,14 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   const sharedTex=[],sharedMat=[],sharedGeo=[];
   const mat=(color,more={})=>{const m=new T.MeshStandardMaterial({color,roughness:.88,...more});sharedMat.push(m);return m};
   const canvasTex=(draw,w=512,h=512)=>{const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;sharedTex.push(t);return t};
+  const loadAcg=(id,kind,srgb=false)=>{
+    const tex=new T.TextureLoader().load(`./assets/ambientcg/${id}/${id}_1K-JPG_${kind}.jpg`);
+    if(srgb)tex.colorSpace=T.SRGBColorSpace;
+    tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.anisotropy=8;sharedTex.push(tex);return tex;
+  };
+  const roadACol=loadAcg('Road008A','Color',true),roadANor=loadAcg('Road008A','NormalGL'),roadARough=loadAcg('Road008A','Roughness');
+  const roadCCol=loadAcg('Road008C','Color',true),roadCNor=loadAcg('Road008C','NormalGL'),roadCRough=loadAcg('Road008C','Roughness');
+  const dirtColMap=loadAcg('Ground086','Color',true),dirtNor=loadAcg('Ground086','NormalGL'),dirtRough=loadAcg('Ground086','Roughness');
   const add=(parent,geo,m,x,y,z,sx=1,sy=1,sz=1,rotY=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.y=rotY;o.castShadow=o.receiveShadow=!lowDetail;parent.add(o);return o};
   const h=(x,z)=>terrain.height(x,z)||0;
   const colliders=[];
@@ -185,7 +193,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   grassTex.offset.set(0,0);packedDirt.offset.set(0,0);
   const floorMat=mat('#5a8a4a',{map:grassTex,roughness:.94,vertexColors:true});
   floorMat.onBeforeCompile=(shader)=>{
-    shader.uniforms.dirtMap={value:packedDirt};
+    shader.uniforms.dirtMap={value:dirtColMap};
     shader.fragmentShader=shader.fragmentShader
       .replace('#include <map_pars_fragment>','#include <map_pars_fragment>\nuniform sampler2D dirtMap;')
       .replace('#include <map_fragment>',`#ifdef USE_MAP
@@ -195,7 +203,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       #endif`)
       .replace('#include <color_fragment>','');
   };
-  floorMat.customProgramCacheKey=()=> 'wk-grass-dirt';
+  floorMat.customProgramCacheKey=()=> 'wk-grass-dirt-ground086';
   const segs=lowDetail?80:150;
   const grassFx={ready:false,entries:[],group:null,cull:GRASS_CULL};
   const floor=new T.Mesh(new T.PlaneGeometry(HALF*2,HALF*2,segs,segs),floorMat);
@@ -244,20 +252,30 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
       }
       const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();sharedGeo.push(g);return g;
     };
-    const dirtTex=canvasTex((g,w,h)=>{
-      g.fillStyle='#4a3a28';g.fillRect(0,0,w,h);
-      for(let i=0;i<1800;i++){const n=Math.abs(Math.sin(i*12.9898)*43758.5453)%1,m=Math.abs(Math.sin(i*78.233)*24634.863)%1;
-        g.fillStyle=n>.55?'#6a5133':'#3a2c1e';g.globalAlpha=.35+.4*m;g.fillRect((n*w)|0,(m*h)|0,2,2)}
-      g.globalAlpha=1;g.strokeStyle='#c9b17a';g.lineWidth=3;g.setLineDash([18,16]);
-      g.beginPath();g.moveTo(w/2,0);g.lineTo(w/2,h);g.stroke();g.setLineDash([]);
-    },256,256);
-    dirtTex.repeat.set(1,1);
-    const dirt=mat('#6b5134',{map:dirtTex,roughness:.92});
+    const trackMat=mat('#888',{map:roadACol,normalMap:roadANor,roughnessMap:roadARough,roughness:1,metalness:0,normalScale:new T.Vector2(.7,.7)});
+    trackMat.onBeforeCompile=(shader)=>{
+      shader.uniforms.roadC={value:roadCCol};
+      shader.uniforms.roadCNor={value:roadCNor};
+      shader.uniforms.roadCRough={value:roadCRough};
+      shader.fragmentShader=shader.fragmentShader
+        .replace('#include <map_pars_fragment>','#include <map_pars_fragment>\nuniform sampler2D roadC;')
+        .replace('#include <map_fragment>',`#ifdef USE_MAP
+        vec2 cell=floor(vMapUv*0.35);
+        float n=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);
+        float patch=step(0.78,n);
+        vec4 roadA=texture2D(map,vMapUv);
+        vec4 roadCv=texture2D(roadC,vMapUv);
+        diffuseColor*=mix(roadA,roadCv,patch);
+      #endif`);
+    };
+    trackMat.customProgramCacheKey=()=> 'wk-road008-patches';
     const tg=strip(hw,.03);
     const uv=new Float32Array(tg.attributes.position.count*2);
-    for(let i=0;i<n;i++){const s=samp[i].s/3.2;uv[i*4]=s;uv[i*4+1]=0;uv[i*4+2]=s;uv[i*4+3]=1}
+    // World-space UVs in metres (tile ~4 m), never scroll with the bike.
+    const posAttr=tg.attributes.position;
+    for(let i=0;i<posAttr.count;i++){uv[i*2]=posAttr.getX(i)/4;uv[i*2+1]=posAttr.getZ(i)/4}
     tg.setAttribute('uv',new T.BufferAttribute(uv,2));
-    const m=new T.Mesh(tg,dirt);m.name='environment:arena-track';m.receiveShadow=true;m.renderOrder=1;root.add(m);
+    const m=new T.Mesh(tg,trackMat);m.name='environment:arena-track';m.userData.trackTex='Road008A';m.receiveShadow=true;m.renderOrder=1;root.add(m);
     const edge=mat('#f0e2a0',{roughness:.65,emissive:'#c9b56a',emissiveIntensity:.18,side:T.DoubleSide});
     for(const side of [-1,1]){
       const g=strip(.16,.04);
@@ -552,6 +570,21 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     }
   }
 
+  // Distant skyline silhouettes, world-fixed on the horizon (not camera-parented).
+  const sil=new T.Group();sil.name='environment:skyline';root.add(sil);
+  const silMat=mat('#141018',{roughness:1,metalness:0,fog:true});
+  let silN=0;
+  for(let i=0;i<64;i++){
+    const a=(i/64)*Math.PI*2+((i*17)%7)*0.01;
+    const r=248+((i*13)%9);
+    const ht=10+((i*29)%23)+((i%5)===0?14:0);
+    const w=7+((i*11)%10),d=6+((i*7)%6);
+    const x=Math.cos(a)*r,z=Math.sin(a)*r;
+    const b=add(sil,box,silMat,x,ht/2,z,w,ht,d,a);
+    b.name='environment:skyline:'+(silN++);
+    b.castShadow=false;b.receiveShadow=false;
+  }
+
   // Thin rear-tyre marks, laid exactly at the rear contact patch (visual only).
   const SKID=192,TYRE_W=.10,MARK_LEN=.16;
   const skidGeo=new T.PlaneGeometry(MARK_LEN,TYRE_W);skidGeo.rotateX(-Math.PI/2);sharedGeo.push(skidGeo);
@@ -644,7 +677,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
     surfaceAt,
     update,
     view(){},
-    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',uvWorld:true,tile:TILE,floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[grassTex.offset.x,grassTex.offset.y],dirtOffset:[packedDirt.offset.x,packedDirt.offset.y],skid:lastSkid,colliders:colliders.length}),
+    state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',trackTex:'Road008A',patchTex:'Road008C',dirtTex:'Ground086',uvWorld:true,tile:TILE,skyline:silN,floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[grassTex.offset.x,grassTex.offset.y],dirtOffset:[0,0],skid:lastSkid,colliders:colliders.length}),
     dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();grassFx.entries?.forEach(e=>e.mesh.dispose());grassFx.group?.removeFromParent();root.removeFromParent();}
   };
 }

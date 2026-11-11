@@ -93,9 +93,9 @@ try{
   assert.equal(start.sample3d,false);
   assert.equal(start.finish,Infinity);
   assert.equal(start.size,300);
-  assert.equal(start.hasArenaBtn,true,'pause Mode should include ARENA');
+  assert.equal(start.hasArenaBtn,true,'pause Mode should include PLAYGROUND');
   assert.equal(start.hasSampleBtn,true);
-  assert.match(start.label||'',/ARENA/);
+  assert.match(start.label||'',/PLAYGROUND/);
   assert.notEqual(start.dpadOn,'none','arena keeps the free-roam d-pad');
   assert.equal(start.view,'side','arena opens in side view');
   assert.equal(start.lock?.mode,'locked','spawn is locked to the track');
