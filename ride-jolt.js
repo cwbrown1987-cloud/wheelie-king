@@ -4,7 +4,7 @@
 import initJolt from './vendor/jolt/jolt-physics.wasm.js';
 import { rampLength, arenaRamp } from './ride-physics.js';
 
-const LAYER_NON_MOVING = 0, LAYER_MOVING = 1, LAYER_CHASSIS = 2, NUM_OBJECT_LAYERS = 3;
+const LAYER_NON_MOVING = 0, LAYER_MOVING = 1, LAYER_CHASSIS = 2, LAYER_PROPS = 3, NUM_OBJECT_LAYERS = 4;
 const STEER_BURNOUT = 0.7;
 const CREEP = 0.45;
 const BALANCE_END = 5.5; // m/s — assist fully gone by this speed
@@ -31,12 +31,21 @@ function setupCollisionFiltering(Jolt, settings) {
   const objectFilter = new Jolt.ObjectLayerPairFilterTable(NUM_OBJECT_LAYERS);
   objectFilter.EnableCollision(LAYER_NON_MOVING, LAYER_MOVING);
   objectFilter.EnableCollision(LAYER_MOVING, LAYER_MOVING);
-  // Chassis stays off the world — only the wheel tester should hit ramps/ground.
+  // Chassis rests on the world, but must NOT collide with LAYER_MOVING.
+  // The wheel tester is LAYER_MOVING; if it can hit the chassis the front
+  // fork bottoms out, the bike plows, and speed dies on the dirt.
+  objectFilter.EnableCollision(LAYER_NON_MOVING, LAYER_CHASSIS);
+  // Knock-over props (cones) live on LAYER_PROPS so the chassis and wheels
+  // can tip them without the tester being able to hit the frame.
+  objectFilter.EnableCollision(LAYER_NON_MOVING, LAYER_PROPS);
+  objectFilter.EnableCollision(LAYER_MOVING, LAYER_PROPS);
+  objectFilter.EnableCollision(LAYER_CHASSIS, LAYER_PROPS);
   const BP_NON = new Jolt.BroadPhaseLayer(0), BP_MOV = new Jolt.BroadPhaseLayer(1);
   const bpInterface = new Jolt.BroadPhaseLayerInterfaceTable(NUM_OBJECT_LAYERS, 2);
   bpInterface.MapObjectToBroadPhaseLayer(LAYER_NON_MOVING, BP_NON);
   bpInterface.MapObjectToBroadPhaseLayer(LAYER_MOVING, BP_MOV);
   bpInterface.MapObjectToBroadPhaseLayer(LAYER_CHASSIS, BP_MOV);
+  bpInterface.MapObjectToBroadPhaseLayer(LAYER_PROPS, BP_MOV);
   settings.mObjectLayerPairFilter = objectFilter;
   settings.mBroadPhaseLayerInterface = bpInterface;
   settings.mObjectVsBroadPhaseLayerFilter = new Jolt.ObjectVsBroadPhaseLayerFilterTable(bpInterface, 2, objectFilter, NUM_OBJECT_LAYERS);
@@ -104,7 +113,8 @@ function addHeightField(Jolt, bodyInterface, ter) {
   const shape = result.Get();
   const bodySet = new Jolt.BodyCreationSettings(shape, new Jolt.RVec3(0, 0, 0), new Jolt.Quat(0, 0, 0, 1), Jolt.EMotionType_Static, LAYER_NON_MOVING);
   const body = bodyInterface.CreateBody(bodySet);
-  body.SetFriction(1.15);
+  // Packed dirt: enough grip to cruise, low enough that it only drags a little.
+  body.SetFriction(0.90);
   body.SetRestitution(0);
   bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
   Jolt.destroy(bodySet);
@@ -175,10 +185,47 @@ function addWalls(Jolt, bodyInterface, ter) {
   addStaticBox(Jolt, bodyInterface, t, h, d / 2 + t, b.xmax + t, midY, (b.zmin + b.zmax) / 2);
 }
 
-function addPropColliders(Jolt, bodyInterface, colliders) {
+function addKnockCone(Jolt, bodyInterface, c, knockProps) {
+  const r = Math.max(0.08, c.r || 0.16);
+  const h = Math.max(0.35, (c.y1 || 0) - (c.y0 || 0));
+  const halfH = h / 2;
+  const shape = new Jolt.CylinderShape(halfH, r);
+  const settings = new Jolt.BodyCreationSettings(
+    shape,
+    new Jolt.RVec3(c.x, (c.y0 || 0) + halfH, c.z),
+    new Jolt.Quat(0, 0, 0, 1),
+    Jolt.EMotionType_Dynamic,
+    LAYER_PROPS
+  );
+  settings.mOverrideMassProperties = Jolt.EOverrideMassProperties_CalculateInertia;
+  settings.mMassPropertiesOverride.mMass = 1;
+  const body = bodyInterface.CreateBody(settings);
+  body.SetFriction(0.45);
+  body.SetRestitution(0);
+  try {
+    const mp = body.GetMotionProperties && body.GetMotionProperties();
+    if (mp) {
+      if (mp.SetLinearDamping) mp.SetLinearDamping(0.85);
+      if (mp.SetAngularDamping) mp.SetAngularDamping(1.35);
+      // A bit of extra inertia so a 1 kg cone tips instead of detonating.
+      if (mp.SetInverseInertia && mp.GetInverseInertia) {
+        const inv = mp.GetInverseInertia();
+        if (inv && inv.SetX) inv.SetX(inv.GetX() * 0.45), inv.SetY(inv.GetY() * 0.45), inv.SetZ(inv.GetZ() * 0.45);
+      }
+    }
+  } catch {}
+  bodyInterface.AddBody(body.GetID(), Jolt.EActivation_DontActivate);
+  Jolt.destroy(settings);
+  knockProps.push({ body, mesh: c.mesh || null, halfH });
+  return body;
+}
+
+function addPropColliders(Jolt, bodyInterface, colliders, knockProps) {
   if (!colliders) return;
   for (const c of colliders) {
-    if (c.kind === 'box') {
+    if (c.kind === 'cone') {
+      addKnockCone(Jolt, bodyInterface, c, knockProps);
+    } else if (c.kind === 'box') {
       const hy = Math.max(0.1, (c.y1 - c.y0) / 2);
       addStaticBox(Jolt, bodyInterface, c.hx || 0.5, hy, c.hz || 0.5, c.x, c.y0 + hy, c.z, 0.7);
     } else if (c.kind === 'cyl') {
@@ -268,6 +315,8 @@ export function createJoltRide({ ter, P, colliders }) {
   };
   let Jolt, jolt, physicsSystem, bodyInterface, motoBody, constraint, controller;
   let currentRight = 0, hasLanded = false, airOff = 0, settleT = 0.8, adoptClearance = 1.08, syncWheelT = 0;
+  const knockProps = [];
+  let recoverCool = 0, csTorque = 0, suspMaxF = 0.36, suspMaxR = 0.34, suspTravelF = 0.14, suspTravelR = 0.12;
   let bothOffSteps = 0, leftRampFace = false;
   let wheelR = 0.33, joltMass = 115;
   let lastGood = null;
@@ -290,7 +339,7 @@ export function createJoltRide({ ter, P, colliders }) {
       // run-up (front-wheel curb strike, speed gone in 2 m). The heightfield
       // already includes the ramps; wheels ride that surface alone.
       addWalls(Jolt, bodyInterface, ter);
-      addPropColliders(Jolt, bodyInterface, colliders);
+      addPropColliders(Jolt, bodyInterface, colliders, knockProps);
 
       // Same vehicle recipe as jolt-sandbox.js (v33a): leave mForward/mUp at
       // Jolt defaults (Z-forward, Y-up), wheels on Z, chassis on LAYER_MOVING
@@ -300,14 +349,16 @@ export function createJoltRide({ ter, P, colliders }) {
       const wb = P.wb || 1.34, comBack = P.comBack || 0.42, comH = P.comH || 0.9;
       const travelF = Math.max(0.08, P.travelF || 0.14);
       const travelR = Math.max(0.08, P.travelR || 0.12);
+      suspTravelF = travelF; suspTravelR = travelR;
+      suspMaxF = 0.22 + travelF; suspMaxR = 0.22 + travelR;
       const rearZ = -wb * comBack, frontZ = wb * (1 - comBack);
       const caster = 27 * Math.PI / 180;
       const steerMax = 33 * Math.PI / 180;
       const halfW = 0.18, halfH = 0.32, halfL = wb * 0.42;
       const attachY = -0.9 * halfH;
-      // Same as the v33a sandbox: chassis on LAYER_MOVING. LAYER_CHASSIS
-      // (no collisions) broke C after a 30s ride — adopt did not stop the bike.
-      const chassisLayer = LAYER_MOVING;
+      // Chassis on LAYER_CHASSIS (hits the heightfield only). Wheels stay
+      // on the LAYER_MOVING tester so they cannot collide with the frame.
+      const chassisLayer = LAYER_CHASSIS;
 
       const comOffset = new Jolt.Vec3(0, -halfH, 0);
       const box = new Jolt.BoxShapeSettings(new Jolt.Vec3(halfW, halfH, halfL));
@@ -320,6 +371,13 @@ export function createJoltRide({ ter, P, colliders }) {
       motoBody = bodyInterface.CreateBody(bodySet);
       motoBody.SetRestitution(0);
       bodyInterface.SetFriction(motoBody.GetID(), 0.4);
+      try {
+        const mp = motoBody.GetMotionProperties && motoBody.GetMotionProperties();
+        if (mp) {
+          if (mp.SetLinearDamping) mp.SetLinearDamping(0.01);
+          if (mp.SetAngularDamping) mp.SetAngularDamping(0.04);
+        }
+      } catch {}
       bodyInterface.AddBody(motoBody.GetID(), Jolt.EActivation_Activate);
       Jolt.destroy(bodySet);
 
@@ -360,12 +418,17 @@ export function createJoltRide({ ter, P, colliders }) {
       // Workshop e-moto motors are 250–320 Nm. Jolt's MotorcycleController is
       // tuned around 60–150 Nm (sandbox 60, MotorcycleTest 150). Feeding 320
       // raw loops a 115 kg bike out and wrecks takeoff pitch.
-      cs.mEngine.mMaxTorque = Math.max(45, Math.min(90, (P.torque || 60) * 0.25));
+      // ~80 Nm at the crank is the v33b target. A 45 Nm floor plus default
+      // engine damping acts like a strong engine brake at 14–16 m/s, so the
+      // dirt "only drags a little" brief cannot be met even at 0.7 throttle.
+      cs.mEngine.mMaxTorque = csTorque = Math.max(70, Math.min(90, (P.torque || 320) * 0.25));
       cs.mEngine.mMinRPM = 800;
       cs.mEngine.mMaxRPM = 9000;
+      if (cs.mEngine.mAngularDamping !== undefined) cs.mEngine.mAngularDamping = 0.05;
       cs.mTransmission.mShiftDownRPM = 2000;
       cs.mTransmission.mShiftUpRPM = 7500;
-      cs.mTransmission.mClutchStrength = 2.0;
+      // 2 Nm of clutch could not carry 70–80 Nm. Jolt's default is 10.
+      cs.mTransmission.mClutchStrength = 10;
       if (LAY.leanSpring) {
         cs.mMaxLeanAngle = 36 * Math.PI / 180;
         cs.mLeanSpringConstant = 2600;
@@ -385,7 +448,10 @@ export function createJoltRide({ ter, P, colliders }) {
       cs.mDifferentials.push_back(differential);
 
       constraint = new Jolt.VehicleConstraint(motoBody, vehicle);
-      constraint.SetVehicleCollisionTester(new Jolt.VehicleCollisionTesterCastCylinder(LAYER_MOVING, 1));
+      // A cylinder (and especially a fraction-1 sphere) plows through the
+      // 0.29 m heightfield cells. A ray sits on the surface, so dirt only
+      // has tyre friction and a little rolling resistance.
+      constraint.SetVehicleCollisionTester(new Jolt.VehicleCollisionTesterRay(LAYER_MOVING));
       physicsSystem.AddConstraint(constraint);
       physicsSystem.AddStepListener(new Jolt.VehicleConstraintStepListener(constraint));
       controller = Jolt.castObject(constraint.GetController(), Jolt.MotorcycleController);
@@ -485,7 +551,7 @@ export function createJoltRide({ ter, P, colliders }) {
     bodyInterface.ActivateBody(motoBody.GetID());
   }
 
-  function adopt(s) {
+  function adopt(s, opts) {
     if (!api.ready || !motoBody) return;
     const yaw = s.yaw || 0, pitch = s.pitch || 0;
     const q = quatFromYawPitch(Jolt, yaw, pitch);
@@ -535,7 +601,8 @@ export function createJoltRide({ ter, P, colliders }) {
     syncEngineToSpeed(s.vx || 0);
     api.air = false;
     // Keep the takeoff log across a landing adopt so tests can see the handover.
-    if (!fromAir) handovers.length = 0;
+    // Recover adopts must not wipe it either (a sagging land can look "buried").
+    if (!fromAir && !(opts && opts.keepLog)) handovers.length = 0;
     writeState(s, P);
     api.lastAdopt = { y, vx: s.vx, omegaSet: omega, omega: readWheelOmega(), groundTeleport, syncWheelT };
   }
@@ -575,9 +642,12 @@ export function createJoltRide({ ter, P, colliders }) {
     }
     const lenF = wF.GetSuspensionLength ? wF.GetSuspensionLength() : 0;
     const lenR = wR.GetSuspensionLength ? wR.GetSuspensionLength() : 0;
-    // compression 0..1 roughly
+    // compression 0..1 from the live travel so the visual wheels sit on the ground.
     s.comp = s.comp || [0, 0];
-    const travelR = Math.max(0.08, P.travelR || 0.12), travelF = Math.max(0.08, P.travelF || 0.14);
+    const travelR = suspTravelR || Math.max(0.08, P.travelR || 0.12);
+    const travelF = suspTravelF || Math.max(0.08, P.travelF || 0.14);
+    s.comp[0] = travelR ? Math.max(0, Math.min(1, ((suspMaxR || (0.22 + travelR)) - lenR) / travelR)) : 0;
+    s.comp[1] = travelF ? Math.max(0, Math.min(1, ((suspMaxF || (0.22 + travelF)) - lenF) / travelF)) : 0;
     s.curvature = Math.abs(s.vx) > 0.4 ? (s.wYaw || 0) / Math.max(0.4, s.vx) : 0;
   }
 
@@ -657,7 +727,42 @@ export function createJoltRide({ ter, P, colliders }) {
   }
 
 
+  function syncKnockProps() {
+    for (const k of knockProps) {
+      if (!k.mesh || !k.body) continue;
+      try {
+        const p = k.body.GetPosition(), r = k.body.GetRotation();
+        k.mesh.position.set(p.GetX(), p.GetY(), p.GetZ());
+        k.mesh.quaternion.set(r.GetX(), r.GetY(), r.GetZ(), r.GetW());
+      } catch {}
+    }
+  }
+
+  function recoverPose(s, ter) {
+    if (!s || s.crashed) return;
+    const gy = ter && typeof ter.height === 'function' ? (ter.height(s.x, s.z || 0) || 0) : 0;
+    const roll = Math.abs(s.joltRollRaw != null ? s.joltRollRaw : (s.joltRoll || 0));
+    const buried = !api.air && s.y < gy + 0.18;
+    const falseAir = api.air && s.y < gy + 1.05 && (s.vy || 0) < 1.2 && !pastKickerLip(s.x, s.z, ter);
+    const flopped = !api.air && roll > 1.05 && (s.ground && (s.ground[0] || s.ground[1]));
+    if (!(buried || falseAir || flopped)) return;
+    if (recoverCool > 0) return;
+    recoverCool = 0.35;
+    const vx = Math.max(-18, Math.min(18, Number.isFinite(s.vx) ? s.vx : 0));
+    s.y = Math.max(s.y, gy + (0.82));
+    s.pitch = 0; s.w = 0; s.vy = 0; s.air = 0; s.joltRoll = 0; s.joltRollRaw = 0;
+    s.ground = [true, true];
+    api.air = false;
+    leftRampFace = false;
+    bothOffSteps = 0;
+    airOff = 0;
+    s.vx = vx;
+    adopt(s, { keepLog: true });
+    s.air = 0;
+  }
+
   function preGround(s, P, inp, dt, ter) {
+
     const wF = constraint.GetWheel(0), wR = constraint.GetWheel(1);
     const onF = wF.HasContact(), onR = wR.HasContact();
     const onG = onF || onR;
@@ -758,6 +863,7 @@ export function createJoltRide({ ter, P, colliders }) {
 
   function step(s, P, inp, dt, ter, classicStep) {
     if (!api.ready || !api.enabled || tmp.destroyed || dt <= 0) return;
+    if (recoverCool > 0) recoverCool = Math.max(0, recoverCool - dt);
     if (api.air) {
       // classicStep zeroes s.air on a successful landing, so snapshot first.
       const airBefore = s.air;
@@ -771,7 +877,19 @@ export function createJoltRide({ ter, P, colliders }) {
         adopt(s);
         s.air = 0;
         settleT = 0.2;
+        // Same-frame recoverPose would see a sagging landing as "buried",
+        // re-adopt as a ground teleport, and wipe the handover log.
+        recoverCool = 0.35;
+      } else {
+        // Keep knock-over props simulating while classic owns the bike.
+        try {
+          if (motoBody) bodyInterface.DeactivateBody(motoBody.GetID());
+          applyDriverInput(0, 0, 0, 0);
+          jolt.Step(dt, dt > 1 / 55 ? 2 : 1);
+        } catch {}
       }
+      recoverPose(s, ter);
+      syncKnockProps();
       return;
     }
     const info = preGround(s, P, inp, dt, ter);
@@ -785,6 +903,8 @@ export function createJoltRide({ ter, P, colliders }) {
       limitCreep();
       writeState(s, P);
     }
+    recoverPose(s, ter);
+    syncKnockProps();
     const clearance = s.y - (ter.height ? ter.height(s.x, s.z || 0) : 0);
     const vy = motoBody.GetLinearVelocity().GetY();
     // Keep s.air at 0 while Jolt is driving so a wheel unload cannot look like a launch.
@@ -871,9 +991,29 @@ export function createJoltRide({ ter, P, colliders }) {
         brake: controller.GetBrakeInput ? controller.GetBrakeInput() : 0,
         handBrake: controller.GetHandBrakeInput ? controller.GetHandBrakeInput() : 0,
       } : null,
+      engine: (() => {
+        try {
+          const eng = controller && controller.GetEngine && controller.GetEngine();
+          const tr = controller && controller.GetTransmission && controller.GetTransmission();
+          const rpm = eng && (eng.GetCurrentRPM ? eng.GetCurrentRPM() : (eng.mCurrentRPM || 0));
+          const gear = tr && (tr.GetCurrentGear ? tr.GetCurrentGear() : (tr.mCurrentGear));
+          return { rpm: rpm || 0, gear: gear == null ? null : gear, torque: csTorque };
+        } catch { return null; }
+      })(),
       x: p.x, y: p.y, z: p.z,
       roll: rollFromQuat(p.qx, p.qy, p.qz, p.qw),
       handovers: handovers.slice(),
+      cones: (() => {
+        const out = [];
+        for (const k of knockProps) {
+          try {
+            const q = k.body.GetPosition();
+            const rec = { x: q.GetX(), y: q.GetY(), z: q.GetZ() };
+            if (Math.hypot(rec.x - p.x, rec.z - p.z) < 12) out.push(rec);
+          } catch {}
+        }
+        return out;
+      })(),
     };
   };
   return api;

@@ -242,6 +242,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         if(s.y==null||(pose&&pose.y==null))s.y=(ter.height?ter.height(s.x,s.z||0):0)+(P.comH||.9);
         s.joltRoll=null;s.crashed=null;s.air=0;s.spinV=0;s.spin=0;
         jolt.adopt(s);
+        chasePosX=null;airClose=0;
         return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,vx:s.vx};
       };
     }
@@ -465,7 +466,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     if(jolt?.ready&&physics==='jolt')jolt.adopt(s);
     pivot.position.set(s.x, s.y, s.z||0);
     pivot.rotation.set(0, -(s.yaw||0), 0);
-    lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;lookDrag=null;lookLast=null;airClose=0;
+    lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;lookDrag=null;lookLast=null;airClose=0;chasePosX=null;
     if(ter.track){
       if(cameraView==='side'){if(canStartTrackReturn(s))startTrackReturn(s,ter.track,trackLock);else trackLock.mode='pending';}
       else trackLock.mode='free';
@@ -658,18 +659,36 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       for(let i=0;i<2;i++){
         if(!s.ground[i])continue;
         const slip=s.slip?s.slip[i]:(s.burnout&&i===(P.driveAxle==='front'?1:0)?8:0);
-        if(Math.abs(slip)<1.4)continue;
+        const spinning=Math.abs(slip)>=1.4||(s.burnout&&i===(P.driveAxle==='front'?1:0));
+        if(!spinning)continue;
         const bx=s.x+cy*axles[i],bz=freeRoam?(s.z||0)+sy*axles[i]:0,gy=(freeRoam?ter.height(bx,bz):ter.h(bx))+.04;
-        const n=Math.min(4,1+Math.abs(slip)*.35);
-        for(let k=0;k<n;k++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy-.02,z:bz+(Math.random()-.5)*.05,vx:-cy*(.3+Math.random()*.8)+(Math.random()-.5)*.4,vy:.4+Math.random()*.75,life:1.4+Math.random()*.8});}
         const onDirt=freeRoam?(environment.isDirt?.(bx,bz)??((ter.track&&ter.track.nearest(bx,bz).dist<(ter.track.width||6)/2+3.5)||ter.height(bx,bz)>.04)):true;
-        if(onDirt)for(let k=0;k<Math.min(3,1+Math.abs(slip)*.2);k++)emit(bx,gy,-cy*(2+Math.random()*3+Math.abs(slip)*.15),1.2+Math.random()*2.4,'#8a5a32',.55,9.8,.9,bz);
+        const surface=environment.surfaceAt?.(bx,bz)||(onDirt?'dirt':'asphalt');
+        const absS=Math.abs(slip);
+        // Light counts (mobile): 1–2 bits per slipping wheel, only at the contact patch.
+        if(surface==='asphalt'){
+          const n=Math.min(2,1+absS*.2);
+          for(let k=0;k<n;k++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy-.02,z:bz+(Math.random()-.5)*.05,vx:-cy*(.3+Math.random()*.8)+(Math.random()-.5)*.4,vy:.4+Math.random()*.75,life:1.2+Math.random()*.6});}
+        }else if(surface==='grass'){
+          const n=Math.min(3,1+absS*.2);
+          for(let k=0;k<n;k++)emit(bx+(Math.random()-.5)*.06,gy,-cy*(1.2+Math.random()*2.2)+ (Math.random()-.5)*1.2,1.4+Math.random()*2.2,Math.random()>.5?'#4d8a38':'#2f6a32',.5,12,.55,bz+(Math.random()-.5)*.06);
+        }else{
+          const n=Math.min(2,1+absS*.18);
+          for(let k=0;k<n;k++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy-.02,z:bz+(Math.random()-.5)*.05,vx:-cy*(.25+Math.random()*.6)+(Math.random()-.5)*.35,vy:.35+Math.random()*.55,life:.9+Math.random()*.5});}
+          for(let k=0;k<Math.min(2,1+absS*.15);k++)emit(bx,gy,-cy*(2+Math.random()*3+absS*.15),1.2+Math.random()*2.4,Math.random()>.6?'#6a4228':'#8a5a32',.5,9.8,.85,bz);
+        }
       }
       if(s.burnout){msg='BURNOUT';msgT=.25;}
     }
     // roost + splash + dirt build-up
     const rx = s.x + Math.cos(s.pitch) * (-P.wb * P.comBack) + Math.sin(s.pitch) * hC, onRear = s.ground[0];
-    if (!paused && onRear && inp.throttle && Math.abs(s.vx) > 0.5 && Math.random() < 0.8) emit(rx - P.R * 0.6, ter.h(rx) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, ter.inPuddle(rx) ? "#7fb4d6" : "#a8693a", 0.7);
+    if (!paused && onRear && inp.throttle && Math.abs(s.vx) > 0.5 && Math.random() < 0.55) {
+      const rz=freeRoam?(s.z||0):0;
+      const surf=environment.surfaceAt?.(rx,rz)||(environment.isDirt?.(rx,rz)!==false?'dirt':'asphalt');
+      if(ter.inPuddle(rx)) emit(rx - P.R * 0.6, ter.h(rx) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, "#7fb4d6", 0.7);
+      else if(surf==='grass'&&Math.random()<0.7) emit(rx - P.R * 0.6, (freeRoam?ter.height(rx,rz):ter.h(rx)) + 0.05, -1.6 - Math.random() * 2.2, 1 + Math.random() * 2.2, Math.random()>.5?'#4d8a38':'#2f6a32', 0.5, 12, .5, rz);
+      else if(surf==='dirt') emit(rx - P.R * 0.6, (freeRoam?ter.height(rx,rz):ter.h(rx)) + 0.05, -2 - Math.random() * 3 - Math.abs(s.vx) * 0.2, 1 + Math.random() * 2.5, "#a8693a", 0.7);
+    }
     if (!paused && ter.inPuddle(s.x) && (s.ground[0] || s.ground[1])) { dirt += dt * 0.05 * Math.min(10, Math.abs(s.vx)); if (Math.abs(s.vx) > 2 && Math.random() < 0.9) for (let i = 0; i < 3; i++) emit(s.x + (Math.random() - 0.5), ter.h(s.x) + 0.05, (Math.random() - 0.3) * s.vx * 0.4, 2 + Math.random() * 3, "#9fd0ef", 0.8); }
     else if (s.ground[0] || s.ground[1]) dirt += dt * 0.0015 * Math.abs(s.vx);
     if ((fxT += dt) > 0.6) { fxT = 0; applyCondition(bike, { dirt: Math.min(1, dirt), wear: {} }); const fr = bike.getObjectByName("wk:part:fender_r"); if (fr) { const w = 0; fr.visible = w < 1; if (w >= 0.4 && w < 1) fr.rotation.z = -0.12; } }
@@ -682,6 +701,16 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     if(rewinding){pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,-bikeYaw,s.pitch);}
     else if(s.crashed || finishTumble){if(!crashRig){stuntRig.restore();s.stunt=null;pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,-bikeYaw,s.pitch);crashRig=makeCrashRig(T,scene,body,pivot,bike,A,riderModel,P,ter,s,environment.colliders||[]);releaseControls();if (!finished) { el.dataset.wkCrashed='true';recover.hidden=false; }}crashT+=dt;crashRig.step(dt);}
     else { pivot.position.set(s.x, s.y, bikeZ); pivot.rotation.z = s.pitch; }
+    // Jolt ride height sags below classic comH. Without this the visual tyres
+    // slip into the floor (the mesh is offset for a fixed comH at comp=0).
+    if(physics==='jolt'&&!crashRig&&(s.ground[0]||s.ground[1])){
+      const gy=ter.height? (ter.height(s.x,s.z||0)||0):0;
+      const restAxle=s.y-(P.comH||.9)+(P.R||.33);
+      const rearY=restAxle+(s.comp[0]||0)*(P.travelR||.12)*.8;
+      const frontY=restAxle+(s.comp[1]||0)*(P.travelF||.14)*.8;
+      const lowest=Math.min(rearY,frontY)-(P.R||.33);
+      if(lowest<gy-0.005) pivot.position.y += (gy-lowest);
+    }
     spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam?Math.max(-.42,Math.min(.42,-(s.vx||0)*(s.vx||0)*kappa/9.8)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
     // suspension: wheels slide toward the frame by compression*travel
     stuntRig.restore();
@@ -733,11 +762,13 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     let dist=6.5;
     if(freeRoam){
       const yaw=s.yaw||0,z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
-      const k=1-Math.exp(-5.8*followDt);
+      const lookT=arena?0.10:0;
+      const tx=s.x+Math.cos(yaw)*(s.vx||0)*lookT, tz=z+Math.sin(yaw)*(s.vx||0)*lookT;
+      const k=1-Math.exp(-(arena?(inAir?14:12):5.8)*followDt);
       if(!crashRig){
-        if(trackLock.justSnapped){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;trackLock.justSnapped=false;}
-        if(chasePosX==null||Math.hypot(s.x-chasePosX,z-chasePosZ)>24){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=roadY+2.15;chaseLookY=roadY+.52;}
-        chasePosX+=(s.x-chasePosX)*k;chasePosZ+=(z-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-8*followDt));
+        if(trackLock.justSnapped){chasePosX=s.x;chasePosZ=z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;lookYaw=0;lookPitch=0;lookVY=0;lookVP=0;trackLock.justSnapped=false;}
+        if(chasePosX==null||!Number.isFinite(chasePosX)||!Number.isFinite(chasePosZ)||!Number.isFinite(chaseFollowY)||!Number.isFinite(tx)||!Number.isFinite(tz)||Math.hypot(s.x-chasePosX,z-chasePosZ)>8){chasePosX=Number.isFinite(tx)?tx:s.x;chasePosZ=Number.isFinite(tz)?tz:z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;if(arena)airClose=0;}
+        chasePosX+=(tx-chasePosX)*k;chasePosZ+=(tz-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-(arena?10:8)*followDt));
       }
       if(!lookDrag){
         const wn=9,zn=.85;
@@ -771,7 +802,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         }
         speedLineMat.opacity=0;speedLines.visible=false;
         lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,fy-ter.height(fx,fz)),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead,airClose,crash:true};
-      } else {
+      } else if(!arena){
       // Ballistic landing prediction (step along heading under gravity until we meet terrain).
       const pred=(()=>{let px=s.x,pz=z,py=s.y,pvy=s.vy||0,dt=1/30,cy0=Math.cos(yaw),sy0=Math.sin(yaw),ride=P.R||.33;for(let i=0;i<90;i++){pvy-=9.8*dt;px+=cy0*(s.vx)*dt;pz+=sy0*(s.vx)*dt;py+=pvy*dt;const g=ter.height(px,pz);if(py<=g+ride&&pvy<=0)return {x:px,z:pz,y:g,t:i*dt};}return {x:px,z:pz,y:ter.height(px,pz),t:3};})();
       const landingY=pred.y,range=Math.hypot(pred.x-s.x,pred.z-z);
@@ -820,6 +851,52 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       }
       speedLineMat.opacity=0;speedLines.visible=false;
       lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead:ahead,airClose};
+      } else {
+      // Arena chase: close Cinemachine-style follow, speed pull-back, look-ahead
+      // with damping that has no constant-speed lag (fixes the lip hitch). In
+      // the air, Descenders-style framing — bike ~33% of screen height, a slight
+      // tilt toward the landing, and a smooth return on touchdown.
+      const pred=(()=>{let px=s.x,pz=z,py=s.y,pvy=s.vy||0,dt=1/30,cy0=Math.cos(yaw),sy0=Math.sin(yaw),ride=P.R||.33;for(let i=0;i<90;i++){pvy-=9.8*dt;px+=cy0*(s.vx)*dt;pz+=sy0*(s.vx)*dt;py+=pvy*dt;const g=ter.height(px,pz);if(py<=g+ride&&pvy<=0)return {x:px,z:pz,y:g,t:i*dt};}return {x:px,z:pz,y:ter.height(px,pz),t:3};})();
+      const landingY=pred.y;
+      if(!inAir)chaseTakeoffY=roadY;
+      airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?5.2:1.8)*followDt));
+      if(!inAir&&airClose<.02)airClose=0;
+      const bikeH=1.85;
+      const airFovDeg=50, groundFovDeg=48+Math.min(8,Math.max(0,sp-4)*0.7);
+      const airR=bikeH/(0.33*2*Math.tan(airFovDeg*Math.PI/360));
+      const chaseR0=3.15+Math.min(1.85,sp*.10);
+      const chaseR=chaseR0*(1-airClose)+airR*airClose;
+      const groundCamY=s.y+1.15+Math.max(0,s.vy||0)*.06;
+      const airCamY=s.y+1.12;
+      const groundLookY=s.y+.48;
+      const airLookY=s.y+.28+(landingY-(s.y+.28))*.30;
+      const camYTarget=groundCamY*(1-airClose)+airCamY*airClose;
+      const lookYTarget=groundLookY*(1-airClose)+airLookY*airClose;
+      const yRate=inAir?12:10;
+      chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
+      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?12:9)*followDt));
+      cameraReady=true;
+      const shake=(Math.random()-.5)*camShake;
+      const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
+      const lookAhead=(1.15+Math.min(2.0,Math.abs(s.vx)*.12))*(1-airClose)+0.55*airClose;
+      const followX=chasePosX,followZ=chasePosZ;
+      const chaseX=followX-cy*chaseR,chaseZ=followZ-sy*chaseR;
+      const sideR=6.8+Math.min(1.6,sp*.10);
+      let sideX=chasePosX,sideZ=chasePosZ+sideR;
+      if(ter.track){const n=ter.track.nearest(chasePosX,chasePosZ);const hy=n.heading;sideX=chasePosX-Math.sin(hy)*sideR;sideZ=chasePosZ+Math.cos(hy)*sideR;}
+      const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
+      const camY=((s.y+1.2)*(1-airClose)+(s.y+.6)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
+      const lookX=s.x*(1-blend)+(followX+cy*lookAhead+airClose*(pred.x-s.x)*.18)*blend;
+      const lookZ=z*(1-blend)+(followZ+sy*lookAhead+airClose*(pred.z-z)*.18)*blend;
+      const lookY=((s.y+.35)*(1-airClose)+(s.y+.28)*airClose)*(1-blend)+chaseLookY*blend;
+      if(!globalThis.__WK_CAM_HOLD__){
+        cam.position.set(camX,camY,camZ);
+        cam.lookAt(lookX,lookY,lookZ);
+        cam.fov=groundFovDeg*(1-blend)+(groundFovDeg*(1-airClose)+airFovDeg*airClose)*blend;
+        cam.updateProjectionMatrix();
+      }
+      speedLineMat.opacity=0;speedLines.visible=false;
+      lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,followX:chasePosX,followZ:chasePosZ,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead,airClose,chaseR,bikeFrac:bikeH/(2*chaseR*Math.tan((cam.fov*Math.PI/180)/2))};
       }
       environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(1);
       put(viewLabel,'view',cameraView==='chase'?'▣ CHASE':'▣ SIDE VIEW');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));

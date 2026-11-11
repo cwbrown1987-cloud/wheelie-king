@@ -1,3 +1,150 @@
+
+const GRASS_URL='./assets/polyhaven/grass_medium_01/';
+// Light tufts only (skip the 2k–6k-tri clumps). Poly Haven grass_medium_01 1K.
+const GRASS_MESHES=[0,3,4,5,11,12,13,14,15,16];
+const GRASS_CULL=48;
+
+function accessorArray(gltf,bin,accIndex){
+  const acc=gltf.accessors[accIndex],view=gltf.bufferViews[acc.bufferView];
+  const off=(view.byteOffset||0)+(acc.byteOffset||0);
+  const type=acc.componentType,cnt=acc.count,n={SCALAR:1,VEC2:2,VEC3:3,VEC4:4}[acc.type]||1;
+  if(type===5126)return new Float32Array(bin,off,cnt*n);
+  if(type===5123)return new Uint16Array(bin,off,cnt*n);
+  if(type===5125)return new Uint32Array(bin,off,cnt*n);
+  if(type===5121)return new Uint8Array(bin,off,cnt*n);
+  if(type===5122)return new Int16Array(bin,off,cnt*n);
+  return null;
+}
+
+function grassGeometry(T,gltf,bin,meshIndex){
+  const prim=gltf.meshes[meshIndex].primitives[0];
+  const g=new T.BufferGeometry();
+  const pos=accessorArray(gltf,bin,prim.attributes.POSITION);
+  g.setAttribute('position',new T.BufferAttribute(new Float32Array(pos),3));
+  if(prim.attributes.NORMAL!=null){
+    const n=accessorArray(gltf,bin,prim.attributes.NORMAL);
+    g.setAttribute('normal',new T.BufferAttribute(new Float32Array(n),3));
+  }else g.computeVertexNormals();
+  if(prim.attributes.TEXCOORD_0!=null){
+    const uv=accessorArray(gltf,bin,prim.attributes.TEXCOORD_0);
+    g.setAttribute('uv',new T.BufferAttribute(new Float32Array(uv),2));
+  }
+  if(prim.indices!=null){
+    const idx=accessorArray(gltf,bin,prim.indices);
+    const copy=idx instanceof Uint32Array||(idx.length>65535&&!(idx instanceof Uint16Array))?new Uint32Array(idx):new Uint16Array(idx);
+    g.setIndex(new T.BufferAttribute(copy,1));
+  }
+  g.computeBoundingSphere();
+  return g;
+}
+
+function hash2(x,z){
+  const n=Math.sin(x*127.1+z*311.7)*43758.5453;return n-Math.floor(n);
+}
+
+function scatterArenaGrass(T,root,opts){
+  const {h,terrain,ramps,lowDetail,sharedMat,sharedGeo,sharedTex,grassFx}=opts;
+  const onLine=(x,z)=>{
+    if(terrain.track){
+      const n=terrain.track.nearest(x,z);
+      if(n.dist<(terrain.track.width||6)/2+1.15)return true;
+    }
+    for(const r of ramps||[]){
+      const yaw=r.yaw||0,c=Math.cos(yaw),s=Math.sin(yaw);
+      const dx=x-r.x,dz=z-r.z,lx=dx*c+dz*s,lz=-dx*s+dz*c;
+      const len=(r.len||((r.takeoff||0)+(r.back||0)+(r.gap||0)+(r.land||0)));
+      if(lx>-0.5&&lx<len+0.5&&Math.abs(lz)<(r.w||6)/2+0.45)return true;
+    }
+    return false;
+  };
+  const want=(x,z)=>{
+    if(Math.abs(x)>HALF-1.2||Math.abs(z)>HALF-1.2)return false;
+    if(onLine(x,z))return false;
+    const edge=Math.max(Math.abs(x),Math.abs(z))>HALF-14;
+    let shoulder=false,base=false;
+    if(terrain.track){
+      const n=terrain.track.nearest(x,z);
+      const hw=(terrain.track.width||6)/2;
+      if(n.dist>hw+1.2&&n.dist<hw+4.2)shoulder=true;
+    }
+    for(const r of ramps||[]){
+      const yaw=r.yaw||0,c=Math.cos(yaw),s=Math.sin(yaw);
+      const dx=x-r.x,dz=z-r.z,lx=dx*c+dz*s,lz=-dx*s+dz*c;
+      const hw=(r.w||6)/2;
+      if(lx>-3.2&&lx<3.4&&Math.abs(lz)>hw+0.6&&Math.abs(lz)<hw+3.6)base=true;
+    }
+    return edge||shoulder||base;
+  };
+  const loader=new T.TextureLoader();
+  const loadTex=(file,srgb)=>{
+    const tex=loader.load(GRASS_URL+file);
+    if(srgb)tex.colorSpace=T.SRGBColorSpace;
+    tex.flipY=false;tex.anisotropy=4;sharedTex.push(tex);return tex;
+  };
+  const mat=new T.MeshStandardMaterial({
+    map:loadTex('textures/grass_medium_01_diff_1k.jpg',true),
+    normalMap:loadTex('textures/grass_medium_01_nor_gl_1k.jpg',false),
+    roughnessMap:loadTex('textures/grass_medium_01_arm_1k.jpg',false),
+    metalness:0,roughness:.85,
+    alphaMap:loadTex('textures/grass_medium_01_alpha_1k.png',false),
+    alphaTest:.38,transparent:false,depthWrite:true,side:T.DoubleSide,
+  });
+  sharedMat.push(mat);
+  grassFx.group=new T.Group();grassFx.group.name='environment:grass-tufts';root.add(grassFx.group);
+  fetch(GRASS_URL+'grass_medium_01_1k.gltf').then(r=>r.json()).then(async gltf=>{
+    const bin=await (await fetch(GRASS_URL+'grass_medium_01.bin')).arrayBuffer();
+    const geos=GRASS_MESHES.map(i=>{const g=grassGeometry(T,gltf,bin,i);sharedGeo.push(g);return g;});
+    const slots=lowDetail?180:320;
+    const pts=[];
+    // Edges, dirt shoulders and ramp bases. Seeded so the patch is stable.
+    for(let i=0;i<2200&&pts.length<slots;i++){
+      const a=hash2(i,1)*Math.PI*2,rad=hash2(i,2);
+      let x,z;
+      const kind=hash2(i,3);
+      if(kind<.45){
+        const r=HALF-2-hash2(i,4)*12;
+        x=Math.cos(a)*r;z=Math.sin(a)*r;
+      }else if(kind<.8&&terrain.track&&terrain.track.samples){
+        const samp=terrain.track.samples;
+        const s=samp[(hash2(i,5)*samp.length)|0];
+        const hw=(terrain.track.width||6)/2,side=hash2(i,6)<.5?-1:1;
+        const out=hw+1.4+hash2(i,7)*2.6;
+        x=s.x+s.nx*out*side;z=s.z+s.nz*out*side;
+      }else if(ramps&&ramps.length){
+        const r=ramps[(hash2(i,8)*ramps.length)|0];
+        const yaw=r.yaw||0,c=Math.cos(yaw),s=Math.sin(yaw);
+        const lx=-2.4+hash2(i,9)*5.2,lz=((r.w||6)/2+0.8+hash2(i,10)*2.4)*(hash2(i,11)<.5?-1:1);
+        x=r.x+lx*c-lz*s;z=r.z+lx*s+lz*c;
+      }else continue;
+      if(!want(x,z))continue;
+      if(pts.some(p=>Math.hypot(p.x-x,p.z-z)<1.15))continue;
+      pts.push({x,z,y:h(x,z),yaw:hash2(i,12)*Math.PI*2,sc:.7+hash2(i,13)*0.7,mesh:(hash2(i,14)*geos.length)|0});
+    }
+    const dummy=new T.Object3D();
+    const byMesh=geos.map(()=>[]);
+    for(const p of pts)byMesh[p.mesh].push(p);
+    grassFx.entries=[];
+    for(let m=0;m<geos.length;m++){
+      const list=byMesh[m];if(!list.length)continue;
+      const inst=new T.InstancedMesh(geos[m],mat,list.length);
+      inst.castShadow=false;inst.receiveShadow=!lowDetail;inst.frustumCulled=true;
+      inst.name='environment:grass-tuft-'+m;
+      inst.matrixAutoUpdate=false;
+      const origins=[];
+      for(let i=0;i<list.length;i++){
+        const p=list[i];
+        dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(0,p.yaw,0);dummy.scale.setScalar(p.sc);
+        dummy.updateMatrix();inst.setMatrixAt(i,dummy.matrix);
+        origins.push(p);
+      }
+      inst.instanceMatrix.needsUpdate=true;
+      grassFx.group.add(inst);
+      grassFx.entries.push({mesh:inst,origins,dummy});
+    }
+    grassFx.ready=true;
+  }).catch(err=>{try{console.warn('arena grass tufts failed',err)}catch{}});
+}
+
 import {makeArenaTrack} from './ride-track.js';
 import {rampLength,rampLipX} from './ride-physics.js';
 // TEST ARENA: a big flat square for free-roam speed, wheelies, burnouts and jumps.
@@ -50,6 +197,7 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   };
   floorMat.customProgramCacheKey=()=> 'wk-grass-dirt';
   const segs=lowDetail?80:150;
+  const grassFx={ready:false,entries:[],group:null,cull:GRASS_CULL};
   const floor=new T.Mesh(new T.PlaneGeometry(HALF*2,HALF*2,segs,segs),floorMat);
   floor.rotation.x=-Math.PI/2;floor.name='environment:arena-floor';floor.receiveShadow=true;
   const pos=floor.geometry.attributes.position;
@@ -205,9 +353,10 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   // Traffic cones: rows and a few gates. Keep the z=80 clear-speed lane empty.
   const coneAt=(x,z)=>{
     const y=h(x,z);
-    add(root,coneGeo,coneMat,x,y+.35,z,1,1,1);
-    add(root,cylY,coneStripe,x,y+.46,z,.24,.06,.24);
-    colliders.push({kind:'cyl',x,z,r:.18,y0:y,y1:y+.7});
+    const g=new T.Group();g.position.set(x,y+.35,z);g.name='environment:cone';root.add(g);
+    add(g,coneGeo,coneMat,0,0,0,1,1,1);
+    add(g,cylY,coneStripe,0,.11,0,.24,.06,.24);
+    colliders.push({kind:'cone',x,z,r:.16,y0:y,y1:y+.7,mesh:g});
   };
   for(let x=-36;x<=36;x+=4)coneAt(x,50);
   for(let x=-28;x<=28;x+=4.5)coneAt(x,-62);
@@ -406,13 +555,33 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
   // Thin rear-tyre marks, laid exactly at the rear contact patch (visual only).
   const SKID=192,TYRE_W=.10,MARK_LEN=.16;
   const skidGeo=new T.PlaneGeometry(MARK_LEN,TYRE_W);skidGeo.rotateX(-Math.PI/2);sharedGeo.push(skidGeo);
-  const skidMat=new T.MeshBasicMaterial({color:'#1a1612',transparent:true,opacity:.45,depthWrite:false});sharedMat.push(skidMat);
-  const skidMesh=new T.InstancedMesh(skidGeo,skidMat,SKID);skidMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);skidMesh.frustumCulled=false;skidMesh.name='environment:skids';root.add(skidMesh);
+  const skidMat=new T.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.55,depthWrite:false,vertexColors:true});sharedMat.push(skidMat);
+  const skidMesh=new T.InstancedMesh(skidGeo,skidMat,SKID);skidMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);skidMesh.frustumCulled=false;skidMesh.name='environment:skids';
+  const skidCols=new Float32Array(SKID*3);skidMesh.instanceColor=new T.InstancedBufferAttribute(skidCols,3);root.add(skidMesh);
+  const skidTint={dirt:[0.12,0.08,0.05],asphalt:[0.07,0.07,0.07],grass:[0.18,0.26,0.14]};
   const skidParts=Array.from({length:SKID},()=>({life:0}));
   const dummy=new T.Object3D();let skidI=0,skidAcc=0,lastSkid=null;
   const hideSkids=()=>{dummy.scale.set(0,0,0);dummy.updateMatrix();for(let i=0;i<SKID;i++)skidMesh.setMatrixAt(i,dummy.matrix);skidMesh.instanceMatrix.needsUpdate=true};
 
   function update(_x,ctx){
+    if(grassFx&&grassFx.ready&&grassFx.entries){
+      const sx=ctx?.s?.x||0,sz=ctx?.s?.z||0,cull=grassFx.cull,c2=cull*cull;
+      for(const e of grassFx.entries){
+        const dummy=e.dummy||new T.Object3D();
+        let changed=false;
+        for(let i=0;i<e.origins.length;i++){
+          const p=e.origins[i],d2=(p.x-sx)*(p.x-sx)+(p.z-sz)*(p.z-sz);
+          const show=d2<c2;
+          if(p._show===show)continue;
+          p._show=show;changed=true;
+          dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(0,p.yaw,0);
+          dummy.scale.setScalar(show?p.sc:0);dummy.updateMatrix();
+          e.mesh.setMatrixAt(i,dummy.matrix);
+        }
+        if(changed)e.mesh.instanceMatrix.needsUpdate=true;
+      }
+    }
+
     const s=ctx?.s,dt=ctx?.dt||1/60,P=ctx?.P;
     if(!s){hideSkids();return;}
     if(!ctx.paused){
@@ -432,32 +601,50 @@ export function makeArenaWorld(T,scene,terrain,{lowDetail=false}={}){
           const mark=skidParts[skidI++%SKID];
           const vxw=(s.vx||0)*c-yawRate*wb*n,vzw=(s.vx||0)*n+yawRate*wb*c;
           const markYaw=Math.hypot(vxw,vzw)>.05?Math.atan2(vzw,vxw):yaw;
-          Object.assign(mark,{life:5.8,x:bx,y:gy,z:bz,yaw:markYaw});
-          lastSkid={x:bx,y:gy,z:bz,width:TYRE_W};
+          const surface=surfaceAt(bx,bz);
+          const tint=skidTint[surface]||skidTint.dirt;
+          const opac=surface==='grass'?0.22:surface==='asphalt'?0.40:0.55;
+          Object.assign(mark,{life:5.8,x:bx,y:gy,z:bz,yaw:markYaw,tint,opac,surface});
+          lastSkid={x:bx,y:gy,z:bz,width:TYRE_W,surface};
         }
       }
     }
     for(let i=0;i<SKID;i++){
       const mark=skidParts[i];
-      if(mark.life<=0){dummy.scale.set(0,0,0);dummy.position.set(0,-10,0);}
+      if(mark.life<=0){dummy.scale.set(0,0,0);dummy.position.set(0,-10,0);skidCols[i*3]=skidCols[i*3+1]=skidCols[i*3+2]=0;}
       else{
         if(!ctx?.paused)mark.life-=dt;
         dummy.position.set(mark.x,mark.y,mark.z);
         dummy.rotation.set(0,-mark.yaw,0);
-        dummy.scale.set(1,1,1);
+        // Faint flattened grass marks, dark dirt ruts, rubber on asphalt.
+        const w=mark.surface==='dirt'?1.15:mark.surface==='grass'?1.25:1;
+        dummy.scale.set(1,1,w);
+        const tn=mark.tint||skidTint.dirt, fade=Math.min(1,mark.life/5.8)*(mark.opac??.45);
+        skidCols[i*3]=tn[0]*fade;skidCols[i*3+1]=tn[1]*fade;skidCols[i*3+2]=tn[2]*fade;
       }
       dummy.updateMatrix();skidMesh.setMatrixAt(i,dummy.matrix);
     }
     skidMesh.instanceMatrix.needsUpdate=true;
+    if(skidMesh.instanceColor)skidMesh.instanceColor.needsUpdate=true;
   }
+
+  const surfaceAt=(x,z)=>{
+    if(!terrain.track)return 'dirt';
+    if(terrain.track.nearest(x,z).dist<(terrain.track.width||6)/2+3.5)return 'dirt';
+    if((terrain.height(x,z)||0)>.04)return 'dirt';
+    return 'grass';
+  };
+
+  scatterArenaGrass(T,root,{h,terrain,ramps,lowDetail,sharedMat,sharedGeo,sharedTex,grassFx});
 
   return {
     roadMap:grassTex,
     colliders,
-    isDirt:(x,z)=>{if(!terrain.track)return true;if(terrain.track.nearest(x,z).dist<(terrain.track.width||6)/2+3.5)return true;return (terrain.height(x,z)||0)>.04;},
+    isDirt:(x,z)=>surfaceAt(x,z)==='dirt',
+    surfaceAt,
     update,
     view(){},
     state:()=>({arena:true,sample3d:false,midground:false,size:HALF*2,jumps:(terrain.kickers||[]).length,bounds:terrain.bounds,buildings:bi,poles:poleN,cars:carN,trees:treeN,landmarks:true,track:true,trackWidth:track.width,trackLength:track.length,ground:'grass-dirt',uvWorld:true,tile:TILE,floor:{x:floor.position.x,y:floor.position.y,z:floor.position.z},grassOffset:[grassTex.offset.x,grassTex.offset.y],dirtOffset:[packedDirt.offset.x,packedDirt.offset.y],skid:lastSkid,colliders:colliders.length}),
-    dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();root.removeFromParent();}
+    dispose(){sharedTex.forEach(t=>t.dispose());sharedMat.forEach(m=>m.dispose());sharedGeo.forEach(g=>g.dispose());skidMesh.dispose();grassFx.entries?.forEach(e=>e.mesh.dispose());grassFx.group?.removeFromParent();root.removeFromParent();}
   };
 }
