@@ -124,16 +124,17 @@ export function descentInfo(x,z){
   return {h:Math.max(0,h),road:(1-off)*(u>=0&&u<=D.len?1:0),u,off,dzr:Math.abs(dzr)};
 }
 export function descentHeight(x,z){const d=descentInfo(x,z);return d?d.h:0;}
-// Teleport rings: ride through one and you are placed at `to`.
-export const PLAYGROUND_PADS=[{id:'descent-start',x:DESCENT.x0+4,z:descentRoadZ(4)+9,r:1.8,to:{x:DESCENT.x0-DESCENT.len+6,z:descentRoadZ(DESCENT.len-6),yaw:0,vx:2}},
+// Teleport rings: ride through one and you are placed at `to`. v2.1-28: all the start rings stand in one row
+// beside the side track, each with its name above it.
+export const PLAYGROUND_PADS=[{id:'descent-start',label:'DOWNHILL',x:-58,z:50,r:1.8,to:{x:DESCENT.x0-DESCENT.len+6,z:descentRoadZ(DESCENT.len-6),yaw:0,vx:2}},
   // Korumburra: a ring by the start of the side track takes you to the main street; one there brings you back
-  {id:'town',x:-58,z:52,r:1.8,get to(){const a=townArrival();return {x:a.x,z:a.z,yaw:a.yaw,vx:2};}},
+  {id:'town',label:'KORUMBURRA',x:-58,z:56,r:1.8,get to(){const a=townArrival();return {x:a.x,z:a.z,yaw:a.yaw,vx:2};}},
   // skate park (Kenney Mini Skate): a ring next to the town ring takes you to its open side
-  {id:'skatepark',x:-58,z:58,r:1.8,to:PARK_ENTRY},
+  {id:'skatepark',label:'SKATE PARK',x:-58,z:62,r:1.8,to:PARK_ENTRY},
   // desert canyon bike track (Quaternius Stylized Nature MegaKit): start ring here, finish ring brings you back
-  {id:'canyon',x:-58,z:64,r:1.8,to:CANYON_START},
-  {id:'canyon-back',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}},
-  {id:'town-back',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*12;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*12;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
+  {id:'canyon',label:'CANYON',x:-58,z:68,r:1.8,to:CANYON_START},
+  {id:'canyon-back',label:'BACK TO PLAYGROUND',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}},
+  {id:'town-back',label:'BACK TO PLAYGROUND',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*12;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*12;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
 const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<23&&Math.abs(z-PARK.z)<20?parkHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
 // PROPS (v2.1-8): CC0 Poly Haven rocks, logs, stumps and trees (assets/polyhaven, see LICENSES.md).
 // Two kinds of collision:
@@ -259,11 +260,16 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
    const g=grid(nu,nw,(i,j)=>{const u=DS.len-i*du;return [DS.x0-u,descentRoadZ(u)-W+j*dz];});
    const m=new T.Mesh(g,mat);m.receiveShadow=true;m.name='environment:descent-road';root.add(m);}
   // Teleport rings
+  const labelRes=[];
   const ringMat=new T.MeshStandardMaterial({color:0x3fb8ff,emissive:0x1a6cff,emissiveIntensity:1.6,roughness:.4});
   for(const pd of PLAYGROUND_PADS){const ring=new T.Mesh(new T.TorusGeometry(pd.r+.3,.12,10,40),ringMat);ring.rotation.y=Math.PI/2;ring.name='environment:pad:'+pd.id;root.add(ring);rampGeos.push(ring.geometry);
     const base=new T.Mesh(new T.CylinderGeometry(pd.r,pd.r,.04,32),ringMat);root.add(base);rampGeos.push(base.geometry);
-    const place=()=>{ring.position.set(pd.x,baseHeight(pd.x,pd.z)+pd.r+.3,pd.z);base.position.set(pd.x,baseHeight(pd.x,pd.z)+.02,pd.z);};place();
-    if(pd.town)loadTown().then(place).catch(()=>{});}
+    let place=()=>{ring.position.set(pd.x,baseHeight(pd.x,pd.z)+pd.r+.3,pd.z);base.position.set(pd.x,baseHeight(pd.x,pd.z)+.02,pd.z);};place();
+    if(pd.label){const cv=document.createElement('canvas');cv.width=512;cv.height=128;const g=cv.getContext('2d');g.fillStyle='rgba(8,20,40,.78)';g.beginPath();g.roundRect?g.roundRect(8,14,496,100,50):g.rect(8,14,496,100);g.fill();g.lineWidth=6;g.strokeStyle='#3fb8ff';g.stroke();
+      g.font='900 '+(pd.label.length>12?44:62)+'px system-ui,Segoe UI,Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#ffffff';g.fillText(pd.label,256,66);
+      const tx=new T.CanvasTexture(cv);tx.colorSpace=T.SRGBColorSpace;tx.anisotropy=4;const sm=new T.SpriteMaterial({map:tx,transparent:true,fog:false});const sp=new T.Sprite(sm);sp.scale.set(5.6,1.4,1);sp.name='environment:pad-label:'+pd.id;root.add(sp);labelRes.push(tx,sm);
+      const old=place;place=()=>{old();sp.position.set(pd.x,baseHeight(pd.x,pd.z)+2*pd.r+1.3,pd.z);};place();}
+    if(pd.town)loadTown().then(()=>place()).catch(()=>{});}
   // the real town (Korumburra), east of the playground
   const town=makeTownVisuals(T,root,mat,{lowDetail});
   const park=makeSkateParkVisuals(T,root,GLTFLoader,{lowDetail});
@@ -290,6 +296,6 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
     roadMap:null,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
     update(){},view(){},
     state:()=>({playground:true,arena:true,size:SIZE,ground:'splat:Grass004+Ground054+Rock051+Ground109+Gravel041',descent:{...DESCENT},pads:PLAYGROUND_PADS.map(p=>p.id),terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
-    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
+    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();labelRes.forEach(r=>r.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };
 }
