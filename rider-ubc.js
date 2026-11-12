@@ -62,6 +62,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     const yIn = n => root.worldToLocal(by(n).getWorldPosition(new T.Vector3())).y;
     model.scale.setScalar(HEIGHT * 0.876 / Math.max(1e-6, yIn('Head') - yIn('ball_l'))); root.updateMatrixWorld(true);
     bones = {};
+    for (const n of ['index_01_l','index_02_l','index_03_l','middle_01_l','middle_02_l','middle_03_l','ring_01_l','ring_02_l','ring_03_l','pinky_01_l','pinky_02_l','pinky_03_l','thumb_01_l','thumb_02_l','thumb_03_l','index_01_r','index_02_r','index_03_r','middle_01_r','middle_02_r','middle_03_r','ring_01_r','ring_02_r','ring_03_r','pinky_01_r','pinky_02_r','pinky_03_r','thumb_01_r','thumb_02_r','thumb_03_r']) bones[n] = by(n) || null;
     for (const n of ['pelvis', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'upperarm_l', 'lowerarm_l', 'hand_l', 'upperarm_r', 'lowerarm_r', 'hand_r', 'thigh_l', 'calf_l', 'foot_l', 'ball_l', 'thigh_r', 'calf_r', 'foot_r', 'ball_r']) {
       bones[n] = by(n); if (!bones[n]) throw Error('rider bone missing: ' + n);
     }
@@ -75,22 +76,55 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
 
   // ---- pose targets (root = bike-body space: +x forward, +y up, +z = rider's right) ----
   let lastArgs = {}, lastT = 0;
+  // v2.1-12 body dynamics: the rider is a sprung mass on the bike. Bumps and landings push the hips down
+  // (knees and elbows bend, then extend), rough or steep ground puts him in the attack position (up off
+  // the seat, hips back), he leans into turns while his head stays level, and looks where he's going.
+  const D = { y: 0, vy: 0, lastVy: null, ay: 0, rough: 0, attack: 0, attackHold: 0, slope: 0, air: 0, look: 0, back: 0 };
+  function dynamics(s, inp, dt) {
+    if (!(dt > 0)) return;
+    const onG = !!(s.ground && (s.ground[0] || s.ground[1])), both = !!(s.ground && s.ground[0] && s.ground[1]);
+    if (D.lastVy == null) D.lastVy = s.vy || 0;
+    const ay = Math.max(-80, Math.min(80, ((s.vy || 0) - D.lastVy) / dt)); D.lastVy = s.vy || 0;
+    D.ay += (ay - D.ay) * (1 - Math.exp(-dt * 30));
+    // rider mass on legs: 2 Hz, lightly under-damped; bike accelerating up = hips pushed down
+    const k = 160, c = 18, acc = -k * D.y - c * D.vy - (onG ? D.ay : 0) * 0.9 + (onG ? 0 : (0.05 - D.y) * 40);
+    D.vy += acc * dt; D.y += D.vy * dt;
+    if (D.y < -0.2) { D.y = -0.2; D.vy = Math.max(0, D.vy); } if (D.y > 0.08) { D.y = 0.08; D.vy = Math.min(0, D.vy); }
+    D.rough += (Math.min(1, Math.abs(D.ay) / 25) - D.rough) * (1 - Math.exp(-dt * (Math.abs(D.ay) > 25 * D.rough ? 8 : 0.8)));
+    if (both) D.slope += ((s.pitch || 0) - D.slope) * (1 - Math.exp(-dt * 4));
+    D.air = onG ? Math.max(0, D.air - dt * 3) : Math.min(1, D.air + dt * 4);
+    const speed = Math.abs(s.vx || 0);
+    // attack position: going fast over rough ground, down a steep slope, through the air, or just landed
+    const wantAttack = speed > 4.5 && (D.rough > 0.25 || D.slope < -0.1 || !onG || (inp.lean || 0) < -0.3);
+    if (wantAttack) D.attackHold = 1.2; else D.attackHold = Math.max(0, D.attackHold - dt);
+    D.attack += ((D.attackHold > 0 ? 1 : 0) - D.attack) * (1 - Math.exp(-dt * 5));
+    // hips back on descents (weight over the rear wheel), slightly forward climbing
+    D.back += (Math.max(-0.6, Math.min(1, -D.slope * 2.5)) - D.back) * (1 - Math.exp(-dt * 3));
+    D.look += ((Math.max(-1, Math.min(1, inp.steer || 0)) * 0.35 + (s.slipAngle || 0) * 0.6) - D.look) * (1 - Math.exp(-dt * 6));
+  }
   function targets({ s = {}, inp = {}, dt = 1 / 60 } = {}) {
+    dynamics(s, inp, dt);
     const k = 1 - Math.exp(-Math.max(0, dt) * 9);
     const frontUp = !!(s.ground && s.ground[0] && !s.ground[1]);
     const go = (key, val) => { W[key] += (val - W[key]) * k; };
-    go('stand', s.standing ? 1 : 0);
+    go('stand', s.standing || D.attack > 0.5 ? 1 : 0);
     go('wheelie', s.mono || frontUp ? Math.min(1, Math.max(0, (s.pitch || 0) / 0.5) + (s.mono ? 0.4 : 0)) : 0);
     go('lean', Math.max(-1, Math.min(1, -(inp.lean || 0) + (s.stoppie && !(s.ground && s.ground[0]) ? 0.9 : 0))));                 // + = lean forward (inp.lean + = back)
     go('oneHand', s.oneHand ? 1 : 0); go('kneeKnock', s.kneeKnock ? 1 : 0);
-    go('roll', Math.max(-0.5, Math.min(0.5, (s.joltRoll ?? s.visRoll ?? 0) * 0.15)));      // extra lean into the turn
+    go('roll', Math.max(-0.5, Math.min(0.5, (s.joltRoll ?? s.visRoll ?? 0) * 0.35)));      // extra lean into the turn
     const st = W.stand, wh = W.wheelie;
     const hipSit = seat.clone().add(_d.set(-0.02, 0.09, 0));
     const hipStand = new T.Vector3(pegs.x - 0.06, pegs.y + legLen * 0.86, 0);
     target.hip.copy(hipSit).lerp(hipStand, st);
     target.hip.x += -0.13 * wh + 0.06 * W.lean; target.hip.y += -0.03 * wh * (1 - st);
+    // attack stance: hips low and back; absorb bumps through the legs (D.y); hips back on descents
+    target.hip.y += D.y * (0.5 + 0.5 * st) - 0.1 * st * D.attack;
+    target.hip.x += -0.14 * D.back * st - 0.05 * D.back * (1 - st) - 0.04 * st * D.attack;
     // torso pitch from vertical (+ = forward): seated 38°, standing 28°, wheelie ~8°, lean ±18°
     target.pitch = (38 - 10 * st) * Math.PI / 180 * (1 - 0.8 * wh) + W.lean * 0.32 - 0.12 * W.kneeKnock;
+    // chest drops toward the bars when the legs soak up a hit; torso stays nearer vertical on steep descents
+    target.pitch += -D.y * 1.2 * st + 0.12 * st * D.attack + Math.min(0, D.slope) * 0.35;
+    target.look = D.look;
     target.roll = W.roll;
     for (const i of [0, 1]) {
       const side = i ? 1 : -1;
@@ -121,6 +155,8 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     rotateWorld(bones.spine_01, q().setFromAxisAngle(lateral, -pitch));
     if (target.roll) rotateWorld(bones.spine_01, q().setFromAxisAngle(forward, target.roll));
     rotateWorld(bones.neck_01, q().setFromAxisAngle(lateral, pitch * 0.55)); // eyes up the trail
+    if (target.roll) rotateWorld(bones.neck_01, q().setFromAxisAngle(forward, -target.roll * 0.7)); // head stays level in a lean
+    if (target.look) { const up = root.localToWorld(v().set(0, 1, 0)).sub(root.localToWorld(v())).normalize(); rotateWorld(bones.neck_01, q().setFromAxisAngle(up, -target.look)); }
   }
   // How far the gripping hands are beyond a comfortable (slightly bent) arm reach.
   function overReach() {
@@ -157,7 +193,19 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
         hand = hand.lerp(up, W.oneHand);
       }
       const elbowPole = W2(v().set(target.hip.x - 0.35, target.hip.y + 0.1, sign * 0.55));
-      twoBone(bones['upperarm_' + s], bones['lowerarm_' + s], bones['hand_' + s], hand, elbowPole);
+      const gripping = !(i === 1 && W.oneHand > 0.5);
+      if (gripping && bones['middle_01_' + s]) {
+        // wrist sits behind the bar so the palm and wrapped fingers, not the wrist, are on the grip
+        const kd = root.localToWorld(v().set(0.92, -0.38, 0)).sub(root.localToWorld(v())).normalize();
+        const kl = wpos(bones['hand_' + s]).distanceTo(wpos(bones['middle_01_' + s]));
+        hand = hand.clone().addScaledVector(kd, -kl * 0.75).add(root.localToWorld(v().set(0, 0.03, 0)).sub(root.localToWorld(v())));
+        twoBone(bones['upperarm_' + s], bones['lowerarm_' + s], bones['hand_' + s], hand, elbowPole);
+        aim(bones['hand_' + s], bones['middle_01_' + s], wpos(bones['hand_' + s]).addScaledVector(kd, kl));
+        // knuckle roll: back of the hand up
+        const bar = root.localToWorld(v().set(0, 0, 1)).sub(root.localToWorld(v())).normalize();
+        for (const f of ['index', 'middle', 'ring', 'pinky']) for (const j of ['01', '02', '03']) { const b = bones[f + '_' + j + '_' + s]; if (b) rotateWorld(b, q().setFromAxisAngle(bar, -(j === '01' ? 0.9 : 0.75))); }
+        for (const j of ['01', '02', '03']) { const b = bones['thumb_' + j + '_' + s]; if (b) rotateWorld(b, q().setFromAxisAngle(bar, -0.35)); }
+      } else twoBone(bones['upperarm_' + s], bones['lowerarm_' + s], bones['hand_' + s], hand, elbowPole);
       const kneePole = W2(v().set(target.hip.x + 0.8, target.hip.y + 0.2, sign * (0.25 - 0.2 * W.kneeKnock)));
       twoBone(bones['thigh_' + s], bones['calf_' + s], bones['foot_' + s], W2(target.feet[i]), kneePole);
     }
@@ -223,7 +271,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
       if (model) { for (const [s, i] of [['l', 0], ['r', 1]]) { handErr.push(wpos(bones['hand_' + s]).distanceTo(W2(target.hands[i]))); footErr.push(wpos(bones['foot_' + s]).distanceTo(W2(target.feet[i]))); } }
       return { kind: 'ubc', reference: 'Quaternius Universal Base Character (CC0)', loaded: !!model, error, meshes,
         weights: { ...W }, hip: target.hip.toArray(), pitchDeg: (target.pitch + reach.pitch) * 180 / Math.PI, reachFoldDeg: reach.pitch * 180 / Math.PI, reachShiftM: reach.shift, armLen,
-        hipWorld: model ? wpos(bones.pelvis).toArray() : null, handErrM: handErr, footErrM: footErr,
+        hipWorld: model ? wpos(bones.pelvis).toArray() : null, dyn: { absorbM: D.y, attack: D.attack, rough: D.rough, back: D.back, look: D.look }, handErrM: handErr, footErrM: footErr,
         legLen, attach: { seat: seat.toArray(), pegs: pegs.toArray(), grips: grips.toArray(), gripW, pegW, crankR } };
     },
   };
