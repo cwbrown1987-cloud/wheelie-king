@@ -83,7 +83,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     go('wheelie', s.mono || frontUp ? Math.min(1, Math.max(0, (s.pitch || 0) / 0.5) + (s.mono ? 0.4 : 0)) : 0);
     go('lean', Math.max(-1, Math.min(1, -(inp.lean || 0) + (s.stoppie && !(s.ground && s.ground[0]) ? 0.9 : 0))));                 // + = lean forward (inp.lean + = back)
     go('oneHand', s.oneHand ? 1 : 0); go('kneeKnock', s.kneeKnock ? 1 : 0);
-    go('roll', Math.max(-0.5, Math.min(0.5, (s.joltRoll ?? s.visRoll ?? 0) * 0.4)));      // extra lean into the turn
+    go('roll', Math.max(-0.5, Math.min(0.5, (s.joltRoll ?? s.visRoll ?? 0) * 0.15)));      // extra lean into the turn
     const st = W.stand, wh = W.wheelie;
     const hipSit = seat.clone().add(_d.set(-0.02, 0.09, 0));
     const hipStand = new T.Vector3(pegs.x - 0.06, pegs.y + legLen * 0.86, 0);

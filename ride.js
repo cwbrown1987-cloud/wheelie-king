@@ -758,7 +758,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const lowest=Math.min(rearY,frontY)-(P.R||.33);
       if(lowest<gy-0.005) pivot.position.y += (gy-lowest);
     }
-    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam&&(s.ground[0]||s.ground[1])?Math.max(-.75,Math.min(.75,-Math.atan((s.vx||0)*(s.vx||0)*kappa/9.8))):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;s.visRoll=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
+    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam&&(s.ground[0]||s.ground[1])?Math.max(-.75,Math.min(.75,(s.lean??Math.atan((s.vx||0)*(s.vx||0)*kappa/9.8))*.75)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;s.visRoll=visRoll;
+      // Lean about the tyre contact line, not the COM: rolling about the COM swung the wheels sideways off
+      // the ground (looked floaty). Shift the bike so the contact patches stay planted.
+      if(freeRoam&&s.joltRoll==null&&visRoll){const hR=Math.max(.3,s.y-(ter.height?ter.height(s.x,s.z||0):0)),sr=Math.sin(visRoll);pivot.position.x-=Math.sin(bikeYaw)*hR*sr;pivot.position.z+=Math.cos(bikeYaw)*hR*sr;pivot.position.y-=hR*(1-Math.cos(visRoll));}} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
     // suspension: wheels slide toward the frame by compression*travel
     stuntRig.restore();
     const onGVis=!!(s.ground[0]||s.ground[1]);
@@ -777,7 +780,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       if(w!=null&&!(jolt?.air&&Math.abs(w)<1e-3&&Math.abs(s.vx)>0.4))return w*axleR*dt;
       return (Number.isFinite(s.vx)?s.vx:0)*dt;
     };
-    const mech={distance:wheelDist,frontDistance:axleDist(1),rearDistance:axleDist(0),driveDistance:axleDist(P.driveAxle==='front'?1:0),rearCompression:crashRig?0:Math.min(1,(build.shock?s.comp[0]||0:0)+visSquat),frontCompression:crashRig?0:Math.min(1,(s.comp[1]||0)+visDive),travelR:P.travelR,travelF:P.travelF,steerAngle:s.steer||0};
+    const mech={distance:wheelDist,frontDistance:axleDist(1),rearDistance:axleDist(0),driveDistance:axleDist(P.driveAxle==='front'?1:0),rearCompression:crashRig?0:Math.min(1,(build.shock?s.comp[0]||0:0)+visSquat),frontCompression:crashRig?0:Math.min(1,(s.comp[1]||0)+visDive),travelR:P.travelR,travelF:P.travelF,steerAngle:freeRoam?Math.max(-.6,Math.min(.6,(s.steer||0)*Math.min(3,1+Math.abs(s.vx||0)*.15))):(s.steer||0)};
     // Jolt drives the wheels: the drawn wheel angle is Jolt's own wheel rotation angle (offset kept so a
     // switch from distance-integration, e.g. after a rewind, doesn't jump). Mesh spins -angle about +z.
     const ja=s.wheelAngle;

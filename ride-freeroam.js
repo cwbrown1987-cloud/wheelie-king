@@ -5,10 +5,10 @@ export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 // Handlebar steering (kinematic bicycle). LEFT/RIGHT set a target bar angle;
 // yaw comes from v*tan(δ)/wheelbase. At a standstill the bars turn and the
 // bike does not spin. Burnout is the exception: a slower rear-tyre slide.
-export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=7*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
+export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
 // Tyre grip limit for open-world turning (~0.9 g on dry ground): at speed the bars only go as far as
 // the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
-export const STEER_GRIP_G=.9,WALL_STEP=.28;
+export const STEER_GRIP_G=1.3,WALL_STEP=.28,LEAN_TAU=.16; // arcade grip: tighter than a real 0.9 g so turns feel like a game, still no on-rails pivot
 export function maxSteerAngle(speed,vmax=12){
   const t=Math.min(1,Math.abs(speed||0)/Math.max(8,vmax));
   return STEER_MAX_LOW+(STEER_MAX_HIGH-STEER_MAX_LOW)*t;
@@ -35,8 +35,16 @@ export function stepHeading(s,inp,dt,p){
     s.x=fx-c*front;s.z=fz-n*front;
     return s;
   }
-  const airScale=onG?1:.2;
-  s.yaw=(s.yaw||0)+v*Math.tan(s.steer)/wb*airScale*dt;
+  // Lean-led turning, like a ridden bike: the bars set the lean the rider wants, the bike rolls into it
+  // (LEAN_TAU), and the turn comes from the lean (yaw rate = g tan(lean) / v). At walking pace the bars
+  // steer directly. So turns build up and unwind instead of the bike pivoting under the rider.
+  const vAbs=Math.abs(v),leanMax=Math.atan(STEER_GRIP_G*Math.min(1.2,p?.grip||1));
+  const leanWant=onG?Math.max(-leanMax,Math.min(leanMax,Math.atan(v*v*Math.tan(s.steer)/wb/9.8))):0;
+  s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/(onG?LEAN_TAU:.5)));
+  const kin=v*Math.tan(s.steer)/wb,fromLean=vAbs>.5?9.8*Math.tan(s.lean)/v:0,mix=Math.max(0,Math.min(1,(vAbs-2)/3));
+  const yawRate=onG?kin*(1-mix)+fromLean*mix:kin*.2;
+  s.curvature=vAbs>.1?yawRate/v:Math.tan(s.steer)/wb;
+  s.yaw=(s.yaw||0)+yawRate*dt;
   return s;
 }
 
