@@ -723,7 +723,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       for(let i=0;i<2;i++){
         if(!s.ground[i])continue;
         const slip=s.slip?s.slip[i]:(s.burnout&&i===(P.driveAxle==='front'?1:0)?8:0);
-        const spinning=Math.abs(slip)>=1.4||(s.burnout&&i===(P.driveAxle==='front'?1:0));
+        const spinning=Math.abs(slip)>=1.4||(s.burnout&&i===(P.driveAxle==='front'?1:0))||(i===0&&Math.abs(s.drift||0)>.2);
         if(!spinning)continue;
         const bx=s.x+cy*axles[i],bz=freeRoam?(s.z||0)+sy*axles[i]:0,gy=(freeRoam?ter.height(bx,bz):ter.h(bx))+.04;
         const onDirt=freeRoam?(environment.isDirt?.(bx,bz)??((ter.track&&ter.track.nearest(bx,bz).dist<(ter.track.width||6)/2+3.5)||ter.height(bx,bz)>.04)):true;
@@ -775,7 +775,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const lowest=Math.min(rearY,frontY)-(P.R||.33);
       if(lowest<gy-0.005) pivot.position.y += (gy-lowest);
     }
-    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam&&(s.ground[0]||s.ground[1])?Math.max(-.75,Math.min(.75,(s.lean??Math.atan((s.vx||0)*(s.vx||0)*kappa/9.8))*.75)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;s.visRoll=visRoll;
+    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam&&(s.ground[0]||s.ground[1])?Math.max(-.75,Math.min(.75,(s.lean??Math.atan((s.vx||0)*(s.vx||0)*kappa/9.8))*.75)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis+(freeRoam?(s.slipAngle||0):0));pivot.rotation.x=visRoll;s.visRoll=visRoll;
       // Lean about the tyre contact line, not the COM: rolling about the COM swung the wheels sideways off
       // the ground (looked floaty). Shift the bike so the contact patches stay planted.
       if(freeRoam&&s.joltRoll==null&&visRoll){const hR=Math.max(.3,s.y-(ter.height?ter.height(s.x,s.z||0):0)),sr=Math.sin(visRoll);pivot.position.x-=Math.sin(bikeYaw)*hR*sr;pivot.position.z+=Math.cos(bikeYaw)*hR*sr;pivot.position.y-=hR*(1-Math.cos(visRoll));}} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);

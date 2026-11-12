@@ -8,7 +8,10 @@ export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
 // Tyre grip limit for open-world turning (~0.9 g on dry ground): at speed the bars only go as far as
 // the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
-export const STEER_GRIP_G=1.3,WALL_STEP=.28,LEAN_TAU=.16,AIR_YAW=1.4; // arcade grip: tighter than a real 0.9 g so turns feel like a game, still no on-rails pivot
+export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.16,AIR_YAW=1.4;
+// Brake slide: tap/hold the brake while turning and the rear steps out, so the bike rotates into a
+// sharper turn (like a real rear-brake slide). DRIFT_TAU = how fast it steps out / hooks back up.
+export const SLIDE_YAW=1.4,DRIFT_TAU=.12,DRIFT_ANGLE=.45; // arcade grip: tighter than a real 0.9 g so turns feel like a game, still no on-rails pivot
 export function maxSteerAngle(speed,vmax=12){
   const t=Math.min(1,Math.abs(speed||0)/Math.max(8,vmax));
   return STEER_MAX_LOW+(STEER_MAX_HIGH-STEER_MAX_LOW)*t;
@@ -43,7 +46,11 @@ export function stepHeading(s,inp,dt,p){
   s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/(onG?LEAN_TAU:.5)));
   const kin=v*Math.tan(s.steer)/wb,fromLean=vAbs>.5?9.8*Math.tan(s.lean)/v:0,mix=Math.max(0,Math.min(1,(vAbs-2)/3));
   // In the air the rider can aim the bike a little (body/hip turn), like Descenders: steer = yaw, any speed.
-  const yawRate=onG?kin*(1-mix)+fromLean*mix:Math.max(-1,Math.min(1,inp.steer||0))*AIR_YAW;
+  const st=Math.max(-1,Math.min(1,inp.steer||0)),brk=Math.max(0,Math.min(1,inp.brake||0));
+  const driftWant=onG&&v>3&&brk>.15&&Math.abs(st)>.2&&!(inp.lean<-.3)?Math.sign(st)*brk*Math.min(1,(v-3)/5):0;
+  s.drift=(s.drift||0)+(driftWant-(s.drift||0))*(1-Math.exp(-Math.max(0,dt)/DRIFT_TAU));if(Math.abs(s.drift)<1e-4)s.drift=0;
+  s.slipAngle=s.drift*DRIFT_ANGLE; // drawn body angle vs travel (rear stepped out)
+  const yawRate=onG?kin*(1-mix)+fromLean*mix+s.drift*SLIDE_YAW:st*AIR_YAW;
   s.curvature=vAbs>.1?yawRate/v:Math.tan(s.steer)/wb;
   s.yaw=(s.yaw||0)+yawRate*dt;
   return s;
