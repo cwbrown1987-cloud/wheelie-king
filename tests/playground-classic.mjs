@@ -69,4 +69,9 @@ for(const [name,P] of Object.entries(bikes)){const s=fresh(P);let mx=0;run(P,s,{
 // v2.1-20: no vertical edges: ride across the side track's features and onto a ramp's side without stopping
 {const P=bikes.emoto;for(const u of [13,42,78,88]){const s=fresh(P,{x:SIDE_TRACK.x0+u,z:SIDE_TRACK.z-8,yaw:Math.PI/2,vx:6});let minV=9;run(P,s,s=>({throttle:s.vx<6?.7:0}),2.5,s=>{minV=Math.min(minV,s.vx)});assert.equal(s.crashed,null,'cross the side track at '+u);assert.ok(minV>3,'crossing at '+u+' keeps rolling '+minV);}
  const r=PLAYGROUND_RAMPS[2],s=fresh(P,{x:r.x+5,z:r.z-6,yaw:Math.PI/2,vx:6});let minV=9;run(P,s,s=>({throttle:s.vx<6?.7:0}),2,s=>{minV=Math.min(minV,s.vx)});assert.equal(s.crashed,null,'ride onto a ramp from the side');assert.ok(minV>3,'ramp side is rideable '+minV);}
+// v2.1-21: square steps: a curb rolls up with a jolt, a step about the tyre's radius needs speed, a tall one is a wall; drops never stop you
+{const E=.12,mk=hf=>{const height=(x,z=0)=>hf(x,z);return {...ter,height,slopeAt:(x,z=0,yaw=0)=>{const c=Math.cos(yaw),n=Math.sin(yaw);return Math.atan2(height(x+c*E,z+n*E)-height(x-c*E,z-n*E),2*E)},h:x=>height(x,0),loops:[],posts:[]}};
+ const P=bikes.emoto,go=(H,v)=>{const T2=mk(x=>H>0?(x>5?H:0):(x>5?0:-H));const s=makeState(P,0,T2),y0=s.y;s.y=T2.height(0,0)+y0;s.vx=v;let minV=v;for(let i=0;i<150&&!s.crashed;i++){for(let k=0;k<8;k++)step(s,P,{...D,throttle:s.vx<v?.5:0},1/480,T2);minV=Math.min(minV,s.vx)}return {minV,x:s.x,crashed:s.crashed}};
+ assert.ok(go(.15,3).minV>2,'15 cm curb at walking pace rolls up');assert.ok(go(.35,8).x>10,'tyre-height step at speed climbs');assert.ok(go(.5,8).x<6,'50 cm step is a wall');
+ for(const H of [.25,.5]){const r=go(-H,8);assert.ok(r.minV>7&&!r.crashed,'drop of '+H+' m keeps speed');}}
 console.log('playground-classic: ok');

@@ -126,7 +126,10 @@ export function collideFreeRoam(s,p,ter){
     const here=ter.height(s.x+c*back,(s.z||0)+n*back);let ax=0,az=0,ahead=-Infinity;
     // Sample the tyre's leading edge and both sides of it, so a diagonal approach meets the face too.
     for(const side of [0,-.22,.22])for(const f of [reach,reach-dir*.15]){const px=s.x+c*f-n*side,pz=(s.z||0)+n*f+c*side,h=ter.height(px,pz);if(h>ahead){ahead=h;ax=px;az=pz}}
-    if(ahead-here>WALL_STEP){
+    // What the tyre can roll up: about its own radius, a bit more with speed (the rider lifts the front into it).
+    // Anything taller is a real wall: a big square edge, a building, the side of a car.
+    const climb=ter.playground?Math.max(WALL_STEP,(p.R||.3)*(.9+.35*Math.min(1,Math.abs(s.vx||0)/8))):WALL_STEP;
+    if(ahead-here>climb){
       const e=.08,gx=ter.height(ax+e,az)-ter.height(ax-e,az),gz=ter.height(ax,az+e)-ter.height(ax,az-e),gl=Math.hypot(gx,gz)||1;
       const nx=-gx/gl,nz=-gz/gl,into=(c*nx+n*nz)*dir;
       if(into>-.6&&dir>0){

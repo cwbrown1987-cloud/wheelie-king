@@ -161,7 +161,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }
   // terrain
   if(!arena){scene.add(sky);scene.add(sunDisc);}
-  else{scene.fog=null;}
+  else{scene.fog=new T.Fog('#cdd8e3',160,1300);} // v2.1-21: light haze so distant hills and the town fade into the sky
   // Playground sky (v2.1-10): Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0), midday, no ground in it.
   // The 1k HDR lights the scene; a sharper 4k tone-mapped JPG of the same sky is the visible background.
   const SKY='kloofendal_48d_partly_cloudy_puresky';
@@ -242,7 +242,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
 if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;
   if(arena){
     R.shadowMap.enabled=true;
-    const sz=Q.shadows?1024:512;sun.shadow.mapSize.set(sz,sz);
+    // v2.1-21: bigger, sharper sun shadows (trees, buildings and ramps around you, not just the bike)
+    const sz=qualityPick.name==='high'?2048:1024;sun.shadow.mapSize.set(sz,sz);sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.035;
+    cam.far=1400;cam.updateProjectionMatrix();
   }
   // the real garage bike, cloned
   const pivot = new T.Group(), body = new T.Group(); pivot.rotation.order="YXZ"; pivot.add(body); scene.add(pivot);
@@ -1090,12 +1092,12 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
 
     const sunZ=freeRoam?(s.z||0):0;
     if(arena){
-      const dist=36;
-      sun.position.set(s.x+sunDir.x*dist,s.y+sunDir.y*dist,sunZ+sunDir.z*dist);
-      sun.target.position.set(s.x,s.y,sunZ);sun.target.updateMatrixWorld();
+      const dist=60,ext=26,snap=2*ext/sun.shadow.mapSize.x; // snap the shadow box to its texels: no shimmering edges
+      const fx=Math.round(s.x/snap)*snap,fy=Math.round(s.y/snap)*snap,fz=Math.round(sunZ/snap)*snap;
+      sun.position.set(fx+sunDir.x*dist,fy+sunDir.y*dist,fz+sunDir.z*dist);
+      sun.target.position.set(fx,fy,fz);sun.target.updateMatrixWorld();
       if(R.shadowMap.enabled){
-        const ext=10;
-        Object.assign(sun.shadow.camera,{left:-ext,right:ext,top:ext,bottom:-ext,near:1,far:dist+18});
+        Object.assign(sun.shadow.camera,{left:-ext,right:ext,top:ext,bottom:-ext,near:1,far:dist+40});
         sun.shadow.camera.updateProjectionMatrix();
       }
     }else{

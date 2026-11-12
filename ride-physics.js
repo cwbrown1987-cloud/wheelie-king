@@ -74,6 +74,10 @@ function wheelContact(ter,x,r,s){
     let height=ter.height(qx,qz)+r,angle=ter.slopeAt(qx,qz,yaw);
     const offsets=[Math.sin(angle),-.98,-.8,-.5,0,.5,.8,.98];
     for(const ratio of offsets){const d=r*ratio,dy=r*Math.sqrt(Math.max(0,1-ratio*ratio)),y=ter.height(qx+c*d,qz+n*d)+dy;if(y>height+1e-7){height=y;angle=Math.asin(ratio)}}
+    // Playground: a real tyre wraps round a sharp edge (plus the rider unweights the front), so the push it gets
+    // is along the step's average slope across the tyre, not the edge's near-vertical face. Square edges then
+    // cost speed and kick the bike up, instead of acting like a wall the moment a corner touches the tyre.
+    if(ter.playground){const e=r*.9,env=Math.atan2(ter.height(qx+c*e,qz+n*e)-ter.height(qx-c*e,qz-n*e),2*e);if(Math.abs(angle-env)>.05)angle=Math.max(-.9,Math.min(.9,angle*.25+env*.75));}
     return {height,angle};
   }
   let height=ter.h(x)+r,angle=ter.slope(x);
