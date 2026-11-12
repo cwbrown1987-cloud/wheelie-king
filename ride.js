@@ -176,7 +176,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   else{scene.fog=neon?new T.Fog('#5e2f6e',260,1700):new T.Fog('#cdd8e3',160,1300);} // v2.1-21: light haze so distant hills and the town fade into the sky
   // Playground sky (v2.1-10): Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0), midday, no ground in it.
   // The 1k HDR lights the scene; a sharper 4k tone-mapped JPG of the same sky is the visible background.
-  const SKY=neon?'neon_sunset':'kloofendal_48d_partly_cloudy_puresky'; // neon: Poly Haven qwantani_dusk_2_puresky (CC0), graded purple/orange
+  const SKY=neon?'neon_sunset':'kloofendal_48d_partly_cloudy_puresky'; // neon: procedural sunset painted by tools/neon-sky.py
   let skyKind=arena?'hdri-'+SKY:'painted';
   let backdrop=null;
   if(arena){

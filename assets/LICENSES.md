@@ -52,7 +52,7 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 - Textures resized; grass recoloured to dry gold, Rock_Medium uses the kit's desert rock texture.
 
 ## Neon Canal level
-- Sky: Poly Haven `qwantani_dusk_2_puresky` (CC0) — https://polyhaven.com/a/qwantani_dusk_2_puresky — background colour-graded purple/orange (`assets/hdri/neon_sunset_*`).
+- Sky: painted procedurally by `tools/neon-sky.py` (v2.1-45, our own work; sun position taken from the earlier Poly Haven `qwantani_dusk_2_puresky` grade, CC0) (`assets/hdri/neon_sunset_*`).
 - Textures: ambientCG `Asphalt026C`, `Concrete034` (CC0) — https://ambientcg.com
 - Graffiti, fence, windows, chevrons, signs and palms are generated in code (`ride-neon-world.js`).
 
