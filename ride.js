@@ -137,9 +137,9 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   // Brightest pixel on the playground sky HDR (kloofendal_48d_partly_cloudy_puresky_1k), unit vector toward the sun.
   const sunDir=neon?new T.Vector3(0.83,0.27,0.49).normalize():new T.Vector3(0.553,0.743,0.377).normalize(); // neon: low sunset sun (raised a little for readable shadows)
   if(arena){
-    sun.color.set(neon?'#ffae74':'#fff0dc');sun.intensity=neon?1.9:2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
-    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=neon?0.85:0.95;
-    if(neon){const fill=new T.HemisphereLight('#9a7bd6','#3a2848',.35);fill.name='wk:neon-fill';scene.add(fill);}
+    sun.color.set(neon?'#ff9a5c':'#fff0dc');sun.intensity=neon?2.2:2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
+    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=neon?0.8:0.95;
+    if(neon){const fill=new T.HemisphereLight('#7a4cc8','#1e1030',.22);fill.name='wk:neon-fill';scene.add(fill);}
   }
   // sky gradient + sun disc
   const sky = new T.Mesh(new T.PlaneGeometry(900, 260), new T.ShaderMaterial({ depthWrite: false, fog: false, uniforms: {}, vertexShader: "varying float v;void main(){v=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: `varying float v;void main(){gl_FragColor=vec4(mix(vec3(${TH.sky.low.map(n=>Number(n).toFixed(3)).join(",")}),vec3(${TH.sky.high.map(n=>Number(n).toFixed(3)).join(",")}),smoothstep(.35,.8,v)),1.);}` }));
@@ -173,7 +173,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }
   // terrain
   if(!arena){scene.add(sky);scene.add(sunDisc);}
-  else{scene.fog=neon?new T.Fog('#6b5487',150,1100):new T.Fog('#cdd8e3',160,1300);} // v2.1-21: light haze so distant hills and the town fade into the sky
+  else{scene.fog=neon?new T.Fog('#5e2f6e',260,1700):new T.Fog('#cdd8e3',160,1300);} // v2.1-21: light haze so distant hills and the town fade into the sky
   // Playground sky (v2.1-10): Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0), midday, no ground in it.
   // The 1k HDR lights the scene; a sharper 4k tone-mapped JPG of the same sky is the visible background.
   const SKY=neon?'neon_sunset':'kloofendal_48d_partly_cloudy_puresky'; // neon: Poly Haven qwantani_dusk_2_puresky (CC0), graded purple/orange
@@ -243,7 +243,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= renderEnd + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(renderEnd + 120, -20); s.closePath();
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }};
-  const neonWorld=neon?makeNeonWorld(T,scene,{lowDetail}):null;
+  const neonWorld=neon?makeNeonWorld(T,scene,{lowDetail,reflect:qualityPick.name!=='low'}):null;
   const environment=neon?{update:(x,o)=>neonWorld.update(o?.dt||0),view:b=>neonWorld.setView(b),surfaceAt:()=>'asphalt',isDirt:()=>false,state:()=>neonWorld.state(),dispose:()=>neonWorld.dispose()}:arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
   // Playground soccer: push the big ball into the goal for fireworks (ride-soccer.js)
   const tracks=arena?makeTyreTracks(T,scene,(x,z)=>ter.height?ter.height(x,z):0):null;
@@ -367,7 +367,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
 
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0, steer: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0, steer: 0 }; let paused=false; let pauseUi=null;
-  let raceT=0,raceOn=false,lastPay=null,neonBest=neon?readBest('neon'):null,composer=null,bloomPass=null,composerSize='',bloomFailed=false,vertCam=0,vertCamYaw=0,camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
+  let mirrorK=1,raceT=0,raceOn=false,lastPay=null,neonBest=neon?readBest('neon'):null,composer=null,bloomPass=null,composerSize='',bloomFailed=false,vertCam=0,vertCamYaw=0,camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
   const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if(onFoot){if([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(k))e.preventDefault();keys[k]=true;return;} /* on foot: bike move toggles off */ if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ","w","a","s","d"].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;if(arena){if(k==='shift'||k===' '){e.preventDefault();keys[k]=true;return;}const mv={b:'burnout',g:'stand',c:'onehand',x:'kneeknock'}[k];if(mv){e.preventDefault();if(!e.repeat)setToggle(mv,!rideToggles[mv]);return;}}const action=arena?null:({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   // HUD + touch controls (DOM over the canvas)
@@ -761,7 +761,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       }
     }
     if(cameraDt>0&&cameraDt<.25){fpsTime+=cameraDt;fpsFrames++;if(fpsTime>=.5){fpsLast=fpsFrames/fpsTime;fpsFrames=0;fpsTime=0;}}
-    if(!paused&&!reviewing){const qa=qualityMon.sample(cameraDt);if(qa){qualityLog.push(qa.type);if(qa.type==='down'){maxPR=Math.max(.75,maxPR*.8);if(R.shadowMap.enabled){R.shadowMap.enabled=false;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true})}}}}
+    if(!paused&&!reviewing){const qa=qualityMon.sample(cameraDt);if(qa){qualityLog.push(qa.type);if(qa.type==='down'){mirrorK*=.5;maxPR=Math.max(.75,maxPR*.8);if(R.shadowMap.enabled){R.shadowMap.enabled=false;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true})}}}}
     leanControls.update(dt);steerSlider.update(dt);
     // Playground: in the air the arrow keys tilt the bike (up = nose down / front flip, down = nose up / backflip).
     const airArrows=arena&&!(s.ground[0]||s.ground[1])&&!s.crashed;
@@ -1100,9 +1100,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const airR=bikeH/(0.33*2*Math.tan(airFovDeg*Math.PI/360));
       const chaseR0=3.15+Math.min(1.85,sp*.10);
       const chaseR=chaseR0*(1-airClose)+airR*airClose;
-      const groundCamY=s.y+1.15+Math.max(0,s.vy||0)*.06;
+      const groundCamY=s.y+(neon?1.3:1.15)+Math.max(0,s.vy||0)*.06; /* neon: a touch higher, looking down the line (like the reference shot) */
       const airCamY=s.y+1.12;
-      const groundLookY=s.y+.48;
+      const groundLookY=s.y+(neon?.95:.48);
       const airLookY=s.y+.28+(landingY-(s.y+.28))*.30;
       const camYTarget=groundCamY*(1-airClose)+airCamY*airClose;
       const lookYTarget=groundLookY*(1-airClose)+airLookY*airClose;
@@ -1112,7 +1112,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       cameraReady=true;
       const shake=(Math.random()-.5)*camShake;
       const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
-      const lookAhead=(1.15+Math.min(2.0,Math.abs(s.vx)*.12))*(1-airClose)+0.55*airClose;
+      const lookAhead=((neon?4.5:1.15)+Math.min(2.0,Math.abs(s.vx)*.12))*(1-airClose)+0.55*airClose;
       const followX=chasePosX,followZ=chasePosZ;
       const chaseX=followX-cy*chaseR,chaseZ=followZ-sy*chaseR;
       const sideR=6.8+Math.min(1.6,sp*.10);
@@ -1248,8 +1248,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     }
     if (!reviewing || !hc.reviewDrawn) {
       // v2.1-36: Neon Canal glows (bloom) on medium/high; everything else renders straight
+      if(neon&&neonWorld?.reflecting()){try{neonWorld.beforeRender(R,scene,cam,mirrorK>.3?(qualityPick.name==='high'?.5:.33)*mirrorK:0);}catch(e){console.warn('[wk] mirror off',e);}}
       if(neon&&qualityPick.name!=='low'&&!bloomFailed){try{
-        if(!composer){const rt=new T.WebGLRenderTarget(w,h,{type:T.HalfFloatType,samples:R.capabilities.isWebGL2?4:0});composer=new EffectComposer(R,rt);composer.addPass(new RenderPass(scene,cam));bloomPass=new UnrealBloomPass(new T.Vector2(w,h),.38,.4,.95);composer.addPass(bloomPass);composer.addPass(new OutputPass());}
+        if(!composer){const rt=new T.WebGLRenderTarget(w,h,{type:T.HalfFloatType,samples:R.capabilities.isWebGL2?4:0});composer=new EffectComposer(R,rt);composer.addPass(new RenderPass(scene,cam));bloomPass=new UnrealBloomPass(new T.Vector2(w,h),.45,.3,1.02); /* threshold above 1: only HDR emissives (neon, lamps, coins) bloom, not the sky */composer.addPass(bloomPass);composer.addPass(new OutputPass());}
         if(composerSize!==w+'x'+h+'@'+R.getPixelRatio()){composer.setPixelRatio(R.getPixelRatio());composer.setSize(w,h);composerSize=w+'x'+h+'@'+R.getPixelRatio();}
         composer.render();
       }catch(e){console.warn('[wk] bloom off',e);bloomFailed=true;composer=null;R.render(scene,cam);}}

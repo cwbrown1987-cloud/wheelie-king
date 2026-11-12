@@ -26,6 +26,8 @@ export function neonProfile(u) {
   if (u < 60) return .6 * (1 - Math.cos(2 * Math.PI * (u - 30) / 10)) / 2;              // rollers
   if (u >= 70 && u < 82) return kick(u, 70, 82, 1.4);                                     // barrel kicker
   if (u >= 82 && u < 95) return cosr(u, 82, 95, 1.4, 0);
+  if (u >= 104 && u < 120) return cosr(u, 104, 120, 0, .9);                                // ^^ ramp up to the loop (picture)
+  if (u >= 120 && u < 136) return cosr(u, 120, 136, .9, 0);
   if (u >= 240 && u < 262) return cosr(u, 240, 262, 0, 4);                                // up onto the canal bridge
   if (u >= 262 && u < 300) return 4;
   if (u >= 300 && u < 320) return cosr(u, 300, 320, 4, 0);
