@@ -36,6 +36,7 @@ jobs:
           node tests/playground-classic.mjs
           node tests/playground-soccer.mjs
           node tests/playground-town.mjs
+          node tests/playground-skatepark.mjs
           node tests/handlebar-steer.mjs
           node tests/ride-loop.mjs
           node tests/wheelie-balance.mjs

@@ -39,3 +39,9 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | --- | --- | --- | --- | --- |
 | Buildings, roads, paths, parks around Korumburra, Victoria (bbox 145.8146,-38.4397,145.8330,-38.4253) | `towns/korumburra/town.json`, `towns/korumburra/roofs.bin` | © OpenStreetMap contributors, https://www.openstreetmap.org/copyright | ODbL 1.0 (attribution shown on the in-game town sign) | Playground real town: building footprints/heights, road network |
 | Elevation, 4 m resample of zoom-15 Terrarium tiles | `towns/korumburra/terrain.bin` | AWS Terrain Tiles (Tilezen/Mapzen), https://registry.opendata.aws/terrain-tiles/ (SRTM, GMTED, ETOPO1 and other public sources) | Open data, attribution | Playground real town ground |
+
+## Kenney — Mini Skate (CC0)
+
+| Asset | Path | Source | Use |
+| --- | --- | --- | --- |
+| Mini Skate 2.0 GLB pieces (half-pipe, ramp, steps, slope-smooth, rails, fence, benches, floor) + colormap | `kenney/mini-skate/` | https://kenney.nl/assets/mini-skate (License.txt included) | Playground skate park; `park.json` layout and `height.bin` collision baked by `tools/bake-skatepark.mjs` |
