@@ -47,7 +47,7 @@ for(const [name,P] of Object.entries(bikes)){
   {const s=fresh(P,{x:L.x-20,z:L.z+L.w,vx:13});run(P,s,s=>({throttle:s.vx<15?1:0}),4);assert.ok(!s.loopRide&&s.x>L.x,L.id+' off-line rides past');}
  }
  // trees: straight into one fast crashes, glancing slides off, slow bump stops
- const t=PLAYGROUND_POSTS.find(q=>q.kind==='tree'&&q.z<0&&q.x<250); // a playground tree (canyon trees stand on sand dunes)
+ const t=PLAYGROUND_POSTS.find(q=>q.kind==='tree'&&Math.abs(q.z+6)<3&&q.x>10&&q.x<80); // a playground tree (canyon trees stand on sand dunes)
  {const s=fresh(P,{x:t.x-12,z:t.z,vx:14});run(P,s,s=>({throttle:s.vx<14?1:0}),3);assert.equal(s.crashed,'HIT A TREE','head-on tree crash');}
  {const s=fresh(P,{x:t.x-12,z:t.z+t.r,vx:12});run(P,s,s=>({throttle:s.vx<12?1:0}),3);assert.equal(s.crashed,null,'glancing a tree slides off');assert.ok(s.x>t.x+3&&s.postHit>0,'touched and carried on past the tree '+s.postHit);}
  {const s=fresh(P,{x:t.x-6,z:t.z});run(P,s,s=>({throttle:s.vx<2?1:0}),6);assert.equal(s.crashed,null,'slow into a tree: stops');assert.ok(s.x<t.x-t.r,'held back by the trunk '+s.x);}

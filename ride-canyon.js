@@ -156,7 +156,7 @@ export function makeCanyonVisuals(T, root, GLTFLoader, { lowDetail = false } = {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const inst = new T.InstancedMesh(o.geometry, o.material, list.length); res.push(o.geometry);
-        [].concat(o.material).forEach(mm => { res.push(mm); mm.map && res.push(mm.map); if (mm.alphaTest > 0) mm.side = T.DoubleSide; });
+        [].concat(o.material).forEach(mm => { res.push(mm); mm.map && res.push(mm.map); if (mm.alphaTest > 0) mm.side = T.DoubleSide; if (mm.name === 'Grass') mm.color.set('#d8a94e'); if (!m.startsWith('dead') && !m.startsWith('rock')) mm.vertexColors = false; }); // dry golden grass
         list.forEach((p, k) => { Q.setFromAxisAngle(up, p.rot); V.set(p.x, canyonHeight(p.x, p.z) - (p.sink || 0), p.z); S.setScalar(p.s); M.compose(V, Q, S).multiply(o.matrixWorld); inst.setMatrixAt(k, M); });
         inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere();
         const small = m.startsWith('peb') || m.startsWith('path') || m.startsWith('grass');

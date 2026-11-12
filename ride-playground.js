@@ -6,6 +6,7 @@ import {makeSplatMaterial,fillSplat} from './ride-ground.js';
 import {GOAL_POSTS} from './ride-soccer.js';
 import {TOWN,townHeight,townArrival,loadTown,makeTownVisuals} from './ride-town.js';
 import {PARK,parkHeight,PARK_ENTRY,loadPark,makeSkateParkVisuals} from './ride-skatepark.js';
+import {buildFoliage,makeFoliageVisuals} from './ride-foliage.js';
 import {inBowl,bowlHeight,BOWL_ENTRY,makeBowlVisuals} from './ride-bowl.js';
 import {inCanyon,canyonHeight,CANYON_START,CANYON_FINISH_RING,CANYON_POSTS,makeCanyonVisuals} from './ride-canyon.js';
 const SIZE=5000,TILE=6;
@@ -179,7 +180,22 @@ function buildProps(){
   return out.filter(p=>!(p.post&&(Math.abs(p.z-54)<3||Math.abs(p.z-26)<3)&&p.x<85)&&!(p.post&&roadDist(p.x,p.z)<6)&&!(p.bump&&roadDist(p.x,p.z)<DESCENT.road/2+.5));
 }
 export const PLAYGROUND_PROPS=buildProps();
-export const PLAYGROUND_POSTS=GOAL_POSTS.concat(CANYON_POSTS,PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s})));
+// v2.1-34 foliage: where things may grow. 'grass' only stays off hard/ridden surfaces; 'solid' (trees, bushes)
+// also stays clear of every track, ramp line, loop, ring row, the slalom, roads and built areas.
+function foliageKeep(x,z,kind){
+  if(inCanyon(x,z)||inBowl(x,z)||(Math.abs(x-PARK.x)<PARK.hx+3&&Math.abs(z-PARK.z)<PARK.hz+3)||x>TOWN.x-TOWN.halfX-TOWN.skirt-10)return false;
+  if(Math.abs(x-62)<58&&Math.abs(z+75)<40)return false;                                  // soccer pitch + nets
+  const d=descentInfo(x,z);if(d&&d.u>-4&&d.u<DESCENT.len+4&&d.dzr<(kind==='grass'?4.5:8))return false; // downhill road
+  if(x>-56&&x<106&&Math.abs(z-SIDE_TRACK.z)<(kind==='grass'?4.5:20))return false;          // side track (+ circuit, loops)
+  if(x>14&&x<176&&Math.abs(z-TERRAIN.z)<(kind==='grass'?10:22))return false;               // terrain lane
+  for(const r of PLAYGROUND_RAMPS){const dir=r.dir||1,a=Math.min(r.x-8*dir,r.x+(r.top+r.down+4)*dir),b=Math.max(r.x-8*dir,r.x+(r.top+r.down+4)*dir);if(x>a-2&&x<b+2&&Math.abs(z-r.z)<r.w/2+(kind==='grass'?1:5))return false;}
+  if(kind!=='grass'){if(x>-72&&x<-40&&z>38&&z<82)return false;                               // ring row
+    if(x>4&&x<90&&z>-14&&z<10)return false;                                                 // slalom + spawn logs
+    if(Math.hypot(x,z)<12)return false;}
+  return Math.abs(x)<2400&&Math.abs(z)<2400;
+}
+const FOLIAGE=buildFoliage({keep:foliageKeep,area:{x0:-520,x1:700,z0:-280,z1:280},height:(x,z)=>baseHeight(x,z)});
+export const PLAYGROUND_POSTS=GOAL_POSTS.concat(CANYON_POSTS,FOLIAGE.posts,PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s})));
 const BUMPS=PLAYGROUND_PROPS.filter(p=>p.bump).map(p=>({x:p.x,z:p.z,c:Math.cos(p.rot),n:Math.sin(p.rot),...p.bump,log:p.m==='log'}));
 export function propHeight(x,z){
   let y=0;for(const b of BUMPS){const dx=x-b.x,dz=z-b.z;const R=Math.max(b.a,b.b)+.1;if(Math.abs(dx)>R||Math.abs(dz)>R)continue;
@@ -279,6 +295,9 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const park=makeSkateParkVisuals(T,root,GLTFLoader,{lowDetail});
   const canyon=makeCanyonVisuals(T,root,GLTFLoader,{lowDetail});
   const bowl=makeBowlVisuals(T,root,{lowDetail});
+  const treeItems=PLAYGROUND_PROPS.filter(p=>p.m==='tree').map((p,i)=>({m:['oak3','pine1','oak5','pine5'][i%4],x:p.x,z:p.z,s:p.s*.55,rot:p.rot}));
+  const folItems=FOLIAGE.items.filter((p,i)=>!lowDetail||p.m.startsWith('oak')||p.m.startsWith('pine')||i%3===0).concat(treeItems);
+  const foliage=makeFoliageVisuals(T,root,GLTFLoader,folItems,baseHeight,{lowDetail});
   // Loop-the-loops: the same path ride-loop.js carries the bike along, plus two support legs.
   const loopMeshes=[];
   for(const L of PLAYGROUND_LOOPS){const m=makeLoopMesh(T,L);m.name='environment:loop:'+L.id;m.castShadow=!lowDetail;root.add(m);loopMeshes.push(m);
@@ -287,6 +306,7 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const propRoot=new T.Group();propRoot.name='environment:props';root.add(propRoot);let disposed=false;const propRes=[];
   const loader=new GLTFLoader();
   for(const [key,def] of Object.entries(PROP_MODELS)){
+    if(key==='tree')continue; // v2.1-34: trees are drawn by the foliage (leafy Quaternius trees)
     const list=PLAYGROUND_PROPS.filter(p=>p.m===key);if(!list.length)continue;
     loader.loadAsync('./assets/polyhaven/'+def.file).then(g=>{
       if(disposed)return;
@@ -301,6 +321,6 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
     roadMap:null,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
     update(){},view(){},
     state:()=>({playground:true,arena:true,size:SIZE,ground:'splat:Grass004+Ground054+Rock051+Ground109+Gravel041',descent:{...DESCENT},pads:PLAYGROUND_PADS.map(p=>p.id),terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
-    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();bowl.dispose();labelRes.forEach(r=>r.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
+    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();bowl.dispose();foliage.dispose();labelRes.forEach(r=>r.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };
 }
