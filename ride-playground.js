@@ -6,6 +6,7 @@ import {makeSplatMaterial,fillSplat} from './ride-ground.js';
 import {GOAL_POSTS} from './ride-soccer.js';
 import {TOWN,townHeight,townArrival,loadTown,makeTownVisuals} from './ride-town.js';
 import {PARK,parkHeight,PARK_ENTRY,loadPark,makeSkateParkVisuals} from './ride-skatepark.js';
+import {inCanyon,canyonHeight,CANYON_START,CANYON_FINISH_RING,CANYON_POSTS,makeCanyonVisuals} from './ride-canyon.js';
 const SIZE=5000,TILE=6;
 // Three table-top jumps (kicker, flat deck, landing), off to the side of the spawn line (z = 14 m) and
 // running along +X. Our own procedural geometry (no third-party asset). Jolt gets the same triangles
@@ -129,8 +130,11 @@ export const PLAYGROUND_PADS=[{id:'descent-start',x:DESCENT.x0+4,z:descentRoadZ(
   {id:'town',x:-58,z:52,r:1.8,get to(){const a=townArrival();return {x:a.x,z:a.z,yaw:a.yaw,vx:2};}},
   // skate park (Kenney Mini Skate): a ring next to the town ring takes you to its open side
   {id:'skatepark',x:-58,z:58,r:1.8,to:PARK_ENTRY},
+  // desert canyon bike track (Quaternius Stylized Nature MegaKit): start ring here, finish ring brings you back
+  {id:'canyon',x:-58,z:64,r:1.8,to:CANYON_START},
+  {id:'canyon-back',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}},
   {id:'town-back',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*12;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*12;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
-const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<23&&Math.abs(z-PARK.z)<20?parkHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
+const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<23&&Math.abs(z-PARK.z)<20?parkHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
 // PROPS (v2.1-8): CC0 Poly Haven rocks, logs, stumps and trees (assets/polyhaven, see LICENSES.md).
 // Two kinds of collision:
 //  - 'bump' props (small rocks, logs) are part of the ground: you ride over them like a hump;
@@ -172,7 +176,7 @@ function buildProps(){
   return out.filter(p=>!(p.post&&(Math.abs(p.z-54)<3||Math.abs(p.z-26)<3)&&p.x<85)&&!(p.post&&roadDist(p.x,p.z)<6)&&!(p.bump&&roadDist(p.x,p.z)<DESCENT.road/2+.5));
 }
 export const PLAYGROUND_PROPS=buildProps();
-export const PLAYGROUND_POSTS=GOAL_POSTS.concat(PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s})));
+export const PLAYGROUND_POSTS=GOAL_POSTS.concat(CANYON_POSTS,PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s})));
 const BUMPS=PLAYGROUND_PROPS.filter(p=>p.bump).map(p=>({x:p.x,z:p.z,c:Math.cos(p.rot),n:Math.sin(p.rot),...p.bump,log:p.m==='log'}));
 export function propHeight(x,z){
   let y=0;for(const b of BUMPS){const dx=x-b.x,dz=z-b.z;const R=Math.max(b.a,b.b)+.1;if(Math.abs(dx)>R||Math.abs(dz)>R)continue;
@@ -263,6 +267,7 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   // the real town (Korumburra), east of the playground
   const town=makeTownVisuals(T,root,mat,{lowDetail});
   const park=makeSkateParkVisuals(T,root,GLTFLoader,{lowDetail});
+  const canyon=makeCanyonVisuals(T,root,GLTFLoader,{lowDetail});
   // Loop-the-loops: the same path ride-loop.js carries the bike along, plus two support legs.
   const loopMeshes=[];
   for(const L of PLAYGROUND_LOOPS){const m=makeLoopMesh(T,L);m.name='environment:loop:'+L.id;m.castShadow=!lowDetail;root.add(m);loopMeshes.push(m);
@@ -285,6 +290,6 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
     roadMap:null,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
     update(){},view(){},
     state:()=>({playground:true,arena:true,size:SIZE,ground:'splat:Grass004+Ground054+Rock051+Ground109+Gravel041',descent:{...DESCENT},pads:PLAYGROUND_PADS.map(p=>p.id),terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
-    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
+    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };
 }

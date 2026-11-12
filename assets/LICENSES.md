@@ -45,3 +45,8 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | Asset | Path | Source | Use |
 | --- | --- | --- | --- |
 | Mini Skate 2.0 GLB pieces (half-pipe, ramp, steps, slope-smooth, rails, fence, benches, floor) + colormap | `kenney/mini-skate/` | https://kenney.nl/assets/mini-skate (License.txt included) | Playground skate park; `park.json` layout and `height.bin` collision baked by `tools/bake-skatepark.mjs` |
+
+## Quaternius — Stylized Nature MegaKit (Standard, free)
+- `assets/quaternius/nature/` — dead trees, desert rocks, dry grass, plants, pebbles, rock paths for the desert canyon bike track.
+- License: CC0 1.0 (see `assets/quaternius/nature/License.txt`). Models by @Quaternius — https://quaternius.com
+- Textures resized; grass recoloured to dry gold, Rock_Medium uses the kit's desert rock texture.
