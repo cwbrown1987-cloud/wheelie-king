@@ -21,3 +21,6 @@ const s=makeState(P,0,ter);Object.assign(s,{x:SOCCER.centre.x-8,z:SOCCER.centre.
 for(let i=0;i<120;i++){for(let k=0;k<8;k++)step(s,P,{throttle:s.vx<9?1:0,brake:0,lean:0,steer:0},1/480,ter);soc.step(1/60,s,P);}
 assert.ok(soc.state().touches>0&&b.vx>3,'bike knocks the ball forward '+b.vx);assert.equal(s.crashed,null);
 console.log('playground-soccer: ok',JSON.stringify(soc.state()));
+// a hard miss over/beside the goal is caught by the net behind it
+{soc.reset();for(let i=0;i<300;i++)soc.step(1/60,null,null);Object.assign(b,{x:G.x-6,z:G.z+G.halfW+4,y:3,vx:25,vy:3,vz:0});for(let i=0;i<300;i++)soc.step(1/60,null,null);assert.ok(b.x<SOCCER.fence.x+.01,'catch net stops a missed shot '+b.x);}
+console.log('soccer net: ok');

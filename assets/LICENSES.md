@@ -32,3 +32,10 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
   textures resized to 512 px (gltf-transform). Used as the Playground rider (rider-ubc.js).
 - Licence: CC0 1.0 Universal (Public Domain Dedication), https://creativecommons.org/publicdomain/zero/1.0/
   (from the kit's `License_Standard.txt`: "License: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication ... Models by @Quaternius").
+
+## Real-world map data (towns/korumburra)
+
+| Data | Path | Source | Licence | Use |
+| --- | --- | --- | --- | --- |
+| Buildings, roads, paths, parks around Korumburra, Victoria (bbox 145.8146,-38.4397,145.8330,-38.4253) | `towns/korumburra/town.json`, `towns/korumburra/roofs.bin` | © OpenStreetMap contributors, https://www.openstreetmap.org/copyright | ODbL 1.0 (attribution shown on the in-game town sign) | Playground real town: building footprints/heights, road network |
+| Elevation, 4 m resample of zoom-15 Terrarium tiles | `towns/korumburra/terrain.bin` | AWS Terrain Tiles (Tilezen/Mapzen), https://registry.opendata.aws/terrain-tiles/ (SRTM, GMTED, ETOPO1 and other public sources) | Open data, attribution | Playground real town ground |

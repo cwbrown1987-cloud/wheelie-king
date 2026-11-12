@@ -36,7 +36,7 @@ export function makeTerrain(seed = 1) {
 }
 export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:()=>0,puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false};}
 // Playground: one big flat plane (Jolt drives the bike there).
-const PLAYGROUND_HALF=1000;
+const PLAYGROUND_HALF=2500; // v2.1-15: room for the real town east of the playground
 export function makePlaygroundTerrain(){
   const height=(x,z=0)=>playgroundHeight(x,z);
   // Ground angle along the bike's heading (classic physics needs it for wheelie balance on ramps/hills).

@@ -4,6 +4,8 @@
 export const SOCCER = {
   centre: { x: 62, z: -75 }, r: 0.9, goal: { x: 104, z: -75, halfW: 6, h: 3.6, depth: 3 },
   restitution: 0.62, friction: 0.35, kick: 1.15, respawn: 3.5,
+  // catch net behind the goal end so a missed shot doesn't roll off across the playground
+  fence: { x: 104 + 3 + 7, halfW: 24, h: 9, wing: 10 },
 };
 const G = SOCCER.goal;
 // Goal frame for bike collisions (same shape as the playground tree posts).
@@ -50,6 +52,11 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
   const netBack = new T.Mesh(keep(new T.PlaneGeometry(G.halfW * 2, G.h, 24, 8)), netMat); netBack.rotation.y = Math.PI / 2; netBack.position.set(G.x + G.depth, G.h / 2, G.z); root.add(netBack);
   const netTop = new T.Mesh(keep(new T.PlaneGeometry(G.depth, G.halfW * 2, 6, 24)), netMat); netTop.rotation.x = -Math.PI / 2; netTop.position.set(G.x + G.depth / 2, G.h, G.z); root.add(netTop);
   for (const dz of [-G.halfW, G.halfW]) { const side = new T.Mesh(keep(new T.PlaneGeometry(G.depth, G.h, 6, 8)), netMat); side.position.set(G.x + G.depth / 2, G.h / 2, G.z + dz); root.add(side); }
+  const F = SOCCER.fence, fenceMat = keep(new T.MeshStandardMaterial({ color: 0x20262c, transparent: true, opacity: 0.35, side: T.DoubleSide, depthWrite: false, wireframe: true }));
+  const fBack = new T.Mesh(keep(new T.PlaneGeometry(F.halfW * 2, F.h, 48, 18)), fenceMat); fBack.rotation.y = Math.PI / 2; fBack.position.set(F.x, F.h / 2, G.z); root.add(fBack);
+  for (const sd of [-1, 1]) { const w = new T.Mesh(keep(new T.PlaneGeometry(F.wing, F.h, 20, 18)), fenceMat); w.position.set(F.x - F.wing / 2, F.h / 2, G.z + sd * F.halfW); root.add(w);
+    for (const px of [F.x, F.x - F.wing]) { const pole = new T.Mesh(post(F.h), frameMat); pole.position.set(px, F.h / 2, G.z + sd * F.halfW); root.add(pole); } }
+  for (let k = -2; k <= 2; k++) { const pole = new T.Mesh(post(F.h), frameMat); pole.position.set(F.x, F.h / 2, G.z + k * F.halfW / 2.5); root.add(pole); }
 
   // fireworks: pooled particles
   const N = lowDetail ? 900 : 1800, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), vel = new Float32Array(N * 3), life = new Float32Array(N);
@@ -86,6 +93,9 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
       }
       // goal frame: posts and crossbar bounce the ball
       for (const p of GOAL_POSTS) { const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz); if (d < R + p.r && b.y < p.h + R) { const nx = dx / (d || 1), nz = dz / (d || 1), vn = b.vx * nx + b.vz * nz; b.x = p.x + nx * (R + p.r); b.z = p.z + nz * (R + p.r); if (vn < 0) { b.vx -= 1.7 * vn * nx; b.vz -= 1.7 * vn * nz; } } }
+      // catch fence behind the goal end (back + wings)
+      { const F = SOCCER.fence; if (b.y < F.h + R && Math.abs(b.z - G.z) < F.halfW && b.x > F.x - R) { b.x = F.x - R; b.vx = -Math.abs(b.vx) * 0.25; b.vz *= 0.6; }
+        for (const sd of [-1, 1]) { const wz = G.z + sd * F.halfW; if (b.y < F.h + R && b.x > F.x - F.wing && b.x < F.x + R && Math.abs(b.z - wz) < R) { b.z = wz - sd * R; b.vz = -b.vz * 0.25; } } }
       // net: inside the goal the back and sides catch the ball
       if (b.x > G.x && b.x < G.x + G.depth + R && Math.abs(b.z - G.z) < G.halfW + R && b.y < G.h + R) {
         if (b.x > G.x + G.depth - R) { b.x = G.x + G.depth - R; b.vx = -Math.abs(b.vx) * 0.2; }
