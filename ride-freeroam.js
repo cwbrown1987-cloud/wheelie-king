@@ -6,6 +6,9 @@ export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 // yaw comes from v*tan(δ)/wheelbase. At a standstill the bars turn and the
 // bike does not spin. Burnout is the exception: a slower rear-tyre slide.
 export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=7*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
+// Tyre grip limit for open-world turning (~0.9 g on dry ground): at speed the bars only go as far as
+// the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
+export const STEER_GRIP_G=.9,WALL_STEP=.28;
 export function maxSteerAngle(speed,vmax=12){
   const t=Math.min(1,Math.abs(speed||0)/Math.max(8,vmax));
   return STEER_MAX_LOW+(STEER_MAX_HIGH-STEER_MAX_LOW)*t;
@@ -13,7 +16,8 @@ export function maxSteerAngle(speed,vmax=12){
 export function stepHeading(s,inp,dt,p){
   const onG=!!(s.ground[0]||s.ground[1]);
   const v=s.vx||0,wb=Math.max(.9,p?.wb||1.25),vmax=p?.vmax||12;
-  const maxA=maxSteerAngle(v,vmax);
+  const aLat=STEER_GRIP_G*9.8*Math.min(1.2,p?.grip||1),gripA=Math.abs(v)>.5?Math.atan(aLat*wb/(v*v)):Infinity;
+  const maxA=Math.min(maxSteerAngle(v,vmax),gripA);
   const target=Math.max(-1,Math.min(1,inp.steer||0))*maxA;
   s.steerTarget=target;
   const k=1-Math.exp(-Math.max(0,dt)/STEER_TAU);
@@ -50,6 +54,17 @@ export function collideFreeRoam(s,p,ter){
   else if(s.x>b.xmax-r){s.x=b.xmax-r;reject(-1,0)}
   if((s.z||0)<b.zmin+r){s.z=b.zmin+r;reject(0,1)}
   else if((s.z||0)>b.zmax-r){s.z=b.zmax-r;reject(0,-1)}
+  // Solid steep faces (ramp sides, walls): a tyre can't climb a near-vertical step. Riding into one
+  // stops the bike against it (velocity into the face removed) instead of launching up it.
+  if(ter.height&&(s.ground?.[0]||s.ground?.[1])&&Math.abs(s.vx||0)>.05){
+    const dir=Math.sign(s.vx),c=Math.cos(s.yaw||0),n=Math.sin(s.yaw||0),cb=p.comBack??.42;
+    const reach=dir>0?p.wb*(1-cb)+(p.R||.3)*.95:-(p.wb*cb+(p.R||.3)*.95),back=reach-dir*.3;
+    const ax=s.x+c*reach,az=(s.z||0)+n*reach,here=ter.height(s.x+c*back,(s.z||0)+n*back),ahead=ter.height(ax,az);
+    if(ahead-here>WALL_STEP){
+      const e=.08,gx=ter.height(ax+e,az)-ter.height(ax-e,az),gz=ter.height(ax,az+e)-ter.height(ax,az-e),gl=Math.hypot(gx,gz)||1;
+      reject(-gx/gl,-gz/gl);s.x-=c*dir*.02;s.z=(s.z||0)-n*dir*.02;s.wallHit=(s.wallHit||0)+1;
+    }
+  }
   const z=s.z||0;
   for(const box of ter.boxes){
     const minx=box.x-box.hx-r,maxx=box.x+box.hx+r,minz=box.z-box.hz-r,maxz=box.z+box.hz+r;

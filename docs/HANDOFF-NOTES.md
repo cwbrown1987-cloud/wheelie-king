@@ -9,6 +9,25 @@ The full commit-by-commit history is in [CHANGELOG-DETAILED.md](CHANGELOG-DETAIL
 
 ---
 
+## 0. v2.1 update (Claude, 12 Nov 2026), read this first
+
+Chris decided (12 Nov, in his own words: "I was fond of my physics engine, I just want it to feel the same or better in open world"):
+
+- **The Playground runs Chris's classic ride physics** (`ride-physics.js` + `ride-freeroam.js`) in free roam, not Jolt. Side view and chase view are the same physics; side view just has steering locked.
+- **Jolt stays in the repo**, reachable with `?physics=jolt` for comparison only. The plan is to use Jolt later only where it is better: rider ragdoll, loose props, solid buildings.
+- **Open-world additions on top of the classic step** (wheelie, stoppie, air and landing maths unchanged):
+  - The Playground terrain reports the real ground slope along the heading (`slopeAt`), so wheelie balance works on ramps and hills (it was hard-coded 0).
+  - Grip-limited steering (`STEER_GRIP_G` = 0.9 g): at speed the bars only turn as far as the tyres can carry.
+  - The visual lean is `atan(v²κ/g)`, up to 43°, applied only on the ground.
+  - Solid steep faces (`WALL_STEP` = 0.28 m): riding into a ramp side stops the bike instead of climbing it.
+- **Why:** the Jolt handling bugs in §4 (hard-turn flips, bump-turn flips, random hops, violent ramp launches) come from Jolt's real 3D roll dynamics and lean controller. The classic model's lean is visual, so those can't happen. `tests/playground-classic.mjs` locks that in.
+- **Rider:** the Quaternius UBC rider is unchanged. It reads `s.visRoll` for turn lean when Jolt is off.
+- **Telemetry:** `physics` is `'classic'`; `rollDeg` is the visual lean. `__WK_JOLT_RESET__(pose)` works in classic too.
+- Version 2.1, cache `wk-v2.1-classic`. Branch `claude/classic-playground`.
+- **Still open:** BMX tuning, burnout/donut/drift on the classic model (simpler than the Jolt versions), and on-device feel tuning with Chris.
+
+---
+
 ## 1. Project overview and architecture
 
 Wheelie King is a customisation-first bike game with two ride paths that must both stay in the repo:

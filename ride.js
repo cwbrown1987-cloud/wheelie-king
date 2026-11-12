@@ -758,7 +758,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const lowest=Math.min(rearY,frontY)-(P.R||.33);
       if(lowest<gy-0.005) pivot.position.y += (gy-lowest);
     }
-    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam?Math.max(-.42,Math.min(.42,-(s.vx||0)*(s.vx||0)*kappa/9.8)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;s.visRoll=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
+    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam&&(s.ground[0]||s.ground[1])?Math.max(-.75,Math.min(.75,-Math.atan((s.vx||0)*(s.vx||0)*kappa/9.8))):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;s.visRoll=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
     // suspension: wheels slide toward the frame by compression*travel
     stuntRig.restore();
     const onGVis=!!(s.ground[0]||s.ground[1]);
