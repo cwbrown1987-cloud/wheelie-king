@@ -54,7 +54,9 @@ for(const [name,P] of Object.entries(bikes)){
  // rock garden: weaving through at speed over the rideable rocks stays upright (posts may crash, so steer clear of them)
  const rock=PLAYGROUND_PROPS.find(q=>q.m==='rock7');
  {const s=fresh(P,{x:rock.x-12,z:rock.z});let mc=0,air=0;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{mc=Math.max(mc,s.comp[0],s.comp[1]);if(!s.ground[0]&&!s.ground[1])air+=dt});assert.ok(!s.crashed||/HIT/.test(s.crashed),'rock hump rideable '+s.crashed);assert.ok(mc>.3,'suspension soaks up the rock '+mc);assert.ok(air<.3,'a rock at 6 m/s is not a jump '+air);}
- for(const x of [-12]){const s=fresh(P,{x:x+8,z:6,yaw:Math.PI});let maxY=0;const g=s.y;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{maxY=Math.max(maxY,s.y-g)});assert.equal(s.crashed,null,'log crossing');assert.ok(maxY>.15&&s.x<x-2,'rode over the log '+maxY+' '+s.x);}
+ for(const x of [-12]){const s=fresh(P,{x:x+8,z:6,yaw:Math.PI});let mc=0,firstX=null,tt=0,base=null;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{tt+=dt;const c=Math.max(s.comp[0],s.comp[1]);if(tt>.6&&base==null)base=c;if(base!=null&&c>base+.08&&firstX==null)firstX=s.x;mc=Math.max(mc,c)});assert.equal(s.crashed,null,'log crossing');assert.ok(s.x<x-2,'rode over the log '+s.x);assert.ok(mc>.4,'the log is felt in the suspension '+mc);
+  // the wheel only meets the log at the log: the front axle is within a tyre radius + the log's radius of it when the hit starts
+  assert.ok(firstX!=null&&Math.abs(firstX-x)<P.wb*(1-P.comBack)+P.R+.35,'no early hit before touching the log '+(firstX-x));}
 }
 // v2.1-10 downhill: ride the dirt road top to bottom (a simple line-follower), tabletops and rollers, no crash.
 for(const [name,P] of Object.entries(bikes)){const s=fresh(P,PLAYGROUND_PADS[0].to);let air=0;

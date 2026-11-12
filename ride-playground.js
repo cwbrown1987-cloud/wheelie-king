@@ -147,8 +147,8 @@ function buildProps(){
     // rock_07 is ~0.17 x 0.14 x 0.32 m (x,y,z) as modelled, rock_09 ~0.08 x 0.03 x 0.14 m: scaled up to
     // rideable humps, squashed so none stands taller than ~0.4 m.
     const k=m==='rock7'?s:s*2.2,hx=(m==='rock7'?.085:.04)*k,hz=(m==='rock7'?.16:.07)*k,h0=(m==='rock7'?.14:.03)*k,sy=Math.min(1.4,.4/h0);
-    out.push({m,x,z,s:k,rot,sy,bump:{a:hx+.35,b:hz+.35,h:h0*sy}});};
-  const log=(x,z,rot,s=1.2)=>out.push({m:'log',x,z,s,rot,bump:{a:1.5*s,b:.75,h:.26*s}});
+    out.push({m,x,z,s:k,rot,sy,bump:{a:hx*.95,b:hz*.95,h:h0*sy}});}; // v2.1-24: the rock's own footprint (was padded 35 cm)
+  const log=(x,z,rot,s=1.2)=>out.push({m:'log',x,z,s,rot,bump:{a:1.5*s,b:.13*s,h:.26*s}}); // v2.1-24: the trunk's real round section (was a 1.5 m wide hump)
   // tree lines either side of the side-view track (clear of its 5 m width and the circuit ramps)
   for(let x=-48;x<=78;x+=9){tree(x+rnd()*3,31.5-rnd()*1.2);tree(x+4+rnd()*3,48.5+rnd()*1.2);}
   // slalom near spawn: trees to weave through (and test glancing hits)
@@ -175,8 +175,10 @@ export function propHeight(x,z){
   let y=0;for(const b of BUMPS){const dx=x-b.x,dz=z-b.z;const R=Math.max(b.a,b.b)+.1;if(Math.abs(dx)>R||Math.abs(dz)>R)continue;
     // model space: +X along the prop (three.js rotation.y=rot maps local x to (cos, -sin) in x,z)
     const u=dx*b.c-dz*b.n,v=dx*b.n+dz*b.c;
-    if(b.log){if(Math.abs(u)>b.a)continue;const t=Math.abs(v)/b.b;if(t<1)y=Math.max(y,b.h*Math.cos(t*Math.PI/2)**2*ss((b.a-Math.abs(u))/.8));}
-    else{const r=(u/b.a)**2+(v/b.b)**2;if(r<1)y=Math.max(y,b.h*Math.cos(Math.sqrt(r)*Math.PI/2)**2);}
+    // round log lying on the ground: a circle of radius b with its top at h (the tyre itself rolls over the curve)
+    if(b.log){if(Math.abs(u)>b.a)continue;const t=Math.abs(v)/b.b;if(t<1)y=Math.max(y,(b.h-b.b+b.b*Math.sqrt(1-t*t))*ss((b.a-Math.abs(u))/.3));}
+    // rock: a dome over its own footprint
+    else{const r=(u/b.a)**2+(v/b.b)**2;if(r<1)y=Math.max(y,b.h*Math.sqrt(1-r));}
   }
   return y;
 }
