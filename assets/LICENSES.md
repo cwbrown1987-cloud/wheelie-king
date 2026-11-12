@@ -55,3 +55,6 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 - Sky: Poly Haven `qwantani_dusk_2_puresky` (CC0) — https://polyhaven.com/a/qwantani_dusk_2_puresky — background colour-graded purple/orange (`assets/hdri/neon_sunset_*`).
 - Textures: ambientCG `Asphalt026C`, `Concrete034` (CC0) — https://ambientcg.com
 - Graffiti, fence, windows, chevrons, signs and palms are generated in code (`ride-neon-world.js`).
+
+## Ground variety (v2.1-40)
+- ambientCG `Grass002` (dark lush grass), `Ground037` (patchy grass and dirt), `Ground048` (leaf litter) — CC0, https://ambientcg.com
