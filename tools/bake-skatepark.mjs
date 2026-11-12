@@ -41,7 +41,8 @@ if(probe){
   process.exit(0);
 }
 // ---- layout (metres, park-local; 1 tile = S metres) ----
-const S=3.5,R=2.0,P=[];const add=(f,tx,tz,r=0,s=S)=>P.push({f,x:tx*S,z:tz*S,r,s});
+// v2.1-29: everything 1.5x (bike scale): quarter pipes ~3.4 m with a ~4 m radius, so motos and bikes can ride them
+const K=1.5,S=3.5*K,R=2.0*K,P=[];const add=(f,tx,tz,r=0,s=S)=>P.push({f,x:tx*S,z:tz*S,r,s});
 // concrete floor 12 x 10 tiles
 for(let i=-6;i<6;i++)for(let j=-5;j<5;j++)add('floor-concrete',i+.5,j+.5);
 const W=(f,tx,tz,r,s)=>add(f,tx,tz,r,s);
@@ -53,25 +54,38 @@ for(const tx of [-.5,.5]){W('ramp',tx,1,0);W('ramp',tx,0,2);} // two ramps back 
 // ledge line: ramp up onto a box, steps down off it
 W('ramp',3,0,2);W('steps',3,1,0); // ride south: up the ramp onto its deck, down the steps
 // spine / pyramid from two smooth banks back to back (smaller scale)
-W('slope-smooth',-3,-1.5,3,2);W('slope-smooth',-2,-1.5,1,2);
+W('slope-smooth',-3,-1.5,3,2*K);W('slope-smooth',-2,-1.5,1,2*K);
 // rails (scaled for bikes: ~0.5 m and ~0.9 m)
 W('rail-low',-2.5,2.5,0,R);W('rail-high',-1.2,3,0,R);W('rail-slope',2.2,3.2,0,R);
 // a kicker to the box gap
-W('ramp',0,4,0,2.2);
+W('ramp',0,4,0,2.2*K);
 // benches and fence along the open south side (gap in the middle to ride in)
 for(const tx of [-5,-4,-3,3,4,5])W('fence',tx,4.95,0);
-W('benches',-4.3,3.6,0,2.2);W('bench',4.5,3.4,2,2.2);
+W('benches',-4.3,3.6,0,2.2*K);W('bench',4.5,3.4,2,2.2*K);
 if(!probe){
-  const half={x:22,z:19},step=.1,nx=Math.round(2*half.x/step),nz=Math.round(2*half.z/step);
+  const half={x:34,z:28},step=.1,nx=Math.round(2*half.x/step),nz=Math.round(2*half.z/step);
   const grid={x0:-half.x,z0:-half.z,step,nx,nz,h:new Float32Array(nx*nz)};
-  for(const p of P){if(p.f==='floor-concrete')continue;raster(grid,place(await tris(p.f),p));}
+  // rails and benches are for looks only: a bike that clips one isn't stopped dead by a 10 cm wide wall
+  for(const p of P){if(p.f==='floor-concrete'||/rail|bench/.test(p.f))continue;raster(grid,place(await tris(p.f),p));}
+  // decks: fill the ground behind each quarter pipe up to its top, so you land on a platform, not off the back
+  {const row=(get,set,n,m)=>{for(let a=0;a<m;a++){let best=0,bi=-1;for(let b=0;b<n;b++){const v=get(a,b);if(v>best+1e-3){best=v;bi=b;}}if(best>1.2)for(let b=0;b<bi;b++)set(a,b,best);}};
+   const H=(i,j)=>grid.h[j*nx+i],SET=(i,j,v)=>{grid.h[j*nx+i]=v;},edge=Math.round(S*1.4/step);
+   // only along the quarter pipe runs (not the fence or the corners)
+   const zr=j=>Math.abs(grid.z0+(j+.5)*step)<3.5*S-.2,xr=i=>Math.abs(grid.x0+(i+.5)*step)<4.5*S-.2;
+   row((j,b)=>zr(j)?H(b,j):0,(j,b,v)=>SET(b,j,v),edge,nz);                     // west
+   row((j,b)=>zr(j)?H(nx-1-b,j):0,(j,b,v)=>SET(nx-1-b,j,v),edge,nz);           // east
+   row((i,b)=>xr(i)?H(i,b):0,(i,b,v)=>SET(i,b,v),edge,nx);}                     // back (north, -z)
   // round off near-vertical faces of the transitions (quarter pipe copings) so the bike launches off the
   // steep top like a lip instead of meeting a vertical wall; square edges of boxes/benches stay walls
   const maxStep=step*Math.tan(72*Math.PI/180);
   const isTrans=new Uint8Array(nx*nz);for(const p of P){if(!/half-pipe|slope-smooth/.test(p.f))continue;const r=p.s*.6;for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const x=grid.x0+(i+.5)*step,z=grid.z0+(j+.5)*step;if(Math.abs(x-p.x)<r&&Math.abs(z-p.z)<r)isTrans[j*nx+i]=1;}}
   for(let pass=0;pass<40;pass++){let ch=0;for(let j=1;j<nz-1;j++)for(let i=1;i<nx-1;i++){const k=j*nx+i;if(!isTrans[k])continue;const lo=Math.min(grid.h[k-1],grid.h[k+1],grid.h[k-nx],grid.h[k+nx]);if(grid.h[k]-lo>maxStep){grid.h[k]=lo+maxStep;ch++;}}if(!ch)break;}
+  // deck slabs for the game to draw: from the quarter pipe's top edge back to the grid edge
+  const DECKS=[];{const top=(sx)=>{let bi=0,best=0;for(let b=0;b<nx/2;b++){const i=sx<0?b:nx-1-b,v=grid.h[Math.floor(nz/2)*nx+i];if(v>=best-1e-3&&v>1){best=v;bi=b;}}return {x:half.x-bi*step,h:best};};
+   const w=top(-1),hz=3.5*S;DECKS.push({x0:-half.x,x1:-w.x,z0:-hz,z1:hz,h:w.h},{x0:w.x,x1:half.x,z0:-hz,z1:hz,h:w.h});
+   let bi=0,best=0;const ci=Math.floor(nx/2);for(let b=0;b<nz/2;b++){const v=grid.h[b*nx+ci];if(v>=best-1e-3&&v>1){best=v;bi=b;}}DECKS.push({x0:-4.5*S,x1:4.5*S,z0:-half.z,z1:-half.z+bi*step,h:best});}
   const out=process.argv[3]||'.';mkdirSync(out,{recursive:true});
   writeFileSync(out+'/height.bin',Buffer.from(new Uint16Array(Array.from(grid.h,v=>Math.round(Math.max(0,v)*100))).buffer));
-  writeFileSync(out+'/park.json',JSON.stringify({grid:{halfX:half.x,halfZ:half.z,step,nx,nz,unit:.01,file:'height.bin'},pieces:P.map(p=>({f:p.f,x:+p.x.toFixed(3),z:+p.z.toFixed(3),r:p.r,s:p.s}))}));
+  writeFileSync(out+'/park.json',JSON.stringify({decks:DECKS,grid:{halfX:half.x,halfZ:half.z,step,nx,nz,unit:.01,file:'height.bin'},pieces:P.map(p=>({f:p.f,x:+p.x.toFixed(3),z:+p.z.toFixed(3),r:p.r,s:p.s}))}));
   console.log('pieces',P.length,'grid',nx,nz,'max h',grid.h.reduce((a,b)=>Math.max(a,b),0).toFixed(2));
 }

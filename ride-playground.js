@@ -135,7 +135,7 @@ export const PLAYGROUND_PADS=[{id:'descent-start',label:'DOWNHILL',x:-58,z:50,r:
   {id:'canyon',label:'CANYON',x:-58,z:68,r:1.8,to:CANYON_START},
   {id:'canyon-back',label:'BACK TO PLAYGROUND',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}},
   {id:'town-back',label:'BACK TO PLAYGROUND',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*12;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*12;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
-const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<23&&Math.abs(z-PARK.z)<20?parkHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
+const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<PARK.hx&&Math.abs(z-PARK.z)<PARK.hz?parkHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
 // PROPS (v2.1-8): CC0 Poly Haven rocks, logs, stumps and trees (assets/polyhaven, see LICENSES.md).
 // Two kinds of collision:
 //  - 'bump' props (small rocks, logs) are part of the ground: you ride over them like a hump;
@@ -191,6 +191,8 @@ export function propHeight(x,z){
   return y;
 }
 export const playgroundHeight=(x,z)=>baseHeight(x,z)+propHeight(x,z);
+// v2.1-29: skate park transitions are ridden as curves (the steep top of a quarter pipe isn't a wall)
+export const playgroundTransition=(x,z)=>Math.abs(x-PARK.x)<PARK.hx&&Math.abs(z-PARK.z)<PARK.hz;
 const DIRT={Color:'./assets/ambientcg/Ground054/Ground054_1K-JPG_Color.jpg',NormalGL:'./assets/ambientcg/Ground054/Ground054_1K-JPG_NormalGL.jpg',Roughness:'./assets/ambientcg/Ground054/Ground054_1K-JPG_Roughness.jpg'};
 // Ramp triangles in world space (top surface + both side walls), shared by the drawn mesh and Jolt.
 export function rampTriangles(r){

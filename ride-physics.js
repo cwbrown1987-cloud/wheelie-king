@@ -1,6 +1,6 @@
 import { stepLoop } from './ride-loop.js';
 import {roundedProfile} from './terrain-profile.js';
-import { playgroundHeight, terrainHeight } from './ride-playground.js';
+import { playgroundHeight, terrainHeight, playgroundTransition } from './ride-playground.js';
 import { stepHeading, collideFreeRoam } from './ride-freeroam.js';
 import { PLAYGROUND_LOOPS, PLAYGROUND_POSTS } from './ride-playground.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
@@ -43,7 +43,7 @@ export function makePlaygroundTerrain(){
   const E=.12,slopeAt=(x,z=0,yaw=0)=>{const c=Math.cos(yaw),n=Math.sin(yaw);return Math.atan2(height(x+c*E,z+n*E)-height(x-c*E,z-n*E),2*E)};
   return {
     pts:[[-PLAYGROUND_HALF,0],[PLAYGROUND_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,terrainHeight,slopeAt,
-    puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,boxes:[],loops:PLAYGROUND_LOOPS,posts:PLAYGROUND_POSTS,
+    puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,transition:playgroundTransition,boxes:[],loops:PLAYGROUND_LOOPS,posts:PLAYGROUND_POSTS,
     bounds:{xmin:-PLAYGROUND_HALF,xmax:PLAYGROUND_HALF,zmin:-PLAYGROUND_HALF,zmax:PLAYGROUND_HALF},gates:null
   };
 }

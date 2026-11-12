@@ -132,7 +132,11 @@ export function collideFreeRoam(s,p,ter){
     // What the tyre can roll up: about its own radius, a bit more with speed (the rider lifts the front into it).
     // Anything taller is a real wall: a big square edge, a building, the side of a car.
     const climb=ter.playground?Math.max(WALL_STEP,(p.R||.3)*(.9+.35*Math.min(1,Math.abs(s.vx||0)/8))):WALL_STEP;
-    if(ahead-here>climb){
+    // A curved transition (skate park quarter pipe) rises steeply but smoothly: no sudden step anywhere along the
+    // tyre's path, so it's ridden up as a curve, not hit as a wall. A box side or kerb jumps up in one go.
+    let smooth=false;
+    if(ahead-here>climb&&ter.transition?.(ax,az)){smooth=true;let prev=here;for(let k=1;k<=8;k++){const f=back+(reach-back)*k/8,h=ter.height(s.x+c*f,(s.z||0)+n*f);if(h-prev>.2){smooth=false;break;}prev=h;}}
+    if(ahead-here>climb&&!smooth){
       const e=.08,gx=ter.height(ax+e,az)-ter.height(ax-e,az),gz=ter.height(ax,az+e)-ter.height(ax,az-e),gl=Math.hypot(gx,gz)||1;
       const nx=-gx/gl,nz=-gz/gl,into=(c*nx+n*nz)*dir;
       if(into>-.6&&dir>0){
