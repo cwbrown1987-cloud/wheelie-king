@@ -2,17 +2,47 @@
 // Score and the goal goes up in fireworks; the ball comes back to the centre spot a few seconds later.
 // Our own simple ball physics on the playground heightfield (gravity, bounce, rolling friction, spin look).
 export const SOCCER = {
-  centre: { x: 62, z: -75 }, r: 0.9, goal: { x: 104, z: -75, halfW: 6, h: 3.6, depth: 3 },
+  centre: { x: 62, z: -75 }, r: 0.9, halfLen: 42, halfWidth: 26,
+  goal: { halfW: 6, h: 3.6, depth: 3 },
   restitution: 0.62, friction: 0.35, kick: 1.15, respawn: 3.5,
-  // catch net behind the goal end so a missed shot doesn't roll off across the playground
-  fence: { x: 104 + 3 + 7, halfW: 24, h: 9, wing: 10 },
+  // catch net behind each goal end (back + side wings), 7 m behind the goal mouth
+  fence: { back: 10, halfW: 24, h: 9, wing: 10 },
 };
-const G = SOCCER.goal;
-// Goal frame for bike collisions (same shape as the playground tree posts).
-export const GOAL_POSTS = [
-  { x: G.x, z: G.z - G.halfW, r: 0.12, kind: 'post', h: G.h },
-  { x: G.x, z: G.z + G.halfW, r: 0.12, kind: 'post', h: G.h },
+// Two goals, one at each end of the pitch. dir = +1 means the goal opens toward -x (sits at the +x end).
+export const GOALS = [
+  { id: 'east', x: SOCCER.centre.x + SOCCER.halfLen, z: SOCCER.centre.z, dir: 1 },
+  { id: 'west', x: SOCCER.centre.x - SOCCER.halfLen, z: SOCCER.centre.z, dir: -1 },
 ];
+const G = { ...SOCCER.goal, ...GOALS[0] }; // kept for older callers (east goal)
+// Goal frames for bike collisions (same shape as the playground tree posts).
+export const GOAL_POSTS = GOALS.flatMap(g => [-1, 1].map(sd => ({ x: g.x, z: g.z + sd * SOCCER.goal.halfW, r: 0.12, kind: 'post', h: SOCCER.goal.h })));
+function netTexture(T, cell = 16, line = 2, color = '#ffffff') {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  g.clearRect(0, 0, 64, 64); g.strokeStyle = color; g.lineWidth = line;
+  for (let i = 0; i <= 64; i += cell) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); }
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8; return t;
+}
+function pitchTexture(T, L, W) {
+  if (typeof document === 'undefined') return null;
+  const px = 8, c = document.createElement('canvas'); c.width = Math.round(L * px); c.height = Math.round(W * px); const g = c.getContext('2d');
+  // mowed stripes
+  for (let i = 0; i < 12; i++) { g.fillStyle = i % 2 ? '#3f7d34' : '#4a8c3c'; g.fillRect(i * c.width / 12, 0, c.width / 12 + 1, c.height); }
+  g.strokeStyle = '#f5f5f0'; g.lineWidth = 0.15 * px * 1.2; const m = 3 * px, X = v => m + v * px, Y = v => m + v * px, l = L - 6, w = W - 6;
+  g.strokeRect(X(0), Y(0), l * px, w * px);                                      // touch + goal lines
+  g.beginPath(); g.moveTo(X(l / 2), Y(0)); g.lineTo(X(l / 2), Y(w)); g.stroke();  // halfway
+  g.beginPath(); g.arc(X(l / 2), Y(w / 2), 7.5 * px, 0, Math.PI * 2); g.stroke(); // centre circle
+  g.fillStyle = '#f5f5f0'; g.beginPath(); g.arc(X(l / 2), Y(w / 2), 0.35 * px, 0, Math.PI * 2); g.fill();
+  for (const end of [0, 1]) {
+    const x0 = end ? X(l - 13) : X(0), x1 = end ? X(l - 4.5) : X(0);
+    g.strokeRect(x0, Y(w / 2 - 15), 13 * px, 30 * px);                           // penalty box
+    g.strokeRect(x1, Y(w / 2 - 8), 4.5 * px, 16 * px);                           // goal box
+    g.beginPath(); g.arc(end ? X(l - 9) : X(9), Y(w / 2), 0.3 * px, 0, Math.PI * 2); g.fill(); // penalty spot
+    g.beginPath(); g.arc(end ? X(l - 9) : X(9), Y(w / 2), 7.5 * px, end ? Math.PI * 0.62 : -Math.PI * 0.38, end ? Math.PI * 1.38 : Math.PI * 0.38); g.stroke(); // D
+  }
+  for (const [cx, cy] of [[0, 0], [l, 0], [0, w], [l, w]]) { g.beginPath(); g.arc(X(cx), Y(cy), 1 * px, 0, Math.PI * 2); g.stroke(); } // corner arcs
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; return t;
+}
 
 function ballTexture(T) {
   if (typeof document === 'undefined') return null;
@@ -35,28 +65,37 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
   const tex = ballTexture(T); if (tex) keep(tex);
   const ball = new T.Mesh(keep(new T.SphereGeometry(SOCCER.r, 32, 20)), keep(new T.MeshStandardMaterial({ map: tex, roughness: 0.45, metalness: 0 })));
   ball.castShadow = true; ball.name = 'soccer:ball'; root.add(ball);
-  // pitch markings: centre circle + goal box, flat decals just above the ground
-  const lineMat = keep(new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
-  const ring = new T.Mesh(keep(new T.RingGeometry(7.6, 7.9, 64)), lineMat); ring.rotation.x = -Math.PI / 2; ring.position.set(SOCCER.centre.x, 0.02, SOCCER.centre.z); root.add(ring);
-  const box = (w, d, x, z) => { const m = new T.Mesh(keep(new T.PlaneGeometry(w, d)), lineMat); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.02, z); root.add(m); };
-  box(0.3, G.halfW * 2 + 8, G.x - 10, G.z); box(10, 0.3, G.x - 5, G.z - G.halfW - 4); box(10, 0.3, G.x - 5, G.z + G.halfW + 4); box(0.25, 60, G.x, G.z);
-  // goal: white frame + translucent net
+  // the pitch: striped grass with full markings, slightly raised so it sits over the playground floor
+  const L = SOCCER.halfLen * 2 + 6, Wd = SOCCER.halfWidth * 2 + 6, ptex = pitchTexture(T, L, Wd); if (ptex) keep(ptex);
+  const pitch = new T.Mesh(keep(new T.PlaneGeometry(L, Wd)), keep(new T.MeshStandardMaterial({ map: ptex, color: ptex ? 0xffffff : 0x4a8c3c, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })));
+  pitch.rotation.x = -Math.PI / 2; pitch.position.set(SOCCER.centre.x, 0.015, SOCCER.centre.z); pitch.receiveShadow = true; pitch.name = 'soccer:pitch'; root.add(pitch);
   const frameMat = keep(new T.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.35, metalness: 0.2 }));
-  const post = h => keep(new T.CylinderGeometry(0.12, 0.12, h, 12));
-  for (const dz of [-G.halfW, G.halfW]) { const p = new T.Mesh(post(G.h), frameMat); p.position.set(G.x, G.h / 2, G.z + dz); p.castShadow = true; root.add(p);
-    const back = new T.Mesh(post(G.h), frameMat); back.position.set(G.x + G.depth, G.h / 2, G.z + dz); root.add(back);
-    const top = new T.Mesh(post(G.depth), frameMat); top.rotation.z = Math.PI / 2; top.position.set(G.x + G.depth / 2, G.h, G.z + dz); root.add(top); }
-  const bar = new T.Mesh(post(G.halfW * 2), frameMat); bar.rotation.x = Math.PI / 2; bar.position.set(G.x, G.h, G.z); bar.castShadow = true; root.add(bar);
-  const bar2 = new T.Mesh(post(G.halfW * 2), frameMat); bar2.rotation.x = Math.PI / 2; bar2.position.set(G.x + G.depth, G.h, G.z); root.add(bar2);
-  const netMat = keep(new T.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, side: T.DoubleSide, depthWrite: false, wireframe: true }));
-  const netBack = new T.Mesh(keep(new T.PlaneGeometry(G.halfW * 2, G.h, 24, 8)), netMat); netBack.rotation.y = Math.PI / 2; netBack.position.set(G.x + G.depth, G.h / 2, G.z); root.add(netBack);
-  const netTop = new T.Mesh(keep(new T.PlaneGeometry(G.depth, G.halfW * 2, 6, 24)), netMat); netTop.rotation.x = -Math.PI / 2; netTop.position.set(G.x + G.depth / 2, G.h, G.z); root.add(netTop);
-  for (const dz of [-G.halfW, G.halfW]) { const side = new T.Mesh(keep(new T.PlaneGeometry(G.depth, G.h, 6, 8)), netMat); side.position.set(G.x + G.depth / 2, G.h / 2, G.z + dz); root.add(side); }
-  const F = SOCCER.fence, fenceMat = keep(new T.MeshStandardMaterial({ color: 0x20262c, transparent: true, opacity: 0.35, side: T.DoubleSide, depthWrite: false, wireframe: true }));
-  const fBack = new T.Mesh(keep(new T.PlaneGeometry(F.halfW * 2, F.h, 48, 18)), fenceMat); fBack.rotation.y = Math.PI / 2; fBack.position.set(F.x, F.h / 2, G.z); root.add(fBack);
-  for (const sd of [-1, 1]) { const w = new T.Mesh(keep(new T.PlaneGeometry(F.wing, F.h, 20, 18)), fenceMat); w.position.set(F.x - F.wing / 2, F.h / 2, G.z + sd * F.halfW); root.add(w);
-    for (const px of [F.x, F.x - F.wing]) { const pole = new T.Mesh(post(F.h), frameMat); pole.position.set(px, F.h / 2, G.z + sd * F.halfW); root.add(pole); } }
-  for (let k = -2; k <= 2; k++) { const pole = new T.Mesh(post(F.h), frameMat); pole.position.set(F.x, F.h / 2, G.z + k * F.halfW / 2.5); root.add(pole); }
+  const poleMat = keep(new T.MeshStandardMaterial({ color: 0x2b3036, roughness: 0.6, metalness: 0.4 }));
+  const post = (h, r = 0.12) => keep(new T.CylinderGeometry(r, r, h, 12));
+  // real-looking net: a fine white mesh texture with see-through holes (alpha test), on both sides
+  const ntex = netTexture(T); if (ntex) keep(ntex);
+  const ftex = netTexture(T, 16, 2, '#1d2228'); if (ftex) keep(ftex);
+  const netMesh = (w, h, mat, tex, cell) => { const m = mat.clone(); keep(m); if (tex) { m.map = tex.clone(); keep(m.map); m.map.repeat.set(w / cell, h / cell); m.map.needsUpdate = true; } return new T.Mesh(keep(new T.PlaneGeometry(w, h)), m); };
+  const netMat = keep(new T.MeshStandardMaterial({ color: 0xffffff, transparent: !ntex, opacity: ntex ? 1 : 0.25, alphaTest: ntex ? 0.35 : 0, side: T.DoubleSide, roughness: 0.9, wireframe: !ntex }));
+  const fenceMat = keep(new T.MeshStandardMaterial({ color: 0xffffff, transparent: !ftex, opacity: ftex ? 1 : 0.3, alphaTest: ftex ? 0.35 : 0, side: T.DoubleSide, roughness: 0.9, wireframe: !ftex }));
+  const GG = SOCCER.goal, F = SOCCER.fence;
+  for (const g of GOALS) {
+    const goal = new T.Group(); goal.name = 'soccer:goal:' + g.id; goal.position.set(g.x, 0, g.z); goal.rotation.y = g.dir > 0 ? 0 : Math.PI; root.add(goal);
+    for (const dz of [-GG.halfW, GG.halfW]) {
+      const p = new T.Mesh(post(GG.h), frameMat); p.position.set(0, GG.h / 2, dz); p.castShadow = true; goal.add(p);
+      const back = new T.Mesh(post(GG.h, 0.05), frameMat); back.position.set(GG.depth, GG.h / 2, dz); goal.add(back);
+      const top = new T.Mesh(post(GG.depth, 0.05), frameMat); top.rotation.z = Math.PI / 2; top.position.set(GG.depth / 2, GG.h, dz); goal.add(top);
+      const side = netMesh(GG.depth, GG.h, netMat, ntex, 0.12); side.position.set(GG.depth / 2, GG.h / 2, dz); goal.add(side);
+    }
+    const bar = new T.Mesh(post(GG.halfW * 2), frameMat); bar.rotation.x = Math.PI / 2; bar.position.set(0, GG.h, 0); bar.castShadow = true; goal.add(bar);
+    const nb = netMesh(GG.halfW * 2, GG.h, netMat, ntex, 0.12); nb.rotation.y = Math.PI / 2; nb.position.set(GG.depth, GG.h / 2, 0); goal.add(nb);
+    const nt = netMesh(GG.depth, GG.halfW * 2, netMat, ntex, 0.12); nt.rotation.x = -Math.PI / 2; nt.position.set(GG.depth / 2, GG.h, 0); goal.add(nt);
+    // catch fence behind the goal end: dark sports netting on poles
+    const fb = netMesh(F.halfW * 2, F.h, fenceMat, ftex, 0.25); fb.rotation.y = Math.PI / 2; fb.position.set(F.back, F.h / 2, 0); goal.add(fb);
+    for (const sd of [-1, 1]) { const w = netMesh(F.wing, F.h, fenceMat, ftex, 0.25); w.position.set(F.back - F.wing / 2, F.h / 2, sd * F.halfW); goal.add(w);
+      const pole = new T.Mesh(post(F.h, 0.08), poleMat); pole.position.set(F.back - F.wing, F.h / 2, sd * F.halfW); goal.add(pole); }
+    for (let k = -3; k <= 3; k++) { const pole = new T.Mesh(post(F.h, 0.08), poleMat); pole.position.set(F.back, F.h / 2, k * F.halfW / 3); pole.castShadow = !lowDetail; goal.add(pole); }
+  }
 
   // fireworks: pooled particles
   const N = lowDetail ? 900 : 1800, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), vel = new Float32Array(N * 3), life = new Float32Array(N);
@@ -70,9 +109,9 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
       pos.set([x, y, z], k * 3); vel.set([Math.cos(a) * r * sp, u * sp, Math.sin(a) * r * sp], k * 3); col.set([c.r, c.g, c.b], k * 3); life[k] = 1.4 + Math.random() * 0.8; }
     sparks.visible = true;
   };
-  const show = () => { for (let i = 0; i < 9; i++) rockets.push({ t: -i * 0.28, x: G.x - 4 + Math.random() * 10, z: G.z + (Math.random() * 2 - 1) * (G.halfW + 6), y: 0, vy: 22 + Math.random() * 6, hue: Math.random() }); };
+  const show = g => { for (let i = 0; i < 9; i++) rockets.push({ t: -i * 0.28, x: g.x - g.dir * 4 + Math.random() * 10 * g.dir, z: g.z + (Math.random() * 2 - 1) * (SOCCER.goal.halfW + 6), y: 0, vy: 22 + Math.random() * 6, hue: Math.random() }); };
 
-  const b = { x: SOCCER.centre.x, y: 0, z: SOCCER.centre.z, vx: 0, vy: 0, vz: 0, scored: 0, goals: 0, touches: 0 };
+  const b = { x: SOCCER.centre.x, y: 0, z: SOCCER.centre.z, vx: 0, vy: 0, vz: 0, scored: 0, goals: 0, touches: 0, score: { east: 0, west: 0 }, respawns: 0 };
   const reset = () => { b.x = SOCCER.centre.x; b.z = SOCCER.centre.z; b.y = ter.height(b.x, b.z) + SOCCER.r + 2; b.vx = b.vy = b.vz = 0; };
   reset();
   const q = new T.Quaternion(), axis = new T.Vector3();
@@ -93,13 +132,19 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
       }
       // goal frame: posts and crossbar bounce the ball
       for (const p of GOAL_POSTS) { const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz); if (d < R + p.r && b.y < p.h + R) { const nx = dx / (d || 1), nz = dz / (d || 1), vn = b.vx * nx + b.vz * nz; b.x = p.x + nx * (R + p.r); b.z = p.z + nz * (R + p.r); if (vn < 0) { b.vx -= 1.7 * vn * nx; b.vz -= 1.7 * vn * nz; } } }
-      // catch fence behind the goal end (back + wings)
-      { const F = SOCCER.fence; if (b.y < F.h + R && Math.abs(b.z - G.z) < F.halfW && b.x > F.x - R) { b.x = F.x - R; b.vx = -Math.abs(b.vx) * 0.25; b.vz *= 0.6; }
-        for (const sd of [-1, 1]) { const wz = G.z + sd * F.halfW; if (b.y < F.h + R && b.x > F.x - F.wing && b.x < F.x + R && Math.abs(b.z - wz) < R) { b.z = wz - sd * R; b.vz = -b.vz * 0.25; } } }
-      // net: inside the goal the back and sides catch the ball
-      if (b.x > G.x && b.x < G.x + G.depth + R && Math.abs(b.z - G.z) < G.halfW + R && b.y < G.h + R) {
-        if (b.x > G.x + G.depth - R) { b.x = G.x + G.depth - R; b.vx = -Math.abs(b.vx) * 0.2; }
-        if (b.x > G.x + 0.3) { if (b.z > G.z + G.halfW - R) { b.z = G.z + G.halfW - R; b.vz = -Math.abs(b.vz) * 0.2; } if (b.z < G.z - G.halfW + R) { b.z = G.z - G.halfW + R; b.vz = Math.abs(b.vz) * 0.2; } }
+      for (const g of GOALS) {
+        // goal-local: u runs into the goal (0 = goal line), w across it
+        const d = g.dir, GG = SOCCER.goal, F = SOCCER.fence;
+        let u = (b.x - g.x) * d, w = b.z - g.z, vu = b.vx * d, vw = b.vz;
+        if (u < -2 || u > F.back + R + 1) continue;
+        if (b.y < F.h + R && Math.abs(w) < F.halfW && u > F.back - R) { u = F.back - R; vu = -Math.abs(vu) * 0.25; vw *= 0.6; }
+        for (const sd of [-1, 1]) { const wz = sd * F.halfW; if (b.y < F.h + R && u > F.back - F.wing && u < F.back + R && Math.abs(w - wz) < R) { w = wz - sd * R; vw = -vw * 0.25; } }
+        if (u > 0 && u < GG.depth + R && Math.abs(w) < GG.halfW + R && b.y < GG.h + R) {
+          if (u > GG.depth - R) { u = GG.depth - R; vu = -Math.abs(vu) * 0.2; }
+          if (u > 0.3) { if (w > GG.halfW - R) { w = GG.halfW - R; vw = -Math.abs(vw) * 0.2; } if (w < -GG.halfW + R) { w = -GG.halfW + R; vw = Math.abs(vw) * 0.2; } }
+          if (b.y > GG.h - R && b.vy > 0 && u > 0.3) { b.vy = -Math.abs(b.vy) * 0.2; } // roof net
+        }
+        b.x = g.x + u * d; b.z = g.z + w; b.vx = vu * d; b.vz = vw;
       }
     }
     // the bike: a sphere at the rider's hips and one at the front wheel push the ball (bike barely notices)
@@ -116,12 +161,15 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
         }
       }
     }
-    // goal?
-    if (!b.scored && b.x > G.x + R * 0.6 && Math.abs(b.z - G.z) < G.halfW && b.y < G.h) {
-      b.scored = SOCCER.respawn; b.goals++; show(); onGoal?.(b.goals);
+    // goal? (either end)
+    if (!b.scored) for (const g of GOALS) {
+      const u = (b.x - g.x) * g.dir;
+      if (u > R * 0.6 && u < SOCCER.goal.depth + 0.5 && Math.abs(b.z - g.z) < SOCCER.goal.halfW && b.y < SOCCER.goal.h) { b.scored = SOCCER.respawn; b.goals++; b.score[g.id]++; show(g); onGoal?.(b.goals, g.id); break; }
     }
     if (b.scored) { b.scored -= dt; if (b.scored <= 0) { b.scored = 0; reset(); } }
-    if (Math.hypot(b.x - SOCCER.centre.x, b.z - SOCCER.centre.z) > 400 || b.y < -50) reset();
+    // out of play: over/past a catch net, or well off the side of the pitch -> back to the centre spot
+    const F = SOCCER.fence, along = Math.abs(b.x - SOCCER.centre.x), across = Math.abs(b.z - SOCCER.centre.z);
+    if (!b.scored && (along > SOCCER.halfLen + F.back + 1 || across > SOCCER.halfWidth + 25 || b.y < -50)) { b.respawns++; reset(); }
     // visual: position + rolling spin
     const sp = Math.hypot(b.vx, b.vz);
     if (sp > 0.01) { axis.set(b.vz, 0, -b.vx).normalize(); q.setFromAxisAngle(axis, sp * dt / R); ball.quaternion.premultiply(q); }
@@ -137,7 +185,7 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
   return {
     step, reset,
     _ball: b,
-    state: () => ({ ball: [b.x, b.y, b.z], v: [b.vx, b.vy, b.vz], goals: b.goals, touches: b.touches, celebrating: b.scored > 0, fireworks: sparks.visible }),
+    state: () => ({ ball: [b.x, b.y, b.z], v: [b.vx, b.vy, b.vz], goals: b.goals, score: { ...b.score }, respawns: b.respawns, touches: b.touches, celebrating: b.scored > 0, fireworks: sparks.visible }),
     dispose() { disposables.forEach(d => d.dispose?.()); root.removeFromParent(); },
   };
 }

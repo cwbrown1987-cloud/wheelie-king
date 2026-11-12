@@ -26,7 +26,7 @@ for(const [name,P] of Object.entries(bikes)){
 // (after dragging the fender), and full stoppie input goes over the bars.
 for(const [name,P] of Object.entries(bikes)){
  {const s=fresh(P);run(P,s,{throttle:.6},2);let mx=0;run(P,s,{throttle:1,lean:.7},5,s=>{mx=Math.max(mx,s.pitch)});assert.equal(s.crashed,null,name+' part pull holds the wheelie');assert.ok(mx>1.2&&mx<1.7,name+' high wheelie under the tip '+mx);}
- {const s=fresh(P);run(P,s,{throttle:.6},2);let sc=0;run(P,s,{throttle:.6,lean:1},5,s=>{if(s.events.at(-1)?.type==='scrape')sc++});assert.equal(s.crashed,'LOOPED OUT',name+' full pull goes over');assert.ok(sc>5,name+' drags the fender before it goes '+sc);}
+ {const s=fresh(P);run(P,s,s=>({throttle:s.vx<6?1:0}),3);let sc=0;run(P,s,{throttle:1,lean:1},5,s=>{if(s.events.at(-1)?.type==='scrape')sc++});assert.equal(s.crashed,'LOOPED OUT',name+' full pull goes over');assert.ok(sc>5,name+' drags the fender before it goes '+sc);}
 }
 {const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);let st=0;run(P,s,{brake:1,lean:-.6},2,s=>{if(s.ground[1]&&!s.ground[0])st+=dt});assert.equal(s.crashed,null,'part stoppie input holds');assert.ok(st>1,'stoppie holds '+st);}
 {const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);run(P,s,{brake:1,lean:-1},2);assert.equal(s.crashed,'OVER THE BARS','full stoppie input goes over the bars');}
@@ -64,4 +64,6 @@ for(const [name,P] of Object.entries(bikes)){const s=fresh(P,PLAYGROUND_PADS[0].
 {const P=bikes.emoto,log=PLAYGROUND_PROPS.find(p=>p.m==='log'&&p.x<0&&p.x>-30);for(const v of [6,11]){const s=fresh(P,{x:log.x-15,z:log.z,vx:v});let maxVy=0;run(P,s,s=>({throttle:s.vx<v?.6:0}),3,s=>{maxVy=Math.max(maxVy,s.vy)});assert.equal(s.crashed,null,'logs at '+v);assert.ok(maxVy<2.3,'a 30 cm log at '+v+' m/s only lightens the bike, vy '+maxVy);}}
 // in the air steering only twists the bike a little; the direction of travel holds
 {const P=bikes.emoto,r=PLAYGROUND_RAMPS[2],s=fresh(P,{x:r.x-25,z:r.z});let z0=null,twist=0;run(P,s,s=>{const air=!s.ground[0]&&!s.ground[1];if(air&&z0==null)z0=s.z;return {throttle:s.vx<8.3?1:0,steer:air?1:0}},6,s=>{if(!s.ground[0]&&!s.ground[1])twist=Math.max(twist,Math.abs(s.yaw||0))});assert.ok(twist<.45,'air twist is small '+twist);assert.equal(s.crashed,null,'lands the twist');}
+// v2.1-16: no mono from a standstill; you need to be rolling
+for(const [name,P] of Object.entries(bikes)){const s=fresh(P);let mx=0;run(P,s,{lean:1},2,s=>{mx=Math.max(mx,s.pitch)});assert.ok(mx<.2,name+' no wheelie at a standstill '+mx);}
 console.log('playground-classic: ok');

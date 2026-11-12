@@ -5,7 +5,8 @@
 //  - physics: buildings are part of the ground height (a 2 m roof grid), so walls stop you and you can
 //    land on roofs; roads and paths are ridden on the real slopes.
 // Data is baked offline into assets/towns/korumburra (see LICENSES.md). Heights are 0 until it loads.
-export const TOWN = { id: 'korumburra', dir: './assets/towns/korumburra/', x: 1500, z: 0, fade: [750, 900] };
+// v2.1-16: trimmed to the middle of town: Mine Rd, Commercial St, Bridge St, Station St, down to Coal Creek.
+export const TOWN = { id: 'korumburra', dir: './assets/towns/korumburra/', x: 1500, z: 0, halfX: 520, halfZ: 720, ring: 100 };
 const ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 let data = null, terr = null, roofs = null, loading = null;
 
@@ -23,26 +24,27 @@ export function loadTown(read) {
   return loading;
 }
 function grid(arr, g, lx, lz) {
-  const fi = (lx + g.half) / g.step, fj = (lz + g.half) / g.step;
-  if (fi < 0 || fj < 0 || fi >= g.n - 1 || fj >= g.n - 1) return 0;
-  const i = fi | 0, j = fj | 0, fx = fi - i, fy = fj - j, n = g.n;
+  const fi = (lx + g.halfX) / g.step, fj = (lz + g.halfZ) / g.step;
+  if (fi < 0 || fj < 0 || fi >= g.nx - 1 || fj >= g.nz - 1) return 0;
+  const i = fi | 0, j = fj | 0, fx = fi - i, fy = fj - j, n = g.nx;
   const a = arr[j * n + i], b = arr[j * n + i + 1], c = arr[(j + 1) * n + i], d = arr[(j + 1) * n + i + 1];
   return (a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy) * g.unit;
 }
-function edge(lx, lz) { const m = Math.max(Math.abs(lx), Math.abs(lz)); return 1 - ss((m - TOWN.fade[0]) / (TOWN.fade[1] - TOWN.fade[0])); }
+function edge(lx, lz) { const R = TOWN.ring; return Math.min(1 - ss((Math.abs(lx) - TOWN.halfX + R) / R), 1 - ss((Math.abs(lz) - TOWN.halfZ + R) / R)); }
+const outside = (lx, lz) => Math.abs(lx) >= TOWN.halfX || Math.abs(lz) >= TOWN.halfZ;
 // ground only (no buildings), in world coordinates
 export function townGround(x, z) {
   if (!data) return 0; const lx = x - TOWN.x, lz = z - TOWN.z;
-  if (Math.abs(lx) >= TOWN.fade[1] || Math.abs(lz) >= TOWN.fade[1]) return 0;
+  if (outside(lx, lz)) return 0;
   return grid(terr, data.terrain, lx, lz) * edge(lx, lz);
 }
 export function townHeight(x, z) {
   if (!data) return 0; const lx = x - TOWN.x, lz = z - TOWN.z;
-  if (Math.abs(lx) >= TOWN.fade[1] || Math.abs(lz) >= TOWN.fade[1]) return 0;
+  if (outside(lx, lz)) return 0;
   const e = edge(lx, lz), g = grid(terr, data.terrain, lx, lz) * e;
-  const bg = data.buildingGrid; if (Math.abs(lx) >= bg.half || Math.abs(lz) >= bg.half) return g;
+  const bg = data.buildingGrid; if (Math.abs(lx) >= bg.halfX || Math.abs(lz) >= bg.halfZ) return g;
   // roof grid: blend only between building cells so a wall stays a wall
-  const fi = (lx + bg.half) / bg.step, fj = (lz + bg.half) / bg.step, i = fi | 0, j = fj | 0, n = bg.n;
+  const fi = (lx + bg.halfX) / bg.step, fj = (lz + bg.halfZ) / bg.step, i = fi | 0, j = fj | 0, n = bg.nx;
   const k = [roofs[j * n + i], roofs[j * n + i + 1], roofs[(j + 1) * n + i], roofs[(j + 1) * n + i + 1]];
   if (!(k[0] | k[1] | k[2] | k[3])) return g;
   const fx = fi - i, fy = fj - j, w = [(1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy];
@@ -56,8 +58,9 @@ export function townArrival() {
   if (!data) return { x: TOWN.x, z: TOWN.z, yaw: 0 };
   if (arrival) return arrival;
   let best = null;
-  for (const r of data.roads) { if (!/primary|secondary|tertiary|trunk/.test(r.t)) continue;
-    for (let i = 0; i < r.p.length - 1; i++) { const [x, z] = r.p[i], d = Math.hypot(x, z); if (!best || d < best.d) { const [x2, z2] = r.p[i + 1]; best = { d, x, z, yaw: Math.atan2(z2 - z, x2 - x) }; } } }
+  const cs = data.roads.filter(r => /^Commercial Street$/.test(r.n)), pts = cs.flatMap(r => r.p), mid = pts.length ? pts.reduce((a, p) => [a[0] + p[0] / pts.length, a[1] + p[1] / pts.length], [0, 0]) : [0, 0];
+  for (const r of (cs.length ? cs : data.roads)) { if (!cs.length && !/primary|secondary|tertiary|trunk/.test(r.t)) continue;
+    for (let i = 0; i < r.p.length - 1; i++) { const [x, z] = r.p[i], d = Math.hypot(x - mid[0], z - mid[1]); if (!best || d < best.d) { const [x2, z2] = r.p[i + 1]; best = { d, x, z, yaw: Math.atan2(z2 - z, x2 - x) }; } } }
   return (arrival = best ? { x: TOWN.x + best.x, z: TOWN.z + best.z, yaw: best.yaw } : { x: TOWN.x, z: TOWN.z, yaw: 0 });
 }
 
@@ -82,9 +85,9 @@ export function makeTownVisuals(T, root, splatMaterial, { lowDetail = false } = 
     if (disposed) return;
     const D = data;
     // ground mesh from the 4 m elevation grid (+ fade skirt), splat painted: grass, worn verges
-    const A = TOWN.fade[1], S = lowDetail ? 8 : 4, n = Math.round(2 * A / S) + 1, pos = new Float32Array(n * n * 3), spl = new Float32Array(n * n * 4), idx = [];
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = TOWN.x - A + i * S, z = TOWN.z - A + j * S, o = j * n + i; pos.set([x, townGround(x, z) - 0.03, z], o * 3); spl.set([0.9, 0.06, 0, 0.02], o * 4); }
-    for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + 1, c = a + n, d = c + 1; idx.push(a, c, b, b, c, d); }
+    const S = lowDetail ? 8 : 4, nx = Math.round(2 * TOWN.halfX / S) + 1, nz = Math.round(2 * TOWN.halfZ / S) + 1, pos = new Float32Array(nx * nz * 3), spl = new Float32Array(nx * nz * 4), idx = [];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = TOWN.x - TOWN.halfX + i * S, z = TOWN.z - TOWN.halfZ + j * S, o = j * nx + i; pos.set([x, townGround(x, z) - 0.03, z], o * 3); spl.set([0.9, 0.06, 0, 0.02], o * 4); }
+    for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx.push(a, c, b, b, c, d); }
     const gg = new T.BufferGeometry(); gg.setAttribute('position', new T.BufferAttribute(pos, 3)); gg.setAttribute('splat', new T.BufferAttribute(spl, 4)); gg.setIndex(idx); gg.computeVertexNormals(); res.push(gg);
     const ground = new T.Mesh(gg, splatMaterial); ground.receiveShadow = true; ground.name = 'town:ground'; group.add(ground);
     // roads: ribbons draped on the ground every ~3 m

@@ -124,7 +124,7 @@ export const PLAYGROUND_PADS=[{id:'descent-start',x:DESCENT.x0+4,z:descentRoadZ(
   // Korumburra: a ring by the start of the side track takes you to the main street; one there brings you back
   {id:'town',x:-58,z:52,r:1.8,get to(){const a=townArrival();return {x:a.x,z:a.z,yaw:a.yaw,vx:2};}},
   {id:'town-back',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*25;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*25;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
-const baseHeight=(x,z)=>x>TOWN.x-TOWN.fade[1]?townHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
+const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX?townHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
 // PROPS (v2.1-8): CC0 Poly Haven rocks, logs, stumps and trees (assets/polyhaven, see LICENSES.md).
 // Two kinds of collision:
 //  - 'bump' props (small rocks, logs) are part of the ground: you ride over them like a hump;

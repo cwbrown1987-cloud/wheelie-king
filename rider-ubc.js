@@ -87,7 +87,9 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     const ay = Math.max(-80, Math.min(80, ((s.vy || 0) - D.lastVy) / dt)); D.lastVy = s.vy || 0;
     D.ay += (ay - D.ay) * (1 - Math.exp(-dt * 30));
     // rider mass on legs: 2 Hz, lightly under-damped; bike accelerating up = hips pushed down
-    const k = 160, c = 18, acc = -k * D.y - c * D.vy - (onG ? D.ay : 0) * 0.9 + (onG ? 0 : (0.05 - D.y) * 40);
+    // on a mono the rider sits and holds the balance point: no bump bounce from the pitching bike, no stand-ups
+    const mono = !!(s.ground && s.ground[0] && !s.ground[1] && (s.pitch || 0) > 0.25);
+    const k = 160, c = 18, acc = -k * D.y - c * D.vy - (onG && !mono ? D.ay : 0) * 0.9 + (onG ? 0 : (0.05 - D.y) * 40);
     D.vy += acc * dt; D.y += D.vy * dt;
     if (D.y < -0.2) { D.y = -0.2; D.vy = Math.max(0, D.vy); } if (D.y > 0.08) { D.y = 0.08; D.vy = Math.min(0, D.vy); }
     D.rough += (Math.min(1, Math.abs(D.ay) / 25) - D.rough) * (1 - Math.exp(-dt * (Math.abs(D.ay) > 25 * D.rough ? 8 : 0.8)));
@@ -95,8 +97,8 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     D.air = onG ? Math.max(0, D.air - dt * 3) : Math.min(1, D.air + dt * 4);
     const speed = Math.abs(s.vx || 0);
     // attack position: going fast over rough ground, down a steep slope, through the air, or just landed
-    const wantAttack = speed > 4.5 && (D.rough > 0.25 || D.slope < -0.1 || !onG || (inp.lean || 0) < -0.3);
-    if (wantAttack) D.attackHold = 1.2; else D.attackHold = Math.max(0, D.attackHold - dt);
+    const wantAttack = !mono && speed > 4.5 && (D.rough > 0.25 || D.slope < -0.1 || !onG || (inp.lean || 0) < -0.3);
+    if (wantAttack) D.attackHold = 1.2; else D.attackHold = mono ? 0 : Math.max(0, D.attackHold - dt);
     D.attack += ((D.attackHold > 0 ? 1 : 0) - D.attack) * (1 - Math.exp(-dt * 5));
     // hips back on descents (weight over the rear wheel), slightly forward climbing
     D.back += (Math.max(-0.6, Math.min(1, -D.slope * 2.5)) - D.back) * (1 - Math.exp(-dt * 3));
@@ -124,8 +126,9 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     const frontUp = !!(s.ground && s.ground[0] && !s.ground[1]);
     const go = (key, val) => { W[key] += (val - W[key]) * k; };
     go('stand', s.standing || D.attack > 0.5 ? 1 : 0);
-    go('wheelie', s.mono || frontUp ? Math.min(1, Math.max(0, (s.pitch || 0) / 0.5) + (s.mono ? 0.4 : 0)) : 0);
-    go('lean', Math.max(-1, Math.min(1, -(inp.lean || 0) + (s.stoppie && !(s.ground && s.ground[0]) ? 0.9 : 0))));                 // + = lean forward (inp.lean + = back)
+    // steady weights on a mono: saturate early and move slowly, so the hips don't pump with every balance correction
+    go('wheelie', s.mono || frontUp ? Math.min(1, Math.max(0, (s.pitch || 0) / 0.22) + (s.mono ? 0.4 : 0)) : 0);
+    { const kl = 1 - Math.exp(-Math.max(0, dt) * (W.wheelie > 0.5 ? 2.5 : 9)); W.lean += (Math.max(-1, Math.min(1, -(inp.lean || 0) + (s.stoppie && !(s.ground && s.ground[0]) ? 0.9 : 0))) - W.lean) * kl; }                 // + = lean forward (inp.lean + = back)
     go('oneHand', s.oneHand ? 1 : 0); go('kneeKnock', s.kneeKnock ? 1 : 0);
     go('roll', Math.max(-0.5, Math.min(0.5, (s.joltRoll ?? s.visRoll ?? 0) * 0.35)));      // extra lean into the turn
     const st = W.stand, wh = W.wheelie;
