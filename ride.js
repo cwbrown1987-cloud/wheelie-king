@@ -659,9 +659,11 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     if(cameraDt>0&&cameraDt<.25){fpsTime+=cameraDt;fpsFrames++;if(fpsTime>=.5){fpsLast=fpsFrames/fpsTime;fpsFrames=0;fpsTime=0;}}
     if(!paused&&!reviewing){const qa=qualityMon.sample(cameraDt);if(qa){qualityLog.push(qa.type);if(qa.type==='down'){maxPR=Math.max(.75,maxPR*.8);if(R.shadowMap.enabled){R.shadowMap.enabled=false;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true})}}}}
     leanControls.update(dt);steerSlider.update(dt);
-    inp.throttle = Math.max(touch.throttle, keys.w || ((!freeRoam||arena)&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || ((!freeRoam||arena)&&keys.arrowdown) ? 1 : 0);
+    // Playground: in the air the arrow keys tilt the bike (up = nose down / front flip, down = nose up / backflip).
+    const airArrows=arena&&!(s.ground[0]||s.ground[1])&&!s.crashed;
+    inp.throttle = Math.max(touch.throttle, keys.w || ((!freeRoam||arena)&&!airArrows&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || ((!freeRoam||arena)&&!airArrows&&keys.arrowdown) ? 1 : 0);
     const sideView=!!freeRoam&&cameraView==='side';
-    const leanKey=arena?((keys[' ']||(sideView&&keys.d)?1:0)-(keys.shift||(sideView&&keys.a)?1:0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
+    const leanKey=arena?((keys[' ']||(sideView&&keys.d)||(airArrows&&keys.arrowup)?1:0)-(keys.shift||(sideView&&keys.a)||(airArrows&&keys.arrowdown)?1:0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey-(touch.dragLean||0)))*-1;
     // Side view: A/D lean (see leanKey), touch steer still steers.
     inp.steer = freeRoam?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
