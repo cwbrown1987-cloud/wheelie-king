@@ -335,7 +335,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
 
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0, steer: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0, steer: 0 }; let paused=false; let pauseUi=null;
-  let camZoom=1,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
+  let camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
   const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ","w","a","s","d"].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;if(arena){if(k==='shift'||k===' '){e.preventDefault();keys[k]=true;return;}const mv={b:'burnout',g:'stand',c:'onehand',x:'kneeknock'}[k];if(mv){e.preventDefault();if(!e.repeat)setToggle(mv,!rideToggles[mv]);return;}}const action=arena?null:({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   // HUD + touch controls (DOM over the canvas)
@@ -482,8 +482,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     e.preventDefault();
     const dx=e.clientX-lookLast.x,dy=e.clientY-lookLast.y;
     lookLast={x:e.clientX,y:e.clientY};
-    lookYaw=Math.max(-2.7,Math.min(2.7,lookYaw-dx*0.0055));
-    lookPitch=Math.max(-0.45,Math.min(0.55,lookPitch+dy*0.0045));
+    // drag the view the way your finger moves (was inverted)
+    lookYaw=Math.max(-2.7,Math.min(2.7,lookYaw+dx*0.0055));
+    lookPitch=Math.max(-0.45,Math.min(0.55,lookPitch-dy*0.0045));lookHold=1;
   };
   const lookOff=e=>{
     if(lookDrag==null)return;
@@ -897,8 +898,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         if(chasePosX==null||!Number.isFinite(chasePosX)||!Number.isFinite(chasePosZ)||!Number.isFinite(chaseFollowY)||!Number.isFinite(tx)||!Number.isFinite(tz)||Math.hypot(s.x-chasePosX,z-chasePosZ)>8){chasePosX=Number.isFinite(tx)?tx:s.x;chasePosZ=Number.isFinite(tz)?tz:z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;if(arena)airClose=0;}
         chasePosX+=(tx-chasePosX)*k;chasePosZ+=(tz-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-(arena?10:8)*followDt));
       }
-      if(!lookDrag){
-        const wn=9,zn=.85;
+      if(lookDrag==null&&lookHold>0)lookHold=Math.max(0,lookHold-followDt); // stay where you left it for a second
+      if(!lookDrag&&lookHold<=0){
+        const wn=2.2,zn=1; // then ease back behind the bike, slowly
         lookVY+=(-wn*wn*lookYaw-2*zn*wn*lookVY)*followDt;lookYaw+=lookVY*followDt;
         lookVP+=(-wn*wn*lookPitch-2*zn*wn*lookVP)*followDt;lookPitch+=lookVP*followDt;
         if(Math.abs(lookYaw)<.012&&Math.abs(lookVY)<.08){lookYaw=0;lookVY=0;}
