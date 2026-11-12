@@ -58,3 +58,7 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 
 ## Ground variety (v2.1-40)
 - ambientCG `Grass002` (dark lush grass), `Ground037` (patchy grass and dirt), `Ground048` (leaf litter) — CC0, https://ambientcg.com
+
+## Quaternius — Universal Animation Library (Standard, free)
+- `assets/quaternius/ual-locomotion.glb` — Idle, Walk, Jog, Sprint, Jump (start/loop/land), Roll, Crouch clips for the on-foot rider (mesh removed, finger tracks dropped, resampled).
+- License: CC0 1.0 (`assets/quaternius/UAL-License.txt`). By @Quaternius — https://quaternius.itch.io/universal-animation-library

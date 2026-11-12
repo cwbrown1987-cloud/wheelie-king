@@ -3,7 +3,12 @@
 // should be (pelvis, chest, head, shoulders/elbows/hands, hips/knees/feet) for the current move, then two-bone
 // IK puts the skinned body on them. The ragdoll is a little verlet skeleton over those same joints.
 import { GLTFLoader } from './vendor/GLTFLoader.js';
-const URL_GLB = './assets/quaternius/ubc-superhero-male.glb', HEIGHT = 1.74;
+const URL_GLB = './assets/quaternius/ubc-superhero-male.glb', URL_ANIM = './assets/quaternius/ual-locomotion.glb', HEIGHT = 1.74;
+// v2.1-42: walking/running/jumping use Quaternius' Universal Animation Library (CC0) clips on the same skeleton,
+// blended by speed and synced to the ground so the feet don't skate. Slide, ragdoll and get on/off stay procedural.
+const CLIP = { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', jumpStart: 'Jump_Start', jumpLoop: 'Jump_Loop', land: 'Jump_Land' };
+// metres covered per full cycle of each loop (two steps) — sets how fast each clip plays for a given speed
+const CYCLE = { walk: 1.55, jog: 2.5, sprint: 3.6 };
 export const WALK = { walk: 1.7, run: 6.2, accel: 14, airAccel: 3, turn: 10, jump: 5.2, g: 9.8, step: .45, slideTime: .9, slideBoost: 1.5, slideFric: 3.2, ragdollFall: 10.5, getUp: 2.4 };
 const JOINTS = ['pelvis', 'chest', 'head', 'shoulderL', 'elbowL', 'handL', 'shoulderR', 'elbowR', 'handR', 'hipL', 'kneeL', 'footL', 'hipR', 'kneeR', 'footR'];
 // verlet ragdoll links (bones + braces that keep the torso a torso)
@@ -11,7 +16,8 @@ const LINKS = [['pelvis', 'chest'], ['chest', 'head'], ['chest', 'shoulderL'], [
   ['pelvis', 'hipL'], ['pelvis', 'hipR'], ['hipL', 'hipR'], ['hipL', 'kneeL'], ['kneeL', 'footL'], ['hipR', 'kneeR'], ['kneeR', 'footR'], ['shoulderL', 'hipL'], ['shoulderR', 'hipR'], ['shoulderL', 'hipR'], ['shoulderR', 'hipL'], ['head', 'shoulderL'], ['head', 'shoulderR'], ['chest', 'hipL'], ['chest', 'hipR']];
 export function makeWalker(T, scene, ter) {
   const root = new T.Group(); root.name = 'wk:walker'; root.visible = false; scene.add(root);
-  let model = null, bones = null, rest = null, pelvisRest = null, error = null;
+  let model = null, bones = null, rest = null, pelvisRest = null, error = null, mixer = null, animReady = false, cyc = 0, airT = 0, landT = 0, wasOnG = true, snap = null, snapT = 0;
+  const acts = {}, W8 = { idle: 1, walk: 0, jog: 0, sprint: 0, jumpStart: 0, jumpLoop: 0, land: 0 };
   const v = () => new T.Vector3(), q = () => new T.Quaternion(), _a = v(), _b = v(), _c = v(), _q1 = q(), _q2 = q(), _q3 = q();
   const wpos = (o, out = v()) => o.getWorldPosition(out);
   function rotateWorld(bone, delta) { bone.parent.getWorldQuaternion(_q1); bone.getWorldQuaternion(_q2); bone.quaternion.copy(_q1.invert().multiply(_q3.copy(delta).multiply(_q2))); bone.updateMatrixWorld(true); }
@@ -28,6 +34,11 @@ export function makeWalker(T, scene, ter) {
     bones = {}; for (const n of ['pelvis', 'spine_03', 'neck_01', 'Head', 'upperarm_l', 'lowerarm_l', 'hand_l', 'upperarm_r', 'lowerarm_r', 'hand_r', 'thigh_l', 'calf_l', 'foot_l', 'thigh_r', 'calf_r', 'foot_r']) { bones[n] = by(n); if (!bones[n]) throw Error('walker bone missing ' + n); }
     rest = []; model.traverse(o => { if (o.isBone) rest.push([o, o.quaternion.clone()]); });
     pelvisRest = wpos(bones.pelvis).sub(model.position);
+    // animation clips: keep rotations (and the pelvis height/sway) so the clips fit this body's own proportions
+    new GLTFLoader().loadAsync(URL_ANIM).then(a => { if (!model) return; mixer = new T.AnimationMixer(model);
+      for (const [k, name] of Object.entries(CLIP)) { const c = a.animations.find(x => x.name === name); if (!c) continue;
+        c.tracks = c.tracks.filter(t => t.name.endsWith('.quaternion') || t.name === 'pelvis.position'); const act = mixer.clipAction(c); act.play(); act.setEffectiveWeight(0); acts[k] = act; }
+      animReady = Object.keys(acts).length >= 4; }).catch(e => console.warn('[wk] walker clips failed', e));
   }).catch(e => { error = e.message || String(e); console.warn('[wk] walker failed to load', e); });
   // pose the skin onto world joint points
   function poseTo(J) {
@@ -95,6 +106,33 @@ export function makeWalker(T, scene, ter) {
     }
     for (const k of JOINTS) J[k].copy(rag.p[k]);
   }
+  function animate(dt) {
+    root.position.set(0, 0, 0); root.quaternion.identity(); root.updateMatrixWorld(true);
+    model.position.set(S.x, S.y, S.z); model.rotation.set(0, Math.atan2(Math.cos(S.yaw), Math.sin(S.yaw)), 0);
+    const sp = S.speed;
+    // blend weights by speed: idle -> walk -> jog -> sprint
+    const tw = { idle: 0, walk: 0, jog: 0, sprint: 0, jumpStart: 0, jumpLoop: 0, land: 0 };
+    if (!S.onG) { airT += dt; if (airT < .3 && S.vy > 0) tw.jumpStart = 1; else tw.jumpLoop = 1; landT = 0; }
+    else {
+      if (!wasOnG) landT = .3; airT = 0;
+      const a = Math.min(1, sp / .5), b = Math.max(0, Math.min(1, (sp - 1.9) / 1.6)), c = Math.max(0, Math.min(1, (sp - 4.2) / 1.6));
+      tw.idle = 1 - a; tw.walk = a * (1 - b); tw.jog = a * b * (1 - c); tw.sprint = a * b * c;
+      if (landT > 0) { const l = Math.min(1, landT / .3); for (const k of ['idle', 'walk', 'jog', 'sprint']) tw[k] *= 1 - l * .7; tw.land = l * .7; landT -= dt; }
+    }
+    wasOnG = S.onG;
+    const k = 1 - Math.exp(-dt * 12); for (const key in W8) { W8[key] += (tw[key] - W8[key]) * k; acts[key]?.setEffectiveWeight(W8[key]); }
+    // one shared phase for the run cycle so blended clips keep their feet in step; speed sets the rate
+    const cd = (W8.walk * CYCLE.walk + W8.jog * CYCLE.jog + W8.sprint * CYCLE.sprint) / Math.max(1e-3, W8.walk + W8.jog + W8.sprint);
+    if (S.onG) cyc = (cyc + sp * dt / Math.max(.5, cd)) % 1;
+    for (const key of ['walk', 'jog', 'sprint']) if (acts[key]) acts[key].time = cyc * acts[key].getClip().duration;
+    if (acts.idle) acts.idle.time = (acts.idle.time + dt) % acts.idle.getClip().duration;
+    if (acts.jumpStart) acts.jumpStart.time = Math.min(acts.jumpStart.getClip().duration * .98, airT * 1.4);
+    if (acts.jumpLoop) acts.jumpLoop.time = (airT % acts.jumpLoop.getClip().duration);
+    if (acts.land) acts.land.time = Math.min(acts.land.getClip().duration * .98, (.3 - Math.max(0, landT)) * 2);
+    mixer.update(0); model.updateMatrixWorld(true);
+    // cross-fade out of a procedural pose (just got off the bike / just got up)
+    if (snapT > 0 && snap) { const t = 1 - snapT / .28, e = t * t * (3 - 2 * t); rest.forEach(([b], i) => b.quaternion.slerpQuaternions(snap[i], b.quaternion.clone(), e)); model.updateMatrixWorld(true); snapT -= dt; } else snapT = 0;
+  }
   const api = {
     root, S, get loaded() { return !!model; }, error: () => error,
     spawn(x, z, yaw, { vx = 0, vz = 0, fromJoints = null, dur = .45 } = {}) {
@@ -137,7 +175,9 @@ export function makeWalker(T, scene, ter) {
       if (S.toward) { S.towardT += dt; const t = Math.min(1, S.towardT / S.towardDur), e = t * t * (3 - 2 * t); for (const k of JOINTS) if (S.toward[k]) J[k].lerp(S.toward[k], e); }
       // blend in from the previous pose (getting off the bike, getting up)
       if (S.blend) { S.blendT += dt; const t = Math.min(1, S.blendT / S.blendDur), e = t * t * (3 - 2 * t); for (const k of JOINTS) if (S.blend[k]) J[k].lerpVectors(S.blend[k], J[k], e); if (t >= 1) S.blend = null; }
-      poseTo(J);
+      const useJoints = !animReady || S.mode === "ragdoll" || S.mode === "slide" || S.blend || S.toward;
+      if (useJoints) { poseTo(J); if (model && rest) snap = rest.map(([b], i) => (snap?.[i] || new T.Quaternion()).copy(b.quaternion)); snapT = .28; }
+      else animate(dt);
     },
     joints: () => J,
     state: () => ({ loaded: !!model, error, mode: S.mode, onG: S.onG, speed: S.speed, x: S.x, y: S.y, z: S.z, yaw: S.yaw, visible: root.visible }),
