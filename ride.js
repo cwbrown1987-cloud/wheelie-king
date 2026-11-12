@@ -226,8 +226,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }};
   const environment=arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
-  // Playground is Jolt only; every other mode is classic.
-  const physics=arena?'jolt':'classic';
+  // Playground runs Chris's original (classic) ride physics in free roam: same wheelie, stoppie, air
+  // and landing feel as the side-scroller, plus handlebar steering (ride-freeroam.js). Jolt stays
+  // available for comparison with ?physics=jolt.
+  const physics=arena&&/[?&]physics=jolt\b/.test(location.search)?'jolt':'classic';
   let jolt=null;
 if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;
   if(arena){
@@ -294,6 +296,17 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     return jolt;
   }
   if(joltWanted())ensureJolt();
+  // Classic Playground: same reset hook the QA harness uses for Jolt (pose = {x,z,yaw,vx,...}).
+  if(arena&&physics==='classic')globalThis.__WK_JOLT_RESET__=(pose)=>{
+    Object.assign(touch,{throttle:0,brake:0,steer:0,steerLeft:0,steerRight:0,lean:0,hop:0,trick:0});
+    for(const k of Object.keys(keys))keys[k]=false;
+    const fresh=makeState(P,0,ter),x=pose?.x??s.x,z=pose?.z??s.z??0,yaw=pose?.yaw??s.yaw??0;
+    for(const k of Object.keys(fresh))s[k]=fresh[k];
+    Object.assign(s,{x,z,yaw,steer:0},pose||{});
+    if(pose?.y==null)s.y=(ter.height?ter.height(x,z):0)+fresh.y;
+    s.events=[];s.crashed=null;chasePosX=null;airClose=0;
+    return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,vx:s.vx};
+  };
 
 
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
@@ -665,7 +678,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
           s.odo=(s.odo||0)+Math.abs(s.vx||0)*dt; // HUD distance (Jolt path skips ride-loop's odometer)
           if(capturing)replay.recordStep(s,dt,{dirt,wear,flips,maxScore,lastCP,jolt:jolt.snapshot()});
         }
-      }else if(!arena){
+      }else{
         const n = Math.ceil(dt * 480);
         for (let k = 0; k < n; k++) {
           step(s, P, inp, dt / n, ter);
@@ -745,7 +758,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const lowest=Math.min(rearY,frontY)-(P.R||.33);
       if(lowest<gy-0.005) pivot.position.y += (gy-lowest);
     }
-    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam?Math.max(-.42,Math.min(.42,-(s.vx||0)*(s.vx||0)*kappa/9.8)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
+    spinVis = s.spinV ? s.spin : s.whip ? Math.sin(Math.min(1, s.air * 2) * Math.PI) * 0.9 : 0; if(!crashRig){const kappa=s.curvature||0,leanT=s.joltRoll!=null?s.joltRoll:(freeRoam?Math.max(-.42,Math.min(.42,-(s.vx||0)*(s.vx||0)*kappa/9.8)):0);visRoll+=(leanT-visRoll)*(1-Math.exp(-(s.joltRoll!=null?18:14)*Math.max(cameraDt,.001)));pivot.rotation.y=-(bikeYaw+spinVis);pivot.rotation.x=visRoll;s.visRoll=visRoll;} pivot.updateMatrixWorld();pivot.getWorldQuaternion(meshQ);meshFwd.set(1,0,0).applyQuaternion(meshQ);meshYaw=Math.atan2(meshFwd.z,meshFwd.x);
     // suspension: wheels slide toward the frame by compression*travel
     stuntRig.restore();
     const onGVis=!!(s.ground[0]||s.ground[1]);
@@ -1079,7 +1092,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const j=jolt?.ready?jolt.dump():null,D=180/Math.PI,R0=P.R||.33;
     const om=s.wheelOmega||[0,0],slipRatio=om.map(w=>{const v=s.vx||0;return (w*R0-v)/Math.max(1.5,Math.abs(v));});
     return {version:WK_VERSION,level,physics,ready:physics!=='jolt'||!!j,t:performance.now(),
-      speedKmh:(s.vx||0)*3.6,speedMs:s.vx||0,pitchDeg:(s.pitch||0)*D,rollDeg:(s.joltRoll||0)*D,yawDeg:(s.yaw||0)*D,yawRate:s.wYaw||0,
+      speedKmh:(s.vx||0)*3.6,speedMs:s.vx||0,pitchDeg:(s.pitch||0)*D,rollDeg:(s.joltRoll!=null?s.joltRoll:(s.visRoll||0))*D,yawDeg:(s.yaw||0)*D,yawRate:s.wYaw||0,
       x:s.x,y:s.y,z:s.z,ground:s.ground?[...s.ground]:null,wheelOmega:[...om],wheelSlipMs:s.slip?[...s.slip]:null,wheelSlipRatio:slipRatio,
       suspensionComp:s.comp?[...s.comp]:null,impactN:s.impactN||0,impactPeakN:s.impactPeakN||0,attach:rideProfile?.attach||null,
       trick:{wheelie:!!s.mono,frontUp:!!(s.ground&&!s.ground[1]&&s.ground[0]),rearUp:!!(s.ground&&s.ground[1]&&!s.ground[0]),standing:!!s.standing,burnout:!!s.burnout,drift:!!s.drift,crashed:s.crashed||null,

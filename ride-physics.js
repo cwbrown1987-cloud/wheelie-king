@@ -38,8 +38,10 @@ export function makeFlatTerrain(){return {pts:[[-200,0],[200,0]],h:()=>0,slope:(
 const PLAYGROUND_HALF=1000;
 export function makePlaygroundTerrain(){
   const height=(x,z=0)=>playgroundHeight(x,z);
+  // Ground angle along the bike's heading (classic physics needs it for wheelie balance on ramps/hills).
+  const E=.12,slopeAt=(x,z=0,yaw=0)=>{const c=Math.cos(yaw),n=Math.sin(yaw);return Math.atan2(height(x+c*E,z+n*E)-height(x-c*E,z-n*E),2*E)};
   return {
-    pts:[[-PLAYGROUND_HALF,0],[PLAYGROUND_HALF,0]],h:()=>0,slope:()=>0,height,terrainHeight,slopeAt:()=>0,
+    pts:[[-PLAYGROUND_HALF,0],[PLAYGROUND_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,terrainHeight,slopeAt,
     puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,boxes:[],
     bounds:{xmin:-PLAYGROUND_HALF,xmax:PLAYGROUND_HALF,zmin:-PLAYGROUND_HALF,zmax:PLAYGROUND_HALF},gates:null
   };
