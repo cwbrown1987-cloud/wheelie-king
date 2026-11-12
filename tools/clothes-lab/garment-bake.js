@@ -148,11 +148,11 @@ function keepOutside(A, positions, near, gap) {
 
 // Hood lying down on the upper back: a fat tube swept round the back of the neck, sagging into a pouch.
 function hoodDownGeometry(T, A) {
-  const seg = 28, ring = 14, pos = [], flap = [], idx = [];
+  const seg = 28, ring = 14, pos = [], flap = [], idx = [], col = [];
   for (let s = 0; s <= seg; s++) {
     const t = s / seg * 2 - 1, a = t * Math.PI * 0.47, back = Math.cos(t * Math.PI / 2) ** 2;
     const cx = Math.sin(a) * 0.105, cz = -0.02 - Math.cos(a) * 0.115, cy = 1.43 - 0.035 * back + 0.03 * Math.abs(t) ** 2;
-    const end = 1 - Math.abs(t) ** 6, rw = (0.008 + 0.044 * back) * end + 0.004, rh = (0.012 + 0.088 * back) * end + 0.004; // cross-section: taller (pouch) at the back
+    const end = 1 - Math.abs(t) ** 6, rw = (0.01 + 0.05 * back) * end + 0.005, rh = (0.014 + 0.1 * back) * end + 0.005; // cross-section: taller (pouch) at the back
     const tx = Math.cos(a), tz = Math.sin(a); // tangent across the neck
     for (let r = 0; r <= ring; r++) {
       const b = r / ring * Math.PI * 2, ox = Math.cos(b) * rw, oy = Math.sin(b) * rh - rh * 0.55 * back;
@@ -160,14 +160,15 @@ function hoodDownGeometry(T, A) {
       const nx = Math.sin(a), nz = -Math.cos(a);
       pos.push(cx + nx * ox, cy + oy, cz + nz * ox);
       flap.push(Math.min(1, 0.25 + back * 0.6 + Math.max(0, -Math.sin(b)) * 0.3));
+      { const c = 0.62 + 0.38 * Math.max(0, Math.cos(b)) ** 0.6; col.push(c, c, c); } // inner face of the hood darker, so it reads as a folded hood
       void tx; void tz;
     }
   }
   for (let s = 0; s < seg; s++) for (let r = 0; r < ring; r++) { const a = s * (ring + 1) + r, b = a + ring + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
   const sel = u => A.pos[u * 3 + 1] > 1.28 && A.pos[u * 3 + 1] < 1.62 && Math.abs(A.pos[u * 3]) < 0.25;
   const P = Float32Array.from(pos), sk = skinLikeBody(T, A, P, sel);
-  keepOutside(A, P, sk.near, 0.028);
-  return finishPiece(T, P, idx, sk, flap);
+  keepOutside(A, P, sk.near, 0.022);
+  const g = finishPiece(T, P, idx, sk, flap); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); return g;
 }
 function stringGeometry(T, A, hoodUp) {
   const pos = [], idx = [], flap = [], seg = 10, ring = 6;
@@ -199,22 +200,22 @@ function finishPiece(T, P, idx, sk, flap) {
 // ---------------------------------------------------------------- base garment specs
 export const HEM_Y = 0.875, CUFF_X = 0.668;
 export const BASES = {
-  hoodie: { uvBox: [-0.72, 0.84, 0.72, 1.62], hemY: HEM_Y, cuffX: CUFF_X, anchors: { chest: [0.004, 1.335], back: [0, 1.215], pocket: [0, 1.0] }, fit: 'Relaxed pullover hoodie: 2.4 cm off the chest, 3 cm blouse above a ribbed hem at hip height, long sleeves to the wrist, ribbed cuffs.' },
+  hoodie: { uvBox: [-0.72, 0.84, 0.72, 1.62], hemY: HEM_Y, cuffX: CUFF_X, anchors: { chest: [0.004, 1.335], back: [0, 1.215], pocket: [0, 1.0] }, fit: 'Slim-relaxed pullover hoodie: 1.2 cm off the torso, 1.9 cm sleeves, small drape at the ribbed hem at hip height, long sleeves to the wrist, ribbed cuffs.' },
   hood_up: { uvBox: null, fit: 'Hood worn up: shell 4-5.5 cm off the skull, open face. Solid colour (look.hood or look.base).' },
-  jumper: { uvBox: [-0.72, 0.84, 0.72, 1.62], hemY: HEM_Y, cuffX: CUFF_X, anchors: { chest: [0, 1.33], back: [0, 1.36] }, fit: 'Crewneck jumper: 2 cm off the chest, light blouse above a ribbed hem, long sleeves, ribbed crew collar.' },
-  tshirt: { uvBox: [-0.46, 0.86, 0.46, 1.62], hemY: 0.9, cuffX: 0.4, anchors: { chest: [0, 1.33], back: [0, 1.36] }, fit: 'Regular tee: 1.3 cm off the body, hem at the top of the hips, short sleeves to mid upper arm, crew neck.' },
-  joggers: { uvBox: [-0.3, 0.09, 0.3, 1.08], ankleY: 0.098, waistY: 1.02, anchors: { thigh: [0.13, 0.64] }, fit: 'Joggers: 2.2-2.8 cm off the leg, tapering to a 1.1 cm ribbed ankle cuff that sits over the trainer collar; waist under the top.' },
-  shorts: { uvBox: [-0.3, 0.45, 0.3, 1.08], hemY: 0.52, waistY: 1.02, anchors: { thigh: [0.14, 0.66] }, fit: 'Shorts: loose (2.6 cm) to just above the knee, open hem.' },
-  trainers: { uvBox: [-0.15, -0.025, 0.215, 0.145], fit: 'Low-top trainers: cushioned 1.8 cm sole, rounded toe box. UV: u = heel->toe (z), v = height; outer side top half, inner side bottom half; both feet share the texture.' },
+  jumper: { uvBox: [-0.72, 0.84, 0.72, 1.62], hemY: HEM_Y, cuffX: CUFF_X, anchors: { chest: [0, 1.33], back: [0, 1.36] }, fit: 'Slim crewneck jumper: 1.1 cm off the torso, 1.5 cm sleeves, ribbed hem, cuffs and crew collar.' },
+  tshirt: { uvBox: [-0.46, 0.86, 0.46, 1.62], hemY: 0.9, cuffX: 0.4, anchors: { chest: [0, 1.33], back: [0, 1.36] }, fit: 'Slim regular tee: 0.9 cm off the torso, hem at the top of the hips, short sleeves to mid upper arm, crew neck.' },
+  joggers: { uvBox: [-0.3, 0.09, 0.3, 1.08], ankleY: 0.098, waistY: 1.02, anchors: { thigh: [0.13, 0.64] }, fit: 'Joggers: close at hips/thighs (1.1 cm), looser below the knee (2.5 cm), gathered onto a 1.2 cm ribbed ankle cuff over the trainer collar; waist under the top.' },
+  shorts: { uvBox: [-0.3, 0.45, 0.3, 1.08], hemY: 0.52, waistY: 1.02, anchors: { thigh: [0.14, 0.66] }, fit: 'Shorts: 1.3 cm at the hips, slight flare at the open hem just above the knee.' },
+  trainers: { uvBox: [-0.15, -0.025, 0.215, 0.145], fit: 'Chunky low-top trainers: 2.4 cm cupsole, wide rounded toe box. UV: u = heel->toe (z), v = height; outer side top half, inner side bottom half; both feet share the texture.' },
 };
 
 function shoeSurface(I) {
   // rounded "last" around each foot: superellipsoid, narrower and lower at the toe, flat sole
   const cx = Math.sign(I.p[0]) * 0.114, c = [cx, 0.06, 0.03], d = [I.p[0] - c[0], I.p[1] - c[1], I.p[2] - c[2]];
   const l = Math.hypot(...d) || 1; for (let k = 0; k < 3; k++) d[k] /= l;
-  const f = t => { const z = d[2] * t, zn = Math.max(0, z / 0.15), a = 0.05 * (1 - 0.16 * zn * zn), b = 0.074 - 0.026 * zn, y = d[1] * t; const yy = y < 0 ? y / 0.075 : y / b; return Math.pow(Math.abs(d[0] * t / a), 2.6) + Math.pow(Math.abs(yy), 3) + Math.pow(Math.abs(z / (z > 0 ? 0.155 : 0.135)), 2.4) - 1; };
+  const f = t => { const z = d[2] * t, zn = Math.max(0, z / 0.165), a = 0.058 * (1 - 0.14 * zn * zn), b = 0.078 - 0.03 * zn, y = d[1] * t; const yy = y < 0 ? y / 0.084 : y / b; return Math.pow(Math.abs(d[0] * t / a), 3) + Math.pow(Math.abs(yy), 3.4) + Math.pow(Math.abs(z / (z > 0 ? 0.168 : 0.142)), 2.4) - 1; };
   let lo = 0, hi = 0.3; for (let i = 0; i < 28; i++) { const m = (lo + hi) / 2; if (f(m) > 0) hi = m; else lo = m; }
-  const t = Math.max(lo, l + 0.005), p = [c[0] + d[0] * t, Math.max(-0.018, c[1] + d[1] * t), c[2] + d[2] * t];
+  const t = Math.max(lo, l + 0.005), p = [c[0] + d[0] * t, Math.max(-0.024, c[1] + d[1] * t), c[2] + d[2] * t];
   return p;
 }
 
@@ -232,8 +233,8 @@ export function bakeBases(T, body) {
   const out = {};
   const piece = (role, geo) => ({ role, geo });
   { const S = BASES.hoodie, g = buildGarment(T, A, top(S.hemY, S.cuffX, 0.09, 1.47, 1.505), { uvBox: S.uvBox, opening: opening(S), smooth: 6,
-      thick: I => taper(Math.abs(I.p[0]) > 0.24 ? 0.017 : 0.024 + 0.006 * Math.max(0, Math.min(1, (1.2 - I.p[1]) / 0.25)), I, ['hem', 'cuff', 'neck']),
-      minThick: (I, t) => Math.min(t, I.open === 'neck' ? 0.008 : 0.011), shape: drape(0.026), color: rib,
+      thick: I => taper(Math.abs(I.p[0]) > 0.24 ? 0.019 : 0.012, I, ['hem', 'cuff', 'neck']),
+      minThick: (I, t) => Math.min(t, I.open === 'neck' ? 0.008 : 0.008), shape: drape(0.008), color: rib,
       flap: I => I.open === 'hem' ? Math.max(0, 1 - I.bd / 0.14) * (I.p[2] < 0 ? 1 : 0.55) : 0 });
     out.hoodie = { meshes: [piece('body', g.geo), piece('hood', hoodDownGeometry(T, A)), piece('strings', stringGeometry(T, A, false))], covers: g.covered, spec: S }; }
   { const g = buildGarment(T, A, u => { const y = Y(u), z = Z(u), x = Math.abs(X(u)); if (y < 1.45 || x > 0.16) return false; if (y < 1.6) return z < (y - 1.45) * 0.15 || x > 0.07; return z < 0.045 + Math.max(0, y - 1.72) * 0.6 || x > 0.085 || y > 1.78; },
@@ -241,21 +242,25 @@ export function bakeBases(T, body) {
         color: (I, inn) => inn ? [0.5, 0.5, 0.5] : [1, 1, 1], flap: I => Math.max(0, Math.min(1, (-I.p[2] - 0.02) / 0.1)) * 0.35, coverMargin: 99 });
     out.hood_up = { meshes: [piece('hood', g.geo)], covers: [], spec: BASES.hood_up }; }
   { const S = BASES.jumper, g = buildGarment(T, A, top(S.hemY, S.cuffX, 0.082, 1.48, 1.51), { uvBox: S.uvBox, opening: opening(S), smooth: 6,
-      thick: I => taper(Math.abs(I.p[0]) > 0.24 ? 0.016 : 0.02 + 0.004 * Math.max(0, Math.min(1, (1.2 - I.p[1]) / 0.25)), I, ['hem', 'cuff', 'neck']),
-      minThick: (I, t) => Math.min(t, I.open === 'neck' ? 0.008 : 0.01), shape: drape(0.016), color: rib,
+      thick: I => taper(Math.abs(I.p[0]) > 0.24 ? 0.015 : 0.011, I, ['hem', 'cuff', 'neck']),
+      minThick: (I, t) => Math.min(t, I.open === 'neck' ? 0.008 : 0.008), shape: drape(0.006), color: rib,
       flap: I => I.open === 'hem' ? Math.max(0, 1 - I.bd / 0.12) * 0.6 : 0 });
     out.jumper = { meshes: [piece('body', g.geo)], covers: g.covered, spec: S }; }
   { const S = BASES.tshirt, g = buildGarment(T, A, top(S.hemY, S.cuffX, 0.086, 1.478, 1.51), { uvBox: S.uvBox, opening: p => (Math.abs(p[0]) > 0.3 ? 'sleeve' : p[1] < S.hemY + 0.06 ? 'hem' : 'neck'), smooth: 5,
-      thick: I => taper(Math.abs(I.p[0]) > 0.24 ? 0.013 : 0.014 + 0.003 * Math.max(0, Math.min(1, (1.2 - I.p[1]) / 0.25)), I, ['neck']),
-      minThick: (I, t) => Math.min(t, I.open === 'neck' ? 0.008 : 0.008), shape: drape(0.012), color: rib,
+      thick: I => taper(Math.abs(I.p[0]) > 0.24 ? 0.014 : 0.009, I, ['neck']),
+      minThick: (I, t) => Math.min(t, 0.007), shape: drape(0.006), color: rib,
       flap: I => (I.open === 'hem' || I.open === 'sleeve') ? Math.max(0, 1 - I.bd / 0.1) * 0.7 : 0 });
     out.tshirt = { meshes: [piece('body', g.geo)], covers: g.covered, spec: S }; }
   { const S = BASES.joggers, g = buildGarment(T, A, u => Y(u) > S.ankleY && Y(u) < S.waistY && Math.abs(X(u)) < 0.3, { uvBox: S.uvBox, coverMargin: 0.004, smooth: 9, opening: p => (p[1] < 0.5 ? 'ankle' : 'waist'),
-      thick: I => { const t = 0.022 + 0.006 * Math.max(0, Math.min(1, (I.p[1] - 0.45) / 0.3)); const r = I.open === 'ankle' ? 0.09 : 0.04; return I.bd < r ? 0.011 + (t - 0.011) * (I.bd / r) ** 1.3 : t; },
-      minThick: (I, t) => Math.min(t, 0.009), color: rib, flap: I => I.open === 'ankle' ? Math.max(0, 1 - I.bd / 0.15) * 0.12 : 0 });
+      thick: I => { if (I.open === 'waist') return I.bd < 0.04 ? 0.009 + 0.002 * I.bd / 0.04 : 0.011;
+        const y = I.p[1], below = Math.max(0, Math.min(1, (0.56 - y) / 0.2)), t = 0.011 + 0.014 * below; // close above the knee, looser shin
+        if (I.bd < 0.035) return 0.012; // ribbed ankle cuff
+        if (I.bd < 0.075) return 0.012 + (t + 0.006 - 0.012) * (I.bd - 0.035) / 0.04; // fabric gathering onto the cuff
+        return I.bd < 0.12 ? t + 0.006 * (0.12 - I.bd) / 0.045 : t; },
+      minThick: (I, t) => Math.min(t, 0.008), color: rib, flap: I => I.open === 'ankle' ? Math.max(0, 1 - I.bd / 0.15) * 0.12 : 0 });
     out.joggers = { meshes: [piece('body', g.geo)], covers: g.covered, spec: S }; }
   { const S = BASES.shorts, g = buildGarment(T, A, u => Y(u) > S.hemY && Y(u) < S.waistY && Math.abs(X(u)) < 0.3, { uvBox: S.uvBox, smooth: 9, opening: p => (p[1] < 0.75 ? 'leg' : 'waist'),
-      thick: I => I.open === 'waist' && I.bd < 0.04 ? 0.012 + 0.014 * I.bd / 0.04 : 0.026, minThick: (I, t) => Math.min(t, 0.01), color: rib,
+      thick: I => I.open === 'waist' && I.bd < 0.04 ? 0.009 + 0.004 * I.bd / 0.04 : I.open === 'leg' ? 0.013 + 0.008 * Math.max(0, 1 - I.bd / 0.12) : 0.013, minThick: (I, t) => Math.min(t, 0.01), color: rib,
       flap: I => I.open === 'leg' ? Math.max(0, 1 - I.bd / 0.1) * 0.5 : 0 });
     out.shorts = { meshes: [piece('body', g.geo)], covers: g.covered, spec: S }; }
   { const S = BASES.trainers, B = S.uvBox, g = buildGarment(T, A, u => Y(u) < 0.15 && Math.abs(X(u)) < 0.3, { smooth: 3, coverMargin: 0.004, rimIn: 0.006, opening: () => 'collar', loopSmooth: 14,

@@ -130,13 +130,24 @@ function paintTrainers(ctx, S, l) {
   ctx.fillStyle = l.upper; ctx.fillRect(0, 0, S, S);
   for (const inner of [0, 1]) {
     const band = (y0, y1, col) => { const [, a] = px(0, y1, inner), [, b] = px(0, y0, inner); ctx.fillStyle = col; ctx.fillRect(0, a, S, b - a); };
-    band(-0.03, 0.006, l.sole); band(0.006, 0.011, l.line);
     const poly = (pts, col) => { ctx.fillStyle = col; ctx.beginPath(); pts.forEach(([z, y], i) => { const [a, b] = px(z, y, inner); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.closePath(); ctx.fill(); };
-    poly([[0.14, 0.011], [0.22, 0.011], [0.22, 0.035], [0.16, 0.032]], l.accent);        // toe cap
-    poly([[-0.16, 0.011], [-0.095, 0.011], [-0.105, 0.1], [-0.16, 0.11]], l.accent);     // heel counter
-    if (l.stripe && !inner) poly([[-0.075, 0.032], [0.06, 0.024], [0.09, 0.03], [-0.07, 0.052]], l.stripe); // side stripe
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = S / 400; ctx.setLineDash([S / 140, S / 200]);
-    ctx.beginPath(); { const [a, b] = px(-0.1, 0.016, inner), [c] = px(0.2, 0.016, inner); ctx.moveTo(a, b); ctx.lineTo(c, b); } ctx.stroke(); ctx.setLineDash([]);
+    const line = (pts, col, w, dash) => { ctx.strokeStyle = col; ctx.lineWidth = S * w; ctx.setLineDash(dash || []); ctx.beginPath(); pts.forEach(([z, y], i) => { const [a, b] = px(z, y, inner); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.stroke(); ctx.setLineDash([]); };
+    // chunky cupsole: outsole, tall midsole with a groove, then the upper
+    band(-0.03, 0.03, l.sole); band(-0.03, -0.012, l.outsole || '#3a3a3c');
+    line([[-0.2, 0.009], [0.25, 0.009]], 'rgba(0,0,0,0.22)', 1 / 260);
+    band(0.03, 0.035, l.line);
+    poly([[0.13, 0.035], [0.22, 0.035], [0.22, 0.062], [0.15, 0.055]], l.accent);        // toe cap
+    poly([[-0.16, 0.035], [-0.085, 0.035], [-0.1, 0.105], [-0.16, 0.12]], l.accent);     // heel counter
+    poly([[-0.04, 0.035], [0.02, 0.035], [0.035, 0.12], [-0.03, 0.12]], l.panel || l.accent); // eyestay panel
+    if (l.stripe) poly([[-0.085, 0.045], [0.07, 0.038], [0.105, 0.05], [-0.08, 0.078]], l.stripe); // side stripe
+    // panel stitching
+    line([[0.13, 0.037], [0.15, 0.057], [0.22, 0.064]], 'rgba(0,0,0,0.25)', 1 / 500, [S / 160, S / 260]);
+    line([[-0.085, 0.037], [-0.1, 0.107], [-0.16, 0.122]], 'rgba(0,0,0,0.25)', 1 / 500, [S / 160, S / 260]);
+    line([[-0.1, 0.04], [0.21, 0.04]], 'rgba(0,0,0,0.2)', 1 / 500, [S / 160, S / 260]);
+    // laces across the top of the foot (top of each half in v)
+    for (let i = 0; i < 6; i++) { const z = -0.02 + i * 0.022; line([[z, 0.085], [z + 0.012, 0.11]], l.lace || '#ffffff', 1 / 120); line([[z, 0.085], [z + 0.012, 0.11]], 'rgba(0,0,0,0.25)', 1 / 600); }
+    // heel tab + collar padding
+    poly([[-0.16, 0.12], [-0.13, 0.12], [-0.13, 0.15], [-0.16, 0.15]], l.tab || l.accent);
   }
 }
 
@@ -184,7 +195,7 @@ export function dressUbc(T, model) {
       const mat = solid ? clothMaterial(T, { color: solid, roughness: p.role === 'strings' ? 0.7 : 0.95, vertexColors: !!geo.attributes.color }, uniforms)
         : item.base === 'trainers' ? new T.MeshStandardMaterial({ map: tex, vertexColors: !!geo.attributes.color, roughness: 0.55, metalness: 0, side: T.DoubleSide })
         : clothMaterial(T, { map: tex, vertexColors: !!geo.attributes.color }, uniforms);
-      const m = new T.SkinnedMesh(geo, mat); m.name = 'clothes:' + item.base + ':' + p.role; m.castShadow = true; m.frustumCulled = false; m.userData.wkClothes = item.id;
+      const m = new T.SkinnedMesh(geo, mat); m.name = 'clothes:' + (p.meta.base || item.base) + ':' + p.role; m.castShadow = true; m.frustumCulled = false; m.userData.wkClothes = item.id;
       meshes.push(m); for (const v of p.meta.covers || []) covers.add(weld[v] ?? v);
     }
     const out = { item, meshes, covers }; built.set(k, out); return out;

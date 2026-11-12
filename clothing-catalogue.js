@@ -26,9 +26,9 @@ export const CLOTHING = [
   { id: 'hr_joggers_grey', group: 'hr_joggers', name: 'Hoodrich Core Joggers · Grey', base: 'joggers', price: 450, rarity: 'Epic',
     look: { base: '#8e9197', marks: [HR('#121214', { at: 'thigh', width: 0.115 })] } },
   { id: 'hr_trainers_white', group: 'hr_trainers', name: 'Court Trainers · Triple White', base: 'trainers', price: 380, rarity: 'Rare',
-    look: { upper: '#f3f3f1', accent: '#e4e4e0', sole: '#fbfbf8', line: '#c9c9c4', stripe: '#e9e9e5' } },
+    look: { upper: '#f4f4f2', accent: '#dcdcd8', panel: '#e8e8e4', sole: '#fbfbf8', outsole: '#cfcfca', line: '#b9b9b4', stripe: '#d2d2cd', lace: '#ffffff', tab: '#1a1a1a' } },
   { id: 'hr_trainers_redwhite', group: 'hr_trainers', name: 'Court Trainers · Red/White', base: 'trainers', price: 420, rarity: 'Epic',
-    look: { upper: '#f3f3f1', accent: '#c81e28', sole: '#fbfbf8', line: '#c81e28', stripe: '#c81e28' } },
+    look: { upper: '#f4f4f2', accent: '#c81e28', panel: '#f4f4f2', sole: '#fbfbf8', outsole: '#c81e28', line: '#c81e28', stripe: '#c81e28', lace: '#ffffff', tab: '#c81e28' } },
   // plain basics (prove the tee / jumper / shorts bases)
   { id: 'wk_tee_white', group: 'wk_tee', name: 'Plain Tee · White', base: 'tshirt', price: 120, rarity: 'Common', look: { base: '#efefea' } },
   { id: 'wk_tee_black', group: 'wk_tee', name: 'Plain Tee · Black', base: 'tshirt', price: 120, rarity: 'Common', look: { base: '#1b1c1f' } },
