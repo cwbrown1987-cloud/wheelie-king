@@ -153,7 +153,7 @@ export function collideFreeRoam(s,p,ter){
         s.x+=nx*push;s.z=(s.z||0)+nz*push;
         const v=s.vx||0,into=-(mc*nx+mn*nz)*Math.sign(v||1),vin=Math.abs(v)*into;
         if(vin>7&&into>.75){
-          s.crashed=q.kind==='tree'?'HIT A TREE':q.kind==='boulder'?'HIT A ROCK':'HIT A STUMP';
+          s.crashed=q.kind==='tree'?'HIT A TREE':q.kind==='boulder'?'HIT A ROCK':q.kind==='post'?'HIT THE POST':'HIT A STUMP';
           s.events.push({type:'crash',why:s.crashed,part:'bars'});s.wear&&(s.wear.bars=(s.wear.bars||0)+.45);
           s.vx*=.2;return s;
         }

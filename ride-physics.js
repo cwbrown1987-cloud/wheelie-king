@@ -136,7 +136,7 @@ export function step(s, p, inp, dt, ter) {
       // Rider's arms and legs: past the bike's travel the rider soaks up the rest of a hit (Descenders-style),
       // so only a hit bigger than suspension + body can kick the bike up.
       if(absorb&&d>maxDeflection(i)){const e=d-maxDeflection(i),kA=p.mass*9.8*RIDER.load/absorb;f+=kA*e+Math.sqrt(kA*p.mass/2)*2*RIDER.damp*Math.min(Math.max(0,-vn),1.2);}
-      if(d>maxDeflection(i)&&vn<-5.5+travel[i]*10)s.events.push({type:'bottom',i});
+      if(d>maxDeflection(i)+absorb*.8&&vn<-5.5+travel[i]*10)s.events.push({type:'bottom',i});
       f = Math.max(0, f); N[i] = f; s.comp[i] = compression(i,d);
       Fx += f * nx; Fy += f * ny; T += ox * f * ny - (oy - 0) * f * nx; // r x F (z)
       const tx = Math.cos(a), ty = Math.sin(a), vt = s.vx * tx + s.vy * ty;

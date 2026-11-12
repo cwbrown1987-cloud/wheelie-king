@@ -102,6 +102,22 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     D.back += (Math.max(-0.6, Math.min(1, -D.slope * 2.5)) - D.back) * (1 - Math.exp(-dt * 3));
     D.look += ((Math.max(-1, Math.min(1, inp.steer || 0)) * 0.35 + (s.slipAngle || 0) * 0.6) - D.look) * (1 - Math.exp(-dt * 6));
   }
+  let gripMeshes = null, gripScan = 0;
+  const _gc = new T.Vector3();
+  function gripPoints() {
+    if (!gripMeshes || (!gripMeshes.length && (gripScan += 1) % 120 === 0)) {
+      gripMeshes = []; bike.traverse(o => { if (o.isMesh && /^grips?[:_-]|(^|[:_-])grips?($|[:_-])/i.test(o.name)) gripMeshes.push(o); });
+      if (gripMeshes.length > 2) { // several pieces per grip: keep the outermost on each side
+        const byZ = gripMeshes.map(o => { o.updateWorldMatrix(true, false); if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); return [o, root.worldToLocal(o.localToWorld(_gc.copy(o.geometry.boundingSphere.center))).z]; });
+        byZ.sort((a, b) => a[1] - b[1]); gripMeshes = [byZ[0][0], byZ[byZ.length - 1][0]];
+      }
+    }
+    if (gripMeshes.length !== 2) return null;
+    const pts = gripMeshes.map(o => { o.updateWorldMatrix(true, false); if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); return root.worldToLocal(o.localToWorld(new T.Vector3().copy(o.geometry.boundingSphere.center))); });
+    pts.sort((a, b) => a.z - b.z); // left (-z) then right (+z)
+    if (Math.abs(pts[1].z - pts[0].z) < 0.15) return null;
+    return pts;
+  }
   function targets({ s = {}, inp = {}, dt = 1 / 60 } = {}) {
     dynamics(s, inp, dt);
     const k = 1 - Math.exp(-Math.max(0, dt) * 9);
@@ -126,13 +142,16 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     target.pitch += -D.y * 1.2 * st + 0.12 * st * D.attack + Math.min(0, D.slope) * 0.35;
     target.look = D.look;
     target.roll = W.roll;
+    // The handlebar grips are their own meshes: put the hands on the real grips (they already turn with the bars).
+    const gp = gripPoints();
     for (const i of [0, 1]) {
       const side = i ? 1 : -1;
       target.hands[i].set(grips.x, grips.y, side * gripW);
+      if (gp) { target.hands[i].copy(gp[i]); }
       // Hands ride the handlebar: apply the same steering rotation the bars get (bike-motion), so the
       // rider's arms actually turn the bike instead of holding a fixed pose.
       const sm = mechanical?.state?.steerMatrix;
-      if (sm && mechanical.state.steerAngle) { const h = target.hands[i]; h.x -= bike.position.x; h.y -= bike.position.y; h.applyMatrix4(sm); h.x += bike.position.x; h.y += bike.position.y; }
+      if (!gp && sm && mechanical.state.steerAngle) { const h = target.hands[i]; h.x -= bike.position.x; h.y -= bike.position.y; h.applyMatrix4(sm); h.x += bike.position.x; h.y += bike.position.y; }
       let foot;
       if (crankR && !st) {
         const a = (mechanical?.state.crankPhase || 0) + (i ? Math.PI : 0);
@@ -271,7 +290,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
       if (model) { for (const [s, i] of [['l', 0], ['r', 1]]) { handErr.push(wpos(bones['hand_' + s]).distanceTo(W2(target.hands[i]))); footErr.push(wpos(bones['foot_' + s]).distanceTo(W2(target.feet[i]))); } }
       return { kind: 'ubc', reference: 'Quaternius Universal Base Character (CC0)', loaded: !!model, error, meshes,
         weights: { ...W }, hip: target.hip.toArray(), pitchDeg: (target.pitch + reach.pitch) * 180 / Math.PI, reachFoldDeg: reach.pitch * 180 / Math.PI, reachShiftM: reach.shift, armLen,
-        hipWorld: model ? wpos(bones.pelvis).toArray() : null, dyn: { absorbM: D.y, attack: D.attack, rough: D.rough, back: D.back, look: D.look }, handErrM: handErr, footErrM: footErr,
+        hipWorld: model ? wpos(bones.pelvis).toArray() : null, gripMeshes: gripMeshes ? gripMeshes.map(o => o.name) : null, dyn: { absorbM: D.y, attack: D.attack, rough: D.rough, back: D.back, look: D.look }, handErrM: handErr, footErrM: footErr,
         legLen, attach: { seat: seat.toArray(), pegs: pegs.toArray(), grips: grips.toArray(), gripW, pegW, crankR } };
     },
   };

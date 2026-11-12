@@ -3,6 +3,7 @@
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {makeLoopMesh} from './ride-loop.js';
 import {makeSplatMaterial,fillSplat} from './ride-ground.js';
+import {GOAL_POSTS} from './ride-soccer.js';
 const SIZE=2000,TILE=6;
 // Three table-top jumps (kicker, flat deck, landing), off to the side of the spawn line (z = 14 m) and
 // running along +X. Our own procedural geometry (no third-party asset). Jolt gets the same triangles
@@ -161,7 +162,7 @@ function buildProps(){
   return out.filter(p=>!(p.post&&(Math.abs(p.z-54)<3||Math.abs(p.z-26)<3)&&p.x<85)&&!(p.post&&roadDist(p.x,p.z)<6)&&!(p.bump&&roadDist(p.x,p.z)<DESCENT.road/2+.5));
 }
 export const PLAYGROUND_PROPS=buildProps();
-export const PLAYGROUND_POSTS=PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s}));
+export const PLAYGROUND_POSTS=GOAL_POSTS.concat(PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s})));
 const BUMPS=PLAYGROUND_PROPS.filter(p=>p.bump).map(p=>({x:p.x,z:p.z,c:Math.cos(p.rot),n:Math.sin(p.rot),...p.bump,log:p.m==='log'}));
 export function propHeight(x,z){
   let y=0;for(const b of BUMPS){const dx=x-b.x,dz=z-b.z;const R=Math.max(b.a,b.b)+.1;if(Math.abs(dx)>R||Math.abs(dz)>R)continue;

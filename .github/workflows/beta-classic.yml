@@ -34,6 +34,7 @@ jobs:
       - name: Physics checks (fast, no browser)
         run: |
           node tests/playground-classic.mjs
+          node tests/playground-soccer.mjs
           node tests/handlebar-steer.mjs
           node tests/ride-loop.mjs
           node tests/wheelie-balance.mjs
