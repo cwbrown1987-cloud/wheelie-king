@@ -349,7 +349,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
 
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0, steer: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0, steer: 0 }; let paused=false; let pauseUi=null;
-  let camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
+  let vertCam=0,vertCamYaw=0,camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
   const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ","w","a","s","d"].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;if(arena){if(k==='shift'||k===' '){e.preventDefault();keys[k]=true;return;}const mv={b:'burnout',g:'stand',c:'onehand',x:'kneeknock'}[k];if(mv){e.preventDefault();if(!e.repeat)setToggle(mv,!rideToggles[mv]);return;}}const action=arena?null:({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   // HUD + touch controls (DOM over the canvas)
@@ -928,7 +928,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const targetBlend=cameraView==='chase'?1:0;const swingDur=targetBlend>cameraBlend?.7:.9;cameraBlend+=Math.max(-cameraDt/swingDur,Math.min(cameraDt/swingDur,targetBlend-cameraBlend));const uBlend=cameraBlend;const blend=uBlend*uBlend*(3-2*uBlend);
     let dist=6.5;
     if(freeRoam){
-      const yaw=s.sliding&&s.moveYaw!=null?s.moveYaw:(s.yaw||0),z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
+      // v2.1-32: in a vert air the camera keeps facing the wall you launched off (it doesn't whip round with the
+      // bike's turn), then swings round behind you smoothly once you're rolling back down
+      if(s.vertAir&&s.vertH0!=null){vertCam=1.1;vertCamYaw=s.vertH0;}else if(vertCam>0)vertCam=Math.max(0,vertCam-cameraDt);
+      const yaw=s.vertAir&&s.vertH0!=null?s.vertH0:(s.sliding&&s.moveYaw!=null?s.moveYaw:(s.yaw||0)),z=s.z||0,followDt=reviewing?0:cameraDt,roadY=ter.height(s.x,z),inAir=!(s.ground[0]||s.ground[1]);
       const lookT=arena?0.10:0;
       const tx=s.x+Math.cos(yaw)*(s.vx||0)*lookT, tz=z+Math.sin(yaw)*(s.vx||0)*lookT;
       const k=1-Math.exp(-(arena?(inAir?14:12):5.8)*followDt);
@@ -938,7 +941,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       else if(arena){if(sideYaw==null||!Number.isFinite(sideYaw))sideYaw=yaw;else if(Math.abs(s.vx||0)>1.5&&!crashRig)sideYaw+=wrapAngle(yaw-sideYaw)*(1-Math.exp(-2.4*followDt));}
       if(!crashRig){
         if(chasePosX==null||!Number.isFinite(chasePosX)||!Number.isFinite(chasePosZ)||!Number.isFinite(chaseFollowY)||!Number.isFinite(tx)||!Number.isFinite(tz)||Math.hypot(s.x-chasePosX,z-chasePosZ)>8){chasePosX=Number.isFinite(tx)?tx:s.x;chasePosZ=Number.isFinite(tz)?tz:z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;if(arena)airClose=0;}
-        chasePosX+=(tx-chasePosX)*k;chasePosZ+=(tz-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-(arena?10:8)*followDt));
+        chasePosX+=(tx-chasePosX)*k;chasePosZ+=(tz-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-(arena?(vertCam>0?2.6:10):8)*followDt));
       }
       if(lookDrag==null&&lookHold>0)lookHold=Math.max(0,lookHold-followDt); // stay where you left it for a second
       if(!lookDrag&&lookHold<=0){
