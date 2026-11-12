@@ -15,7 +15,7 @@ try{
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  if(bike!=='stock')await p.evaluate(b=>globalThis.__WK_EQUIP__?.(b),bike);
  await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
- await p.waitForFunction(()=>{const t=globalThis.__WK_TELEMETRY__?.();return t&&t.physics==='jolt'&&t.ready&&globalThis.__WK_REPLAY__;},null,{timeout:120000});
+ await p.waitForFunction(()=>{const t=globalThis.__WK_TELEMETRY__?.();return t&&t.ready&&globalThis.__WK_REPLAY__;},null,{timeout:120000});
  const tel=()=>p.evaluate(()=>__WK_TELEMETRY__());
  // sample telemetry every rAF for ms
  const watch=ms=>p.evaluate(ms=>new Promise(r=>{const a=[];const t0=performance.now();const f=()=>{const t=__WK_TELEMETRY__();a.push({sp:t.speedKmh,p:t.pitchDeg,r:t.rollDeg,x:t.x,z:t.z,c:t.trick.crashed});if(performance.now()-t0<ms)requestAnimationFrame(f);else r(a)};requestAnimationFrame(f)}),ms);

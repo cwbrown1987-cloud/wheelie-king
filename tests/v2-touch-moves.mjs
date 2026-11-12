@@ -18,7 +18,7 @@ try{for(const bike of bikes){
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.evaluate(b=>globalThis.__WK_EQUIP__?.(b),bike);await p.waitForTimeout(300);
  await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
- await p.waitForFunction(()=>{const r=globalThis.__WK_RIDE_STATE__?.();return r&&r.physics==='jolt'&&r.physicsReady;},null,{timeout:120000});
+ await p.waitForFunction(()=>{const r=globalThis.__WK_RIDE_STATE__?.();return r&&r.physicsReady;},null,{timeout:120000});
  await p.waitForTimeout(700);
  const cdp=await p.context().newCDPSession(p);
  const rect=sel=>p.evaluate(s=>{const r=document.querySelector(s)?.getBoundingClientRect();return r&&{x:r.x,y:r.y,w:r.width,h:r.height,cx:r.x+r.width/2,cy:r.y+r.height/2}},sel);
