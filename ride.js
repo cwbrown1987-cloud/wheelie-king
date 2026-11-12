@@ -29,6 +29,7 @@ import {makeEnvironment} from './ride-environment.js';
 import {makePlaygroundWorld,SIDE_TRACK,PLAYGROUND_PADS,playgroundCoins} from './ride-playground.js';
 import {makeCoins} from './ride-coins.js';
 import {makeWalker} from './rider-walker.js';
+import {prototypeFor} from './vehicle-platforms.js';
 import {NEON,NEON_COINS,makeNeonTerrain,neonLock,neonProject,neonAt,neonSafeS,neonProfile,neonInGap} from './ride-neon.js';
 import {makeNeonWorld} from './ride-neon-world.js';
 import {rideEarnings,readBest,saveBest,fmtTime} from './ride-economy.js';
@@ -274,6 +275,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   // Playground: Jolt settings come from base platform data + fitted parts (ride-profile.js).
   // The drawn bike uses the same COM so the visual wheels sit on the physics wheels.
   const rideProfile=arena?deriveRideProfile({stats,build,find,anchors:A,base:P,forkAxis:P.forkAxis}):null;
+  // v2.1-39 riding stance per vehicle: e-scooter (stand on the deck, feet staggered), motorbike (bench + pegs),
+  // BMX (stands up to sprint), everything else seated pedalling (MTB / e-bike)
+  const vehicleClass=prototypeFor(build.frame)?.vehicleClass||(/moto/.test(build.frame||'')?'motorbike':/bmx/.test(build.frame||'')?'bmx':P.pedal?'bicycle':'ebike');
+  if(rideProfile)rideProfile.stance=vehicleClass==='escooter'||vehicleClass==='scooter'?'scooter':vehicleClass==='motorbike'?'moto':vehicleClass==='bmx'?'bmx':'seated';
   if(rideProfile){P.comBack=rideProfile.comBack;P.comH=rideProfile.comH;}P.forkVertical=P.forkAxis[1];P.rearLink=A.swingPivot?[A.rearAxle[0]-A.swingPivot[0],A.rearAxle[1]-A.swingPivot[1]]:null;
   const hC = P.comH - P.R; bike.position.set(-P.wb * P.comBack - A.rearAxle[0], -hC - A.rearAxle[1], 0); body.add(bike);
   // wheels move with their suspension (visible travel); find the wheel groups at each axle

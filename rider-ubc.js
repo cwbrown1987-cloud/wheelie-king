@@ -20,6 +20,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
   const seat = off(at.seat || A.seatTop), pegs = off(at.pegs || A.feet || A.bb);
   const grips = off(at.bars || A.hand || [A.headTop[0] - 0.04, A.headTop[1] + 0.2]);
   const gripW = at.gripHalfWidth || A.handWidth || 0.18, pegW = at.pegHalfWidth || 0.145, crankR = at.cranks || 0;
+  const stance = profile?.stance || 'seated'; // v2.1-39: scooter | moto | bmx | seated
   const W = { stand: 0, wheelie: 0, lean: 0, oneHand: 0, kneeKnock: 0, roll: 0 };
   const trick = { name: '', env: 0, dir: 1 };
   let model = null, bones = null, rest = null, pelvisRest = null, legLen = 0.86, armLen = 0.6, reach = { pitch: 0, shift: 0 }, error = null, meshes = 0;
@@ -129,7 +130,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     const k = 1 - Math.exp(-Math.max(0, dt) * (air ? 1.2 : 9));
     const frontUp = !!(s.ground && s.ground[0] && !s.ground[1]);
     const go = (key, val) => { W[key] += (val - W[key]) * k; };
-    go('stand', s.standing || D.attack > 0.5 ? 1 : 0);
+    go('stand', stance === 'scooter' || s.standing || D.attack > 0.5 || (stance === 'bmx' && (inp.throttle || 0) > .5 && Math.abs(s.vx || 0) < 7 && !air) ? 1 : 0); // scooters are always stood on; BMX riders stand to sprint
     // steady weights on a mono: saturate early and move slowly, so the hips don't pump with every balance correction
     if (!air) go('wheelie', s.mono || frontUp ? Math.min(1, Math.max(0, (s.pitch || 0) / 0.22) + (s.mono ? 0.4 : 0)) : 0);
     { const kl = 1 - Math.exp(-Math.max(0, dt) * (W.wheelie > 0.5 ? 2.5 : 9)); W.lean += (Math.max(-1, Math.min(1, -(inp.lean || 0) + (s.stoppie && !(s.ground && s.ground[0]) ? 0.9 : 0))) - W.lean) * kl; }                 // + = lean forward (inp.lean + = back)
@@ -140,14 +141,14 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     const sk = s.stunt && !s.crashed ? s.stunt : null, env = sk ? Math.sin(Math.PI * Math.min(1, sk.elapsed / sk.duration)) : 0;
     trick.name = sk ? sk.name : ''; trick.env = env; trick.dir = sk?.dir || 1;
     const hipSit = seat.clone().add(_d.set(-0.02, 0.09, 0));
-    const hipStand = new T.Vector3(pegs.x - 0.06, pegs.y + legLen * 0.86, 0);
+    const hipStand = stance === 'scooter' ? new T.Vector3(pegs.x - 0.04, pegs.y + legLen * 0.84, 0) : new T.Vector3(pegs.x - 0.06, pegs.y + legLen * 0.86, 0);
     target.hip.copy(hipSit).lerp(hipStand, st);
     target.hip.x += -0.13 * wh + 0.06 * W.lean; target.hip.y += -0.03 * wh * (1 - st);
     // attack stance: hips low and back; absorb bumps through the legs (D.y); hips back on descents
     target.hip.y += D.y * (0.5 + 0.5 * st) - 0.1 * st * D.attack;
     target.hip.x += -0.14 * D.back * st - 0.05 * D.back * (1 - st) - 0.04 * st * D.attack;
     // torso pitch from vertical (+ = forward): seated 38°, standing 28°, wheelie ~8°, lean ±18°
-    target.pitch = (38 - 10 * st) * Math.PI / 180 * (1 - 0.8 * wh) + W.lean * 0.32 - 0.12 * W.kneeKnock;
+    target.pitch = (stance === 'scooter' ? 12 : stance === 'moto' ? 30 - 6 * st : 38 - 10 * st) * Math.PI / 180 * (1 - 0.8 * wh) + W.lean * 0.32 - 0.12 * W.kneeKnock;
     // chest drops toward the bars when the legs soak up a hit; torso stays nearer vertical on steep descents
     target.pitch += -D.y * 1.2 * st + 0.12 * st * D.attack + Math.min(0, D.slope) * 0.35;
     if (trick.name === 'superman') { target.hip.x -= 0.42 * env; target.hip.y += 0.22 * env; target.pitch += 0.75 * env; }
@@ -165,10 +166,11 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
       const sm = mechanical?.state?.steerMatrix;
       if (!gp && sm && mechanical.state.steerAngle) { const h = target.hands[i]; h.x -= bike.position.x; h.y -= bike.position.y; h.applyMatrix4(sm); h.x += bike.position.x; h.y += bike.position.y; }
       let foot;
-      if (crankR && !st) {
+      if (crankR && (!st || stance === 'bmx')) { // pedalling (BMX riders keep pedalling stood up)
         const a = (mechanical?.state.crankPhase || 0) + (i ? Math.PI : 0);
         foot = new T.Vector3(pegs.x + Math.cos(a) * crankR, pegs.y + Math.sin(a) * crankR, side * (pegW - 0.02));
-      } else foot = new T.Vector3(pegs.x + (st ? -0.02 : -0.03), pegs.y + 0.03, side * pegW);
+      } else if (stance === 'scooter') foot = new T.Vector3(pegs.x + (i ? -0.2 : 0.17), pegs.y + 0.03, i ? 0.06 : -0.05); // front foot forward on the deck, back foot behind it
+      else foot = new T.Vector3(pegs.x + (st ? -0.02 : -0.03), pegs.y + 0.03, side * pegW);
       // knee-knock: feet off the pegs, knees pulled in and up to the top tube
       const knock = new T.Vector3(pegs.x + 0.12, pegs.y + 0.22, side * 0.05);
       target.feet[i].copy(foot).lerp(knock, W.kneeKnock);
@@ -305,7 +307,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     state() {
       const handErr = [], footErr = [];
       if (model) { for (const [s, i] of [['l', 0], ['r', 1]]) { handErr.push(wpos(bones['hand_' + s]).distanceTo(W2(target.hands[i]))); footErr.push(wpos(bones['foot_' + s]).distanceTo(W2(target.feet[i]))); } }
-      return { kind: 'ubc', reference: 'Quaternius Universal Base Character (CC0)', loaded: !!model, error, meshes,
+      return { kind: 'ubc', stance, reference: 'Quaternius Universal Base Character (CC0)', loaded: !!model, error, meshes,
         weights: { ...W }, hip: target.hip.toArray(), pitchDeg: (target.pitch + reach.pitch) * 180 / Math.PI, reachFoldDeg: reach.pitch * 180 / Math.PI, reachShiftM: reach.shift, armLen,
         hipWorld: model ? wpos(bones.pelvis).toArray() : null, gripMeshes: gripMeshes ? gripMeshes.map(o => o.name) : null, dyn: { absorbM: D.y, attack: D.attack, rough: D.rough, back: D.back, look: D.look }, handErrM: handErr, footErrM: footErr,
         legLen, attach: { seat: seat.toArray(), pegs: pegs.toArray(), grips: grips.toArray(), gripW, pegW, crankR } };
