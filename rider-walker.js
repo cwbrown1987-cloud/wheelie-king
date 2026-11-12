@@ -6,10 +6,10 @@ import { GLTFLoader } from './vendor/GLTFLoader.js';
 const URL_GLB = './assets/quaternius/ubc-superhero-male.glb', URL_ANIM = './assets/quaternius/ual-locomotion.glb', HEIGHT = 1.74;
 // v2.1-42: walking/running/jumping use Quaternius' Universal Animation Library (CC0) clips on the same skeleton,
 // blended by speed and synced to the ground so the feet don't skate. Slide, ragdoll and get on/off stay procedural.
-const CLIP = { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', jumpStart: 'Jump_Start', jumpLoop: 'Jump_Loop', land: 'Jump_Land' };
+const CLIP = { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', jumpStart: 'Jump_Start', jumpLoop: 'Jump_Loop', land: 'Jump_Land', slide: 'Sitting_Idle_Loop' }; // slide = the sitting pose laid back on the ground
 // metres covered per full cycle of each loop (two steps) — sets how fast each clip plays for a given speed
 const CYCLE = { walk: 1.55, jog: 2.5, sprint: 3.6 };
-export const WALK = { walk: 1.7, run: 6.2, accel: 14, airAccel: 3, turn: 10, jump: 5.2, g: 9.8, step: .45, slideTime: .9, slideBoost: 1.5, slideFric: 3.2, ragdollFall: 10.5, getUp: 2.4 };
+export const WALK = { walk: 1.7, run: 6.2, accel: 14, airAccel: 3, turn: 10, jump: 5.2, g: 9.8, step: .45, slideTime: .9, slideBoost: 1.8, slideFric: 1.4, slideMin: 1.6, slideSteer: 1.6, ragdollFall: 10.5, getUp: 2.4 };
 const JOINTS = ['pelvis', 'chest', 'head', 'shoulderL', 'elbowL', 'handL', 'shoulderR', 'elbowR', 'handR', 'hipL', 'kneeL', 'footL', 'hipR', 'kneeR', 'footR'];
 // verlet ragdoll links (bones + braces that keep the torso a torso)
 const LINKS = [['pelvis', 'chest'], ['chest', 'head'], ['chest', 'shoulderL'], ['chest', 'shoulderR'], ['shoulderL', 'shoulderR'], ['shoulderL', 'elbowL'], ['elbowL', 'handL'], ['shoulderR', 'elbowR'], ['elbowR', 'handR'],
@@ -17,7 +17,7 @@ const LINKS = [['pelvis', 'chest'], ['chest', 'head'], ['chest', 'shoulderL'], [
 export function makeWalker(T, scene, ter) {
   const root = new T.Group(); root.name = 'wk:walker'; root.visible = false; scene.add(root);
   let model = null, bones = null, rest = null, pelvisRest = null, error = null, mixer = null, animReady = false, cyc = 0, airT = 0, landT = 0, wasOnG = true, snap = null, snapT = 0;
-  const acts = {}, W8 = { idle: 1, walk: 0, jog: 0, sprint: 0, jumpStart: 0, jumpLoop: 0, land: 0 };
+  const acts = {}, W8 = { idle: 1, walk: 0, jog: 0, sprint: 0, jumpStart: 0, jumpLoop: 0, land: 0, slide: 0 };
   const v = () => new T.Vector3(), q = () => new T.Quaternion(), _a = v(), _b = v(), _c = v(), _q1 = q(), _q2 = q(), _q3 = q();
   const wpos = (o, out = v()) => o.getWorldPosition(out);
   function rotateWorld(bone, delta) { bone.parent.getWorldQuaternion(_q1); bone.getWorldQuaternion(_q2); bone.quaternion.copy(_q1.invert().multiply(_q3.copy(delta).multiply(_q2))); bone.updateMatrixWorld(true); }
@@ -111,8 +111,9 @@ export function makeWalker(T, scene, ter) {
     model.position.set(S.x, S.y, S.z); model.rotation.set(0, Math.atan2(Math.cos(S.yaw), Math.sin(S.yaw)), 0);
     const sp = S.speed;
     // blend weights by speed: idle -> walk -> jog -> sprint
-    const tw = { idle: 0, walk: 0, jog: 0, sprint: 0, jumpStart: 0, jumpLoop: 0, land: 0 };
-    if (!S.onG) { airT += dt; if (airT < .3 && S.vy > 0) tw.jumpStart = 1; else tw.jumpLoop = 1; landT = 0; }
+    const tw = { idle: 0, walk: 0, jog: 0, sprint: 0, jumpStart: 0, jumpLoop: 0, land: 0, slide: 0 };
+    if (S.mode === 'slide' && S.onG) { tw.slide = 1; airT = 0; }
+    else if (!S.onG) { airT += dt; if (airT < .3 && S.vy > 0) tw.jumpStart = 1; else tw.jumpLoop = 1; landT = 0; }
     else {
       if (!wasOnG) landT = .3; airT = 0;
       const a = Math.min(1, sp / .5), b = Math.max(0, Math.min(1, (sp - 1.9) / 1.6)), c = Math.max(0, Math.min(1, (sp - 4.2) / 1.6));
@@ -120,7 +121,7 @@ export function makeWalker(T, scene, ter) {
       if (landT > 0) { const l = Math.min(1, landT / .3); for (const k of ['idle', 'walk', 'jog', 'sprint']) tw[k] *= 1 - l * .7; tw.land = l * .7; landT -= dt; }
     }
     wasOnG = S.onG;
-    const k = 1 - Math.exp(-dt * 12); for (const key in W8) { W8[key] += (tw[key] - W8[key]) * k; acts[key]?.setEffectiveWeight(W8[key]); }
+    const k = 1 - Math.exp(-dt * (S.mode === 'slide' || W8.slide > .5 ? 18 : 12)); for (const key in W8) { W8[key] += (tw[key] - W8[key]) * k; acts[key]?.setEffectiveWeight(W8[key]); }
     // one shared phase for the run cycle so blended clips keep their feet in step; speed sets the rate
     const cd = (W8.walk * CYCLE.walk + W8.jog * CYCLE.jog + W8.sprint * CYCLE.sprint) / Math.max(1e-3, W8.walk + W8.jog + W8.sprint);
     if (S.onG) cyc = (cyc + sp * dt / Math.max(.5, cd)) % 1;
@@ -129,7 +130,21 @@ export function makeWalker(T, scene, ter) {
     if (acts.jumpStart) acts.jumpStart.time = Math.min(acts.jumpStart.getClip().duration * .98, airT * 1.4);
     if (acts.jumpLoop) acts.jumpLoop.time = (airT % acts.jumpLoop.getClip().duration);
     if (acts.land) acts.land.time = Math.min(acts.land.getClip().duration * .98, (.3 - Math.max(0, landT)) * 2);
+    if (acts.slide) acts.slide.time = (acts.slide.time + dt * .5) % acts.slide.getClip().duration;
     mixer.update(0); model.updateMatrixWorld(true);
+    // slide: drop the hips to the ground and lay the body back, lead leg out front (the sitting pose, on the floor)
+    if (W8.slide > .01) {
+      const sw = W8.slide, back = .5 * sw;
+      model.rotation.set(0, model.rotation.y, 0); model.rotateX(-back); model.updateMatrixWorld(true);
+      const py = wpos(bones.pelvis).y, want = S.y + .2; model.position.y += (want - py) * sw;
+      // a little spray of dust feel: lean into the slide's direction slightly
+      model.updateMatrixWorld(true);
+      // lead (right) leg straighter, trailing leg tucked; left hand trails on the ground, right arm up for balance
+      twoBone(bones.thigh_r, bones.calf_r, bones.foot_r, wpos(bones.thigh_r).add(v().set(Math.cos(S.yaw), 0, Math.sin(S.yaw)).multiplyScalar(.82 * sw)).setY(S.y + .14), wpos(bones.thigh_r).add(v().set(0, .6, 0)));
+      const lc = v().set(-Math.sin(S.yaw), 0, Math.cos(S.yaw));
+      twoBone(bones.upperarm_l, bones.lowerarm_l, bones.hand_l, wpos(bones.thigh_l).add(lc.clone().multiplyScalar(-.32)).add(v().set(-Math.cos(S.yaw) * .25, 0, -Math.sin(S.yaw) * .25)).setY(S.y + .04), wpos(bones.upperarm_l).add(v().set(0, 0, 0).addScaledVector(lc, -.5)));
+      twoBone(bones.upperarm_r, bones.lowerarm_r, bones.hand_r, wpos(bones.upperarm_r).add(v().set(0, .25, 0)).addScaledVector(lc, .3).add(v().set(Math.cos(S.yaw) * .15, 0, Math.sin(S.yaw) * .15)), wpos(bones.upperarm_r).addScaledVector(lc, .5));
+    }
     // cross-fade out of a procedural pose (just got off the bike / just got up)
     if (snapT > 0 && snap) { const t = 1 - snapT / .28, e = t * t * (3 - 2 * t); rest.forEach(([b], i) => b.quaternion.slerpQuaternions(snap[i], b.quaternion.clone(), e)); model.updateMatrixWorld(true); snapT -= dt; } else snapT = 0;
   }
@@ -150,13 +165,20 @@ export function makeWalker(T, scene, ter) {
         const imx = inp.mx || 0, imz = inp.mz || 0, m = Math.min(1, Math.hypot(imx, imz)), top = S.mode === 'slide' ? 0 : (inp.run ? WALK.run : WALK.walk + (WALK.run - WALK.walk) * Math.max(0, m - .8) / .2 * 0) * m;
         if (inp.ragdoll) startRagdoll(v().set(S.vx, S.vy, S.vz).add(v().set(Math.cos(S.yaw), .6, Math.sin(S.yaw)).multiplyScalar(2.5)));
         else {
-          if (S.mode === 'slide') { S.slideT += dt; const sp = Math.hypot(S.vx, S.vz), ns = Math.max(0, sp - WALK.slideFric * dt); if (sp > 1e-3) { S.vx *= ns / sp; S.vz *= ns / sp; } if (S.slideT > WALK.slideTime || ns < .8) S.mode = 'walk'; }
+          if (S.mode === 'slide') { // v2.1-43 Fortnite slide: lasts while the button is held and you've still got momentum
+            S.slideT += dt; let sp = Math.hypot(S.vx, S.vz);
+            const dir = sp > 1e-3 ? [S.vx / sp, S.vz / sp] : [Math.cos(S.yaw), Math.sin(S.yaw)], e = .4, slope = (height(S.x + dir[0] * e, S.z + dir[1] * e) - height(S.x - dir[0] * e, S.z - dir[1] * e)) / (2 * e);
+            sp = Math.max(0, sp - (WALK.slideFric + WALK.g * slope * .9) * dt); // downhill keeps you going, uphill bleeds it off
+            let hd = Math.atan2(dir[1], dir[0]); if (m > .05) { let d = Math.atan2(imz, imx) - hd; d = Math.atan2(Math.sin(d), Math.cos(d)); hd += Math.max(-1, Math.min(1, d)) * WALK.slideSteer * dt; }
+            S.vx = Math.cos(hd) * sp; S.vz = Math.sin(hd) * sp; S.yaw = hd;
+            if ((!inp.slideHeld && S.slideT > .25) || sp < WALK.slideMin) { S.mode = 'walk'; S.events.push('slide-end'); }
+            if (inp.jump && S.onG) { S.mode = 'walk'; S.vy = WALK.jump; S.onG = false; S.events.push('jump'); } }
           else {
             if (m > .05) { const want = Math.atan2(imz, imx); let d = want - S.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); S.yaw += d * Math.min(1, dt * WALK.turn); S.yaw = Math.atan2(Math.sin(S.yaw), Math.cos(S.yaw)); }
             const tx = m > .05 ? imx / m * top : 0, tz = m > .05 ? imz / m * top : 0, a = (S.onG ? WALK.accel : WALK.airAccel) * dt;
             const dx = tx - S.vx, dz = tz - S.vz, dl = Math.hypot(dx, dz); if (dl > a) { S.vx += dx / dl * a; S.vz += dz / dl * a; } else { S.vx = tx; S.vz = tz; }
             if (inp.jump && S.onG) { S.vy = WALK.jump; S.onG = false; S.crouch = 0; S.events.push('jump'); }
-            if (inp.slide && S.onG && Math.hypot(S.vx, S.vz) > 3) { S.mode = 'slide'; S.slideT = 0; const sp = Math.hypot(S.vx, S.vz); S.vx *= (sp + WALK.slideBoost) / sp; S.vz *= (sp + WALK.slideBoost) / sp; S.events.push('slide'); }
+            if (inp.slide && S.onG && Math.hypot(S.vx, S.vz) > 3.2) { S.mode = 'slide'; S.slideT = 0; const sp = Math.hypot(S.vx, S.vz); S.vx *= (sp + WALK.slideBoost) / sp; S.vz *= (sp + WALK.slideBoost) / sp; S.events.push('slide'); }
           }
         }
         if (S.mode !== 'ragdoll') {
@@ -175,7 +197,7 @@ export function makeWalker(T, scene, ter) {
       if (S.toward) { S.towardT += dt; const t = Math.min(1, S.towardT / S.towardDur), e = t * t * (3 - 2 * t); for (const k of JOINTS) if (S.toward[k]) J[k].lerp(S.toward[k], e); }
       // blend in from the previous pose (getting off the bike, getting up)
       if (S.blend) { S.blendT += dt; const t = Math.min(1, S.blendT / S.blendDur), e = t * t * (3 - 2 * t); for (const k of JOINTS) if (S.blend[k]) J[k].lerpVectors(S.blend[k], J[k], e); if (t >= 1) S.blend = null; }
-      const useJoints = !animReady || S.mode === "ragdoll" || S.mode === "slide" || S.blend || S.toward;
+      const useJoints = !animReady || S.mode === "ragdoll" || (S.mode === "slide" && !acts.slide) || S.blend || S.toward;
       if (useJoints) { poseTo(J); if (model && rest) snap = rest.map(([b], i) => (snap?.[i] || new T.Quaternion()).copy(b.quaternion)); snapT = .28; }
       else animate(dt);
     },

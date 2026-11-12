@@ -800,7 +800,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const sx=(touch.stickX||0)+((keys.d||keys.arrowright)?1:0)-((keys.a||keys.arrowleft)?1:0),sy=(touch.stickY||0)+((keys.s||keys.arrowdown)?1:0)-((keys.w||keys.arrowup)?1:0);
       const cf=cam.getWorldDirection(new T.Vector3());cf.y=0;cf.normalize();const cr=new T.Vector3(-cf.z,0,cf.x);const mx=cf.x*-sy+cr.x*sx,mz=cf.z*-sy+cr.z*sx,ml=Math.hypot(mx,mz),mag=Math.min(1,Math.hypot(sx,sy));
       const jumpNow=(touch.throttle||keys[' '])?1:0,slideNow=(touch.brake||keys.c||keys.control)?1:0,ragNow=(touch.tricksTap||keys.g)?1:0;touch.tricksTap=0;
-      footInp={mx:ml>1e-3?mx/ml*mag:0,mz:ml>1e-3?mz/ml*mag:0,run:!!keys.shift||Math.hypot(touch.stickX||0,touch.stickY||0)>.9,jump:(jumpNow&&!footEdge.jump)||!!footQ.jump,slide:(slideNow&&!footEdge.slide)||!!footQ.slide,ragdoll:(ragNow&&!footEdge.rag)||!!footQ.rag};footQ.jump=footQ.slide=footQ.rag=0;
+      footInp={mx:ml>1e-3?mx/ml*mag:0,mz:ml>1e-3?mz/ml*mag:0,run:!!keys.shift||Math.hypot(touch.stickX||0,touch.stickY||0)>.9,jump:(jumpNow&&!footEdge.jump)||!!footQ.jump,slide:(slideNow&&!footEdge.slide)||!!footQ.slide,slideHeld:!!slideNow,ragdoll:(ragNow&&!footEdge.rag)||!!footQ.rag};footQ.jump=footQ.slide=footQ.rag=0;
       footEdge={jump:jumpNow,slide:slideNow,rag:ragNow};Object.keys(inp).forEach(key=>{inp[key]=0;});
     }
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });

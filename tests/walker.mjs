@@ -11,6 +11,9 @@ run(1.5,{mx:1,mz:0,run:true});assert.ok(Math.abs(w.S.speed-WALK.run)<.05,'runs '
 // slide: a burst then slows to a stop-ish and stands back up
 let maxSp=0;run(.05,{mx:1,run:true,slide:true});for(let t=0;t<1.2;t+=1/60){w.update(1/60,{mx:1,run:true});maxSp=Math.max(maxSp,w.S.speed);if(w.S.mode!=='slide')break;}
 assert.ok(maxSp>WALK.run,'slide gives a burst');assert.equal(w.S.mode,'walk','slide ends');
+// held slide keeps going while there's momentum (Fortnite style), then stands up by itself
+w.spawn(-40,-40,0);run(1.5,{mx:1,mz:0,run:true});w.update(1/60,{mx:1,run:true,slide:true,slideHeld:true});let st=0;for(let t=0;t<6;t+=1/60){w.update(1/60,{mx:1,run:true,slideHeld:true});if(w.S.mode!=='slide')break;st+=1/60;}
+assert.ok(st>3,'held slide lasts while momentum lasts ('+st.toFixed(2)+' s)');assert.equal(w.S.mode,'walk');
 // jump arc
 w.spawn(-20,-10,0);let peak=0,air=0;w.update(1/60,{jump:true});for(let t=0;t<2;t+=1/60){w.update(1/60,{});peak=Math.max(peak,w.S.y);if(!w.S.onG)air+=1/60;}
 assert.ok(peak>1.1&&peak<1.6,'jump height '+peak.toFixed(2));assert.ok(air>.9&&air<1.2,'air time '+air.toFixed(2));
