@@ -274,6 +274,19 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   let photoDelay = -1, photoCount = 0;
   // state + input
   let crashRig=null;let s = makeState(P, 2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
+  // Same visual cleanup as RECOVER: put the rider back on the bike and hide the crash bar.
+  function clearCrashVisuals(){
+    cancelRewindHold();
+    crashRig?.restore();
+    crashRig=null;
+    delete el.dataset.wkCrashed;
+    recover.hidden=true;
+    crashT=0;
+    finishTumble=false;
+    const bikeZ=s.z||0,bikeYaw=s.yaw||0;
+    pivot.position.set(s.x,s.y,bikeZ);
+    pivot.rotation.set(0,-bikeYaw,s.pitch||0);
+  }
   const joltWanted=()=>physics==='jolt'&&arena&&!disposed;
   async function ensureJolt(){
     if(!joltWanted())return;
@@ -290,6 +303,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         s.joltRoll=null;s.crashed=null;s.air=0;s.spinV=0;s.spin=0;
         jolt.adopt(s);
         chasePosX=null;airClose=0;
+        clearCrashVisuals();
         return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,vx:s.vx};
       };
     }
@@ -305,6 +319,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     Object.assign(s,{x,z,yaw,steer:0},pose||{});
     if(pose?.y==null)s.y=(ter.height?ter.height(x,z):0)+fresh.y;
     s.events=[];s.crashed=null;chasePosX=null;airClose=0;
+    clearCrashVisuals();
     return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,vx:s.vx};
   };
 

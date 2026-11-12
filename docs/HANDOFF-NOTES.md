@@ -24,6 +24,7 @@ Chris decided (12 Nov, in his own words: "I was fond of my physics engine, I jus
 - **Rider:** the Quaternius UBC rider is unchanged. It reads `s.visRoll` for turn lean when Jolt is off.
 - **Telemetry:** `physics` is `'classic'`; `rollDeg` is the visual lean. `__WK_JOLT_RESET__(pose)` works in classic too.
 - Version 2.1, cache `wk-v2.1-classic`. Branch `claude/classic-playground`.
+- **Fixed:** `__WK_JOLT_RESET__` now clears crash visuals the same way RECOVER does (crash rig, RECOVER/REWIND bar, `data-wk-crashed`).
 - **Still open:** BMX tuning, burnout/donut/drift on the classic model (simpler than the Jolt versions), and on-device feel tuning with Chris.
 
 ---
