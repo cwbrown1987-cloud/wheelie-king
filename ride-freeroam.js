@@ -68,10 +68,18 @@ export function collideFreeRoam(s,p,ter){
   if(ter.height&&(s.ground?.[0]||s.ground?.[1])&&Math.abs(s.vx||0)>.05){
     const dir=Math.sign(s.vx),c=Math.cos(s.yaw||0),n=Math.sin(s.yaw||0),cb=p.comBack??.42;
     const reach=dir>0?p.wb*(1-cb)+(p.R||.3)*.95:-(p.wb*cb+(p.R||.3)*.95),back=reach-dir*.3;
-    const ax=s.x+c*reach,az=(s.z||0)+n*reach,here=ter.height(s.x+c*back,(s.z||0)+n*back),ahead=ter.height(ax,az);
+    const here=ter.height(s.x+c*back,(s.z||0)+n*back);let ax=0,az=0,ahead=-Infinity;
+    // Sample the tyre's leading edge and both sides of it, so a diagonal approach meets the face too.
+    for(const side of [0,-.22,.22])for(const f of [reach,reach-dir*.15]){const px=s.x+c*f-n*side,pz=(s.z||0)+n*f+c*side,h=ter.height(px,pz);if(h>ahead){ahead=h;ax=px;az=pz}}
     if(ahead-here>WALL_STEP){
       const e=.08,gx=ter.height(ax+e,az)-ter.height(ax-e,az),gz=ter.height(ax,az+e)-ter.height(ax,az-e),gl=Math.hypot(gx,gz)||1;
-      reject(-gx/gl,-gz/gl);s.x-=c*dir*.02;s.z=(s.z||0)-n*dir*.02;s.wallHit=(s.wallHit||0)+1;
+      const nx=-gx/gl,nz=-gz/gl,into=(c*nx+n*nz)*dir;
+      if(into>-.6&&dir>0){
+        // Glancing hit: slide along the face (turn to the tangent, lose a little speed) instead of stopping dead.
+        let tx=c-into*nx,tz=n-into*nz;const tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
+        s.yaw=Math.atan2(tz,tx);s.vx*=1-.5*Math.abs(into);s.x+=nx*.05;s.z=(s.z||0)+nz*.05;
+      }else{reject(nx,nz);s.x-=c*dir*.02;s.z=(s.z||0)-n*dir*.02;}
+      s.wallHit=(s.wallHit||0)+1;
     }
   }
   const z=s.z||0;

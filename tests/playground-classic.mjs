@@ -21,4 +21,8 @@ for(const [name,P] of Object.entries(bikes)){
 {const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<7?1:0}),4);let st=0;run(P,s,{brake:1,lean:-1},1.5,s=>{if(s.ground[1]&&!s.ground[0])st+=dt});assert.ok(st>.5,'stoppie from front brake + weight forward '+st);}
 // slopeAt follows the ground along the heading (wheelie balance on ramps/hills needs it)
 {const r=PLAYGROUND_RAMPS[1];assert.ok(ter.slopeAt(r.x+1,r.z,0)>.05);assert.ok(Math.abs(ter.slopeAt(r.x+1,r.z,Math.PI/2))<.02);assert.equal(ter.slopeAt(0,0,0),0);}
+// Wheelies/stoppies: easy to hold, full input doesn't loop; glancing a ramp side slides instead of crashing.
+for(const [name,P] of Object.entries(bikes)){const s=fresh(P);run(P,s,{throttle:.6},2);let mx=0;run(P,s,{throttle:1,lean:1},5,s=>{mx=Math.max(mx,s.pitch)});assert.equal(s.crashed,null,name+' full pull + full throttle must not loop');assert.ok(mx<1.4,name+' wheelie stays under the tip '+mx);}
+{const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);let st=0;run(P,s,{brake:1,lean:-1},2,s=>{if(s.ground[1]&&!s.ground[0])st+=dt});assert.equal(s.crashed,null,'full stoppie input must not endo');assert.ok(st>1,'stoppie holds '+st);}
+{const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});for(const [x0,deg] of [[58,20],[92,25],[58,35]]){const a=deg/57.3,s=fresh(P,{x:x0+4-Math.cos(a)*15,z:14-2.1-Math.sin(a)*15,yaw:a,vx:16});run(P,s,s=>({throttle:s.vx<16?1:0}),3);assert.equal(s.crashed,null,'glancing a ramp side at '+deg+' deg slides');}}
 console.log('playground-classic: ok');

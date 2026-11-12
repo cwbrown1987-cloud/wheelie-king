@@ -84,6 +84,16 @@ function groundH(ter,s,x=s.x){if(!ter.freeRoam)return ter.h(x);const yaw=s.yaw||
 function groundSlope(ter,s,x=s.x){if(!ter.freeRoam)return ter.slope(x);const yaw=s.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),ox=x-s.x;return ter.slopeAt(s.x+ox*c,(s.z||0)+ox*n,yaw)}
 function advanceXY(s,ter,dx){if(!ter.freeRoam){s.x+=dx;return}const yaw=s.yaw||0;s.x+=dx*Math.cos(yaw);s.z=(s.z||0)+dx*Math.sin(yaw)}
 const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8+throttle*1.2-(1-throttle)*2.2-brake*12-w*3.2;
+// Playground wheelie: easy to hold, still a balance. Pulling back + throttle sets how high the front
+// sits (full pull + full throttle ~66 deg, below the ~80 deg tipping point, so holding full input no
+// longer loops). It bobs a little (under-damped), drops when you ease off, and a rear-brake dab
+// brings it down. Only past the tipping point does gravity take over. Legacy keeps balanceTorque.
+export const WHEELIE={pull:.8,throttle:.35,k:9,damp:1.8,brake:8,tip:1.4,fall:12,high:.9,soft:3};
+const wheelieAssist=(lean,rel,throttle,brake,w)=>{const back=Math.max(0,lean),W=WHEELIE,target=back>.05?back*W.pull+throttle*W.throttle:0;
+  let v=W.k*(target-rel)-W.damp*w-brake*W.brake;if(rel>W.high)v+=W.soft*(rel-target);/* high wheelies are touchier: you hold them with throttle/lean */if(rel>W.tip)v+=W.fall*(rel-W.tip);return v;};
+// Playground stoppie: front brake + weight forward; lean amount sets how high the rear goes (max ~43 deg).
+export const STOPPIE={base:.3,lean:.45,k:16,damp:2.4};
+export const AIR_LEVEL={k:5,d:3};
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   if (ter.loop && stepLoop(s, p, inp, dt, ter.loop)) return s;
@@ -140,10 +150,15 @@ export function step(s, p, inp, dt, ter) {
   }
   // Air control tapers near 9 rad/s; modest damping preserves takeoff momentum.
   if(onG)T+=inp.lean*p.mass*2.8;else s.w+=inp.lean*11*dt*Math.max(0,1-Math.max(0,Math.sign(inp.lean)*s.w-6)/3);
+  // Playground: hands-off in the air the rider settles the bike to the flight path (lands on both wheels);
+  // any lean input overrides it, so flips and tweaks still work.
+  if(!onG&&ter.playground&&Math.abs(inp.lean||0)<.1){const flight=Math.max(-.6,Math.min(.6,Math.atan2(s.vy,Math.max(1,Math.abs(s.vx)))));s.w+=(AIR_LEVEL.k*wrapAngle(flight-s.pitch)-AIR_LEVEL.d*s.w)*dt;}
   // Arcade balance: slow the response near vertical, but leave an unstable
   // balance point. Lean/throttle raise the front; brake/forward lean recover it.
-  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel>.12)T=p.mass*balanceTorque(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w);}
-  if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
+  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel>.12)T=p.mass*(ter.playground?wheelieAssist:balanceTorque)(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w);}
+  // Playground: hard front brake with the weight forward pops the rear up (light bikes too), then the stoppie branch holds it.
+  if(ter.playground&&s.ground[0]&&s.ground[1]&&inp.brake>.3&&inp.lean<-.3&&s.vx>1.5){const rel=wrapAngle(s.pitch-groundSlope(ter,s)),target=-(STOPPIE.base+STOPPIE.lean*(-inp.lean))*inp.brake;T+=(target-rel)*p.mass*STOPPIE.k*.6;}
+  if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(ter.playground){const S=STOPPIE,target=-(S.base+S.lean*Math.max(0,-inp.lean))*inp.brake;if(rel<-.12)T=(target-rel)*p.mass*S.k-s.w*p.mass*S.damp;}else if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
   s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : Math.exp(-.22*dt);
   advanceXY(s,ter,s.vx*dt); s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
   // Hard travel stops prevent tunnelling. Cancel only velocity INTO the
@@ -165,7 +180,7 @@ export function step(s, p, inp, dt, ter) {
   const rearOffset=rot(wl[0][0],wl[0][1],s.pitch),rearAngle=wheelContact(ter,s.x+rearOffset[0],p.R,s).angle;
   const rearSeparating=-(s.vx-s.w*rearOffset[1])*Math.sin(rearAngle)+(s.vy+s.w*rearOffset[0])*Math.cos(rearAngle);
   if(s.ground[0]&&N[0]>0&&rearSeparating<.2&&((!s.ground[1]&&wrapAngle(startPitch-groundSlope(ter,s))>.12)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
-    const rel=wrapAngle(startPitch-groundSlope(ter,s)),throttle=s.thr||0,acc=balanceTorque(inp.lean||0,rel,throttle,inp.brake||0,startW)/.32;
+    const rel=wrapAngle(startPitch-groundSlope(ter,s)),throttle=s.thr||0,acc=(ter.playground?wheelieAssist:balanceTorque)(inp.lean||0,rel,throttle,inp.brake||0,startW)/.32;
     const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);advanceXY(s,ter,old[0]-next[0]);const contact=wheelContact(ter,s.x+next[0],p.R,s);s.y=contact.height-next[1]-.003;const nx=-Math.sin(contact.angle),ny=Math.cos(contact.angle),vn=(s.vx-s.w*next[1])*nx+(s.vy+s.w*next[0])*ny;s.vx-=vn*nx;s.vy-=vn*ny;
   }
   for(let i=0;i<2;i++){const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),depth=wheelContact(ter,s.x+ox,p.R,s).height-(s.y+oy);s.comp[i]=compression(i,depth);}
