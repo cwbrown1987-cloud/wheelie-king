@@ -13,6 +13,12 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | Asset | Path | Source | Authors | Use |
 | --- | --- | --- | --- | --- |
 | sunset_jhbcentral 1K HDR | `hdri/sunset_jhbcentral_1k.hdr` | https://polyhaven.com/a/sunset_jhbcentral | Dimitrios Savva (Photography), Greg Zaal (Processing) | Arena world-fixed HDRI sky (low-res for mobile) |
+| Rock 07 (1k glTF, simplified, 512 webp, quantized) | `polyhaven/rock_07.glb` | https://polyhaven.com/a/rock_07 | Jenelle van Heerden | Playground rideable rocks |
+| Rock 09 (same processing) | `polyhaven/rock_09.glb` | https://polyhaven.com/a/rock_09 | Jenelle van Heerden | Playground rideable rocks |
+| Namaqualand Boulder 04 (same processing) | `polyhaven/namaqualand_boulder_04.glb` | https://polyhaven.com/a/namaqualand_boulder_04 | Jenelle van Heerden | Playground solid boulders |
+| Quiver Tree 01 (same processing, ~2.8k tris) | `polyhaven/quiver_tree_01.glb` | https://polyhaven.com/a/quiver_tree_01 | James Ray Cock, Dario Barresi (Photography), Rico Cilliers (Modeling) | Playground trees (collision posts) |
+| Dead Tree Trunk (same processing) | `polyhaven/dead_tree_trunk.glb` | https://polyhaven.com/a/dead_tree_trunk | Rob Tuytel | Playground rideable logs |
+| Tree Stump 01 (same processing) | `polyhaven/tree_stump_01.glb` | https://polyhaven.com/a/tree_stump_01 | Rob Tuytel | Playground solid stumps |
 
 ## Quaternius — Universal Base Characters (Standard, free)
 

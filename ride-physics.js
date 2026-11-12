@@ -2,6 +2,7 @@ import { stepLoop } from './ride-loop.js';
 import {roundedProfile} from './terrain-profile.js';
 import { playgroundHeight, terrainHeight } from './ride-playground.js';
 import { stepHeading, collideFreeRoam } from './ride-freeroam.js';
+import { PLAYGROUND_LOOPS, PLAYGROUND_POSTS } from './ride-playground.js';
 // Wheelie King ride physics (v15). Pure 2D side-on rigid-body bike, no DOM/three — reusable for the later 3D mode.
 // Units: metres, kg, seconds. x forward, y up. pitch: + = nose up (wheelie).
 export function makeTerrain(seed = 1) {
@@ -42,7 +43,7 @@ export function makePlaygroundTerrain(){
   const E=.12,slopeAt=(x,z=0,yaw=0)=>{const c=Math.cos(yaw),n=Math.sin(yaw);return Math.atan2(height(x+c*E,z+n*E)-height(x-c*E,z-n*E),2*E)};
   return {
     pts:[[-PLAYGROUND_HALF,0],[PLAYGROUND_HALF,0]],h:x=>height(x,0),slope:x=>slopeAt(x,0,0),height,terrainHeight,slopeAt,
-    puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,boxes:[],
+    puddles:[],checkpoints:[0],kickers:[],finish:Infinity,inPuddle:()=>false,freeRoam:true,freeRide:true,playground:true,boxes:[],loops:PLAYGROUND_LOOPS,posts:PLAYGROUND_POSTS,
     bounds:{xmin:-PLAYGROUND_HALF,xmax:PLAYGROUND_HALF,zmin:-PLAYGROUND_HALF,zmax:PLAYGROUND_HALF},gates:null
   };
 }
@@ -97,6 +98,7 @@ export const AIR_LEVEL={k:5,d:3};
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   if (ter.loop && stepLoop(s, p, inp, dt, ter.loop)) return s;
+  if (ter.loops) for (const L of ter.loops) if (stepLoop(s, p, inp, dt, L)) return s;
   if(ter.freeRoam)stepHeading(s,inp,dt,p);
   const startPitch=s.pitch,startW=s.w;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles

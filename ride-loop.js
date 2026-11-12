@@ -8,14 +8,20 @@ function point(loop, angle, inset = 0) {
     y: loop.y + loop.radius - radius * Math.cos(angle),
     dx: radius * Math.cos(angle) + loop.exitOffset / FULL_TURN,
     dy: radius * Math.sin(angle),
+    // Playground loops drift sideways as they go round (a helix), so the way out clears the way in.
+    z: loop.z == null ? 0 : loop.z + (loop.zShift || 0) * (angle / FULL_TURN - .5),
   };
 }
 
 export function stepLoop(s, p, input, dt, loop) {
+  if (s.loopRide && s.loopRide.loop && s.loopRide.loop !== loop.id) return false;
   if (!s.loopRide) {
     const crossing = s.x <= loop.x && s.x + s.vx * dt >= loop.x;
     if (!crossing || s.vx < loop.minSpeed || !s.ground.every(Boolean)) return false;
-    s.loopRide = { angle: 0, entrySpeed: s.vx };
+    // open world: only when lined up with the loop, inside its width
+    if (loop.z != null && (Math.abs((s.z || 0) - loop.z) > loop.w / 2 || Math.cos(s.yaw || 0) < .9 || s.sliding)) return false;
+    s.loopRide = { angle: 0, entrySpeed: s.vx, loop: loop.id };
+    if (loop.z != null) { s.loopRide.dz = (s.z || 0) - point(loop, 0).z; s.yaw = s.moveYaw = 0; s.lean = s.steer = 0; }
   }
 
   const ride = s.loopRide;
@@ -29,11 +35,19 @@ export function stepLoop(s, p, input, dt, loop) {
     s.events.push({ type: 'crash', why: s.crashed, part: 'suspension' });
     return true;
   }
+  // Open-world loops: too slow over the top and the tyres leave the track (needs v^2/r > g there).
+  if (loop.z != null && ride.angle > FULL_TURN * .3 && ride.angle < FULL_TURN * .7 && speed * speed < 9.8 * (loop.radius - inset) * -Math.cos(ride.angle)) {
+    delete s.loopRide;
+    s.crashed = 'FELL OFF THE LOOP';
+    s.events.push({ type: 'crash', why: s.crashed, part: 'suspension' });
+    return true;
+  }
   ride.angle = Math.min(FULL_TURN, ride.angle + speed * dt / Math.hypot(before.dx, before.dy));
   const next = point(loop, ride.angle, inset);
   const length = Math.hypot(next.dx, next.dy);
   s.x = next.x;
   s.y = next.y;
+  if (loop.z != null) { s.z = next.z + (ride.dz || 0) * Math.max(0, 1 - ride.angle / (Math.PI / 2)); s.yaw = s.moveYaw = 0; s.lean = s.steer = 0; s.sliding = false; }
   s.pitch = Math.atan2(next.dy, next.dx);
   s.vx = speed * next.dx / length;
   s.vy = speed * next.dy / length;
@@ -60,7 +74,7 @@ export function makeLoopMesh(T, loop) {
   for (let i = 0; i <= 96; i++) {
     const p = point(loop, FULL_TURN * i / 96);
     for (let j = 0; j < lanes.length; j++) {
-      vertices.push(p.x, p.y + .025, lanes[j]);
+      vertices.push(p.x, p.y + .025, p.z + lanes[j]);
       colors.push(...(j === 0 || j === 3 ? [.14, .8, .95] : [.18, .22, .29]));
       if (i && j) {
         const a = i * lanes.length + j;

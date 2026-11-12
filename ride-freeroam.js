@@ -125,6 +125,38 @@ export function collideFreeRoam(s,p,ter){
       s.wallHit=(s.wallHit||0)+1;
     }
   }
+  // Round solid obstacles (trees, stumps, boulders): checked at the rear tyre, middle and front tyre so the
+  // whole bike meets them, on the ground or in the air. A glancing hit turns the bike along the obstacle
+  // and scrubs speed; riding straight into one fast is a crash.
+  if(ter.posts?.length&&!s.crashed){
+    const yaw=s.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),cb=p.comBack??.42,front=p.wb*(1-cb)+(p.R||.3)*.8,rear=-(p.wb*cb+(p.R||.3)*.8);
+    const my=s.sliding&&s.moveYaw!=null?s.moveYaw:yaw,mc=Math.cos(my),mn=Math.sin(my);
+    for(const q of ter.posts){
+      const dx0=s.x-q.x,dz0=(s.z||0)-q.z;if(dx0*dx0+dz0*dz0>(q.r+3)**2)continue;
+      if(s.y-(p.comH||.95)>(q.h??9))continue; // jumped clean over it
+      for(const f of [front,0,rear]){
+        const px=s.x+c*f,pz=(s.z||0)+n*f,dx=px-q.x,dz=pz-q.z,d=Math.hypot(dx,dz),rr=q.r+.18;
+        if(d>=rr)continue;
+        const nx=d>1e-6?dx/d:-c,nz=d>1e-6?dz/d:-n,push=rr-d;
+        s.x+=nx*push;s.z=(s.z||0)+nz*push;
+        const v=s.vx||0,into=-(mc*nx+mn*nz)*Math.sign(v||1),vin=Math.abs(v)*into;
+        if(vin>7&&into>.75){
+          s.crashed=q.kind==='tree'?'HIT A TREE':q.kind==='boulder'?'HIT A ROCK':'HIT A STUMP';
+          s.events.push({type:'crash',why:s.crashed,part:'bars'});s.wear&&(s.wear.bars=(s.wear.bars||0)+.45);
+          s.vx*=.2;return s;
+        }
+        if(into>0){
+          if(f!==0&&into<.9&&Math.abs(v)>1.5){
+            // glance: turn toward the tangent, keep most of the speed
+            let tx=mc+into*nx*Math.sign(v||1),tz=mn+into*nz*Math.sign(v||1);const tl=Math.hypot(tx,tz)||1;
+            const ny=Math.atan2(tz/tl,tx/tl);s.yaw=v>=0?ny:ny+Math.PI;if(!s.sliding)s.moveYaw=s.yaw;s.vx=v*(1-.45*into);
+          }else{s.vx=v*(1-into)*.5;}
+        }
+        s.postHit=(s.postHit||0)+1;
+        break;
+      }
+    }
+  }
   const z=s.z||0;
   for(const box of ter.boxes){
     const minx=box.x-box.hx-r,maxx=box.x+box.hx+r,minz=box.z-box.hz-r,maxz=box.z+box.hz+r;
