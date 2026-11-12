@@ -4,68 +4,13 @@
 // Everything is generated here (canvas textures for graffiti, fence, windows, chevrons, signs), plus the
 // ambientCG asphalt/concrete sets. Built to stay light: merged ribbons, instancing, emissive "glow" instead of lights.
 import { GLTFLoader as GLTF } from './vendor/GLTFLoader.js';
+import { makeGraffitiAtlas, makeWallBase } from './ride-graffiti.js';
 import { NEON, NEON_PATH, NEON_GAPS, NEON_COINS, NEON_FEATURES, NEON_BOOSTS, NEON_LOOPS, neonProfile, neonAt, neonInGap } from './ride-neon.js';
 const TAU = Math.PI * 2;
 function rng(seed) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
 function canvasTex(T, w, h, draw, { srgb = true, repeat = false } = {}) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new T.CanvasTexture(c); if (srgb) t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; if (repeat) t.wrapS = t.wrapT = T.RepeatWrapping; return t;
-}
-// ---- graffiti panels (v2.1-45: gritty dark concrete, dense wildstyle pieces in purple/teal/pink, gold crowns) ----
-const TAGS = ['BLK', 'WKR', 'ZRO', 'KNG', 'SKR', 'EZR', 'RKT', 'VYB', 'OKS', 'BMX', 'WK', 'NRV'];
-const PALETTES = [['#a23dff', '#36e6ff', '#1a0730'], ['#ff3fa4', '#8a3dff', '#2a0622'], ['#2fd9c4', '#7a4dff', '#04201f'], ['#c04dff', '#ff7ad9', '#190826'], ['#3aa8ff', '#c34dff', '#060f2c'], ['#8f3dff', '#3fffc9', '#12062a']];
-function concreteBase(g, w, h, r) {
-  g.fillStyle = '#4a4650'; g.fillRect(0, 0, w, h);
-  const id = g.getImageData(0, 0, w, h), d = id.data;            // speckle grit
-  for (let i = 0; i < d.length; i += 4) { const n = (r() - .5) * 38; d[i] += n; d[i + 1] += n; d[i + 2] += n * 1.1; }
-  g.putImageData(id, 0, 0);
-  for (let i = 0; i < 340; i++) { g.fillStyle = `rgba(${20 + r() * 50},${18 + r() * 45},${26 + r() * 50},${.06 + r() * .16})`; const s = 15 + r() * 140; g.beginPath(); g.ellipse(r() * w, r() * h, s, s * (.3 + r() * .8), r() * 3, 0, TAU); g.fill(); }
-  for (let i = 0; i < 70; i++) { const x = r() * w, y = r() * h * .5, len = 60 + r() * 260; const gr = g.createLinearGradient(0, y, 0, y + len); gr.addColorStop(0, 'rgba(15,12,20,.35)'); gr.addColorStop(1, 'rgba(15,12,20,0)'); g.fillStyle = gr; g.fillRect(x, y, 2 + r() * 7, len); } // water stains
-  for (let x = 0; x < w; x += 256) { g.fillStyle = 'rgba(12,10,16,.55)'; g.fillRect(x, 0, 4, h); g.fillStyle = 'rgba(120,115,130,.18)'; g.fillRect(x + 4, 0, 2, h); } // panel joints
-  g.fillStyle = 'rgba(10,8,14,.5)'; for (const y of [h * .18]) g.fillRect(0, y, w, 3);
-}
-function wildLetters(g, word, x0, y0, size, a, b, dark, r) {
-  // letter by letter: skewed, overlapping, a deep drop extrusion, outline, gradient fill, white shine, arrows
-  g.font = `900 ${size}px Impact, "Arial Black", system-ui, sans-serif`; g.textBaseline = 'middle'; g.lineJoin = 'round';
-  const ws = [...word].map(ch => g.measureText(ch).width * .82), tot = ws.reduce((p, q) => p + q, 0); let x = x0 - tot / 2;
-  const L = [...word].map((ch, i) => { const o = { ch, x: x + ws[i] / 2, y: y0 + (r() - .5) * size * .22, rot: (r() - .5) * .35, sc: .9 + r() * .3 }; x += ws[i]; return o; });
-  const each = fn => L.forEach(l => { g.save(); g.translate(l.x, l.y); g.rotate(l.rot); g.transform(1, 0, -.18, 1, 0, 0); g.scale(l.sc, l.sc); g.textAlign = 'center'; fn(l); g.restore(); });
-  for (let k = 14; k > 0; k -= 2) each(l => { g.fillStyle = dark; g.fillText(l.ch, k * .9, k); });         // 3D block
-  each(l => { g.lineWidth = size * .2; g.strokeStyle = '#0d0614'; g.strokeText(l.ch, 0, 0); });
-  each(l => { g.lineWidth = size * .1; g.strokeStyle = b; g.strokeText(l.ch, 0, 0); });
-  each(l => { const gr = g.createLinearGradient(0, -size * .45, 0, size * .45); gr.addColorStop(0, a); gr.addColorStop(.55, b); gr.addColorStop(1, a); g.fillStyle = gr; g.fillText(l.ch, 0, 0); });
-  each(l => { g.fillStyle = 'rgba(255,255,255,.75)'; g.fillRect(-size * .22, -size * .3, size * .12, size * .05); g.fillRect(-size * .05, -size * .32, size * .05, size * .05); });
-  g.strokeStyle = b; g.fillStyle = b; g.lineWidth = size * .07; g.lineCap = 'round';
-  for (let i = 0; i < 3; i++) { const l = L[Math.floor(r() * L.length)], ang = (r() < .5 ? -1 : 1) * (.4 + r() * .8) + (r() < .5 ? 0 : Math.PI), len = size * (.4 + r() * .3); const sx = l.x + Math.cos(ang) * size * .35, sy = l.y + Math.sin(ang) * size * .4, ex = sx + Math.cos(ang) * len, ey = sy + Math.sin(ang) * len;
-    g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo((sx + ex) / 2 + Math.sin(ang) * len * .3, (sy + ey) / 2, ex, ey); g.stroke(); g.beginPath(); g.moveTo(ex + Math.cos(ang) * size * .12, ey + Math.sin(ang) * size * .12); g.lineTo(ex + Math.cos(ang + 2.2) * size * .1, ey + Math.sin(ang + 2.2) * size * .1); g.lineTo(ex + Math.cos(ang - 2.2) * size * .1, ey + Math.sin(ang - 2.2) * size * .1); g.fill(); }
-  return tot;
-}
-function crown(g, cx, cy, s, dark) {
-  g.lineJoin = 'round'; g.lineWidth = s * .14; g.strokeStyle = dark;
-  const path = () => { g.beginPath(); g.moveTo(cx - s, cy + s * .55); g.lineTo(cx - s * 1.05, cy - s * .45); g.lineTo(cx - s * .5, cy); g.lineTo(cx, cy - s * .75); g.lineTo(cx + s * .5, cy); g.lineTo(cx + s * 1.05, cy - s * .45); g.lineTo(cx + s, cy + s * .55); g.closePath(); };
-  path(); g.stroke(); const gr = g.createLinearGradient(0, cy - s, 0, cy + s * .6); gr.addColorStop(0, '#ffe07a'); gr.addColorStop(1, '#e09a1a'); g.fillStyle = gr; path(); g.fill();
-  g.fillStyle = '#fff3b0'; for (const dx of [-1.05, 0, 1.05]) { g.beginPath(); g.arc(cx + dx * s, cy - (dx ? s * .5 : s * .8), s * .11, 0, TAU); g.fill(); }
-  g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(cx - s, cy + s * .3, s * 2, s * .25);
-}
-function graffiti(T, seed) {
-  const r = rng(seed * 97 + 13);
-  return canvasTex(T, 1024, 512, (g, w, h) => {
-    concreteBase(g, w, h, r);
-    const [a, b, dark] = PALETTES[Math.floor(r() * PALETTES.length)];
-    // faded older layers underneath
-    for (let i = 0; i < 6; i++) { g.globalAlpha = .12 + r() * .14; g.fillStyle = [a, b, '#d9d2e6'][i % 3]; g.beginPath(); g.ellipse(r() * w, h * (.35 + r() * .5), 70 + r() * 170, 35 + r() * 90, r(), 0, TAU); g.fill(); }
-    g.globalAlpha = .35; g.strokeStyle = '#e8e2f0'; g.lineWidth = 4; for (let i = 0; i < 7; i++) { g.beginPath(); let x = r() * w, y = h * (.15 + r() * .7); g.moveTo(x, y); for (let k = 0; k < 8; k++) { x += 8 + r() * 16; y += (r() - .5) * 30; g.lineTo(x, y); } g.stroke(); } // tags
-    g.globalAlpha = 1;
-    // the main piece fills the panel
-    const word = TAGS[Math.floor(r() * TAGS.length)], size = Math.min(330, 900 / word.length * 1.25);
-    wildLetters(g, word, w / 2 + (r() - .5) * 60, h * .6, size, a, b, dark, r);
-    // drips under it
-    g.fillStyle = b; for (let i = 0; i < 16; i++) { const x = w * (.15 + r() * .7), y = h * .6 + size * .35, len = 15 + r() * 80; g.fillRect(x, y, 5, len); g.beginPath(); g.arc(x + 2.5, y + len, 5, 0, TAU); g.fill(); }
-    if (r() < .7) crown(g, w * (.2 + r() * .6), h * .17, 46 + r() * 22, '#140a06');
-    else for (let i = 0; i < 5; i++) { const cx = r() * w, cy = r() * h * .25 + 20; g.fillStyle = [a, '#ffd23f', '#fff'][i % 3]; g.beginPath(); for (let k = 0; k < 10; k++) { const ang = k * TAU / 10 - Math.PI / 2, rr = k % 2 ? 9 : 24; g.lineTo(cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr); } g.fill(); }
-    // grime band at the foot, damp darkening
-    const gb = g.createLinearGradient(0, h * .72, 0, h); gb.addColorStop(0, 'rgba(8,6,12,0)'); gb.addColorStop(1, 'rgba(8,6,12,.7)'); g.fillStyle = gb; g.fillRect(0, h * .72, w, h * .28);
-  });
 }
 export function makeNeonWorld(T, root, { lowDetail = false, GLTFLoader = GLTF, reflect = false } = {}) {
   const group = new T.Group(); group.name = 'environment:neon'; root.add(group); const res = [];
@@ -179,12 +124,36 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   // ---- graffiti wall (left), lamps, wire on top ----
   const wallNrm = lowDetail ? null : tex('./assets/ambientcg/Concrete034/Concrete034_NormalGL.jpg', false, 2);
   const noWall = s => neonInGap(s) || (s > NEON_FEATURES.bridge[0] - 4 && s < NEON_FEATURES.bridge[1] + 4) || (s > NEON_FEATURES.rooftop[0] - 6 && s < NEON_FEATURES.rooftop[1] + 6);
-  const graf = []; for (let k = 0; k < (lowDetail ? 4 : 8); k++) graf.push(keep(new T.MeshStandardMaterial({ map: keep(graffiti(T, k + 1)), normalMap: wallNrm, normalScale: new T.Vector2(.9, .9), roughness: .82, metalness: 0, envMapIntensity: .5 })));
-  const panel = 7;
-  const wallGeo = keep(new T.PlaneGeometry(panel + .45, wallH)); /* overlap so bends show no gaps */ const lampPos = [];
-  for (let s = 0; s < NEON.len; s += panel) { if (noWall(s) || noWall(s + panel)) continue; const p = neonAt(s + panel / 2), c = Math.cos(p.yaw), n = Math.sin(p.yaw);
-    const m = new T.Mesh(wallGeo, graf[(Math.round(s / panel) * 5 + (Math.round(s / panel / graf.length) % 3)) % graf.length] /* neighbours never repeat */); m.position.set(p.x + n * wallOff, wallH / 2, p.z - c * wallOff); m.rotation.y = -p.yaw; m.receiveShadow = true; m.name = 'neon:wall'; group.add(m);
-    if (Math.round(s / panel) % 2 === 0) lampPos.push({ x: p.x + n * (wallOff - .35), z: p.z - c * (wallOff - .35), yaw: p.yaw }); }
+  // v2.1-46: one continuous wall following the line (plain dirty concrete), with graffiti laid over it as decals:
+  // big pieces and small tags/stickers/characters at random sizes, heights, tilts and overlaps, from a shuffled
+  // atlas of 44 generated pieces, so no stretch of wall looks like another.
+  const wallMat = keep(new T.MeshStandardMaterial({ map: keep(makeWallBase(T, { lowDetail })), normalMap: wallNrm, normalScale: new T.Vector2(.9, .9), roughness: .85, metalness: 0, envMapIntensity: .5, side: T.DoubleSide }));
+  const wallAt = (s, o = wallOff) => { const p = neonAt(s); return [p.x + Math.sin(p.yaw) * o, p.z - Math.cos(p.yaw) * o]; };
+  const wallB = { pos: [], uv: [], idx: [] }, lampPos = [];
+  for (let s = 0; s < NEON.len - 1; s += 1) { if (noWall(s) || noWall(s + 1)) continue; const [x0, z0] = wallAt(s), [x1, z1] = wallAt(s + 1);
+    quadStrip(wallB, [x1, 0, z1], [x1, wallH, z1], [x0, 0, z0], [x0, wallH, z0], (s + 1) / 14, s / 14, 0, 1);
+    if (s % 14 === 7) { const p = neonAt(s); lampPos.push({ x: p.x + Math.sin(p.yaw) * (wallOff - .35), z: p.z - Math.cos(p.yaw) * (wallOff - .35), yaw: p.yaw }); } }
+  const wallMesh = mk(wallB, wallMat, 'wall'); wallMesh.receiveShadow = true;
+  { const atlas = makeGraffitiAtlas(T, { lowDetail, seed: 11 }), gr = rng(2026), big = atlas.cells.filter(c => c.big), small = atlas.cells.filter(c => !c.big);
+    const bag = list => { let q = []; return () => { if (!q.length) q = [...list].sort(() => gr() - .5); return q.pop(); }; }, nextBig = bag(big), nextSmall = bag(small);
+    const D = { pos: [], uv: [], col: [], idx: [] }; let layer = 0;
+    const decal = (cell, sMid, yMid, w, h, tilt, shade) => { // a strip of quads following the wall, tilted in the wall plane
+      const n = Math.max(1, Math.ceil(w / 1.2)), ct = Math.cos(tilt), st = Math.sin(tilt), off = wallOff - .025 - (layer++ % 40) * .0015, k0 = D.pos.length / 3;
+      for (let i = 0; i <= n; i++) for (const v of [0, 1]) { const lu = (i / n - .5) * w, lv = (v - .5) * h, ss = sMid + lu * ct - lv * st, yy = yMid + lu * st + lv * ct, [x, z] = wallAt(ss, off);
+        D.pos.push(x, Math.max(.02, Math.min(wallH - .02, yy)), z); D.uv.push(cell.u0 + (cell.u1 - cell.u0) * i / n, v ? cell.v1 : cell.v0); D.col.push(shade, shade, shade); }
+      for (let i = 0; i < n; i++) { const a = k0 + i * 2; D.idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } };
+    const ok = (a, b) => { for (let t = a; t <= b; t += 1) if (noWall(t)) return false; return true; };
+    for (let s = 2; s < NEON.len; ) { // big pieces, with gaps and overlaps
+      const w = 3 + gr() * 4.5, h = Math.min(wallH - .5, w / 2 * (.85 + gr() * .3)), sm = s + w / 2;
+      if (ok(s, s + w) && gr() > .12) decal(nextBig(), sm, .35 + h / 2 + gr() * Math.max(0, wallH - .7 - h), w, h, (gr() - .5) * .12, .82 + gr() * .18);
+      s += w * (.55 + gr() * .7) + (gr() < .2 ? 2 + gr() * 5 : 0); }
+    for (let s = 1; s < NEON.len; s += .7 + gr() * 2.6) { // tags, stickers, characters, scribbles over and between them
+      const c = nextSmall(), z = .45 + Math.pow(gr(), 1.8) * 1.5; if (!ok(s - z, s + z)) continue;
+      decal(c, s, .3 + z / 2 + gr() * (wallH - .6 - z), z, z, (gr() - .5) * .5, .7 + gr() * .3); }
+    for (let s = 5; s < NEON.len; s += 9 + gr() * 14) { const c = nextBig(), w = 1.2 + gr() * 1.4; if (ok(s, s + w)) decal(c, s + w / 2, .4 + gr() * 3.2, w, w / 2, (gr() - .5) * .4, .55 + gr() * .4); } // small throw-ups too
+    const g = keep(new T.BufferGeometry()); g.setAttribute('position', new T.Float32BufferAttribute(D.pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(D.uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(D.col, 3)); g.setIndex(D.idx); g.computeVertexNormals();
+    const dm = new T.Mesh(g, keep(new T.MeshStandardMaterial({ map: keep(atlas.texture), vertexColors: true, transparent: true, alphaTest: .04, depthWrite: false, roughness: .8, metalness: 0, envMapIntensity: .5, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })));
+    dm.name = 'neon:graffiti'; dm.renderOrder = 1; dm.receiveShadow = true; group.add(dm); }
   const housing = keep(new T.MeshStandardMaterial({ color: '#2a2630', roughness: .5, metalness: .6 }));
   // wall top: steel railing and a strand of barbed wire, like the picture
   { const railPts = [[], []]; for (let s2 = 0; s2 < NEON.len; s2 += 2) { if (noWall(s2)) { if (railPts[0].length > 1) { for (const k of [0, 1]) group.add(new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(railPts[k]), Math.max(2, railPts[k].length * 2), k ? .02 : .04, 5)), housing)); } railPts[0] = []; railPts[1] = []; continue; }
