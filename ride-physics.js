@@ -82,7 +82,7 @@ function wheelContact(ter,x,r,s){
 }
 function groundH(ter,s,x=s.x){if(!ter.freeRoam)return ter.h(x);const yaw=s.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),ox=x-s.x;return ter.height(s.x+ox*c,(s.z||0)+ox*n)}
 function groundSlope(ter,s,x=s.x){if(!ter.freeRoam)return ter.slope(x);const yaw=s.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),ox=x-s.x;return ter.slopeAt(s.x+ox*c,(s.z||0)+ox*n,yaw)}
-function advanceXY(s,ter,dx){if(!ter.freeRoam){s.x+=dx;return}const yaw=s.yaw||0;s.x+=dx*Math.cos(yaw);s.z=(s.z||0)+dx*Math.sin(yaw)}
+function advanceXY(s,ter,dx){if(!ter.freeRoam){s.x+=dx;return}const yaw=s.sliding&&s.moveYaw!=null?s.moveYaw:(s.yaw||0);s.x+=dx*Math.cos(yaw);s.z=(s.z||0)+dx*Math.sin(yaw)}
 const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8+throttle*1.2-(1-throttle)*2.2-brake*12-w*3.2;
 // Playground wheelie: easy to hold, still a balance. Pulling back + throttle sets how high the front
 // sits (full pull + full throttle ~66 deg, below the ~80 deg tipping point, so holding full input no
@@ -127,7 +127,7 @@ export function step(s, p, inp, dt, ter) {
       const tx = Math.cos(a), ty = Math.sin(a), vt = s.vx * tx + s.vy * ty;
       let ft = -vt * 2.2 * (i ? 1 : 1); // rolling resistance
       if (i === driven && (inp.throttle > 0 || (p.pedal&&s.pedalEffort>0)) && s.battery > 0) { const v = Math.max(Math.abs(vt), 1.2); const effort=p.pedal?Math.min(1,(s.pedalEffort||0)/.35):0; let drive = Math.min(p.torque * 4*(1+effort), p.power*(1+effort*.65) / v, p.mass * 9.8 * 0.4 * p.grip) * (p.pedal?Math.max(s.thr||0,effort*.85):(s.thr || 0)); if(p.pedal)drive+=Math.max(0,Math.sin(a))*p.mass*9.8*.95*Math.max(0,1-Math.max(0,vt-2)/3)*Math.max(s.thr||0,effort); { const rel0 = s.pitch - a; if (rel0 > 0.6 && !(inp.lean > 0)) drive *= Math.max(0.15, 1 - (rel0 - 0.6) * 3 - Math.max(0, s.w) * 0.25); } /* rider feathers the throttle at the balance point unless leaning back */ const speedLimit=p.vmax+(p.pedal?effort*.6:0); if (vt > speedLimit) drive *= Math.max(0, 1 - (vt - speedLimit)* (p.pedal?5:1)); drive = Math.min(drive, f * 1.15 * p.grip + 80);s.burnout=!p.pedal&&inp.brake>0&&Math.abs(s.vx)<3;ft+=s.burnout?0:drive; }
-      if (inp.brake > 0&&!s.reversing&&!s.burnout) { const bias = i === 1 ? 0.45 + 0.45 * Math.max(0, -inp.lean) : 0.55 - 0.3 * Math.max(0, -inp.lean); ft -= Math.sign(vt) * Math.min(f * 0.9 * p.grip, p.mass * 9 * bias) * inp.brake * Math.min(1, Math.abs(vt) * 2); }
+      if (inp.brake > 0&&!s.reversing&&!s.burnout&&!s.sliding) { const bias = i === 1 ? 0.45 + 0.45 * Math.max(0, -inp.lean) : 0.55 - 0.3 * Math.max(0, -inp.lean); ft -= Math.sign(vt) * Math.min(f * 0.9 * p.grip, p.mass * 9 * bias) * inp.brake * Math.min(1, Math.abs(vt) * 2); }
       if(i===driven&&s.reversing)ft-=Math.min(p.mass*1.4,p.torque*2,Math.max(40,f*.7))*inp.brake*Math.max(0,1-Math.max(0,-vt-2.5)*2);
       Fx += ft * tx; Fy += ft * ty; const rx = ox - nx * p.R, ry = oy - ny * p.R; T += rx * ft * ty - ry * ft * tx;
     } else s.comp[i] = Math.max(0, s.comp[i] - dt * 6);

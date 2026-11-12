@@ -122,7 +122,7 @@ export function createBikeMotion(root,build={},find=()=>null) {
   for(const o of steerParts){o.matrixAutoUpdate=false;o.matrix.copy(steerM).multiply(o.userData.wkSteerBase);o.matrixWorldNeedsUpdate=true;}
   for(const entry of rotors){if(!entry.front){entry.wheel.quaternion.identity();continue;}entry.wheel.position.applyMatrix4(steerM);entry.wheel.quaternion.copy(steerQ);}
   for(const att of attachments){if(att.mount==='front'){att.o.matrix.premultiply(steerM);}}
-  Object.assign(state,{wheelPhase,rearWheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa,steerAngle:steerAngle||0,rotors:rotors.length,rotorParts:rotors.reduce((n,e)=>n+e.parts.length,0)});return state;
+  Object.assign(state,{wheelPhase,rearWheelPhase,crankPhase,chainPhase,rearAngle:angle,rearAxle:ra,shockArm:sa,frontAxle:fa,steerAngle:steerAngle||0,steerMatrix:steerM,rotors:rotors.length,rotorParts:rotors.reduce((n,e)=>n+e.parts.length,0)});return state;
  };
  // Visible wheel check: each rotor's first spinning mesh, rotation about the axle relative to the bike root
  // (from world matrices, i.e. what is drawn), plus the front wheel's steer yaw.

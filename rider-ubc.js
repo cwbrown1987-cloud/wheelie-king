@@ -95,6 +95,10 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     for (const i of [0, 1]) {
       const side = i ? 1 : -1;
       target.hands[i].set(grips.x, grips.y, side * gripW);
+      // Hands ride the handlebar: apply the same steering rotation the bars get (bike-motion), so the
+      // rider's arms actually turn the bike instead of holding a fixed pose.
+      const sm = mechanical?.state?.steerMatrix;
+      if (sm && mechanical.state.steerAngle) { const h = target.hands[i]; h.x -= bike.position.x; h.y -= bike.position.y; h.applyMatrix4(sm); h.x += bike.position.x; h.y += bike.position.y; }
       let foot;
       if (crankR && !st) {
         const a = (mechanical?.state.crankPhase || 0) + (i ? Math.PI : 0);

@@ -9,9 +9,12 @@ export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TA
 // Tyre grip limit for open-world turning (~0.9 g on dry ground): at speed the bars only go as far as
 // the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
 export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.16,AIR_YAW=1.4;
-// Brake slide: tap/hold the brake while turning and the rear steps out, so the bike rotates into a
-// sharper turn (like a real rear-brake slide). DRIFT_TAU = how fast it steps out / hooks back up.
-export const SLIDE_YAW=1.4,DRIFT_TAU=.12,DRIFT_ANGLE=.45; // arcade grip: tighter than a real 0.9 g so turns feel like a game, still no on-rails pivot
+// Brake slides. The bike body (yaw) and its direction of travel (moveYaw) split apart:
+// - tap the brake while turning at speed -> the rear steps out and the bike swings round, up to ~180 deg
+//   at full speed, then grips up (facing back if it went all the way round);
+// - HOLD the brake while turning -> power slide that keeps rotating as long as you hold it.
+// Throttle during a slide keeps the speed up (power slide). The tyres scrub speed while sideways.
+export const SLIDE={minSpeed:6,rate:3.0,tapBudget:Math.PI,grip:.55,scrub:.55,powerScrub:.15,lean:.3,powerAngle:.95}; // arcade grip: tighter than a real 0.9 g so turns feel like a game, still no on-rails pivot
 export function maxSteerAngle(speed,vmax=12){
   const t=Math.min(1,Math.abs(speed||0)/Math.max(8,vmax));
   return STEER_MAX_LOW+(STEER_MAX_HIGH-STEER_MAX_LOW)*t;
@@ -46,13 +49,46 @@ export function stepHeading(s,inp,dt,p){
   s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/(onG?LEAN_TAU:.5)));
   const kin=v*Math.tan(s.steer)/wb,fromLean=vAbs>.5?9.8*Math.tan(s.lean)/v:0,mix=Math.max(0,Math.min(1,(vAbs-2)/3));
   // In the air the rider can aim the bike a little (body/hip turn), like Descenders: steer = yaw, any speed.
-  const st=Math.max(-1,Math.min(1,inp.steer||0)),brk=Math.max(0,Math.min(1,inp.brake||0));
-  const driftWant=onG&&v>3&&brk>.15&&Math.abs(st)>.2&&!(inp.lean<-.3)?Math.sign(st)*brk*Math.min(1,(v-3)/5):0;
-  s.drift=(s.drift||0)+(driftWant-(s.drift||0))*(1-Math.exp(-Math.max(0,dt)/DRIFT_TAU));if(Math.abs(s.drift)<1e-4)s.drift=0;
-  s.slipAngle=s.drift*DRIFT_ANGLE; // drawn body angle vs travel (rear stepped out)
-  const yawRate=onG?kin*(1-mix)+fromLean*mix+s.drift*SLIDE_YAW:st*AIR_YAW;
+  const st=Math.max(-1,Math.min(1,inp.steer||0)),brk=Math.max(0,Math.min(1,inp.brake||0)),thr=Math.max(0,Math.min(1,inp.throttle||0));
+  if(s.moveYaw==null||!s.sliding)s.moveYaw=s.yaw||0;
+  // start a slide: brake + steer at speed (not leaning forward, which is a stoppie)
+  if(!s.sliding&&onG&&v>SLIDE.minSpeed&&brk>.2&&Math.abs(st)>.3&&!(inp.lean<-.3)){
+    s.sliding=true;s.slideHeld=0;s.slideDir=Math.sign(st);s.slideBudget=SLIDE.tapBudget*Math.min(1,(v-SLIDE.minSpeed*.5)/14);s.moveYaw=s.yaw||0;
+  }
+  let yawRate;
+  if(s.sliding&&onG){
+    const holding=brk>.2,steering=Math.sign(st)===s.slideDir&&Math.abs(st)>.2;
+    const travelRate=SLIDE.grip*9.8/Math.max(1.5,vAbs),slip=wrapAngle((s.yaw||0)-s.moveYaw)*s.slideDir;
+    let rot;
+    s.slideHeld=holding?(s.slideHeld||0)+dt:0;
+    if(holding&&steering&&s.slideHeld>.3){
+      // power slide: swing out to ~55 deg sideways and hold that angle while the slide carves round
+      rot=Math.max(travelRate,SLIDE.rate*Math.min(1,v/6)*Math.max(0,Math.min(1,(SLIDE.powerAngle-slip)/.35)));
+      s.slideBudget=0; // letting go of the brake ends the rotation and hooks up
+    }else rot=steering&&s.slideBudget>0?SLIDE.rate*Math.min(1,v/6):0;
+    yawRate=s.slideDir*rot;s.slideBudget-=rot*dt;
+    // travel direction follows the body only as fast as sliding tyres allow
+    const gap=wrapAngle((s.yaw||0)-s.moveYaw),turn=SLIDE.grip*9.8/Math.max(1.5,vAbs)*dt;
+    s.moveYaw+=Math.max(-turn,Math.min(turn,gap));
+    const side=Math.abs(Math.sin(gap));
+    s.vx=Math.max(0,v-(thr>.5?SLIDE.powerScrub:SLIDE.scrub)*9.8*(.25+.75*side)*dt);
+    s.lean+=(s.slideDir*SLIDE.lean-s.lean)*(1-Math.exp(-dt/.12));
+    // grip back up: slowed right down, or rotation finished and travel has caught up
+    const g2=wrapAngle((s.yaw||0)-s.moveYaw);
+    if(s.vx<2.5||(rot===0&&Math.abs(g2)<.12)){
+      if(Math.abs(g2)>Math.PI/2){s.vx=-s.vx*Math.abs(Math.cos(g2))*.3;} // ended facing back: roll a little backwards
+      else s.vx*=Math.cos(g2);
+      s.sliding=false;s.moveYaw=s.yaw||0;
+    }
+  }else{
+    if(!onG&&s.sliding){s.sliding=false;s.moveYaw=s.yaw||0;}
+    yawRate=onG?kin*(1-mix)+fromLean*mix:st*AIR_YAW;
+  }
+  s.slipAngle=s.sliding?wrapAngle((s.yaw||0)-s.moveYaw):0;
+  s.drift=s.sliding?s.slideDir:0;
   s.curvature=vAbs>.1?yawRate/v:Math.tan(s.steer)/wb;
   s.yaw=(s.yaw||0)+yawRate*dt;
+  if(!s.sliding)s.moveYaw=s.yaw;
   return s;
 }
 

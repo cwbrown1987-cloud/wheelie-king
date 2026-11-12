@@ -25,4 +25,9 @@ for(const [name,P] of Object.entries(bikes)){
 for(const [name,P] of Object.entries(bikes)){const s=fresh(P);run(P,s,{throttle:.6},2);let mx=0;run(P,s,{throttle:1,lean:1},5,s=>{mx=Math.max(mx,s.pitch)});assert.equal(s.crashed,null,name+' full pull + full throttle must not loop');assert.ok(mx<1.4,name+' wheelie stays under the tip '+mx);}
 {const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);let st=0;run(P,s,{brake:1,lean:-1},2,s=>{if(s.ground[1]&&!s.ground[0])st+=dt});assert.equal(s.crashed,null,'full stoppie input must not endo');assert.ok(st>1,'stoppie holds '+st);}
 {const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});for(const [x0,deg] of [[58,20],[92,25],[58,35]]){const a=deg/57.3,s=fresh(P,{x:x0+4-Math.cos(a)*15,z:14-2.1-Math.sin(a)*15,yaw:a,vx:16});run(P,s,s=>({throttle:s.vx<16?1:0}),3);assert.equal(s.crashed,null,'glancing a ramp side at '+deg+' deg slides');}}
+// Brake slides: a tap at speed swings the bike round ~180 deg; holding the brake power-slides at a steady angle.
+{const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});
+ const go=()=>{const s=fresh(P,{x:-150,z:-120});run(P,s,s=>({throttle:s.vx<15?1:0}),4);return s};
+ {const s=go(),y0=s.yaw;let t=0;run(P,s,()=>{t+=dt;return {steer:1,brake:t<.15?1:0}},2.5);assert.equal(s.crashed,null);assert.ok(Math.abs(s.yaw-y0)>2.4,'tap slide swings round '+(s.yaw-y0));}
+ {const s=go();let mx=0,t=0;run(P,s,()=>{t+=dt;return {steer:1,brake:1,throttle:1}},1.5,s=>{mx=Math.max(mx,Math.abs(s.slipAngle||0))});assert.equal(s.crashed,null);assert.ok(s.sliding,'power slide holds while the brake is held');assert.ok(mx>.7&&mx<1.2,'power slide angle '+mx);}}
 console.log('playground-classic: ok');
