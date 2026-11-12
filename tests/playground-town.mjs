@@ -9,7 +9,8 @@ await loadTown(async(f,bin)=>{const b=await readFile(new URL('../assets/towns/ko
 const D=townData();assert.ok(D.buildings.length>300&&D.roads.length>80,'town data');assert.ok(D.roads.some(r=>r.n==='Commercial Street')&&D.roads.some(r=>r.n==='Mine Road')&&D.roads.some(r=>r.n==='Station Street')&&D.roads.some(r=>r.n==='Bridge Street'),'the named streets are in');
 let lo=1e9,hi=-1e9;for(let x=-400;x<=400;x+=20)for(let z=-600;z<=600;z+=20){const h=townGround(TOWN.x+x,TOWN.z+z);lo=Math.min(lo,h);hi=Math.max(hi,h);}
 assert.ok(hi-lo>25,'real hills: relief '+(hi-lo).toFixed(1)+' m');
-assert.equal(townGround(TOWN.x+TOWN.halfX+5,TOWN.z),0,'fades to the playground floor');
+assert.equal(townGround(TOWN.x+TOWN.halfX+TOWN.skirt+5,TOWN.z),0,'fades to the playground floor');
+{let mx=0;for(let x=-TOWN.halfX-TOWN.skirt;x<TOWN.halfX+TOWN.skirt;x+=1)for(let z=-TOWN.halfZ-TOWN.skirt;z<TOWN.halfZ+TOWN.skirt;z+=3){const a=townGround(TOWN.x+x,TOWN.z+z),b=townGround(TOWN.x+x+.3,TOWN.z+z),c=townGround(TOWN.x+x,TOWN.z+z+.3);mx=Math.max(mx,Math.abs(b-a),Math.abs(c-a));}assert.ok(mx<.2,'no ground steps anywhere (edges included) '+mx);}
 const b=D.buildings.find(b=>b.h>=4.4&&b.p.length>=4);const cx=b.p.reduce((s,p)=>s+p[0],0)/b.p.length,cz=b.p.reduce((s,p)=>s+p[1],0)/b.p.length;
 assert.ok(townHeight(TOWN.x+cx,TOWN.z+cz)-townGround(TOWN.x+cx,TOWN.z+cz)>3,'buildings stand up in the physics ground');
 const ter=makePlaygroundTerrain(),P=bikeParams({kg:55,P:3000,nm:150,wb:1.25,wheelR:.33,travel:.15,shock:.15});

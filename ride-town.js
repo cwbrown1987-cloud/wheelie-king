@@ -6,7 +6,7 @@
 //    land on roofs; roads and paths are ridden on the real slopes.
 // Data is baked offline into assets/towns/korumburra (see LICENSES.md). Heights are 0 until it loads.
 // v2.1-16: trimmed to the middle of town: Mine Rd, Commercial St, Bridge St, Station St, down to Coal Creek.
-export const TOWN = { id: 'korumburra', dir: './assets/towns/korumburra/', x: 1500, z: 0, halfX: 520, halfZ: 720, ring: 100 };
+export const TOWN = { id: 'korumburra', dir: './assets/towns/korumburra/', x: 1500, z: 0, halfX: 520, halfZ: 720, skirt: 260 };
 const ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 let data = null, terr = null, roofs = null, loading = null;
 
@@ -19,7 +19,15 @@ export function loadTown(read) {
   loading = (async () => {
     const meta = await get('town.json', false);
     const [t, r] = await Promise.all([get(meta.terrain.file, true), get(meta.buildingGrid.file, true)]);
-    terr = new Uint16Array(t); roofs = new Uint16Array(r); data = meta; return data;
+    terr = new Uint16Array(t); roofs = new Uint16Array(r); data = meta;
+    // keep every road and lane rideable: clear the roof grid along road centre lines (OSM lanes often run
+    // right along a building wall, which made a 4 m 'wall' across the lane)
+    const g = meta.buildingGrid;
+    for (const rd of meta.roads) { if (/footway|path|steps/.test(rd.t)) continue; const rad = Math.max(1.6, rd.w / 2);
+      for (let i = 0; i < rd.p.length - 1; i++) { const [x0, z0] = rd.p[i], [x1, z1] = rd.p[i + 1], L = Math.hypot(x1 - x0, z1 - z0), m = Math.max(1, Math.ceil(L / 1));
+        for (let k = 0; k <= m; k++) { const x = x0 + (x1 - x0) * k / m, z = z0 + (z1 - z0) * k / m, ci = Math.round((x + g.halfX) / g.step), cj = Math.round((z + g.halfZ) / g.step), rc = Math.ceil(rad / g.step) + 1;
+          for (let dj = -rc; dj <= rc; dj++) for (let di = -rc; di <= rc; di++) { const ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= g.nx || jj >= g.nz) continue; if (Math.hypot(ii * g.step - g.halfX - x, jj * g.step - g.halfZ - z) <= rad + g.step * .5) roofs[jj * g.nx + ii] = 0; } } } }
+    return data;
   })().catch(e => { loading = null; throw e; });
   return loading;
 }
@@ -30,18 +38,22 @@ function grid(arr, g, lx, lz) {
   const a = arr[j * n + i], b = arr[j * n + i + 1], c = arr[(j + 1) * n + i], d = arr[(j + 1) * n + i + 1];
   return (a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy) * g.unit;
 }
-function edge(lx, lz) { const R = TOWN.ring; return Math.min(1 - ss((Math.abs(lx) - TOWN.halfX + R) / R), 1 - ss((Math.abs(lz) - TOWN.halfZ + R) / R)); }
-const outside = (lx, lz) => Math.abs(lx) >= TOWN.halfX || Math.abs(lz) >= TOWN.halfZ;
+// Outside the real data a wide skirt eases the town's edge height down to the playground floor, so the town
+// sits on a gentle rise instead of behind a cliff (the old 100 m fade made 40 m drops you couldn't ride).
+function skirtFade(lx, lz) { const d = Math.max(0, Math.abs(lx) - TOWN.halfX + 4, Math.abs(lz) - TOWN.halfZ + 4); return 1 - ss(d / TOWN.skirt); }
+const clampX = lx => Math.max(-TOWN.halfX + 4, Math.min(TOWN.halfX - 4, lx)), clampZ = lz => Math.max(-TOWN.halfZ + 4, Math.min(TOWN.halfZ - 4, lz));
+const outside = (lx, lz) => Math.abs(lx) >= TOWN.halfX + TOWN.skirt || Math.abs(lz) >= TOWN.halfZ + TOWN.skirt;
+const groundAt = (lx, lz) => grid(terr, data.terrain, clampX(lx), clampZ(lz)) * skirtFade(lx, lz);
 // ground only (no buildings), in world coordinates
 export function townGround(x, z) {
   if (!data) return 0; const lx = x - TOWN.x, lz = z - TOWN.z;
   if (outside(lx, lz)) return 0;
-  return grid(terr, data.terrain, lx, lz) * edge(lx, lz);
+  return groundAt(lx, lz);
 }
 export function townHeight(x, z) {
   if (!data) return 0; const lx = x - TOWN.x, lz = z - TOWN.z;
   if (outside(lx, lz)) return 0;
-  const e = edge(lx, lz), g = grid(terr, data.terrain, lx, lz) * e;
+  const e = 1, g = groundAt(lx, lz);
   const bg = data.buildingGrid; if (Math.abs(lx) >= bg.halfX || Math.abs(lz) >= bg.halfZ) return g;
   // roof grid: blend only between building cells so a wall stays a wall
   const fi = (lx + bg.halfX) / bg.step, fj = (lz + bg.halfZ) / bg.step, i = fi | 0, j = fj | 0, n = bg.nx;
@@ -49,7 +61,7 @@ export function townHeight(x, z) {
   if (!(k[0] | k[1] | k[2] | k[3])) return g;
   const fx = fi - i, fy = fj - j, w = [(1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy];
   let roof = 0, ws = 0; for (let q = 0; q < 4; q++) if (k[q]) { roof += k[q] * w[q]; ws += w[q]; }
-  if (ws < 0.5) return g; // mostly outside the footprint
+  if (ws < 0.9) return g; // only well inside a footprint (the 2 m grid would otherwise bleed walls ~1 m into lanes)
   return Math.max(g, roof / ws * bg.unit * e);
 }
 // Where the teleport puts you: on Commercial St (the main street) near the middle, heading along it.
@@ -95,8 +107,8 @@ export function makeTownVisuals(T, root, splatMaterial, { lowDetail = false } = 
     if (disposed) return;
     const D = data;
     // ground mesh from the 4 m elevation grid (+ fade skirt), splat painted: grass, worn verges
-    const S = lowDetail ? 8 : 4, nx = Math.round(2 * TOWN.halfX / S) + 1, nz = Math.round(2 * TOWN.halfZ / S) + 1, pos = new Float32Array(nx * nz * 3), spl = new Float32Array(nx * nz * 4), idx = [];
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = TOWN.x - TOWN.halfX + i * S, z = TOWN.z - TOWN.halfZ + j * S, o = j * nx + i; pos.set([x, townGround(x, z) - 0.03, z], o * 3); spl.set([0.9, 0.06, 0, 0.02], o * 4); }
+    const S = lowDetail ? 8 : 4, HX = TOWN.halfX + TOWN.skirt, HZ = TOWN.halfZ + TOWN.skirt, nx = Math.round(2 * HX / S) + 1, nz = Math.round(2 * HZ / S) + 1, pos = new Float32Array(nx * nz * 3), spl = new Float32Array(nx * nz * 4), idx = [];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = TOWN.x - HX + i * S, z = TOWN.z - HZ + j * S, o = j * nx + i; pos.set([x, townGround(x, z) - 0.03, z], o * 3); spl.set([0.9, 0.06, 0, 0.02], o * 4); }
     for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx.push(a, c, b, b, c, d); }
     const gg = new T.BufferGeometry(); gg.setAttribute('position', new T.BufferAttribute(pos, 3)); gg.setAttribute('splat', new T.BufferAttribute(spl, 4)); gg.setIndex(idx); gg.computeVertexNormals(); res.push(gg);
     const ground = new T.Mesh(gg, splatMaterial); ground.receiveShadow = true; ground.name = 'town:ground'; group.add(ground);
