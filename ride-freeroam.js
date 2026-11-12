@@ -5,12 +5,12 @@ export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 // Handlebar steering (kinematic bicycle). LEFT/RIGHT set a target bar angle;
 // yaw comes from v*tan(δ)/wheelbase. At a standstill the bars turn and the
 // bike does not spin. Burnout is the exception: a slower rear-tyre slide.
-export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
+export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TAU=.2,STEER_BURNOUT=.7;
 // Tyre grip limit for open-world turning (~0.9 g on dry ground): at speed the bars only go as far as
 // the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
 // AIR_YAW / AIR_TWIST (v2.1-11): in the air the rider can only twist the bike a little with body weight;
 // the direction of travel doesn't change until the tyres touch down again.
-export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.16,AIR_YAW=.6,AIR_TWIST=.35;
+export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.22,AIR_YAW=.6,AIR_TWIST=.35;
 // Brake slides. The bike body (yaw) and its direction of travel (moveYaw) split apart:
 // - tap the brake while turning at speed -> the rear steps out and the bike swings round, up to ~180 deg
 //   at full speed, then grips up (facing back if it went all the way round);
@@ -48,7 +48,8 @@ export function stepHeading(s,inp,dt,p){
   // steer directly. So turns build up and unwind instead of the bike pivoting under the rider.
   const vAbs=Math.abs(v),leanMax=Math.atan(STEER_GRIP_G*Math.min(1.2,p?.grip||1));
   const leanWant=onG?Math.max(-leanMax,Math.min(leanMax,Math.atan(v*v*Math.tan(s.steer)/wb/9.8))):0;
-  s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/(onG?LEAN_TAU:.5)));
+  // airborne: the bike holds the lean it took off with (no ground to steer against), easing off over a few seconds
+  if(onG)s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/LEAN_TAU));else s.lean=(s.lean||0)*Math.exp(-Math.max(0,dt)*.35);
   const kin=v*Math.tan(s.steer)/wb,fromLean=vAbs>.5?9.8*Math.tan(s.lean)/v:0,mix=Math.max(0,Math.min(1,(vAbs-2)/3));
   // In the air the rider can aim the bike a little (body/hip turn), like Descenders: steer = yaw, any speed.
   const st=Math.max(-1,Math.min(1,inp.steer||0)),brk=Math.max(0,Math.min(1,inp.brake||0)),thr=Math.max(0,Math.min(1,inp.throttle||0));

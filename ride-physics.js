@@ -93,14 +93,14 @@ const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8
 // sits. Part input holds it around the fender-drag angle; full pull + full throttle aims PAST the
 // balance point (WHEELIE.tip), and once over it gravity wins and you loop out unless you ease off or dab
 // the rear brake. It bobs a little (under-damped). Legacy keeps balanceTorque.
-export const WHEELIE={pull:1.3,throttle:.45,k:9,damp:1.8,brake:9,tip:1.7,fall:22,high:.9,soft:3};
+export const WHEELIE={pull:1.3,throttle:.45,k:6.5,damp:1.7,brake:9,tip:1.7,fall:22,high:.9,soft:3};
 const wheelieAssist=(lean,rel,throttle,brake,w,spf=1)=>{const back=Math.max(0,lean),W=WHEELIE,target=back>.05?(back*W.pull+throttle*W.throttle)*spf:0;
   let v=W.k*(target-rel)-W.damp*w-brake*W.brake;if(rel>W.high)v+=W.soft*(rel-target);/* high wheelies are touchier: you hold them with throttle/lean */if(rel>W.tip)v+=W.fall*(rel-W.tip);return v;};
 // Playground stoppie: front brake + weight forward; lean amount sets how high the rear goes. Part input
 // holds a stoppie; full brake + full lean pushes the weight past the front balance point (STOPPIE.tip)
 // and over the bars you go, unless you let off the brake or shift back in time.
 export const STOPPIE={base:.3,lean:.85,k:16,damp:2.4,tip:-.95,fall:20};
-export const AIR_LEVEL={k:5,d:3};
+export const AIR_LEVEL={k:2.4,d:2}; // v2.1-23: gentler: the bike drifts to the flight path instead of being pulled onto it
 export const TYRE={travel:.04,blowoff:.4,highSpeed:.08,rebound:2};
 export const RIDER={absorb:.24,load:.5,damp:.9};
 export function step(s, p, inp, dt, ter) {

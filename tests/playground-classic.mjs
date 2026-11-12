@@ -58,7 +58,7 @@ for(const [name,P] of Object.entries(bikes)){
 }
 // v2.1-10 downhill: ride the dirt road top to bottom (a simple line-follower), tabletops and rollers, no crash.
 for(const [name,P] of Object.entries(bikes)){const s=fresh(P,PLAYGROUND_PADS[0].to);let air=0;
- run(P,s,s=>{const L=3+s.vx*.4,u=DESCENT.x0-(s.x+L),zt=descentRoadZ(Math.max(0,u)),want=Math.atan2(zt-s.z,L),err=Math.atan2(Math.sin(want-s.yaw),Math.cos(want-s.yaw)),air=!s.ground[0]&&!s.ground[1];return {throttle:s.vx<10?.5:0,brake:s.vx>12?.6:0,steer:air?0:Math.max(-1,Math.min(1,err*3))}},90,s=>{if(!s.ground[0]&&!s.ground[1])air+=dt});
+ run(P,s,s=>{const L=4+s.vx*.55,u=DESCENT.x0-(s.x+L),zt=descentRoadZ(Math.max(0,u)),want=Math.atan2(zt-s.z,L),err=Math.atan2(Math.sin(want-s.yaw),Math.cos(want-s.yaw)),air=!s.ground[0]&&!s.ground[1];return {throttle:s.vx<10?.5:0,brake:s.vx>12?.6:0,steer:air?0:Math.max(-1,Math.min(1,err*3))}},90,s=>{if(!s.ground[0]&&!s.ground[1])air+=dt});
  assert.equal(s.crashed,null,name+' downhill run');assert.ok(s.x>DESCENT.x0-5,name+' reached the bottom '+s.x);assert.ok(air>2,name+' got air on the way down '+air);}
 // v2.1-11: small hits soak up through tyre + suspension + rider instead of launching the bike
 {const P=bikes.emoto,log=PLAYGROUND_PROPS.find(p=>p.m==='log'&&p.x<0&&p.x>-30);for(const v of [6,11]){const s=fresh(P,{x:log.x-15,z:log.z,vx:v});let maxVy=0;run(P,s,s=>({throttle:s.vx<v?.6:0}),3,s=>{maxVy=Math.max(maxVy,s.vy)});assert.equal(s.crashed,null,'logs at '+v);assert.ok(maxVy<2.3,'a 30 cm log at '+v+' m/s only lightens the bike, vy '+maxVy);}}
