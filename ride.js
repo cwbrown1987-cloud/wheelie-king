@@ -574,7 +574,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const restarting = finished;
     const keep = restarting ? {} : {score:s.score,odo:s.odo,battery:s.battery,bestWheelie:s.bestWheelie,coins:s.coins||0};
     // v2.1-30: RECOVER puts you back where you crashed (facing the way you were going), not at a checkpoint
-    const spot = restarting ? null : {x:s.x,z:s.z||0,yaw:s.moveYaw??s.yaw??0};const coinsKept=s.coins||0;
+    // v2.1-41: RECOVER puts you where the bike ended up after the crash (not where the crash started), facing on
+    let spot = restarting ? null : {x:s.x,z:s.z||0,yaw:s.moveYaw??s.yaw??0};const coinsKept=s.coins||0;
+    if(spot&&freeRoam&&crashRig){try{const wp=crashRig.state().bike?.positions,r=wp?.rear,f=wp?.front;if(r&&f&&[r[0],r[2],f[0],f[2]].every(Number.isFinite)){let hy=Math.atan2(f[2]-r[2],f[0]-r[0]);if(Math.cos(hy-spot.yaw)<0)hy+=Math.PI;spot={x:(r[0]+f[0])/2,z:(r[2]+f[2])/2,yaw:hy};}}catch{}}
     if (restarting) {
       lastCP = 2;
       cpI = flips = maxScore = finishTime = photoCount = 0;
@@ -783,9 +785,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
        const held=Math.max(0,Math.min(1,(airPedal.t-.25)/.3));
        // v2.1-30: on touch the right-thumb gas/brake buttons don't rotate the bike (lean with the stick instead);
        // keyboard W/S still do, as asked for on PC
-       const kThr=keys.w?1:0,kBrk=keys.s?1:0;
-       const thr=kThr*(airPedal.thrHeld?held:1),brk=kBrk*(airPedal.brkHeld?held:1);
-       inp.lean=Math.max(-1,Math.min(1,inp.lean+brk-thr));}}
+       // v2.1-41: removed — holding accelerate/brake no longer rotates the bike in the air (keyboard or touch).
+       // Rotate with lean only (stick up/down, Space/Shift, arrows in the air).
+       void held;}}
     // Side view: A/D lean (see leanKey), touch steer still steers.
     // Playground side view is the side-scroller: no sideways steering at all.
     inp.steer = freeRoam&&!(arena&&cameraView==='side')?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
