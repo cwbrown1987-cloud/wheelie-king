@@ -10,7 +10,7 @@ export function makeStuntRig(T,bike,A,motorKind){
  const center=new T.Vector3(...A.headTop,0),axis=A.headBottom?new T.Vector3(A.headTop[0]-A.headBottom[0],A.headTop[1]-A.headBottom[1],0).normalize():new T.Vector3(0,1,0);let saved=[],state={name:'',angle:0,parts:0};
  return {
   restore(){for(const {o,matrix,auto}of saved){o.matrix.copy(matrix);o.matrixAutoUpdate=auto;o.matrixWorldNeedsUpdate=true}saved=[];state={name:'',angle:0,parts:0}},
-  pose(stunt){if(!stunt||!['tailwhip','barspin'].includes(stunt.name))return;bike.updateWorldMatrix(true,true);const t=Math.max(0,Math.min(1,stunt.elapsed/stunt.duration)),rotation=new T.Matrix4().makeTranslation(...center.toArray()).multiply(new T.Matrix4().makeRotationAxis(axis,Math.PI*2*t*t*(3-2*t))).multiply(new T.Matrix4().makeTranslation(-center.x,-center.y,-center.z)),inverseBike=bike.matrixWorld.clone().invert();
+  pose(stunt){if(!stunt||!['tailwhip','barspin'].includes(stunt.name))return;bike.updateWorldMatrix(true,true);const t=Math.max(0,Math.min(1,stunt.elapsed/stunt.duration)),rotation=new T.Matrix4().makeTranslation(...center.toArray()).multiply(new T.Matrix4().makeRotationAxis(axis,(stunt.dir||1)*Math.PI*2*t*t*(3-2*t))).multiply(new T.Matrix4().makeTranslation(-center.x,-center.y,-center.z)),inverseBike=bike.matrixWorld.clone().invert();
    for(const o of stunt.name==='tailwhip'?tail:bars){if(o.matrixAutoUpdate)o.updateMatrix();saved.push({o,matrix:o.matrix.clone(),auto:o.matrixAutoUpdate});const parent=inverseBike.clone().multiply(o.parent.matrixWorld);o.matrix.premultiply(parent.clone().invert().multiply(rotation).multiply(parent));o.matrixAutoUpdate=false;o.matrixWorldNeedsUpdate=true;}state={name:stunt.name,angle:Math.PI*2*t*t*(3-2*t),parts:saved.length};
   },
   state:()=>state,

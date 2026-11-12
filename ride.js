@@ -463,10 +463,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   let brakeLockId=null;const dragLean=new Map(); // pointerId -> {c, y, v}
   const brakeLockUi=()=>{const el=ui.querySelector('.ride-brake-lock');if(el)el.hidden=brakeLockId==null;};
   ui.querySelectorAll('[data-t]').forEach(b=>{const c=b.dataset.t;
-    b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if (reviewing || finished) return;if(arena&&c in rideToggles){setToggle(c,!rideToggles[c]);return;}b.setPointerCapture?.(e.pointerId);held.set(e.pointerId,c);touch[c]=1;if(c==='throttle'||c==='brake')dragLean.set(e.pointerId,{c,y:e.clientY});if(c==='hop')hopQueued=true;if(['tailwhip','barspin','superman'].includes(c))s.stuntRequest={name:c,expires:.7};b.dataset.pressed='true';b.style.filter='brightness(1.5)'},{passive:false});
+    b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if (reviewing || finished) return;if(arena&&c in rideToggles){setToggle(c,!rideToggles[c]);return;}b.setPointerCapture?.(e.pointerId);held.set(e.pointerId,c);touch[c]=1;if(c==='throttle'||c==='brake')dragLean.set(e.pointerId,{c,y:e.clientY});if(c==='hop')hopQueued=true;if(['tailwhip','barspin','superman','nohander','cancan','nacnac'].includes(c))s.stuntRequest={name:c,expires:.7};b.dataset.pressed='true';b.style.filter='brightness(1.5)'},{passive:false});
     if(c==='throttle'||c==='brake')b.addEventListener('pointermove',e=>{const d=dragLean.get(e.pointerId);if(!d)return;const dy=e.clientY-d.y,px=Math.max(36,Math.min(90,innerHeight*.14));
       // throttle thumb dragged down = weight back (+), brake thumb dragged up = weight forward (-); 10 px dead zone
-      d.v=d.c==='throttle'?Math.max(0,Math.min(1,(dy-10)/px)):-Math.max(0,Math.min(1,(-dy-10)/px));touch.dragLean=[...dragLean.values()].reduce((a,x)=>Math.abs(x.v||0)>Math.abs(a)?x.v:a,0);});
+      d.v=d.c==='throttle'?Math.max(0,Math.min(1,(dy-10)/px)):-Math.max(0,Math.min(1,(-dy-10)/px));touch.dragLean=arena?0:[...dragLean.values()].reduce((a,x)=>Math.abs(x.v||0)>Math.abs(a)?x.v:a,0);}); // v2.1-32: no sliding-thumb lean on gas/brake in the Playground
     if(c==='brake')b.addEventListener('pointermove',e=>{if(held.get(e.pointerId)!=='brake'||brakeLockId===e.pointerId)return;const t=ui.querySelector('[data-t="throttle"]')?.getBoundingClientRect();if(t&&e.clientX>=t.left&&e.clientX<=t.right&&e.clientY>=t.top&&e.clientY<=t.bottom){brakeLockId=e.pointerId;touch.throttle=1;brakeLockUi();}});
     const up=e=>{e.stopPropagation();if(held.get(e.pointerId)!==c)return;held.delete(e.pointerId);if(dragLean.delete(e.pointerId))touch.dragLean=[...dragLean.values()].reduce((a,x)=>Math.abs(x.v||0)>Math.abs(a)?x.v:a,0);if(brakeLockId===e.pointerId){brakeLockId=null;brakeLockUi();if(![...held.values()].includes('throttle'))touch.throttle=0;}if([...held.values()].includes(c))return;touch[c]=0;delete b.dataset.pressed;b.style.filter=''};
     for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,up);
@@ -752,9 +752,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     // Playground side view is the side-scroller: no sideways steering at all.
     inp.steer = freeRoam&&!(arena&&cameraView==='side')?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
     if(arena){inp.burnout=rideToggles.burnout;inp.stand=rideToggles.stand;inp.brakeLock=brakeLockId!=null;}
-    inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
+    inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;inp.nohander=touch.nohander||keys.v?1:0;inp.cancan=touch.cancan||keys.b?1:0;inp.nacnac=touch.nacnac||keys.n?1:0;
     // Playground style moves (toggles): one-hander, knee-knock. Air tricks/HOP are classic-only.
-    if(arena){inp.hop=0;inp.trick=0;inp.tailwhip=0;inp.barspin=0;inp.superman=0;inp.oneHand=rideToggles.onehand?1:0;inp.kneeKnock=rideToggles.kneeknock?1:0;s.oneHand=!!inp.oneHand&&!s.crashed;s.kneeKnock=!!inp.kneeKnock&&!s.crashed;}
+    if(arena){inp.hop=0;inp.trick=0;inp.oneHand=rideToggles.onehand?1:0;inp.kneeKnock=rideToggles.kneeknock?1:0;s.oneHand=!!inp.oneHand&&!s.crashed;s.kneeKnock=!!inp.kneeKnock&&!s.crashed;}
     if (finished) Object.keys(inp).forEach(key => { inp[key] = 0; });
     if (!s.crashed && !finished) {
       const useJolt=physics==='jolt'&&jolt?.ready&&jolt.enabled;

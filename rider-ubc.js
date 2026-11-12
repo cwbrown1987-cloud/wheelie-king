@@ -21,6 +21,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
   const grips = off(at.bars || A.hand || [A.headTop[0] - 0.04, A.headTop[1] + 0.2]);
   const gripW = at.gripHalfWidth || A.handWidth || 0.18, pegW = at.pegHalfWidth || 0.145, crankR = at.cranks || 0;
   const W = { stand: 0, wheelie: 0, lean: 0, oneHand: 0, kneeKnock: 0, roll: 0 };
+  const trick = { name: '', env: 0, dir: 1 };
   let model = null, bones = null, rest = null, pelvisRest = null, legLen = 0.86, armLen = 0.6, reach = { pitch: 0, shift: 0 }, error = null, meshes = 0;
   const target = { hip: new T.Vector3(), pitch: 0, roll: 0, hands: [new T.Vector3(), new T.Vector3()], feet: [new T.Vector3(), new T.Vector3()] };
 
@@ -135,6 +136,9 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     go('oneHand', s.oneHand ? 1 : 0); go('kneeKnock', s.kneeKnock ? 1 : 0);
     go('roll', Math.max(-0.5, Math.min(0.5, (s.joltRoll ?? s.visRoll ?? 0) * 0.35)));      // extra lean into the turn
     const st = W.stand, wh = W.wheelie;
+    // v2.1-32 air tricks: superman, no-hander, can-can, nac-nac (sin envelope over the trick)
+    const sk = s.stunt && !s.crashed ? s.stunt : null, env = sk ? Math.sin(Math.PI * Math.min(1, sk.elapsed / sk.duration)) : 0;
+    trick.name = sk ? sk.name : ''; trick.env = env; trick.dir = sk?.dir || 1;
     const hipSit = seat.clone().add(_d.set(-0.02, 0.09, 0));
     const hipStand = new T.Vector3(pegs.x - 0.06, pegs.y + legLen * 0.86, 0);
     target.hip.copy(hipSit).lerp(hipStand, st);
@@ -146,6 +150,8 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     target.pitch = (38 - 10 * st) * Math.PI / 180 * (1 - 0.8 * wh) + W.lean * 0.32 - 0.12 * W.kneeKnock;
     // chest drops toward the bars when the legs soak up a hit; torso stays nearer vertical on steep descents
     target.pitch += -D.y * 1.2 * st + 0.12 * st * D.attack + Math.min(0, D.slope) * 0.35;
+    if (trick.name === 'superman') { target.hip.x -= 0.42 * env; target.hip.y += 0.22 * env; target.pitch += 0.75 * env; }
+    if (trick.name === 'nohander') { target.pitch -= 0.15 * env; }
     target.look = D.look;
     target.roll = W.roll;
     // The handlebar grips are their own meshes: put the hands on the real grips (they already turn with the bars).
@@ -166,6 +172,9 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
       // knee-knock: feet off the pegs, knees pulled in and up to the top tube
       const knock = new T.Vector3(pegs.x + 0.12, pegs.y + 0.22, side * 0.05);
       target.feet[i].copy(foot).lerp(knock, W.kneeKnock);
+      if (trick.name === 'superman') target.feet[i].lerp(new T.Vector3(pegs.x - 0.95, pegs.y + 0.55, side * 0.16), trick.env);
+      if (trick.name === 'cancan' && i === 0) target.feet[i].lerp(new T.Vector3(pegs.x + 0.5, pegs.y + 0.32, 0.38), trick.env);
+      if (trick.name === 'nacnac' && i === 0) target.feet[i].lerp(new T.Vector3(pegs.x - 0.75, pegs.y + 0.5, 0.42), trick.env);
     }
     return target;
   }
@@ -187,7 +196,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
   function overReach() {
     let worst = 0;
     for (const [s, i] of [['l', 0], ['r', 1]]) {
-      if (i === 1 && W.oneHand > 0.5) continue;
+      if ((i === 1 && W.oneHand > 0.5) || (trick.name === 'nohander' && trick.env > 0.4)) continue;
       worst = Math.max(worst, wpos(bones['upperarm_' + s]).distanceTo(W2(target.hands[i])) - armLen * 0.97);
     }
     return worst;
@@ -213,12 +222,14 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
       const sign = i ? 1 : -1;
       const shoulder = wpos(bones['upperarm_' + s]);
       let hand = W2(target.hands[i]);
+      const offH = trick.name === 'nohander' ? trick.env : 0;
+      if (offH > 0.01) { const out = shoulder.clone().add(root.localToWorld(v().set(-0.05, 0.25, sign * 0.55)).sub(root.localToWorld(v()))); hand = hand.lerp(out, offH); }
       if (i === 1 && W.oneHand > 0.01) { // right hand off the bars, arm up and out
         const up = shoulder.clone().add(root.localToWorld(v().set(-0.12, 0.42, 0.42)).sub(root.localToWorld(v())));
         hand = hand.lerp(up, W.oneHand);
       }
       const elbowPole = W2(v().set(target.hip.x - 0.35, target.hip.y + 0.1, sign * 0.55));
-      const gripping = !(i === 1 && W.oneHand > 0.5);
+      const gripping = !(i === 1 && W.oneHand > 0.5) && !(trick.name === 'nohander' && trick.env > 0.4);
       if (gripping && bones['middle_01_' + s]) {
         // wrist sits behind the bar so the palm and wrapped fingers, not the wrist, are on the grip
         const kd = root.localToWorld(v().set(0.92, -0.38, 0)).sub(root.localToWorld(v())).normalize();

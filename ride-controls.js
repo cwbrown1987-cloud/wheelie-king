@@ -5,6 +5,8 @@ const glyph={mono:'M4 20L28 6 M22 4l6 2-2 6',stand:'M16 2v10 M12 6h8',burnout:'M
 const trickButton=(key,label)=>`<button data-t="${key}" type="button" aria-label="${label}"><svg viewBox="0 0 32 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="5"/><circle cx="26" cy="17" r="5"/><path d="M7 17l7-9 5 9H7m7-9h9l3 9M12 5h6m2-3 4 5"/><path d="${glyph[key]}"/></g></svg><span>${label}</span></button>`;
 // Playground (Jolt) has its own working move set; air tricks and HOP are classic-only.
 const PLAYGROUND_MOVES=[['burnout','BURNOUT'],['stand','STAND'],['onehand','ONE-HANDER'],['kneeknock','KNEE-KNOCK']];
+// v2.1-32: air tricks in the Playground (tap in the air). Tailwhip goes the way you're steering/turning.
+export const AIR_TRICKS=[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['nohander','NO-HANDER'],['cancan','CAN-CAN'],['nacnac','NAC-NAC']];
 const moveButton=(key,label)=>`<button data-t="${key}" type="button" class="ride-move" aria-pressed="false">${label}</button>`;
 export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-controls">
  <div class="ride-hop ride-tricks"${playground?' hidden':''}>${trickButton('hop','HOP')}</div>
@@ -16,7 +18,7 @@ export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-contr
   <button type="button" class="ride-dpad-down" data-t="leanBack" aria-label="Tilt back"><span aria-hidden="true">▼</span><small>DOWN</small></button>
  </div>
  <div class="ride-stick" role="slider" aria-label="Steer and lean: left/right steers, up leans forward, down leans back" aria-valuenow="0"><div class="ride-stick-knob"></div><span class="ride-stick-hint">STEER · LEAN</span></div>
- <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button>${playground?`<div class="ride-tricks-fan ride-moves" role="group" aria-label="Moves">${PLAYGROUND_MOVES.map(([k,l])=>moveButton(k,l)).join('')}</div>`:`<div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div>`}</div>
+ <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button>${playground?`<div class="ride-tricks-fan ride-moves" role="group" aria-label="Moves">${PLAYGROUND_MOVES.map(([k,l])=>moveButton(k,l)).join('')}${AIR_TRICKS.map(([k,l])=>`<button data-t="${k}" type="button" class="ride-move ride-air-trick">${l}</button>`).join('')}</div>`:`<div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div>`}</div>
  <div class="ride-brake-lock" hidden>BRAKE LOCK</div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
 </div>`;

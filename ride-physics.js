@@ -253,7 +253,7 @@ export function step(s, p, inp, dt, ter) {
     if (s.pendingSpin) { pts += 500 * s.pendingSpin; name = (name ? name + " + " : "") + (s.pendingSpin > 1 ? s.pendingSpin * 360 : 360); s.pendingSpin = 0; }
     if (s.whip) { pts += 250; name = (name ? name + " + " : "") + "180 WHIP"; s.whip = 0; }
     if(s.stunt){if(s.stunt.elapsed/s.stunt.duration>.65)(s.pendingStunts??=[]).push(s.stunt.name);s.stunt=null;}
-    for(const stunt of s.pendingStunts||[]){pts+=({tailwhip:400,barspin:300,superman:350})[stunt];name+=(name?' + ':'')+stunt.toUpperCase();}s.pendingStunts=[];
+    for(const stunt of s.pendingStunts||[]){pts+=({tailwhip:400,barspin:300,superman:350,nohander:300,cancan:250,nacnac:300})[stunt]||200;name+=(name?' + ':'')+({nohander:'NO-HANDER',cancan:'CAN-CAN',nacnac:'NAC-NAC'}[stunt]||stunt.toUpperCase());}s.pendingStunts=[];
     if (s.air > 0.45 || name) { if (off < 0.15) { pts += 150; name = (name || "AIR " + s.air.toFixed(1) + "s") + " · PERFECT"; } pop(name || "AIR " + s.air.toFixed(1) + "s", pts); }
     if(s.air>.08)s.events.push({ type: "land", v: impactV, air: s.air }); s.pitch=wrapAngle(s.pitch);s.air=0;s.airRot=0;
   }
@@ -285,9 +285,12 @@ export function step(s, p, inp, dt, ter) {
   if (s.hopCd) s.hopCd = Math.max(0, s.hopCd - dt);
   if (inp.trick && !onG && s.air > 0.15 && !s.spinV) s.spinV = 2 * Math.PI / 0.7;
   if (inp.whip && !onG && s.air > 0.15 && !s.whip) s.whip = 1;
-  s.stuntButtons??={};for(const action of ['tailwhip','barspin','superman']){if(inp[action]&&!s.stuntButtons[action])s.stuntRequest={name:action,expires:.7};s.stuntButtons[action]=!!inp[action];}
+  s.stuntButtons??={};for(const action of ['tailwhip','barspin','superman','nohander','cancan','nacnac']){if(inp[action]&&!s.stuntButtons[action])s.stuntRequest={name:action,expires:.7};s.stuntButtons[action]=!!inp[action];}
   if(s.stunt){s.stunt.elapsed+=dt;if(s.stunt.elapsed>=s.stunt.duration){(s.pendingStunts??=[]).push(s.stunt.name);s.stunt=null;}}
-  if(s.stuntRequest){s.stuntRequest.expires-=dt;if(s.stuntRequest.expires<=0)s.stuntRequest=null;else if(!onG&&s.air>.08&&!s.stunt){s.stunt={name:s.stuntRequest.name,elapsed:0,duration:.6};s.stuntRequest=null;}}
+  if(s.stuntRequest){s.stuntRequest.expires-=dt;if(s.stuntRequest.expires<=0)s.stuntRequest=null;else if(!onG&&s.air>.08&&!s.stunt){const nm=s.stuntRequest.name;
+    // tailwhip/barspin go round the way you're steering or turning (left or right), like the real thing
+    const dir=Math.sign(inp.steer||0)||Math.sign(s.spunRate||s.curvature||0)||Math.sign(s.lean||0)||1;
+    s.stunt={name:nm,elapsed:0,duration:nm==='tailwhip'||nm==='barspin'?.6:.75,dir};s.stuntRequest=null;}}
   if(ter.freeRoam)collideFreeRoam(s,p,ter);
   return s;
 }
