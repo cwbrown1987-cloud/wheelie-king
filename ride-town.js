@@ -57,11 +57,21 @@ let arrival = null;
 export function townArrival() {
   if (!data) return { x: TOWN.x, z: TOWN.z, yaw: 0 };
   if (arrival) return arrival;
-  let best = null;
-  const cs = data.roads.filter(r => /^Commercial Street$/.test(r.n)), pts = cs.flatMap(r => r.p), mid = pts.length ? pts.reduce((a, p) => [a[0] + p[0] / pts.length, a[1] + p[1] / pts.length], [0, 0]) : [0, 0];
-  for (const r of (cs.length ? cs : data.roads)) { if (!cs.length && !/primary|secondary|tertiary|trunk/.test(r.t)) continue;
-    for (let i = 0; i < r.p.length - 1; i++) { const [x, z] = r.p[i], d = Math.hypot(x - mid[0], z - mid[1]); if (!best || d < best.d) { const [x2, z2] = r.p[i + 1]; best = { d, x, z, yaw: Math.atan2(z2 - z, x2 - x) }; } } }
-  return (arrival = best ? { x: TOWN.x + best.x, z: TOWN.z + best.z, yaw: best.yaw } : { x: TOWN.x, z: TOWN.z, yaw: 0 });
+  // v2.1-17: the top of Commercial Street, on the flattest spot near the high end, facing down the hill
+  const cs = data.roads.filter(r => /^Commercial Street$/.test(r.n));
+  const roads = cs.length ? cs : data.roads.filter(r => /primary|secondary|tertiary|trunk/.test(r.t));
+  const g = (x, z) => townGround(TOWN.x + x, TOWN.z + z);
+  // resample the street every 2 m
+  const line = []; for (const r of roads) for (let i = 0; i < r.p.length - 1; i++) { const [x0, z0] = r.p[i], [x1, z1] = r.p[i + 1], L = Math.hypot(x1 - x0, z1 - z0), m = Math.max(1, Math.ceil(L / 2)); for (let k = 0; k <= m; k++) line.push([x0 + (x1 - x0) * k / m, z0 + (z1 - z0) * k / m, (x1 - x0) / (L || 1), (z1 - z0) / (L || 1)]); }
+  if (!line.length) return (arrival = { x: TOWN.x, z: TOWN.z, yaw: 0 });
+  const top = line.reduce((a, p) => g(p[0], p[1]) > g(a[0], a[1]) ? p : a, line[0]), hTop = g(top[0], top[1]);
+  // flattest point within 3 m of the top height
+  let best = top, bestSlope = 1e9;
+  for (const p of line) { if (hTop - g(p[0], p[1]) > 3) continue; const sl = Math.abs(g(p[0] + p[2] * 3, p[1] + p[3] * 3) - g(p[0] - p[2] * 3, p[1] - p[3] * 3)) / 6; if (sl < bestSlope) { bestSlope = sl; best = p; } }
+  // face whichever way along the street goes down
+  const ahead = g(best[0] + best[2] * 25, best[1] + best[3] * 25), back = g(best[0] - best[2] * 25, best[1] - best[3] * 25);
+  const dx = ahead <= back ? best[2] : -best[2], dz = ahead <= back ? best[3] : -best[3];
+  return (arrival = { x: TOWN.x + best[0], z: TOWN.z + best[1], yaw: Math.atan2(dz, dx), slope: bestSlope });
 }
 
 // ---- visuals ----
