@@ -11,6 +11,11 @@ export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TA
 // AIR_YAW / AIR_TWIST (v2.1-11): in the air the rider can only twist the bike a little with body weight;
 // the direction of travel doesn't change until the tyres touch down again.
 export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.22,AIR_YAW=.6,AIR_TWIST=.35,HOP_T=.22,LAND_HOOK=.5;
+// v2.1-31 vert airs (Riders Republic style): leave a steep transition (quarter pipe, bowl wall) and the bike turns
+// freely in the air: steer to spin (180, 360, 540...), push the stick sideways to drift along the coping; with no
+// input it turns itself round after the top so you come back down forwards. It's eased back over the transition
+// so you land in the bowl, unless you lean forward to transfer out onto the deck.
+export const VERT={pitch:.95,yaw:4.6,auto:5.2,drift:2.2,back:.6,pull:3};
 // Brake slides. The bike body (yaw) and its direction of travel (moveYaw) split apart:
 // - tap the brake while turning at speed -> the rear steps out and the bike swings round, up to ~180 deg
 //   at full speed, then grips up (facing back if it went all the way round);
@@ -21,7 +26,7 @@ export function maxSteerAngle(speed,vmax=12){
   const t=Math.min(1,Math.abs(speed||0)/Math.max(8,vmax));
   return STEER_MAX_LOW+(STEER_MAX_HIGH-STEER_MAX_LOW)*t;
 }
-export function stepHeading(s,inp,dt,p){
+export function stepHeading(s,inp,dt,p,ter){
   const onG=!!(s.ground[0]||s.ground[1]);
   const v=s.vx||0,wb=Math.max(.9,p?.wb||1.25),vmax=p?.vmax||12;
   const aLat=STEER_GRIP_G*9.8*Math.min(1.2,p?.grip||1),gripA=Math.abs(v)>.5?Math.atan(aLat*wb/(v*v)):Infinity;
@@ -54,6 +59,7 @@ export function stepHeading(s,inp,dt,p){
   // In the air the rider can aim the bike a little (body/hip turn), like Descenders: steer = yaw, any speed.
   const st=Math.max(-1,Math.min(1,inp.steer||0)),brk=Math.max(0,Math.min(1,inp.brake||0)),thr=Math.max(0,Math.min(1,inp.throttle||0));
   if(s.moveYaw==null||!s.sliding)s.moveYaw=s.yaw||0;
+  if(onG){s.vertAir=false;s.latV=0;s.wasAirborne=false;}else if(!s.wasAirborne){s.wasAirborne=true;s.vertAir=Math.abs(s.pitch||0)>VERT.pitch&&(s.vy||0)>1&&!s.crashed;s.vertVy0=s.vy||0;} // vert air only when launched upward off a steep face
   // start a slide: brake + steer at speed (not leaning forward, which is a stoppie)
   if(!s.sliding&&onG&&v>SLIDE.minSpeed&&brk>.2&&Math.abs(st)>.3&&!(inp.lean<-.3)){
     s.sliding=true;s.slideHeld=0;s.slideDir=Math.sign(st);s.slideBudget=SLIDE.tapBudget*Math.min(1,(v-SLIDE.minSpeed*.5)/14);s.moveYaw=s.yaw||0;
@@ -89,6 +95,22 @@ export function stepHeading(s,inp,dt,p){
       else s.vx*=Math.cos(g2);
       s.sliding=false;s.moveYaw=s.yaw||0;
     }
+  }else if(!onG&&s.vertAir){
+    s.airT=(s.airT||0)+dt;
+    if(!s.sliding){s.sliding=true;s.slideDir=0;s.slideBudget=0;s.slideHeld=0;s.airTwist=true;s.moveYaw=s.yaw||0;s.spun=0;s.latV=0;s.vertDir=0;s.vertH0=s.yaw||0;}
+    if(Math.abs(st)>.15){yawRate=st*VERT.yaw;s.vertDir=Math.sign(st);}
+    else if((s.vertVy0||0)>3&&((s.vy||0)<4||s.airT>.12)){ // a real air (not a little pop): turn on the way up/over the top: finish the turn to the nearest half-turn (at least 180) so you land forwards
+      const dirn=s.vertDir||Math.sign(s.spun||0)||1,target=dirn*Math.PI*Math.max(1,Math.round(Math.abs(s.spun||0)/Math.PI)),gap=target-(s.spun||0);
+      yawRate=Math.sign(gap)*Math.min(VERT.auto,Math.abs(gap)*6);}
+    else yawRate=0;
+    s.spun=(s.spun||0)+yawRate*dt;
+    // re-reference: once the bike points more than 90 deg off its travel heading, travel is described from the new side
+    if(Math.abs(wrapAngle((s.yaw||0)+yawRate*dt-s.moveYaw))>Math.PI/2){s.moveYaw=wrapAngle(s.moveYaw+Math.PI);s.vx=-s.vx;s.latV=-(s.latV||0);}
+    // ease the horizontal speed (along the take-off heading) back toward the bowl, unless leaning forward to transfer
+    const sg=Math.cos(s.moveYaw-s.vertH0)>=0?1:-1;let v0=s.vx*sg;if(!((inp.lean||0)<-.5)){const want=-VERT.back;v0+=Math.max(-VERT.pull*dt,Math.min(VERT.pull*dt,want-v0));}s.vx=v0*sg;
+    // drift sideways along the coping with the stick
+    s.latV=(s.latV||0)+(st*VERT.drift-(s.latV||0))*Math.min(1,dt*3);
+    const lc=-Math.sin(s.moveYaw),ln=Math.cos(s.moveYaw);s.x+=lc*s.latV*dt;s.z=(s.z||0)+ln*s.latV*dt;
   }else if(!onG&&(s.airT=(s.airT||0)+dt)<HOP_T){
     yawRate=onG?0:kin*(1-mix)+fromLean*mix; // a skip off a bump: carry on turning as on the ground, no slide
   }else if(!onG){
@@ -98,6 +120,11 @@ export function stepHeading(s,inp,dt,p){
     yawRate=st*AIR_YAW*Math.max(0,1-Math.max(0,Math.sign(st)*twist)/AIR_TWIST)-(st?0:twist*2);
   }else{
     s.airT=0;yawRate=kin*(1-mix)+fromLean*mix;
+    // v2.1-31: riding across a steep face (bowl wall, bank) gravity pulls the bike round to point downhill, so you
+    // carve: keep speed and steer up to hold a line high on the wall, or let it drop you back down
+    if(ter?.transition&&ter.height&&vAbs>.5&&ter.transition(s.x,s.z||0)){const c=Math.cos(s.yaw||0),n=Math.sin(s.yaw||0),e=.35,x=s.x,z=s.z||0;
+      const cs=Math.atan2(ter.height(x-n*e,z+c*e)-ter.height(x+n*e,z-c*e),2*e); // left side minus right side
+      if(Math.abs(cs)>.12)yawRate+=-Math.sign(v||1)*9.8*Math.sin(cs)/Math.max(2,vAbs)*.85;}
   }
   s.slipAngle=s.sliding?wrapAngle((s.yaw||0)-s.moveYaw):0;
   s.drift=s.sliding?s.slideDir:0;
@@ -135,7 +162,7 @@ export function collideFreeRoam(s,p,ter){
     // A curved transition (skate park quarter pipe) rises steeply but smoothly: no sudden step anywhere along the
     // tyre's path, so it's ridden up as a curve, not hit as a wall. A box side or kerb jumps up in one go.
     let smooth=false;
-    if(ahead-here>climb&&ter.transition?.(ax,az)){smooth=true;let prev=here;for(let k=1;k<=8;k++){const f=back+(reach-back)*k/8,h=ter.height(s.x+c*f,(s.z||0)+n*f);if(h-prev>.2){smooth=false;break;}prev=h;}}
+    if(ahead-here>climb&&ter.transition?.(ax,az)){smooth=true;let prev=here;for(let k=1;k<=8;k++){const f=back+(reach-back)*k/8,h=ter.height(s.x+c*f,(s.z||0)+n*f);if(h-prev>.5){smooth=false;break;}prev=h;}}
     if(ahead-here>climb&&!smooth){
       const e=.08,gx=ter.height(ax+e,az)-ter.height(ax-e,az),gz=ter.height(ax,az+e)-ter.height(ax,az-e),gl=Math.hypot(gx,gz)||1;
       const nx=-gx/gl,nz=-gz/gl,into=(c*nx+n*nz)*dir;

@@ -77,7 +77,7 @@ if(!probe){
    row((i,b)=>xr(i)?H(i,b):0,(i,b,v)=>SET(i,b,v),edge,nx);}                     // back (north, -z)
   // round off near-vertical faces of the transitions (quarter pipe copings) so the bike launches off the
   // steep top like a lip instead of meeting a vertical wall; square edges of boxes/benches stay walls
-  const maxStep=step*Math.tan(72*Math.PI/180);
+  const maxStep=step*Math.tan(84*Math.PI/180); // v2.1-31: near-vertical tops (vert), so airs go up and come back down into the bowl
   const isTrans=new Uint8Array(nx*nz);for(const p of P){if(!/half-pipe|slope-smooth/.test(p.f))continue;const r=p.s*.6;for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const x=grid.x0+(i+.5)*step,z=grid.z0+(j+.5)*step;if(Math.abs(x-p.x)<r&&Math.abs(z-p.z)<r)isTrans[j*nx+i]=1;}}
   for(let pass=0;pass<40;pass++){let ch=0;for(let j=1;j<nz-1;j++)for(let i=1;i<nx-1;i++){const k=j*nx+i;if(!isTrans[k])continue;const lo=Math.min(grid.h[k-1],grid.h[k+1],grid.h[k-nx],grid.h[k+nx]);if(grid.h[k]-lo>maxStep){grid.h[k]=lo+maxStep;ch++;}}if(!ch)break;}
   // deck slabs for the game to draw: from the quarter pipe's top edge back to the grid edge

@@ -107,7 +107,7 @@ export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   if (ter.loop && stepLoop(s, p, inp, dt, ter.loop)) return s;
   if (ter.loops) for (const L of ter.loops) if (stepLoop(s, p, inp, dt, L)) return s;
-  if(ter.freeRoam)stepHeading(s,inp,dt,p);
+  if(ter.freeRoam)stepHeading(s,inp,dt,p,ter);
   const startPitch=s.pitch,startW=s.w;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles
   // v2.1-11: the tyre is part of the suspension (a few cm of squash, even on a rigid BMX), so small hits soak in
@@ -173,7 +173,15 @@ export function step(s, p, inp, dt, ter) {
   if(onG)T+=inp.lean*p.mass*2.8*(inp.lean>0?.3+.7*monoSpeed:1);else s.w+=inp.lean*11*dt*Math.max(0,1-Math.max(0,Math.sign(inp.lean)*s.w-6)/3);
   // Playground: hands-off in the air the rider settles the bike to the flight path (lands on both wheels);
   // any lean input overrides it, so flips and tweaks still work.
-  if(!onG&&ter.playground&&Math.abs(inp.lean||0)<.1){const flight=Math.max(-.6,Math.min(.6,Math.atan2(s.vy,Math.max(1,Math.abs(s.vx)))));s.w+=(AIR_LEVEL.k*wrapAngle(flight-s.pitch)-AIR_LEVEL.d*s.w)*dt;}
+  // v2.1-31: on a curved transition (bowl, quarter pipe) the bike follows the curve: its pitch is held to the ground
+  // under the wheelbase, so rolling up, down and round steep walls stays smooth instead of nosing in at the bottom
+  if(onG&&ter.playground&&ter.transition?.(s.x,s.z||0)){const cy=Math.cos(s.yaw||0),sy=Math.sin(s.yaw||0),z0=s.z||0,hw=p.wb*.55,gs=Math.atan2(ter.height(s.x+cy*hw,z0+sy*hw)-ter.height(s.x-cy*hw,z0-sy*hw),2*hw),rel=wrapAngle(gs-s.pitch);
+    if(Math.abs(gs)>.2&&!(s.ground[0]&&!s.ground[1]&&inp.lean>.2))s.w+=(rel*28-s.w*5)*dt;}
+  if(!onG&&ter.playground&&s.vertAir){const fl=Math.atan2(s.vy,Math.max(.4,Math.abs(s.vx))),cy=Math.cos(s.yaw||0),sy=Math.sin(s.yaw||0),z0=s.z||0,gs=Math.atan2(ter.height(s.x+cy*.6,z0+sy*.6)-ter.height(s.x-cy*.6,z0-sy*.6),1.2),above=s.y-(p.comH||.9)-ter.height(s.x,z0);
+   // up: follow the arc; coming down: line up with the ground below (transition or deck), firmly in the last metre (landing assist)
+   const down=s.vy<0,flight=down?Math.max(-.95,Math.min(.95,above<1.5?gs:gs+Math.max(-.6,Math.min(.6,fl-gs)))):fl,k=(Math.abs(inp.lean||0)<.1?9:3)*(down&&above<1.5?2.5:1);
+   s.w+=(k*wrapAngle(flight-s.pitch)-5*s.w)*dt;} // vert air: the bike follows its arc up, over the top and down
+  else if(!onG&&ter.playground&&Math.abs(inp.lean||0)<.1){const flight=Math.max(-.6,Math.min(.6,Math.atan2(s.vy,Math.max(1,Math.abs(s.vx)))));s.w+=(AIR_LEVEL.k*wrapAngle(flight-s.pitch)-AIR_LEVEL.d*s.w)*dt;}
   // Arcade balance: slow the response near vertical, but leave an unstable
   // balance point. Lean/throttle raise the front; brake/forward lean recover it.
   if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel>(ter.playground?(inp.lean>.2||s.wheelieT>.2?.12:.3):.12))T=p.mass*(ter.playground?wheelieAssist:balanceTorque)(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w,monoSpeed);}
