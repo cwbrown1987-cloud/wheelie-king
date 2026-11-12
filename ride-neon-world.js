@@ -96,7 +96,7 @@ export function makeNeonWorld(T, root, { lowDetail = false } = {}) {
   // ---- graffiti wall (left), lamps, wire on top ----
   const graf = []; for (let k = 0; k < (lowDetail ? 4 : 8); k++) graf.push(keep(new T.MeshStandardMaterial({ map: keep(graffiti(T, k + 1)), roughness: .9, metalness: 0 })));
   const wallH = 4.4, wallOff = 9.5, panel = 7;
-  const wallGeo = keep(new T.PlaneGeometry(panel + .45, wallH)); // overlap so bends show no gaps const lampPos = [];
+  const wallGeo = keep(new T.PlaneGeometry(panel + .45, wallH)); /* overlap so bends show no gaps */ const lampPos = [];
   for (let s = 0; s < NEON.len; s += panel) { if (neonInGap(s) || neonInGap(s + panel)) continue; const p = neonAt(s + panel / 2), c = Math.cos(p.yaw), n = Math.sin(p.yaw);
     const m = new T.Mesh(wallGeo, graf[Math.floor((s / panel) * 7.31) % graf.length]); m.position.set(p.x + n * wallOff, wallH / 2, p.z - c * wallOff); m.rotation.y = -p.yaw; m.receiveShadow = true; m.name = 'neon:wall'; group.add(m);
     if (Math.round(s / panel) % 3 === 0) lampPos.push({ x: p.x + n * (wallOff - .35), z: p.z - c * (wallOff - .35), yaw: p.yaw }); }
