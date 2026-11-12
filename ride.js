@@ -26,9 +26,11 @@ import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
 import {makeUbcRider} from './rider-ubc.js';
 import {makeEnvironment} from './ride-environment.js';
-import {makePlaygroundWorld,SIDE_TRACK,PLAYGROUND_PADS} from './ride-playground.js';
+import {makePlaygroundWorld,SIDE_TRACK,PLAYGROUND_PADS,playgroundCoins} from './ride-playground.js';
+import {makeCoins} from './ride-coins.js';
 import {NEON,NEON_COINS,makeNeonTerrain,neonLock,neonProject,neonAt,neonSafeS,neonProfile,neonInGap} from './ride-neon.js';
 import {makeNeonWorld} from './ride-neon-world.js';
+import {rideEarnings,readBest,saveBest,fmtTime} from './ride-economy.js';
 import {makeSoccer} from './ride-soccer.js';
 import {makeTyreTracks} from './ride-tracks.js';
 import {deriveRideProfile} from './ride-profile.js';
@@ -243,6 +245,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const environment=neon?{update:(x,o)=>neonWorld.update(o?.dt||0),view:b=>neonWorld.setView(b),surfaceAt:()=>'asphalt',isDirt:()=>false,state:()=>neonWorld.state(),dispose:()=>neonWorld.dispose()}:arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
   // Playground soccer: push the big ball into the goal for fireworks (ride-soccer.js)
   const tracks=arena?makeTyreTracks(T,scene,(x,z)=>ter.height?ter.height(x,z):0):null;
+  const pgCoins=arena&&!neon?makeCoins(T,scene,playgroundCoins(),{respawn:180}):null; // v2.1-37 Playground coins come back after 3 min
   const soccer=arena&&!neon?makeSoccer(T,scene,ter,{lowDetail,onGoal:()=>{s.score+=500;s.events.push({type:'trick',t:'GOAL!',pts:500});}}):null;
   // Playground runs Chris's original (classic) ride physics in free roam: same wheelie, stoppie, air
   // and landing feel as the side-scroller, plus handlebar steering (ride-freeroam.js). Jolt stays
@@ -357,7 +360,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
 
   if(!P.pedal&&P.batteryWh<=0)s.battery=0;
   const inp = { throttle: 0, brake: 0, lean: 0, hop: 0, trick: 0, whip: 0, steer: 0 }, keys = {}, touch = { throttle: 0, brake: 0, lean: 0, steer: 0 }; let paused=false; let pauseUi=null;
-  let composer=null,bloomPass=null,composerSize='',bloomFailed=false,vertCam=0,vertCamYaw=0,camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
+  let raceT=0,raceOn=false,lastPay=null,neonBest=neon?readBest('neon'):null,composer=null,bloomPass=null,composerSize='',bloomFailed=false,vertCam=0,vertCamYaw=0,camZoom=1,lookHold=0,visDive=0,visSquat=0,chaseFollowY=0,chaseLookY=0,chaseFollowX=null,chaseHorizon=0,chaseTakeoffY=0,chaseYaw=0,chasePosX=null,chasePosZ=0,visRoll=0,camShake=0,lookYaw=0,lookPitch=0,lookVY=0,lookVP=0,lookDrag=null,lookLast=null,meshYaw=0,lastChaseCam={fov:40,radius:5.8,camY:0,lookY:0,clearance:0,followY:0};
   const kd = (e) => { const k = e.key.toLowerCase(); if (reviewing) { if (k === "escape") { const wasPaused=paused; replay.clear(); if (wasPaused) pauseUi?.showMenu(); } return; } if (k === "escape" || k === "p") { e.preventDefault(); pauseUi?.toggle(); return; } if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ","w","a","s","d"].includes(k)) e.preventDefault(); if(k===" ")hopQueued=true;if(arena){if(k==='shift'||k===' '){e.preventDefault();keys[k]=true;return;}const mv={b:'burnout',g:'stand',c:'onehand',x:'kneeknock'}[k];if(mv){e.preventDefault();if(!e.repeat)setToggle(mv,!rideToggles[mv]);return;}}const action=arena?null:({z:"tailwhip",e:"tailwhip",x:"barspin",c:"superman"})[k];if(action&&!keys[k])s.stuntRequest={name:action,expires:.7};keys[k]=true;if(k==="r")respawn(); }, ku = (e) => (keys[e.key.toLowerCase()] = false);
   addEventListener("keydown", kd); addEventListener("keyup", ku);
   // HUD + touch controls (DOM over the canvas)
@@ -550,14 +553,14 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     chaseFollowX=null;chaseHorizon=0;chaseTakeoffY=0;
     cancelRewindHold();
     const restarting = finished;
-    const keep = restarting ? {} : {score:s.score,odo:s.odo,battery:s.battery,bestWheelie:s.bestWheelie};
+    const keep = restarting ? {} : {score:s.score,odo:s.odo,battery:s.battery,bestWheelie:s.bestWheelie,coins:s.coins||0};
     // v2.1-30: RECOVER puts you back where you crashed (facing the way you were going), not at a checkpoint
     const spot = restarting ? null : {x:s.x,z:s.z||0,yaw:s.moveYaw??s.yaw??0};const coinsKept=s.coins||0;
     if (restarting) {
       lastCP = 2;
       cpI = flips = maxScore = finishTime = photoCount = 0;
       photoDelay = -1;
-      finished = reported = finishTumble = false;
+      finished = reported = finishTumble = false; raceT = 0; raceOn = false; if(neon) neonBest = readBest("neon");
       finishPanel.hidden = true;
       slowButton.hidden = !slowUnlocked;
       photos.replaceChildren();
@@ -677,7 +680,11 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   for(const type of ['pointerup','pointercancel','lostpointercapture'])rewind.addEventListener(type,endRewind);
   crashActions.append(recover,crashReplay);ui.append(crashActions,rewind);
   Object.defineProperty(recover,'hidden',{configurable:true,get(){return crashActions.hidden},set(v){crashActions.hidden=!!v;rewind.hidden=!!v;if(!v)tricksMenu.close();}});
-  function report() { if (reported) return; reported = true; saveCond({ dirt: Math.min(1, dirt), wear }); try { onResult?.({ score: Math.round(maxScore), flips, wheelieT: s.bestWheelie || 0, finished, money: Math.round(maxScore / 10) }); } catch (e) { console.warn(e); } }
+  function report() { if (reported) return; reported = true; saveCond({ dirt: Math.min(1, dirt), wear });
+    // v2.1-37: coins pay $5 each, finishing a level pays a bonus (more the first time), score/10 on top
+    const coins=s.coins||0,lvl=neon?'neon':level;let first=false;if(neon){const r=saveBest('neon',{finished:!!finished,time:raceT,coins});first=r.firstFinish;}
+    lastPay=rideEarnings({score:maxScore,coins,finished:!!finished,level:lvl,firstFinish:first});
+    try { onResult?.({ score: Math.round(maxScore), flips, wheelieT: s.bestWheelie || 0, finished, coins, money: lastPay.money }); } catch (e) { console.warn(e); } }
   function close() { report(); onClose?.(); }
   // loop
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
@@ -786,10 +793,12 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         }
         // Playground teleport rings (e.g. the downhill start): ride through one to be put at its target.
         soccer?.step(dt,s,P);
-        if(neon&&!s.crashed){ // coins: ride through them; falling into a gap is a splash
+        if(neon&&!finished&&!paused&&dt>0){if(!raceOn&&(s.trackS||0)>8)raceOn=true;if(raceOn)raceT+=dt;}
+    if(neon&&!s.crashed){ // coins: ride through them; falling into a gap is a splash
           for(let k=0;k<NEON_COINS.length;k++){const c=NEON_COINS[k];if(Math.abs(c.s-(s.trackS||0))<1.4&&Math.abs(c.y-(s.y-.35))<1.5&&neonWorld.takeCoin(k)){s.coins=(s.coins||0)+1;s.score+=10;}}
           if(neonInGap(s.trackS||0)&&s.y<NEON.water+1.6){s.crashed='SPLASH! IN THE CANAL';s.events.push({type:'crash',why:s.crashed,part:'frame'});}
         }
+        if(pgCoins&&!s.crashed){const n=pgCoins.collect(s.x,s.y-.35,s.z||0);if(n){s.coins=(s.coins||0)+n;s.score+=10*n;}}
         if(arena&&!neon&&!s.crashed&&cameraView!=='side')for(const pd of PLAYGROUND_PADS){if(Math.hypot(s.x-pd.x,(s.z||0)-pd.z)<pd.r){if(pd.level){switchLevel(pd.level);break;}globalThis.__WK_JOLT_RESET__?.({...pd.to});break;}}
       }
     }
@@ -925,7 +934,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       if(firstUnlock){slowButton.hidden=false;showSlowUnlockToast();}
       maxScore = Math.max(maxScore, s.score);
       report();
-      finishPanel.querySelector('p').textContent = `${Math.round(maxScore).toLocaleString()} points · +$${Math.round(maxScore / 10).toLocaleString()}`;
+      finishPanel.querySelector('p').textContent = neon?`${fmtTime(raceT)} · 🪙 ${s.coins||0} coins · +$${(lastPay?.money||0).toLocaleString()}${lastPay?.bonus?` (incl. $${lastPay.bonus} finish bonus)`:''}${neonBest?.time>0&&raceT<neonBest.time?' · NEW BEST TIME!':''}`:`${Math.round(maxScore).toLocaleString()} points · +$${(lastPay?.money??Math.round(maxScore / 10)).toLocaleString()}`;
       msg = "FINISH!";
       msgT = 1;
       const colors = ['#48fb88', '#fa48ff', '#45deff', '#ffda50'];
@@ -1097,7 +1106,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       speedLineMat.opacity=0;speedLines.visible=false;
       lastChaseCam={fov:cam.fov,radius:sideR*(1-blend)+chaseR*blend,camY:cam.position.y,lookY,clearance:Math.max(0,s.y-roadY),followY:chaseFollowY,followX:chasePosX,followZ:chasePosZ,yaw:chaseYaw,lookYaw,lookPitch,viewYaw,lookAhead,airClose,chaseR,bikeFrac:bikeH/(2*chaseR*Math.tan((cam.fov*Math.PI/180)/2))};
       }
-      environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(1);
+      environment.update(s.x,{s,P,inp,dt:cameraDt,paused});pgCoins?.update(paused?0:cameraDt);environment.view(1);
       put(viewLabel,'view',cameraView==='chase'?'▣ CHASE':'▣ SIDE VIEW');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
       if(el.dataset.wkCam!==cameraView)el.dataset.wkCam=cameraView;
     } else {
@@ -1146,7 +1155,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       speedLineGeo.attributes.position.needsUpdate=true;
     }
     lastChaseCam={fov:cam.fov,radius:dist*(1-blend)+(5.8+Math.min(1.2,sp*.08))*blend,camY:cam.position.y,lookY:chaseLookY,clearance:Math.max(0,s.y-ter.h(s.x)),followY:chaseFollowY};
-    environment.update(s.x,{s,P,inp,dt:cameraDt,paused});environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
+    environment.update(s.x,{s,P,inp,dt:cameraDt,paused});pgCoins?.update(paused?0:cameraDt);environment.view(blend);put(viewLabel,'view',cameraView==='chase'?'▣ CHASE · DEPTH PREVIEW':'▣ SIDE VIEW (2.5D)');viewLabel?.setAttribute('aria-pressed',String(cameraView==='chase'));
     if(el.dataset.wkCam!==cameraView){el.dataset.wkCam=cameraView;if(cameraView!=='chase')steerSlider.release();}
     }
 
@@ -1193,8 +1202,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;sty("transformOrigin","top left");sty("transform",`scale(${1/screenScale})`);sty("width",(w*screenScale)+"px");sty("height",(h*screenScale)+"px");sty("right","auto");sty("bottom","auto");const pixelRatio=Math.min(maxPR,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     if(!worldSky&&!arena)layoutBackdrop(horizonTex||backdrop,w,h,Math.sin(s.x*.001)*TH.backdrop.sway,blend);
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;layers.foreground.position.x=tile;layers.update(tile);flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','FLAT ENDLESS · '+Math.floor(s.odo)+' m');}
-    if(neon){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','NEON CANAL · '+Math.floor(Math.min(NEON.finish,s.trackS||0))+' / '+NEON.finish+' m · 🪙 '+(s.coins||0));}
-    else if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','PLAYGROUND · '+Math.floor(s.odo)+' m');}
+    if(neon){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','NEON CANAL · '+Math.floor(Math.min(NEON.finish,s.trackS||0))+' / '+NEON.finish+' m · 🪙 '+(s.coins||0)+' ($'+((s.coins||0)*5)+') · ⏱ '+fmtTime(raceT)+(neonBest?.time>0?' · best '+fmtTime(neonBest.time):''));}
+    else if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','PLAYGROUND · '+Math.floor(s.odo)+' m · 🪙 '+(s.coins||0)+' ($'+((s.coins||0)*5)+')');}
     // While the replay panel covers the game, the scene is frozen: draw it once and leave the GPU/main thread to the video decoder (fixes stuttery replays on phones).
     if (!reviewing || !hc.reviewDrawn) {
       // v2.1-36: Neon Canal glows (bloom) on medium/high; everything else renders straight
@@ -1241,7 +1250,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       engine:j?j.engine:null,driver:j?j.driver:null,calibration:j?j.calibration:null,profile:rideProfile?{mass:rideProfile.mass,comBack:rideProfile.comBack,comH:rideProfile.comH,front:rideProfile.front,rear:rideProfile.rear,engine:rideProfile.engine}:null};
   };
   globalThis.__WK_RIDE_STATE__ = () => ({ s, P, physics, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null,rideProfile, dirt, wear, flips, finished, inp, ter, level, legacyMenu, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),soccer:soccer?.state()||null,cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),toggles:{...rideToggles},steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,sky:skyKind,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
-  function stop(save=true) {if(disposed)return;disposed=true;try{composer?.dispose?.();composer?.renderTarget1?.dispose();composer?.renderTarget2?.dispose();bloomPass?.dispose?.();}catch{}try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_TELEMETRY__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointerdown',pinchDown);R.domElement.removeEventListener('pointermove',pinchMove);for(const ev of ['pointerup','pointercancel'])R.domElement.removeEventListener(ev,pinchUp);R.domElement.removeEventListener('wheel',zoomWheel);removeEventListener('keydown',zoomKey);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();soccer?.dispose();tracks?.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
+  function stop(save=true) {if(disposed)return;disposed=true;try{pgCoins?.dispose();composer?.dispose?.();composer?.renderTarget1?.dispose();composer?.renderTarget2?.dispose();bloomPass?.dispose?.();}catch{}try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_TELEMETRY__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointerdown',pinchDown);R.domElement.removeEventListener('pointermove',pinchMove);for(const ev of ['pointerup','pointercancel'])R.domElement.removeEventListener(ev,pinchUp);R.domElement.removeEventListener('wheel',zoomWheel);removeEventListener('keydown',zoomKey);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();soccer?.dispose();tracks?.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }

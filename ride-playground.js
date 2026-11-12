@@ -7,8 +7,8 @@ import {GOAL_POSTS} from './ride-soccer.js';
 import {TOWN,townHeight,townArrival,loadTown,makeTownVisuals} from './ride-town.js';
 import {PARK,parkHeight,PARK_ENTRY,loadPark,makeSkateParkVisuals} from './ride-skatepark.js';
 import {buildFoliage,makeFoliageVisuals} from './ride-foliage.js';
-import {inBowl,bowlHeight,BOWL_ENTRY,makeBowlVisuals} from './ride-bowl.js';
-import {inCanyon,canyonHeight,CANYON_START,CANYON_FINISH_RING,CANYON_POSTS,makeCanyonVisuals} from './ride-canyon.js';
+import {inBowl,bowlHeight,BOWL,BOWL_ENTRY,makeBowlVisuals} from './ride-bowl.js';
+import {CANYON,canyonPathZ,inCanyon,canyonHeight,CANYON_START,CANYON_FINISH_RING,CANYON_POSTS,makeCanyonVisuals} from './ride-canyon.js';
 const SIZE=5000,TILE=6;
 // Three table-top jumps (kicker, flat deck, landing), off to the side of the spawn line (z = 14 m) and
 // running along +X. Our own procedural geometry (no third-party asset). Jolt gets the same triangles
@@ -195,6 +195,15 @@ function foliageKeep(x,z,kind){
     if(x>4&&x<90&&z>-14&&z<10)return false;                                                 // slalom + spawn logs
     if(Math.hypot(x,z)<12)return false;}
   return Math.abs(x)<2400&&Math.abs(z)<2400;
+}
+// v2.1-37 coins: trails along the side track, the downhill road, the canyon track and round the bowl (respawn later)
+export function playgroundCoins(){
+  const out=[],add=(x,z,up=1)=>out.push({x,z,y:baseHeight(x,z)+up});
+  for(let u=6;u<SIDE_TRACK.len-4;u+=4)add(SIDE_TRACK.x0+u,SIDE_TRACK.z,1.1);
+  for(let u=12;u<DESCENT.len-10;u+=6)add(DESCENT.x0-u,descentRoadZ(u),1);
+  for(let u=8;u<CANYON.len-6;u+=5)add(CANYON.x0+u,canyonPathZ(u),1);
+  for(let a=0;a<Math.PI*2;a+=Math.PI/10)add(BOWL.x+Math.cos(a)*(BOWL.ax+.5),BOWL.z+Math.sin(a)*(BOWL.az+.5),1);
+  return out;
 }
 const FOLIAGE=buildFoliage({keep:foliageKeep,area:{x0:-520,x1:700,z0:-280,z1:280},height:(x,z)=>baseHeight(x,z)});
 export const PLAYGROUND_POSTS=GOAL_POSTS.concat(CANYON_POSTS,FOLIAGE.posts,PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s})));
