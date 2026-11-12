@@ -1,0 +1,52 @@
+name: Wheelie King Beta (classic playground)
+
+# Every push to Claude's playground branch rebuilds the BETA copy and publishes it to the
+# wheelie-king-beta Cloudflare Pages project (https://wheelie-king-beta.pages.dev/).
+# It never deploys the live wheelie-king project.
+# Needs the CLOUDFLARE_API_TOKEN secret (repo or "beta" environment), scoped to Cloudflare Pages: Edit.
+
+on:
+  push:
+    branches: [claude/classic-playground]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheelie-king-beta
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: beta
+      url: https://wheelie-king-beta.pages.dev/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Physics checks (fast, no browser)
+        run: |
+          node tests/playground-classic.mjs
+          node tests/handlebar-steer.mjs
+          node tests/ride-loop.mjs
+          node tests/wheelie-balance.mjs
+          node tests/air-control.mjs
+      - name: Check the token is set
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN secret is missing. Add it in GitHub: Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+      - name: Build and publish the beta
+        run: node scripts/make-beta.mjs --deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
