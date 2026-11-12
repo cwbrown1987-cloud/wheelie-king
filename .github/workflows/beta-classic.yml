@@ -40,6 +40,7 @@ jobs:
           node tests/playground-canyon.mjs
           node tests/playground-bowl.mjs
           node tests/neon-level.mjs
+          node tests/neon-world-smoke.mjs
           node tests/handlebar-steer.mjs
           node tests/ride-loop.mjs
           node tests/wheelie-balance.mjs
