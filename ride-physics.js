@@ -97,6 +97,8 @@ const wheelieAssist=(lean,rel,throttle,brake,w)=>{const back=Math.max(0,lean),W=
 // and over the bars you go, unless you let off the brake or shift back in time.
 export const STOPPIE={base:.3,lean:.85,k:16,damp:2.4,tip:-.95,fall:20};
 export const AIR_LEVEL={k:5,d:3};
+export const TYRE={travel:.04,blowoff:.4,highSpeed:.08,rebound:2};
+export const RIDER={absorb:.24,load:.5,damp:.9};
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
   if (ter.loop && stepLoop(s, p, inp, dt, ter.loop)) return s;
@@ -104,13 +106,19 @@ export function step(s, p, inp, dt, ter) {
   if(ter.freeRoam)stepHeading(s,inp,dt,p);
   const startPitch=s.pitch,startW=s.w;
   const I = p.mass * 0.32, hC = p.comH - p.R,driven=p.driveAxle==='front'?1:0; // pitch inertia, COM height above axles
-  const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR, p.travelF];
+  // v2.1-11: the tyre is part of the suspension (a few cm of squash, even on a rigid BMX), so small hits soak in
+  // instead of being a hard stop. Playground only, so the side-view Legacy feel is unchanged.
+  const tyre=ter.playground?TYRE.travel*Math.max(.6,Math.min(1.3,p.R/.3)):0;
+  const wl = [[-p.wb * p.comBack, -hC], [p.wb * (1 - p.comBack), -hC]], travel = [p.travelR+tyre, p.travelF+tyre];
   const k = (i) => p.mass * 9.8 / 2 / Math.max(travel[i] * 0.35, 0.012), c = (i) => 2 * (0.25 + p.damp) * Math.sqrt(k(i) * p.mass / 2);
+  // Digressive compression damping (a real damper's high-speed blow-off): slow movements are well damped, but a
+  // sharp hit (rock, log, square edge) doesn't turn the damper into a solid rod that throws the bike upward.
+  const damp=(i,vn)=>{const ci=c(i);if(!ter.playground)return -ci*vn;if(vn>=0)return -ci*TYRE.rebound*vn;const v=-vn,v0=TYRE.blowoff;return ci*(Math.min(v,v0)+TYRE.highSpeed*Math.max(0,v-v0));};
   let Fx = 0, Fy = -9.8 * p.mass, T = 0, impactV = 0; const N = [0, 0];
   // Match the rendered fork axis / swingarm arc, including the bike and road
   // angles. A fixed vertical travel value made tyres cut into sloping landings.
   const lift=(i,compression)=>{let dx=0,dy=travel[i]*.8*compression;if(i){dx=(p.forkAxis?.[0]||0)*dy;dy*=p.forkAxis?.[1]??p.forkVertical??1;}else if(p.rearLink){const [x,y]=p.rearLink,L2=x*x+y*y;dx=Math.sign(x)*Math.sqrt(Math.max(0,L2-(y+dy)**2))-x;}const c=Math.cos(s.pitch),n=Math.sin(s.pitch),wx=s.x+rot(wl[i][0],wl[i][1],s.pitch)[0],grade=Math.tan(groundSlope(ter,s,wx));return dx*n+dy*c-grade*(dx*c-dy*n);};
-  const maxDeflection=i=>Math.max(.004,lift(i,1));
+  const maxDeflection=i=>Math.max(.004,lift(i,1)),absorb=ter.playground&&!s.crashed?RIDER.absorb:0;
   const compression=(i,depth)=>{if(depth<=0||lift(i,1)<=.004)return 0;if(i||!p.rearLink)return Math.min(1,depth/maxDeflection(i));let lo=0,hi=1;for(let n=0;n<9;n++){const mid=(lo+hi)/2;if(lift(i,mid)<depth)lo=mid;else hi=mid}return (lo+hi)/2;};
   s.thr = (s.thr || 0) + Math.max(-dt * 6, Math.min(dt * 2.5, (inp.throttle || 0) - (s.thr || 0))); // throttle ramps like a real twist grip
   // A fresh pedal press gives a short, non-stacking effort burst. Holding still climbs.
@@ -124,7 +132,10 @@ export function step(s, p, inp, dt, ter) {
       impactV=Math.min(impactV,vn);
       // Suspension supplies spring force; a contact impulse handles bottom-out.
       // An arbitrarily stiff extra spring used to sink, then launch the bike.
-      let f = k(i) * Math.min(d, maxDeflection(i)) - c(i) * vn;
+      let f = k(i) * Math.min(d, maxDeflection(i)) + damp(i,vn);
+      // Rider's arms and legs: past the bike's travel the rider soaks up the rest of a hit (Descenders-style),
+      // so only a hit bigger than suspension + body can kick the bike up.
+      if(absorb&&d>maxDeflection(i)){const e=d-maxDeflection(i),kA=p.mass*9.8*RIDER.load/absorb;f+=kA*e+Math.sqrt(kA*p.mass/2)*2*RIDER.damp*Math.min(Math.max(0,-vn),1.2);}
       if(d>maxDeflection(i)&&vn<-5.5+travel[i]*10)s.events.push({type:'bottom',i});
       f = Math.max(0, f); N[i] = f; s.comp[i] = compression(i,d);
       Fx += f * nx; Fy += f * ny; T += ox * f * ny - (oy - 0) * f * nx; // r x F (z)
@@ -159,7 +170,7 @@ export function step(s, p, inp, dt, ter) {
   if(!onG&&ter.playground&&Math.abs(inp.lean||0)<.1){const flight=Math.max(-.6,Math.min(.6,Math.atan2(s.vy,Math.max(1,Math.abs(s.vx)))));s.w+=(AIR_LEVEL.k*wrapAngle(flight-s.pitch)-AIR_LEVEL.d*s.w)*dt;}
   // Arcade balance: slow the response near vertical, but leave an unstable
   // balance point. Lean/throttle raise the front; brake/forward lean recover it.
-  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel>.12)T=p.mass*(ter.playground?wheelieAssist:balanceTorque)(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w);}
+  if(s.ground[0]&&!s.ground[1]){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel>(ter.playground?(inp.lean>.2||s.wheelieT>.2?.12:.3):.12))T=p.mass*(ter.playground?wheelieAssist:balanceTorque)(inp.lean||0,rel,s.thr||0,inp.brake||0,s.w);}
   // Playground: hard front brake with the weight forward pops the rear up (light bikes too), then the stoppie branch holds it.
   if(ter.playground&&s.ground[0]&&s.ground[1]&&inp.brake>.3&&inp.lean<-.3&&s.vx>1.5){const rel=wrapAngle(s.pitch-groundSlope(ter,s)),target=-(STOPPIE.base+STOPPIE.lean*(-inp.lean))*inp.brake;T+=(target-rel)*p.mass*STOPPIE.k*.6;}
   if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(ter.playground){const S=STOPPIE,target=-(S.base+S.lean*Math.max(0,-inp.lean))*inp.brake;if(rel<-.12)T=(target-rel)*p.mass*S.k-s.w*p.mass*S.damp;}else if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
@@ -170,7 +181,7 @@ export function step(s, p, inp, dt, ter) {
   // Hard travel stops prevent tunnelling. Cancel only velocity INTO the
   // contact, including the wheel's angular velocity; do not add bounce energy.
   for(let i=0;i<2;i++){
-    const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),wx=s.x+ox,contact=wheelContact(ter,wx,p.R,s),d=contact.height-(s.y+oy),limit=maxDeflection(i);
+    const [ox,oy]=rot(wl[i][0],wl[i][1],s.pitch),wx=s.x+ox,contact=wheelContact(ter,wx,p.R,s),d=contact.height-(s.y+oy),limit=maxDeflection(i)+absorb;
     if(d>limit){
       s.y+=d-limit;s.ground[i]=true;
       const a=contact.angle,nx=-Math.sin(a),ny=Math.cos(a),vn=(s.vx-s.w*oy)*nx+(s.vy+s.w*ox)*ny,lever=ox*ny-oy*nx;
@@ -185,7 +196,12 @@ export function step(s, p, inp, dt, ter) {
   // must retain momentum rather than snapping the wheel back onto the road.
   const rearOffset=rot(wl[0][0],wl[0][1],s.pitch),rearAngle=wheelContact(ter,s.x+rearOffset[0],p.R,s).angle;
   const rearSeparating=-(s.vx-s.w*rearOffset[1])*Math.sin(rearAngle)+(s.vy+s.w*rearOffset[0])*Math.cos(rearAngle);
-  if(s.ground[0]&&N[0]>0&&rearSeparating<.2&&((!s.ground[1]&&wrapAngle(startPitch-groundSlope(ter,s))>.12)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
+  // Playground: only a real wheelie gets the rear-pivot treatment. The rear tyre rolling over a log or rock
+  // (front momentarily light, bike tilted by the bump) is NOT a wheelie; pivoting there snapped the bike up
+  // the bump's slope and launched it.
+  const onBump=ter.playground&&Math.abs(wrapAngle(rearAngle-groundSlope(ter,s)))>.12;
+  const wheelieRel=ter.playground?.3:.12;
+  if(!onBump&&s.ground[0]&&N[0]>0&&rearSeparating<.2&&((!s.ground[1]&&wrapAngle(startPitch-groundSlope(ter,s))>wheelieRel)||(inp.lean>.35&&inp.throttle>0&&s.vx>.6))){
     const rel=wrapAngle(startPitch-groundSlope(ter,s)),throttle=s.thr||0,acc=(ter.playground?wheelieAssist:balanceTorque)(inp.lean||0,rel,throttle,inp.brake||0,startW)/.32;
     const old=rot(wl[0][0],wl[0][1],s.pitch);s.w=Math.max(-1.8,startW+acc*dt);s.pitch=startPitch+s.w*dt;const next=rot(wl[0][0],wl[0][1],s.pitch);advanceXY(s,ter,old[0]-next[0]);const contact=wheelContact(ter,s.x+next[0],p.R,s);s.y=contact.height-next[1]-.003;const nx=-Math.sin(contact.angle),ny=Math.cos(contact.angle),vn=(s.vx-s.w*next[1])*nx+(s.vy+s.w*next[0])*ny;s.vx-=vn*nx;s.vy-=vn*ny;
   }

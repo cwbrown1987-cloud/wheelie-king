@@ -8,7 +8,9 @@ export function wrapAngle(a){return Math.atan2(Math.sin(a),Math.cos(a))}
 export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TAU=.15,STEER_BURNOUT=.7;
 // Tyre grip limit for open-world turning (~0.9 g on dry ground): at speed the bars only go as far as
 // the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
-export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.16,AIR_YAW=1.4;
+// AIR_YAW / AIR_TWIST (v2.1-11): in the air the rider can only twist the bike a little with body weight;
+// the direction of travel doesn't change until the tyres touch down again.
+export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.16,AIR_YAW=.6,AIR_TWIST=.35;
 // Brake slides. The bike body (yaw) and its direction of travel (moveYaw) split apart:
 // - tap the brake while turning at speed -> the rear steps out and the bike swings round, up to ~180 deg
 //   at full speed, then grips up (facing back if it went all the way round);
@@ -55,6 +57,10 @@ export function stepHeading(s,inp,dt,p){
   if(!s.sliding&&onG&&v>SLIDE.minSpeed&&brk>.2&&Math.abs(st)>.3&&!(inp.lean<-.3)){
     s.sliding=true;s.slideHeld=0;s.slideDir=Math.sign(st);s.slideBudget=SLIDE.tapBudget*Math.min(1,(v-SLIDE.minSpeed*.5)/14);s.moveYaw=s.yaw||0;
   }
+  if(onG&&s.sliding&&s.airTwist){
+    s.airTwist=false;const g=wrapAngle((s.yaw||0)-s.moveYaw);
+    if(Math.abs(g)<.12||v<SLIDE.minSpeed*.5){s.sliding=false;s.moveYaw=s.yaw||0;}else{s.slideDir=Math.sign(g);s.slideBudget=0;s.slideHeld=0;}
+  }
   let yawRate;
   if(s.sliding&&onG){
     const holding=brk>.2,steering=Math.sign(st)===s.slideDir&&Math.abs(st)>.2;
@@ -80,9 +86,15 @@ export function stepHeading(s,inp,dt,p){
       else s.vx*=Math.cos(g2);
       s.sliding=false;s.moveYaw=s.yaw||0;
     }
+  }else if(!onG&&(s.airT=(s.airT||0)+dt)<.08){
+    yawRate=onG?0:kin*(1-mix)+fromLean*mix; // a skip off a bump: carry on turning as on the ground, no slide
+  }else if(!onG){
+    // Airborne: travel direction is locked (moveYaw); steering twists the bike body a little, then it settles back.
+    if(!s.sliding){s.sliding=true;s.slideDir=0;s.slideBudget=0;s.slideHeld=0;s.airTwist=true;s.moveYaw=s.yaw||0;}
+    const twist=wrapAngle((s.yaw||0)-s.moveYaw);
+    yawRate=st*AIR_YAW*Math.max(0,1-Math.max(0,Math.sign(st)*twist)/AIR_TWIST)-(st?0:twist*2);
   }else{
-    if(!onG&&s.sliding){s.sliding=false;s.moveYaw=s.yaw||0;}
-    yawRate=onG?kin*(1-mix)+fromLean*mix:st*AIR_YAW;
+    s.airT=0;yawRate=kin*(1-mix)+fromLean*mix;
   }
   s.slipAngle=s.sliding?wrapAngle((s.yaw||0)-s.moveYaw):0;
   s.drift=s.sliding?s.slideDir:0;

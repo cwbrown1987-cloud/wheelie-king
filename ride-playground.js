@@ -151,13 +151,14 @@ function buildProps(){
   for(let i=0;i<6;i++)boulder(88+rnd()*34,62+rnd()*20);
   for(let i=0;i<5;i++)stump(88+rnd()*34,62+rnd()*20);
   // downhill: trees and boulders scattered off the road, rocks and logs near it to pick lines through
-  for(let i=0;i<170;i++){const u=10+rnd()*385,side=rnd()<.5?-1:1,dz=side*(DESCENT.road/2+3+rnd()**1.6*70),z=descentRoadZ(u)+dz;if(Math.abs(z)>DESCENT.half)continue;
+  for(let i=0;i<170;i++){const u=10+rnd()*385,side=rnd()<.5?-1:1,dz=side*(DESCENT.road/2+5+rnd()**1.6*70),z=descentRoadZ(u)+dz;if(Math.abs(z)>DESCENT.half)continue;
     const x=DESCENT.x0-u;rnd()<.75?tree(x,z):boulder(x,z);}
   for(let i=0;i<40;i++){const u=10+rnd()*385,side=rnd()<.5?-1:1,z=descentRoadZ(u)+side*(DESCENT.road/2+1+rnd()*10);rnd()<.8?rock(DESCENT.x0-u,z,2.5+rnd()*1.5):log(DESCENT.x0-u,z,rnd()*3.14);}
   // a few logs to hop across the open ground near spawn
   log(-12,6,Math.PI/2);log(-20,6,Math.PI/2+.3);log(-28,6,Math.PI/2-.2);
-  // keep posts off the circuit lines and loop run-ins
-  return out.filter(p=>!(p.post&&(Math.abs(p.z-54)<3||Math.abs(p.z-26)<3)&&p.x<85));
+  // keep posts off the circuit lines and loop run-ins, and at least 6 m from the downhill road's centre line
+  const roadDist=(x,z)=>{const u0=DESCENT.x0-x;if(u0<-15||u0>DESCENT.len+15)return 1e9;let m=1e9;for(let du=-15;du<=15;du+=.5){const u=Math.max(0,Math.min(DESCENT.len,u0+du));m=Math.min(m,Math.hypot(du,z-descentRoadZ(u)));}return m;};
+  return out.filter(p=>!(p.post&&(Math.abs(p.z-54)<3||Math.abs(p.z-26)<3)&&p.x<85)&&!(p.post&&roadDist(p.x,p.z)<6)&&!(p.bump&&roadDist(p.x,p.z)<DESCENT.road/2+.5));
 }
 export const PLAYGROUND_PROPS=buildProps();
 export const PLAYGROUND_POSTS=PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s}));

@@ -53,11 +53,15 @@ for(const [name,P] of Object.entries(bikes)){
  {const s=fresh(P,{x:t.x-6,z:t.z});run(P,s,s=>({throttle:s.vx<2?1:0}),6);assert.equal(s.crashed,null,'slow into a tree: stops');assert.ok(s.x<t.x-t.r,'held back by the trunk '+s.x);}
  // rock garden: weaving through at speed over the rideable rocks stays upright (posts may crash, so steer clear of them)
  const rock=PLAYGROUND_PROPS.find(q=>q.m==='rock7');
- {const s=fresh(P,{x:rock.x-12,z:rock.z});let maxY=0;const g=s.y;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{maxY=Math.max(maxY,s.y-g)});assert.ok(!s.crashed||/HIT/.test(s.crashed),'rock hump rideable '+s.crashed);assert.ok(maxY>.05,'rode up the rock '+maxY);}
+ {const s=fresh(P,{x:rock.x-12,z:rock.z});let mc=0,air=0;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{mc=Math.max(mc,s.comp[0],s.comp[1]);if(!s.ground[0]&&!s.ground[1])air+=dt});assert.ok(!s.crashed||/HIT/.test(s.crashed),'rock hump rideable '+s.crashed);assert.ok(mc>.3,'suspension soaks up the rock '+mc);assert.ok(air<.3,'a rock at 6 m/s is not a jump '+air);}
  for(const x of [-12]){const s=fresh(P,{x:x+8,z:6,yaw:Math.PI});let maxY=0;const g=s.y;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{maxY=Math.max(maxY,s.y-g)});assert.equal(s.crashed,null,'log crossing');assert.ok(maxY>.15&&s.x<x-2,'rode over the log '+maxY+' '+s.x);}
 }
 // v2.1-10 downhill: ride the dirt road top to bottom (a simple line-follower), tabletops and rollers, no crash.
 for(const [name,P] of Object.entries(bikes)){const s=fresh(P,PLAYGROUND_PADS[0].to);let air=0;
- run(P,s,s=>{const L=3+s.vx*.4,u=DESCENT.x0-(s.x+L),zt=descentRoadZ(Math.max(0,u)),want=Math.atan2(zt-s.z,L),err=Math.atan2(Math.sin(want-s.yaw),Math.cos(want-s.yaw));return {throttle:s.vx<10?.5:0,brake:s.vx>12?.6:0,steer:Math.max(-1,Math.min(1,err*3))}},90,s=>{if(!s.ground[0]&&!s.ground[1])air+=dt});
+ run(P,s,s=>{const L=3+s.vx*.4,u=DESCENT.x0-(s.x+L),zt=descentRoadZ(Math.max(0,u)),want=Math.atan2(zt-s.z,L),err=Math.atan2(Math.sin(want-s.yaw),Math.cos(want-s.yaw)),air=!s.ground[0]&&!s.ground[1];return {throttle:s.vx<10?.5:0,brake:s.vx>12?.6:0,steer:air?0:Math.max(-1,Math.min(1,err*3))}},90,s=>{if(!s.ground[0]&&!s.ground[1])air+=dt});
  assert.equal(s.crashed,null,name+' downhill run');assert.ok(s.x>DESCENT.x0-5,name+' reached the bottom '+s.x);assert.ok(air>2,name+' got air on the way down '+air);}
+// v2.1-11: small hits soak up through tyre + suspension + rider instead of launching the bike
+{const P=bikes.emoto,log=PLAYGROUND_PROPS.find(p=>p.m==='log'&&p.x<0&&p.x>-30);for(const v of [6,11]){const s=fresh(P,{x:log.x-15,z:log.z,vx:v});let maxVy=0;run(P,s,s=>({throttle:s.vx<v?.6:0}),3,s=>{maxVy=Math.max(maxVy,s.vy)});assert.equal(s.crashed,null,'logs at '+v);assert.ok(maxVy<2.3,'a 30 cm log at '+v+' m/s only lightens the bike, vy '+maxVy);}}
+// in the air steering only twists the bike a little; the direction of travel holds
+{const P=bikes.emoto,r=PLAYGROUND_RAMPS[2],s=fresh(P,{x:r.x-25,z:r.z});let z0=null,twist=0;run(P,s,s=>{const air=!s.ground[0]&&!s.ground[1];if(air&&z0==null)z0=s.z;return {throttle:s.vx<8.3?1:0,steer:air?1:0}},6,s=>{if(!s.ground[0]&&!s.ground[1])twist=Math.max(twist,Math.abs(s.yaw||0))});assert.ok(twist<.45,'air twist is small '+twist);assert.equal(s.crashed,null,'lands the twist');}
 console.log('playground-classic: ok');

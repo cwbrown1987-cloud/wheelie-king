@@ -88,7 +88,7 @@ export function createBikeMotion(root,build={},find=()=>null) {
   const angular=-driveDistance/A.wheelR*(rearN/frontN);crankPhase+=angular;chainPhase+=angular*rF;
   let ra=[...A.rearAxle],sa=[...A.shockArm],angle=0;
   if(rear&&p){
-   const dx=A.rearAxle[0]-p[0],dy=A.rearAxle[1]-p[1],L=Math.hypot(dx,dy),targetY=A.rearAxle[1]+Math.min(.06,travelR)*.8*Math.max(0,Math.min(1,rearCompression));
+   const dx=A.rearAxle[0]-p[0],dy=A.rearAxle[1]-p[1],L=Math.hypot(dx,dy),targetY=A.rearAxle[1]+Math.min(.25,travelR)*.8*Math.max(0,Math.min(1,rearCompression));
    const goal=Math.PI-Math.asin(Math.max(-.99,Math.min(.99,(targetY-p[1])/L))),base=Math.atan2(dy,dx);
    angle=Math.atan2(Math.sin(goal-base),Math.cos(goal-base));rear.rotation.z=angle;ra=rotate(A.rearAxle,angle);sa=rotate(A.shockArm,angle);
    if(build.shock==='trax_coil'&&shock)setTraxShockPose(T,shock,A.shockFrame,sa);
