@@ -29,6 +29,7 @@ export function pauseMenuMarkup(level, { legacy = false } = {}) {
   </div>
   <button type="button" class="ride-pause-replay" data-r="menu-replay"><span aria-hidden="true">●</span> Replay last 20s</button>
   <button type="button" data-r="menu-gallery"><span aria-hidden="true">🖼</span> Gallery</button>
+  <button type="button" data-r="menu-workshop"><span aria-hidden="true">🔧</span> Back to workshop</button>
 </section>`;
 }
 
@@ -40,7 +41,7 @@ function levelOf(opts) {
 
 export function mountRidePause(ui, opts) {
   const {
-    getPaused, setPaused, onRespawn, onRestart, onMode, onReplay, onGallery, releaseControls, rootEl,
+    getPaused, setPaused, onRespawn, onRestart, onMode, onReplay, onGallery, onWorkshop, releaseControls, rootEl,
   } = opts;
   const fab = ui.querySelector('[data-r="pause"]');
   const menu = ui.querySelector('.ride-pause-menu');
@@ -99,6 +100,7 @@ export function mountRidePause(ui, opts) {
   ui.querySelector('[data-r="menu-restart"]').onclick = () => { close(true); onRestart?.(); };
   ui.querySelector('[data-r="menu-replay"]').onclick = () => { menu.hidden = true; onReplay?.(); };
   ui.querySelector('[data-r="menu-gallery"]')?.addEventListener('click', () => { menu.hidden = true; onGallery?.(); });
+  ui.querySelector('[data-r="menu-workshop"]')?.addEventListener('click', () => { menu.hidden = true; onWorkshop?.(); });
   trialsBtn?.addEventListener('click', () => pick('trials'));
   endlessBtn?.addEventListener('click', () => pick('flat'));
   arenaBtn?.addEventListener('click', () => pick('arena'));

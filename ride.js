@@ -513,6 +513,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     onMode: (next) => switchLevel(next),
     onReplay: () => { paused = true; el.toggleAttribute('data-wk-paused', true); replay.openFromPause(); },
     onGallery: () => { paused = true; el.toggleAttribute('data-wk-paused', true); pauseUi?.syncFab(true); replay.openGallery?.(); },
+    onWorkshop: () => close(), // same as the toolbar back button: save the ride result and return to the workshop
     releaseControls,
     rootEl: el,
     level,

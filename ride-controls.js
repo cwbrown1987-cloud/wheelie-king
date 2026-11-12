@@ -114,7 +114,7 @@ if(typeof document!=='undefined'){
  .ride-pause-fab{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:15;display:inline-flex;align-items:center;gap:8px;padding:11px 22px;font:900 15px system-ui;letter-spacing:.4px;cursor:pointer;border:2px solid #8dffb8;background:linear-gradient(180deg,#163528f2,#0d2418f2);color:#d9ffe8;box-shadow:0 0 18px #39ff7a55,0 6px 16px #000a;pointer-events:auto;border-radius:999px}
  .ride-pause-fab-ico{font-size:18px;line-height:1}
  .ride-pause-fab[aria-expanded=true],.ride-pause-fab:hover{background:linear-gradient(180deg,#a6f5b0,#6edc84);color:#142b1b;border-color:#c8ffd8}
- .ride-pause-menu{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:16;padding:18px 18px 16px;display:flex;flex-direction:column;gap:10px;width:min(360px,92vw);text-align:center;pointer-events:auto}
+ .ride-pause-menu{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:16;padding:18px 18px 16px;display:flex;flex-direction:column;gap:10px;width:min(360px,92vw);max-height:94%;overflow-y:auto;text-align:center;pointer-events:auto}
  .ride-pause-menu[hidden]{display:none!important}
  .ride-pause-head strong{display:block;color:#8cfca9;font:900 22px system-ui;letter-spacing:.6px}
  .ride-pause-head p{margin:4px 0 2px;font:600 12px system-ui;color:#b7dcc8;opacity:.9}
