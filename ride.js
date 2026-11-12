@@ -16,7 +16,7 @@ import { createJoltRide } from './ride-jolt.js';
 import { wrapAngle } from "./ride-freeroam.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
-import {rideControlsMarkup,mountLeanControls,mountSteerSlider,mountTricksMenu} from './ride-controls.js';
+import {rideControlsMarkup,mountLeanControls,mountSteerSlider,mountTricksMenu,mountStick} from './ride-controls.js';
 import {makeStuntRig} from './ride-tricks.js';
 import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
@@ -451,7 +451,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   $('[data-r="menu"]').onclick = () => close();
   $('[data-r="restart"]').onclick = () => respawn();
   const held = new Map(); // pointerId -> control
-  const leanControls=mountLeanControls(ui,touch);const steerSlider=mountSteerSlider(ui,touch);const tricksMenu=mountTricksMenu(ui,{autoClose:!arena});
+  const leanControls=mountLeanControls(ui,touch);const steerSlider=mountSteerSlider(ui,touch);const stick=mountStick(ui,touch);const tricksMenu=mountTricksMenu(ui,{autoClose:!arena});
   // Playground: wheelie/stoppie come from the body (throttle or brake + weight shift), not buttons.
   // Touch: drag the ACCELERATE thumb down = weight back (wheelie), drag the BRAKE thumb up = weight
   // forward (stoppie); the amount follows the drag. Keys: W/Up throttle, S/Down brake, Shift lean back,
@@ -512,7 +512,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   R.domElement.addEventListener('pointermove',lookMove,{passive:false});
   for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.addEventListener(ev,lookOff);
 
-  const releaseControls=()=>{hopQueued=false;held.clear();dragLean.clear();brakeLockId=null;brakeLockUi();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];leanControls.release();steerSlider.release();lookDrag=null;lookLast=null;ui.querySelectorAll('[data-t]').forEach(b=>{b.style.filter='';delete b.dataset.pressed})};
+  const releaseControls=()=>{hopQueued=false;held.clear();dragLean.clear();brakeLockId=null;brakeLockUi();for(const key of Object.keys(touch))touch[key]=0;for(const key of Object.keys(keys))delete keys[key];leanControls.release();steerSlider.release();stick.release();lookDrag=null;lookLast=null;ui.querySelectorAll('[data-t]').forEach(b=>{b.style.filter='';delete b.dataset.pressed})};
   const visibility=()=>{if(document.hidden){releaseControls();replay.setCaptureActive?.(false)}};
   const appCovered=()=>{if(document.hidden||document.body.dataset.playerView)return true;for(const n of document.querySelectorAll('[role=menu],[role=dialog],[aria-modal="true"]'))if(!el.contains(n)&&!n.hidden&&n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden')return true;return false};
   addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',visibility);
@@ -543,6 +543,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     cancelRewindHold();
     const restarting = finished;
     const keep = restarting ? {} : {score:s.score,odo:s.odo,battery:s.battery,bestWheelie:s.bestWheelie};
+    // v2.1-30: RECOVER puts you back where you crashed (facing the way you were going), not at a checkpoint
+    const spot = restarting ? null : {x:s.x,z:s.z||0,yaw:s.moveYaw??s.yaw??0};
     if (restarting) {
       lastCP = 2;
       cpI = flips = maxScore = finishTime = photoCount = 0;
@@ -570,7 +572,15 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     pauseUi?.syncFab(false);
     delete el.dataset.wkCrashed;
     recover.hidden = true;
-    s = Object.assign(makeState(P, lastCP, ter), keep);
+    if (spot && !freeRoam) s = Object.assign(makeState(P, Math.max(lastCP, spot.x - 1.5), ter), keep);
+    else s = Object.assign(makeState(P, lastCP, ter), keep);
+    if (spot && freeRoam && Number.isFinite(spot.x)) {
+      let {x,z}=spot;const yaw=spot.yaw; // side view snaps it square to the track on the next step
+      // step clear of whatever you hit (tree, rock, post) so you don't start inside it
+      for(const q of ter.posts||[]){const dx=x-q.x,dz=z-q.z,d=Math.hypot(dx,dz),need=q.r+1.2;if(d<need){const k=d>1e-6?need/d:0;x=q.x+(k?dx*k:-Math.cos(yaw)*need);z=q.z+(k?dz*k:-Math.sin(yaw)*need);}}
+      const base=makeState(P,0,ter).y-(ter.height?ter.height(0,0):0);
+      Object.assign(s,{x,z,yaw,moveYaw:yaw,y:(ter.height?ter.height(x,z):0)+base});
+    } else if (arena) s.z = SIDE_TRACK.z;
     if (restarting && !P.pedal && P.batteryWh <= 0) s.battery = 0;
     if(jolt?.ready&&physics==='jolt')jolt.adopt(s);
     pivot.position.set(s.x, s.y, s.z||0);
@@ -721,7 +731,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     // Playground: keys are on/off, so ease the lean in (full in ~0.35 s) and the front comes up progressively, not in a snap
     if(arena){const k=Math.min(1,dt*(Math.abs(leanKey)>Math.abs(keyLean)?3:6));keyLean+=Math.max(-k,Math.min(k,leanKey-keyLean));}else keyLean=leanKey;
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+keyLean-(touch.dragLean||0)))*-1;
-    // Playground air control on the pedals: in the air, throttle rotates the bike forward (front flip),
+    // Playground air control on the pedals (keyboard W/S only since v2.1-30): in the air, throttle rotates the bike forward (front flip),
     // brake rotates it back (backflip). Adds to any lean input.
     // Gas/brake already held at take-off don't count until you let go and press again, so holding the
     // throttle over a jump doesn't nose-dive you.
@@ -733,7 +743,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
        // a pedal held from take-off joins in after a moment in the air (so a small hop doesn't nose-dive you,
        // but on a real jump you can keep holding W or S to rotate)
        const held=Math.max(0,Math.min(1,(airPedal.t-.25)/.3));
-       const thr=(inp.throttle||0)*(airPedal.thrHeld?held:1),brk=(inp.brake||0)*(airPedal.brkHeld?held:1);
+       // v2.1-30: on touch the right-thumb gas/brake buttons don't rotate the bike (lean with the stick instead);
+       // keyboard W/S still do, as asked for on PC
+       const kThr=keys.w?1:0,kBrk=keys.s?1:0;
+       const thr=kThr*(airPedal.thrHeld?held:1),brk=kBrk*(airPedal.brkHeld?held:1);
        inp.lean=Math.max(-1,Math.min(1,inp.lean+brk-thr));}}
     // Side view: A/D lean (see leanKey), touch steer still steers.
     // Playground side view is the side-scroller: no sideways steering at all.

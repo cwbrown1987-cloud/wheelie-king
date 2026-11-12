@@ -33,7 +33,7 @@ function hud(p){
     const box=s=>{const e=vis(s);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,display:getComputedStyle(e).display};};
     return {
       view:st.cameraView,cam:document.querySelector('[data-wk-ride-surface]')?.dataset.wkCam,
-      steerDisplay:cs('.ride-steer').display,dpadDisplay:cs('.ride-dpad').display,
+      steerDisplay:cs('.ride-steer').display,dpadDisplay:cs('.ride-dpad').display,stickDisplay:cs('.ride-stick').display,
       leanButtons:cs('.ride-lean-buttons').display,
       tiltCopy:cs('.ride-tilt-copy').display,driveLabel:cs('.ride-drive-label').display,
       hop:box('[data-t=hop]'),throttle:box('[data-t=throttle]'),brake:box('[data-t=brake]'),
@@ -57,12 +57,12 @@ try{
   {
     const {p,errors}=await openRide(browser,{width:844,height:390,track:null});
     const side=await hud(p);
-    assert.equal(side.dpadDisplay,'none','Trials side view keeps the old lean buttons, not the d-pad');
+    assert.equal(side.stickDisplay,'none','Trials side view keeps the old lean buttons, not the thumb stick');
     assert(side.leanButtons!=='none');
     await p.locator('[data-r=view]').tap();
     await waitChase(p);
     const chase=await hud(p);
-    assert.notEqual(chase.dpadDisplay,'none','chase HUD must apply on Trials too');
+    assert.notEqual(chase.stickDisplay,'none','chase HUD (thumb stick) must apply on Trials too');assert.equal(chase.dpadDisplay,'none','v2.1-30: the d-pad is replaced by the thumb stick');
     assert(chase.hop.x>500);
 
     // Trials / Endless keep the old keys: arrows + WASD still drive and lean

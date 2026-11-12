@@ -15,6 +15,7 @@ export const rideControlsMarkup=({playground=false}={})=>`<div class="ride-contr
   <button type="button" class="ride-dpad-right" data-t="steerRight" aria-label="Steer right"><span aria-hidden="true">▶</span><small>RIGHT</small></button>
   <button type="button" class="ride-dpad-down" data-t="leanBack" aria-label="Tilt back"><span aria-hidden="true">▼</span><small>DOWN</small></button>
  </div>
+ <div class="ride-stick" role="slider" aria-label="Steer and lean: left/right steers, up leans forward, down leans back" aria-valuenow="0"><div class="ride-stick-knob"></div><span class="ride-stick-hint">STEER · LEAN</span></div>
  <div class="ride-tricks"><button class="ride-slow" data-r="slow" aria-pressed="false" hidden>SLOW MO</button><button type="button" class="ride-tricks-toggle" data-r="tricks" aria-label="Tricks" aria-expanded="false" aria-haspopup="true">TRICKS</button>${playground?`<div class="ride-tricks-fan ride-moves" role="group" aria-label="Moves">${PLAYGROUND_MOVES.map(([k,l])=>moveButton(k,l)).join('')}</div>`:`<div class="ride-tricks-fan">${[['tailwhip','TAILWHIP'],['barspin','BARSPIN'],['superman','SUPERMAN'],['trick','360']].map(([key,label])=>trickButton(key,label)).join('')}</div>`}</div>
  <div class="ride-brake-lock" hidden>BRAKE LOCK</div>
  <div class="ride-drive-buttons">${driveButton('brake','Brake / reverse',brakeIcon)}${driveButton('throttle','Accelerate',gasIcon)}</div>
@@ -29,6 +30,26 @@ export function mountSteerSlider(ui,touch){
  const release=()=>{touch.steer=0;touch.steerLeft=0;touch.steerRight=0};
  release();
  return {update(){},release,state:()=>({value:(touch.steerRight||0)-(touch.steerLeft||0),dragging:!!(touch.steerLeft||touch.steerRight)})};
+}
+// v2.1-30: analog thumb stick (left thumb), like Descenders / Riders Republic on a pad: left-right steers, up leans
+// forward, down leans back (wheelie / air rotation). Gas and brake stay on the right thumb and don't rotate the bike
+// in the air any more. The stick swallows its pointer so dragging it never swings the camera.
+export function mountStick(ui,touch){
+ const el=ui.querySelector('.ride-stick'),knob=el?.querySelector('.ride-stick-knob');
+ const release=()=>{touch.stickX=0;touch.stickY=0;touch.steerLeft=0;touch.steerRight=0;touch.leanForward=0;touch.leanBack=0;if(knob)knob.style.transform='';el?.classList.remove('is-held');id=null;};
+ let id=null,cx=0,cy=0;
+ if(!el)return {release,state:()=>({x:0,y:0})};
+ const R=()=>Math.max(30,el.clientWidth*.42),dead=.12;
+ const set=(ex,ey)=>{let dx=(ex-cx)/R(),dy=(ey-cy)/R();const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l;}
+  knob.style.transform=`translate(${dx*R()}px,${dy*R()}px)`;
+  const ax=Math.abs(dx)<dead?0:Math.sign(dx)*(Math.abs(dx)-dead)/(1-dead),ay=Math.abs(dy)<dead?0:Math.sign(dy)*(Math.abs(dy)-dead)/(1-dead);
+  touch.stickX=ax;touch.stickY=ay;touch.steerRight=Math.max(0,ax);touch.steerLeft=Math.max(0,-ax);touch.leanForward=Math.max(0,-ay);touch.leanBack=Math.max(0,ay);el.setAttribute('aria-valuenow',ax.toFixed(2));};
+ const stop=e=>{e.preventDefault();e.stopPropagation();};
+ el.addEventListener('pointerdown',e=>{stop(e);if(id!=null)return;id=e.pointerId;const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;el.classList.add('is-held');try{el.setPointerCapture(id)}catch{}set(e.clientX,e.clientY);});
+ el.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;stop(e);set(e.clientX,e.clientY);});
+ for(const t of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(t,e=>{if(e.pointerId!==id)return;stop(e);release();});
+ release();
+ return {release,state:()=>({x:touch.stickX||0,y:touch.stickY||0,held:id!=null})};
 }
 export function mountTricksMenu(ui,{autoClose=true}={}){
  const root=ui.querySelector('.ride-tricks:not(.ride-hop)');
@@ -264,6 +285,12 @@ if(typeof document!=='undefined'){
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-left{grid-column:1;grid-row:2}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-right{grid-column:3;grid-row:2}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad-down{grid-column:2;grid-row:3}
+ .ride-stick{display:none}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-dpad{display:none!important}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-stick{display:block;position:absolute;left:4px;bottom:4px;width:var(--stick-size,132px);height:var(--stick-size,132px);border-radius:50%;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;background:radial-gradient(circle at 50% 50%,rgba(10,22,40,.35) 0 55%,rgba(10,22,40,.55) 56% 100%);border:2px solid rgba(120,200,255,.55);box-shadow:0 0 0 1px rgba(0,0,0,.35),inset 0 0 18px rgba(63,184,255,.18);z-index:3}
+ [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-stick-knob{position:absolute;left:50%;top:50%;width:46%;height:46%;margin:-23% 0 0 -23%;border-radius:50%;background:radial-gradient(circle at 40% 35%,#eaf6ff,#7fc8ff 55%,#2f7fc0);box-shadow:0 3px 10px rgba(0,0,0,.45);transition:transform .12s ease-out;pointer-events:none}
+ [data-wk-ride-surface] .ride-stick.is-held .ride-stick-knob{transition:none}
+ [data-wk-ride-surface] .ride-stick-hint{position:absolute;left:0;right:0;top:-18px;text-align:center;font:800 9px system-ui;letter-spacing:.08em;color:rgba(230,244,255,.75);text-shadow:0 1px 2px #000;pointer-events:none}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive-buttons{right:0;bottom:0;display:flex;align-items:flex-end;gap:10px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive{flex-direction:column;gap:1px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive.brake{width:var(--chase-brake);height:var(--chase-brake)}

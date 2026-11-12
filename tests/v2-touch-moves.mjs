@@ -86,7 +86,7 @@ try{for(const bike of bikes){
  await p.waitForTimeout(700);const lock=await T();
  if(shots)await p.screenshot({path:`${shots}/touch-${bike}-brake-lock.png`});
  // steer with the other hand while locked
- const right=await rect('.ride-dpad-right');await touch('touchMove',[[3,thr],[4,right]]);await p.waitForTimeout(300);const steer=await p.evaluate(()=>__WK_RIDE_STATE__().inp.steer);
+ const right=await (async()=>{const r=await rect('.ride-stick');return {x:r.x+r.w*.95,y:r.y+r.h/2,w:1,h:1,cx:r.x+r.w*.95,cy:r.y+r.h/2};})();await touch('touchMove',[[3,thr],[4,right]]);await p.waitForTimeout(300);const steer=await p.evaluate(()=>__WK_RIDE_STATE__().inp.steer);
  await touch('touchEnd',[]);await p.waitForTimeout(200);const after=await T();
  R.brakeLock={lock:{thr:lock.thr,brk:lock.brk,mode:lock.mode,ui:lock.lockUi,tel:lock.brakeLock},steer,after:{thr:after.thr,brk:after.brk,ui:after.lockUi}};
  assert(lock.thr===1&&lock.brk===1&&lock.lockUi&&lock.brakeLock===true,'brake lock: brake + throttle held with indicator '+JSON.stringify(R.brakeLock));
