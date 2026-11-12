@@ -10,7 +10,7 @@ export const STEER_MAX_LOW=33*Math.PI/180,STEER_MAX_HIGH=10*Math.PI/180,STEER_TA
 // the tyres can carry, so a full-lock tap is a fast, leaned turn instead of an on-rails pivot.
 // AIR_YAW / AIR_TWIST (v2.1-11): in the air the rider can only twist the bike a little with body weight;
 // the direction of travel doesn't change until the tyres touch down again.
-export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.22,AIR_YAW=.6,AIR_TWIST=.35;
+export const STEER_GRIP_G=1.6,WALL_STEP=.28,LEAN_TAU=.22,AIR_YAW=.6,AIR_TWIST=.35,HOP_T=.22,LAND_HOOK=.5;
 // Brake slides. The bike body (yaw) and its direction of travel (moveYaw) split apart:
 // - tap the brake while turning at speed -> the rear steps out and the bike swings round, up to ~180 deg
 //   at full speed, then grips up (facing back if it went all the way round);
@@ -60,7 +60,9 @@ export function stepHeading(s,inp,dt,p){
   }
   if(onG&&s.sliding&&s.airTwist){
     s.airTwist=false;const g=wrapAngle((s.yaw||0)-s.moveYaw);
-    if(Math.abs(g)<.12||v<SLIDE.minSpeed*.5){s.sliding=false;s.moveYaw=s.yaw||0;}else{s.slideDir=Math.sign(g);s.slideBudget=0;s.slideHeld=0;}
+    // v2.1-26: a landing a bit crossed-up just hooks up: the tyres bite and pull the travel round to where the bike
+    // points, costing some speed (scrub). Only a properly sideways landing (> ~30 deg) turns into a slide.
+    if(Math.abs(g)<LAND_HOOK||v<SLIDE.minSpeed*.5){s.sliding=false;s.vx=v*(.35+.65*Math.cos(g));s.moveYaw=s.yaw||0;}else{s.slideDir=Math.sign(g);s.slideBudget=0;s.slideHeld=0;}
   }
   let yawRate;
   if(s.sliding&&onG){
@@ -87,7 +89,7 @@ export function stepHeading(s,inp,dt,p){
       else s.vx*=Math.cos(g2);
       s.sliding=false;s.moveYaw=s.yaw||0;
     }
-  }else if(!onG&&(s.airT=(s.airT||0)+dt)<.08){
+  }else if(!onG&&(s.airT=(s.airT||0)+dt)<HOP_T){
     yawRate=onG?0:kin*(1-mix)+fromLean*mix; // a skip off a bump: carry on turning as on the ground, no slide
   }else if(!onG){
     // Airborne: travel direction is locked (moveYaw); steering twists the bike body a little, then it settles back.

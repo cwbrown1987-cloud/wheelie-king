@@ -276,7 +276,17 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   // particles: one instanced pool (roost, landing dust, puddle splash, scrape sparks)
   const NP = 260, pm = new T.InstancedMesh(new T.BoxGeometry(0.06, 0.06, 0.06), new T.MeshBasicMaterial({ color: "#fff" }), NP); pm.userData.wkFx = 1; pm.frustumCulled = false; scene.add(pm);
   const parts = Array.from({ length: NP }, () => ({ life: 0 })); let pi = 0; const o3 = new T.Object3D(), col = new T.Color();
-  const smoke=new T.InstancedMesh(new T.SphereGeometry(.12,8,6),new T.MeshBasicMaterial({color:'#c5cec5',transparent:true,opacity:.32,depthWrite:false}),96),smokeParts=Array.from({length:96},()=>({life:0}));let smokeIndex=0;smoke.frustumCulled=false;smoke.userData.wkFx=1;scene.add(smoke);
+  // v2.1-26: smoke/dust are soft camera-facing puffs (radial-gradient billboards with per-puff fade), not
+  // see-through spheres: spheres showed hard rims where they cut into the ground and each other ("seams").
+  const smokeTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.45,'rgba(255,255,255,.55)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;})();
+  const smokeMat=new T.MeshBasicMaterial({map:smokeTex,transparent:true,depthWrite:false,fog:true});
+  const smokeAlpha=new T.InstancedBufferAttribute(new Float32Array(96),1);smokeAlpha.setUsage(T.DynamicDrawUsage);
+  smokeMat.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float puffA;varying float vPuffA;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPuffA=puffA;');sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPuffA;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.a*=vPuffA;');};
+  smokeMat.customProgramCacheKey=()=>'wk-puff';
+  const smokeGeo=new T.PlaneGeometry(1,1);smokeGeo.setAttribute('puffA',smokeAlpha);
+  const smoke=new T.InstancedMesh(smokeGeo,smokeMat,96),smokeParts=Array.from({length:96},()=>({life:0}));let smokeIndex=0;smoke.frustumCulled=false;smoke.userData.wkFx=1;smoke.renderOrder=2;
+  for(let i=0;i<96;i++)smoke.setColorAt(i,new T.Color('#c9c9c4'));scene.add(smoke);
+  const puffCol={asphalt:new T.Color('#cfd0cc'),dirt:new T.Color('#b59d7c')};
   const emit = (x, y, vx, vy, c, life = 0.8, g = 9.8, sz = 1, z) => { const p = parts[pi = (pi + 1) % NP]; Object.assign(p, { x, y, z: z==null?(Math.random()-.5)*.6:z+(Math.random()-.5)*.2, vx, vy, vz:(Math.random()-.5)*1.2, life, max: life, g, sz }); pm.setColorAt(pi, col.set(c)); pm.instanceColor.needsUpdate = true; };
   for (let i = 0; i < NP; i++) pm.setColorAt(i, col.set("#fff"));
   const slowKey = 'wk-trials-completed';
@@ -789,13 +799,13 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         // Light counts (mobile): 1–2 bits per slipping wheel, only at the contact patch.
         if(surface==='asphalt'){
           const n=Math.min(2,1+absS*.2);
-          for(let k=0;k<n;k++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy-.02,z:bz+(Math.random()-.5)*.05,vx:-cy*(.3+Math.random()*.8)+(Math.random()-.5)*.4,vy:.4+Math.random()*.75,life:1.2+Math.random()*.6});}
+          for(let k=0;k<n;k++){const j=smokeIndex++%smokeParts.length,particle=smokeParts[j],life=1.2+Math.random()*.6;Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy+.12,z:bz+(Math.random()-.5)*.05,vx:-cy*(.3+Math.random()*.8)+(Math.random()-.5)*.4,vy:.3+Math.random()*.5,life,max:life,sz:.7+Math.random()*.4,a:.34});smoke.setColorAt(j,puffCol.asphalt);}
         }else if(surface==='grass'){
           const n=Math.min(3,1+absS*.2);
           for(let k=0;k<n;k++)emit(bx+(Math.random()-.5)*.06,gy,-cy*(1.2+Math.random()*2.2)+ (Math.random()-.5)*1.2,1.4+Math.random()*2.2,Math.random()>.5?'#4d8a38':'#2f6a32',.5,12,.55,bz+(Math.random()-.5)*.06);
         }else{
           const n=Math.min(2,1+absS*.18);
-          for(let k=0;k<n;k++){const particle=smokeParts[smokeIndex++%smokeParts.length];Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy-.02,z:bz+(Math.random()-.5)*.05,vx:-cy*(.25+Math.random()*.6)+(Math.random()-.5)*.35,vy:.35+Math.random()*.55,life:.9+Math.random()*.5});}
+          for(let k=0;k<n;k++){const j=smokeIndex++%smokeParts.length,particle=smokeParts[j],life=.8+Math.random()*.5;Object.assign(particle,{x:bx+(Math.random()-.5)*.05,y:gy+.1,z:bz+(Math.random()-.5)*.05,vx:-cy*(.25+Math.random()*.6)+(Math.random()-.5)*.35,vy:.2+Math.random()*.35,life,max:life,sz:.55+Math.random()*.35,a:.22});smoke.setColorAt(j,puffCol.dirt);}
           for(let k=0;k<Math.min(2,1+absS*.15);k++)emit(bx,gy,-cy*(2+Math.random()*3+absS*.15),1.2+Math.random()*2.4,Math.random()>.6?'#6a4228':'#8a5a32',.5,9.8,.85,bz);
         }
       }
@@ -816,7 +826,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     // particles update
     for (let i = 0; i < NP; i++) { const p = parts[i]; if (p.life > 0) { p.life -= dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z=(p.z||0)+(p.vz||0)*dt; const gy=freeRoam?ter.height(p.x,p.z||0):ter.h(p.x); if (p.y < gy) { p.y = gy; p.vy *= -0.2; p.vx *= 0.5; p.vz=(p.vz||0)*.5; } o3.position.set(p.x, p.y, p.z); o3.scale.setScalar(Math.max(0.01, p.life / p.max) * p.sz); } else o3.scale.setScalar(0); o3.updateMatrix(); pm.setMatrixAt(i, o3.matrix); }
     pm.instanceMatrix.needsUpdate = true;
-    smokeParts.forEach((particle,i)=>{if(particle.life>0){particle.life-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;o3.position.set(particle.x,particle.y,particle.z);o3.scale.setScalar((1+(1-particle.life/1.8)*3)*Math.min(1,particle.life*3));}else o3.scale.setScalar(0);o3.updateMatrix();smoke.setMatrixAt(i,o3.matrix)});smoke.instanceMatrix.needsUpdate=true;
+    o3.quaternion.copy(cam.quaternion);
+    smokeParts.forEach((particle,i)=>{if(particle.life>0){particle.life-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;particle.vx*=1-1.2*dt;particle.vy*=1-.8*dt;const age=1-particle.life/particle.max;o3.position.set(particle.x,particle.y,particle.z);o3.scale.setScalar(particle.sz*(.35+age*1.4));smokeAlpha.array[i]=particle.a*Math.min(1,age*6)*Math.min(1,particle.life*1.6);}else{o3.scale.setScalar(0);smokeAlpha.array[i]=0;}o3.updateMatrix();smoke.setMatrixAt(i,o3.matrix)});o3.quaternion.identity();smoke.instanceMatrix.needsUpdate=true;smokeAlpha.needsUpdate=true;if(smoke.instanceColor)smoke.instanceColor.needsUpdate=true;
     // Rider and bike inherit momentum, then collide as separate constrained bodies.
     const bikeZ=freeRoam?(s.z||0):0,bikeYaw=freeRoam?(s.yaw||0):0;
     if(rewinding){pivot.position.set(s.x,s.y,bikeZ);pivot.rotation.set(0,-bikeYaw,s.pitch);}
