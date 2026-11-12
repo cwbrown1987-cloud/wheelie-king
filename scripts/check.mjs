@@ -38,6 +38,7 @@ function resolveChangedTests(){
   {re:/^(ride-(playground|jolt|pause|profile|controls)|version)\.js$/, tests:['v34-flat','v34-parts','v34-controls','v34-rewind','v2-new-frame','v34-tricks-ui','v2-playground-rewind']},
   {re:/^(ride-quality|ride-lod|ride-themes)/, tests:['ride-quality','ride-lod','ride-themes','quality-lifecycle']},
   {re:/^crash-/, tests:['crash-physics','crash-ride']},
+  {re:/^(rider-clothes|clothing-catalogue|gear-(catalogue|state)|player-lounge|thumbs|rider-ubc)|^assets\/clothing\//, tests:['rider-clothes','player-rooms','v2-rider']},
   {re:/^ride-environment/, tests:['ride-midground','scene-depth','race-balance']},
   {re:/^(rider-model|rider-spec|gear-models|gear-catalogue|gear-state)/, tests:['rider-outfit']},
   {re:/^(rider-ubc|vendor\/GLTFLoader)/, tests:['v2-rider']},

@@ -5,6 +5,8 @@
 // Same interface as rider-model.js (update / joints / ragdoll / attach / state) for the crash rig.
 // Legacy keeps rider-model.js; this file is only used by the Playground.
 import { GLTFLoader } from './vendor/GLTFLoader.js';
+import { dressUbc, clothesGearVersion } from './rider-clothes.js';
+import { outfit as gearOutfit, gearStyle } from './gear-state.js';
 
 const URL_GLB = './assets/quaternius/ubc-superhero-male.glb';
 const HEIGHT = 1.74;      // standing height of the game's rider (m)
@@ -21,6 +23,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
   const grips = off(at.bars || A.hand || [A.headTop[0] - 0.04, A.headTop[1] + 0.2]);
   const gripW = at.gripHalfWidth || A.handWidth || 0.18, pegW = at.pegHalfWidth || 0.145, crankR = at.cranks || 0;
   const W = { stand: 0, wheelie: 0, lean: 0, oneHand: 0, kneeKnock: 0, roll: 0 };
+  let clothes = null, clothesSeen = -1; // equipped Clothing items (rider-clothes.js), skinned to this skeleton
   let model = null, bones = null, rest = null, pelvisRest = null, legLen = 0.86, armLen = 0.6, reach = { pitch: 0, shift: 0 }, error = null, meshes = 0;
   const target = { hip: new T.Vector3(), pitch: 0, roll: 0, hands: [new T.Vector3(), new T.Vector3()], feet: [new T.Vector3(), new T.Vector3()] };
 
@@ -71,6 +74,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     const L = n => root.worldToLocal(wpos(bones[n]));
     legLen = L('thigh_l').distanceTo(L('calf_l')) + L('calf_l').distanceTo(L('foot_l'));
     armLen = L('upperarm_l').distanceTo(L('lowerarm_l')) + L('lowerarm_l').distanceTo(L('hand_l'));
+    try { clothes = dressUbc(T, model); } catch (e) { console.error('rider clothes', e); }
     api.update(lastArgs);
   }).catch(e => { error = e.message || String(e); console.error('Playground rider failed to load', e); });
 
@@ -243,6 +247,10 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     root,
     update(args = {}) {
       lastArgs = args; targets(args); solve();
+      if (clothes) {
+        if (clothesSeen !== clothesGearVersion()) { clothesSeen = clothesGearVersion(); clothes.wear(gearOutfit(), gearStyle()); }
+        const s = args.s || {}; clothes.update(args.dt || 0, Math.hypot(s.vx || 0, s.vz || 0));
+      }
     },
     // World joint points for the crash rig (same keys as rider-model.js).
     joints() {
@@ -287,14 +295,14 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
       }
     },
     attach() { body.add(root); root.position.set(0, 0, 0); root.quaternion.identity(); root.scale.setScalar(1); this.update(lastArgs); },
-    setOutfit() {}, appearance() {},
+    setOutfit() { clothesSeen = -1; }, appearance() {},
     state() {
       const handErr = [], footErr = [];
       if (model) { for (const [s, i] of [['l', 0], ['r', 1]]) { handErr.push(wpos(bones['hand_' + s]).distanceTo(W2(target.hands[i]))); footErr.push(wpos(bones['foot_' + s]).distanceTo(W2(target.feet[i]))); } }
       return { kind: 'ubc', reference: 'Quaternius Universal Base Character (CC0)', loaded: !!model, error, meshes,
         weights: { ...W }, hip: target.hip.toArray(), pitchDeg: (target.pitch + reach.pitch) * 180 / Math.PI, reachFoldDeg: reach.pitch * 180 / Math.PI, reachShiftM: reach.shift, armLen,
         hipWorld: model ? wpos(bones.pelvis).toArray() : null, gripMeshes: gripMeshes ? gripMeshes.map(o => o.name) : null, dyn: { absorbM: D.y, attack: D.attack, rough: D.rough, back: D.back, look: D.look }, handErrM: handErr, footErrM: footErr,
-        legLen, attach: { seat: seat.toArray(), pegs: pegs.toArray(), grips: grips.toArray(), gripW, pegW, crankR } };
+        legLen, clothes: clothes ? clothes.state() : null, attach: { seat: seat.toArray(), pegs: pegs.toArray(), grips: grips.toArray(), gripW, pegW, crankR } };
     },
   };
   return api;

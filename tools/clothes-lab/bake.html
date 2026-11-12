@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Wheelie King · bake base garments</title>
+<script type="importmap">{"imports":{"three":"../../vendor/three.module.js"}}</script>
+<body style="background:#222;color:#cfe;font:13px system-ui">
+<pre id="log">baking…</pre>
+<script type="module">
+// Bakes assets/clothing/base/*.glb + UV templates from the rider body (rider-clothes-bake.js).
+// Run tools/clothes-lab/bake.mjs (Playwright) to write the files; this page only produces them.
+import * as T from '../../vendor/three.module.js';
+import { GLTFLoader } from '../../vendor/GLTFLoader.js';
+import { GLTFExporter } from './GLTFExporter.js';
+import { bakeBases, BASES } from './garment-bake.js';
+const buf = await (await fetch('../../assets/quaternius/ubc-superhero-male.glb')).arrayBuffer();
+const parse = () => new GLTFLoader().parseAsync(buf.slice(0), '../../assets/quaternius/');
+const bodyOf = s => { let b = null; s.traverse(o => { if (o.isSkinnedMesh && (!b || o.geometry.attributes.position.count > b.geometry.attributes.position.count)) b = o; }); return b; };
+const first = await parse(); first.scene.updateMatrixWorld(true);
+const baked = bakeBases(T, bodyOf(first.scene));
+const files = {}, stats = {};
+const b64 = ab => { let s = ''; const u = new Uint8Array(ab); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+for (const [name, g] of Object.entries(baked)) {
+  const gl = await parse(), scene = gl.scene; scene.updateMatrixWorld(true); const body = bodyOf(scene), parent = body.parent;
+  const drop = []; scene.traverse(o => { if (o.isMesh) drop.push(o); }); drop.forEach(o => o.removeFromParent());
+  for (const piece of g.meshes) {
+    const geo = piece.geo; if (piece.role !== 'body' || name === 'trainers' || !g.spec.uvBox) { /* keep uv/color as baked */ }
+    const m = new T.SkinnedMesh(geo, new T.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, vertexColors: true }));
+    m.name = name + ':' + piece.role;
+    const { fit, ...spec } = g.spec;
+    m.userData.wkClothing = { version: 1, base: name, role: piece.role, ...spec, covers: piece.role === 'body' || (name === 'hood_up') ? g.covers : [] };
+    parent.add(m); m.bind(body.skeleton, body.bindMatrix);
+  }
+  scene.updateMatrixWorld(true);
+  const glb = await new GLTFExporter().parseAsync(scene, { binary: true });
+  files[name + '.glb'] = b64(glb);
+  const main = g.meshes[0].geo;
+  stats[name] = { verts: g.meshes.reduce((a, p) => a + p.geo.attributes.position.count, 0), tris: g.meshes.reduce((a, p) => a + p.geo.index.count / 3, 0), bytes: glb.byteLength, covers: g.covers.length,
+    box: (() => { main.computeBoundingBox(); const b = main.boundingBox; return [b.min.toArray().map(v => +v.toFixed(3)), b.max.toArray().map(v => +v.toFixed(3))]; })(), pieces: g.meshes.map(p => p.role) };
+  // UV template
+  if (g.spec.uvBox) {
+    const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, S, S); x.fillStyle = '#eef3f8'; x.fillRect(0, 0, S, S / 2);
+    const uv = main.attributes.uv, idx = main.index.array; x.strokeStyle = 'rgba(40,60,90,0.45)'; x.lineWidth = 1; x.beginPath();
+    for (let t = 0; t < idx.length; t += 3) { for (let k = 0; k < 3; k++) { const i = idx[t + k], j = idx[t + (k + 1) % 3]; x.moveTo(uv.getX(i) * S, (1 - uv.getY(i)) * S); x.lineTo(uv.getX(j) * S, (1 - uv.getY(j)) * S); } }
+    x.stroke(); x.strokeStyle = '#d33'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, S / 2); x.lineTo(S, S / 2); x.stroke();
+    const B = g.spec.uvBox, label = (t, px, py, size = 30, col = '#123') => { x.font = `800 ${size}px system-ui`; x.textAlign = 'center'; x.fillStyle = col; x.fillText(t, px, py); };
+    const toPx = (X, Y, back) => [back ? (B[2] - X) / (B[2] - B[0]) * S : (X - B[0]) / (B[2] - B[0]) * S, back ? S - (Y - B[1]) / (B[3] - B[1]) * S / 2 : S / 2 - (Y - B[1]) / (B[3] - B[1]) * S / 2];
+    if (name === 'trainers') { label('OUTER SIDE (both feet)', S / 2, 40); label('INNER SIDE (both feet)', S / 2, S / 2 + 40); for (const v of [0, 1]) { label('◀ HEEL', 80, S / 2 * v + S / 4, 22, '#a33'); label('TOE ▶', S - 80, S / 2 * v + S / 4, 22, '#a33'); } }
+    else {
+      label('FRONT (seen from the front)', S / 2, 36); label('BACK (seen from behind)', S / 2, S / 2 + 36);
+      if (g.spec.cuffX) for (const back of [0, 1]) for (const sd of [-1, 1]) { const [px, py] = toPx(sd * (0.25 + g.spec.cuffX) / 2, 1.47, back); label((sd > 0 ? 'LEFT' : 'RIGHT') + ' SLEEVE', px, py - 40, 20, '#36a'); }
+      if (g.spec.uvBox[1] < 0.6) for (const back of [0, 1]) for (const sd of [-1, 1]) { const [px, py] = toPx(sd * 0.12, 0.62, back); label((sd > 0 ? 'LEFT' : 'RIGHT') + ' LEG', px, py, 18, '#36a'); }
+      x.setLineDash([6, 4]); x.strokeStyle = '#0a7'; x.lineWidth = 2;
+      for (const [k, a] of Object.entries(g.spec.anchors || {})) { const back = k === 'back' ? 1 : 0, [px, py] = toPx(a[0], a[1], back), w = (k === 'thigh' ? 0.12 : 0.26) / (B[2] - B[0]) * S, h = w / 5.5; x.strokeRect(px - w / 2, py - h / 2, w, h); label(k, px, py + h / 2 + 18, 15, '#0a7'); }
+      x.setLineDash([]);
+    }
+    const small = document.createElement('canvas'); small.width = small.height = 512; small.getContext('2d').drawImage(c, 0, 0, 512, 512);
+    files[name + '-uv-template.png'] = small.toDataURL('image/png').split(',')[1];
+  }
+}
+document.getElementById('log').textContent = JSON.stringify(stats, null, 1);
+window.__BAKE__ = { files, stats, specs: BASES };
+</script>

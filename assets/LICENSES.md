@@ -39,3 +39,12 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | --- | --- | --- | --- | --- |
 | Buildings, roads, paths, parks around Korumburra, Victoria (bbox 145.8146,-38.4397,145.8330,-38.4253) | `towns/korumburra/town.json`, `towns/korumburra/roofs.bin` | © OpenStreetMap contributors, https://www.openstreetmap.org/copyright | ODbL 1.0 (attribution shown on the in-game town sign) | Playground real town: building footprints/heights, road network |
 | Elevation, 4 m resample of zoom-15 Terrarium tiles | `towns/korumburra/terrain.bin` | AWS Terrain Tiles (Tilezen/Mapzen), https://registry.opendata.aws/terrain-tiles/ (SRTM, GMTED, ETOPO1 and other public sources) | Open data, attribution | Playground real town ground |
+
+## Rider clothing base garments (derived, CC0)
+
+- `assets/clothing/base/*.glb` and `*-uv-template.png`: hoodie, hood-up, crewneck jumper, t-shirt, joggers, shorts and trainers,
+  baked by `tools/clothes-lab/bake.html` from the Quaternius UBC body above (CC0), so they are CC0 as well. No other assets used.
+  Quaternius' free UBC outfit pack (Modular Character Outfits - Fantasy, CC0) was checked: it only has fantasy garments
+  (tunics, robes, armour, a hood), no hoodie, joggers, tee or trainers, so it was not used.
+- The HOODRICH wordmark on the Hoodrich items is drawn in code (`rider-clothes.js`) for this private build only. It is a real
+  brand's trademark, NOT CC0: remove those catalogue entries before any public release.

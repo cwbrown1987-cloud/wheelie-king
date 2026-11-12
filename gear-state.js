@@ -6,7 +6,10 @@ const saved=read();let owned=new Set([...STARTERS,...(Array.isArray(saved.owned)
 const savedEquip=saved.equipped||{};
 const stillOld=!Object.keys(savedEquip).length||Object.keys(OLD_DEFAULT).every(k=>(savedEquip[k]||OLD_DEFAULT[k])===OLD_DEFAULT[k]);
 if(!stillOld){for(const [slot,id]of Object.entries(savedEquip))if(owned.has(id)&&item(id)?.slot===slot)equipped[slot]=id}
-function save(){localStorage.setItem(KEY,JSON.stringify({owned:[...owned],equipped}));dispatchEvent(new CustomEvent('wk-gear-change'))}
+let style={...(saved.style&&typeof saved.style==='object'?saved.style:{})}; // clothing options, e.g. {hoodUp:true}
+function save(){localStorage.setItem(KEY,JSON.stringify({owned:[...owned],equipped,style}));dispatchEvent(new CustomEvent('wk-gear-change'))}
+export const gearStyle=()=>({...style});
+export function setGearStyle(key,value){if(value==null)delete style[key];else style[key]=value;save()}
 export const gearState=()=>({owned:[...owned],equipped:{...equipped}});
 export const outfit=()=>Object.fromEntries(Object.entries(equipped).map(([slot,id])=>[slot,item(id)]));
 export function equip(id){const p=item(id);if(!p||!owned.has(id)||p.slot==='display')return false;equipped[p.slot]=id;save();return true}

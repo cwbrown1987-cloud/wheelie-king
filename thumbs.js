@@ -10,6 +10,7 @@ import {componentModel,previewBuild,paintBuild} from './modular-render.js';
 import {makeRider} from './rider-model.js';
 import {gearModel} from './gear-models.js';
 import {RoomEnvironment} from './vendor/RoomEnvironment.js';
+import {clothesThumb,mountClothesPreview} from './rider-clothes-preview.js';
 PM.useThree(T);
 const find = (id) => globalThis.__WK_CAT__?.().items.find((i) => i.id === id);
 const MODEL_SLOTS = new Set(["motor", "battery", "chain", "sprocket_f", "sprocket_r", "suspension", "shock", "bars", "rear_frame", "frame", "stem", "seatpost", "pedals", "headset", "hubs", "body_panels", "number_plate", "grips", "seat", "rims", "tyres"]);
@@ -103,6 +104,7 @@ function frame(obj) {
 function dispose(o) { o.traverse((m) => { m.geometry?.dispose(); m.material && [].concat(m.material).forEach((x) => x.dispose()); }); }
 const cache = new Map();
 export function thumb(p, size = 96) {
+  if (p?.clothing) return clothesThumb(p, size); // Clothing: the real rider wearing it (async)
   const key = p.id + "@" + (size > 120 ? 2 : 1) + "x" + Math.min(STUDIO.retina, Math.max(1, Math.ceil(globalThis.devicePixelRatio || 1))); if (cache.has(key)) return cache.get(key);
   let url = null; try { const obj = modelFor(p); if (!obj) { cache.set(key, null); return null; }
     ensure(); const q = Math.min(STUDIO.retina, Math.max(1, Math.ceil(globalThis.devicePixelRatio || 1))), w = (size > 120 ? 240 : 128) * q, h = Math.round(w * 0.75), prev = R.getSize(new T.Vector2()); R.setSize(w, h, false); cam.aspect = w / h;
@@ -113,6 +115,7 @@ export function thumb(p, size = 96) {
 }
 let live = null;
 export function mount(el, p) { // big rotatable preview; returns cleanup
+  if (p?.clothing) { live?.stop(); return mountClothesPreview(el, p); }
   if (!el) return () => {}; ensure(); live?.stop();R.toneMappingExposure=p.gear?STUDIO.gearExposure:STUDIO.exposure; const obj = modelFor(p); if (!obj) return () => {};
   const pivot = new T.Group(); pivot.add(obj); holder.clear(); holder.add(pivot); cam.aspect=(el.clientWidth||300)/(el.clientHeight||220);frame(obj); pivot.rotation.set(0.15, -0.35, 0); placeContact(pivot);
   const cv = R.domElement; cv.style.cssText = "width:100%;height:100%;display:block;touch-action:none;cursor:grab"; cv.dataset.wkPreview = p.id; el.appendChild(cv);
