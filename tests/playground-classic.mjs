@@ -3,7 +3,7 @@
 // no rest creep, no random hops, hard turns and bump-turns don't flip, ramps launch and land.
 import assert from 'node:assert/strict';
 import {makePlaygroundTerrain,makeState,step,bikeParams} from '../ride-physics.js';
-import {DESCENT,descentRoadZ,PLAYGROUND_PADS,TERRAIN,PLAYGROUND_RAMPS,PLAYGROUND_LOOPS,PLAYGROUND_POSTS,PLAYGROUND_PROPS} from '../ride-playground.js';
+import {SIDE_TRACK,DESCENT,descentRoadZ,PLAYGROUND_PADS,TERRAIN,PLAYGROUND_RAMPS,PLAYGROUND_LOOPS,PLAYGROUND_POSTS,PLAYGROUND_PROPS} from '../ride-playground.js';
 const ter=makePlaygroundTerrain(),dt=1/60,N=8,D={throttle:0,brake:0,lean:0,steer:0,hop:0,trick:0};
 const bikes={emoto:bikeParams({kg:55,P:3000,nm:150,wb:1.25,wheelR:.33,travel:.15,shock:.15}),bmx:bikeParams({kg:11,powertrain:'human',wb:1.0,wheelR:.25})};
 const fresh=(P,pose={})=>{const s=makeState(P,0,ter),y0=s.y;Object.assign(s,pose);s.y=ter.height(s.x,s.z||0)+y0;return s};
@@ -66,4 +66,7 @@ for(const [name,P] of Object.entries(bikes)){const s=fresh(P,PLAYGROUND_PADS[0].
 {const P=bikes.emoto,r=PLAYGROUND_RAMPS[2],s=fresh(P,{x:r.x-25,z:r.z});let z0=null,twist=0;run(P,s,s=>{const air=!s.ground[0]&&!s.ground[1];if(air&&z0==null)z0=s.z;return {throttle:s.vx<8.3?1:0,steer:air?1:0}},6,s=>{if(!s.ground[0]&&!s.ground[1])twist=Math.max(twist,Math.abs(s.yaw||0))});assert.ok(twist<.45,'air twist is small '+twist);assert.equal(s.crashed,null,'lands the twist');}
 // v2.1-16: no mono from a standstill; you need to be rolling
 for(const [name,P] of Object.entries(bikes)){const s=fresh(P);let mx=0;run(P,s,{lean:1},2,s=>{mx=Math.max(mx,s.pitch)});assert.ok(mx<.2,name+' no wheelie at a standstill '+mx);}
+// v2.1-20: no vertical edges: ride across the side track's features and onto a ramp's side without stopping
+{const P=bikes.emoto;for(const u of [13,42,78,88]){const s=fresh(P,{x:SIDE_TRACK.x0+u,z:SIDE_TRACK.z-8,yaw:Math.PI/2,vx:6});let minV=9;run(P,s,s=>({throttle:s.vx<6?.7:0}),2.5,s=>{minV=Math.min(minV,s.vx)});assert.equal(s.crashed,null,'cross the side track at '+u);assert.ok(minV>3,'crossing at '+u+' keeps rolling '+minV);}
+ const r=PLAYGROUND_RAMPS[2],s=fresh(P,{x:r.x+5,z:r.z-6,yaw:Math.PI/2,vx:6});let minV=9;run(P,s,s=>({throttle:s.vx<6?.7:0}),2,s=>{minV=Math.min(minV,s.vx)});assert.equal(s.crashed,null,'ride onto a ramp from the side');assert.ok(minV>3,'ramp side is rideable '+minV);}
 console.log('playground-classic: ok');
