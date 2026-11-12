@@ -3,6 +3,7 @@
 // chevrons, the neon loop and ring, coins, start/finish arches and a city skyline against the sunset.
 // Everything is generated here (canvas textures for graffiti, fence, windows, chevrons, signs), plus the
 // ambientCG asphalt/concrete sets. Built to stay light: merged ribbons, instancing, emissive "glow" instead of lights.
+import { GLTFLoader as GLTF } from './vendor/GLTFLoader.js';
 import { NEON, NEON_PATH, NEON_GAPS, NEON_COINS, NEON_FEATURES, NEON_BOOSTS, NEON_LOOPS, neonProfile, neonAt, neonInGap } from './ride-neon.js';
 const TAU = Math.PI * 2;
 function rng(seed) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -40,16 +41,29 @@ function graffiti(T, seed) {
     const gb = g.createLinearGradient(0, h * .75, 0, h); gb.addColorStop(0, 'rgba(10,8,14,0)'); gb.addColorStop(1, 'rgba(10,8,14,.55)'); g.fillStyle = gb; g.fillRect(0, h * .75, w, h * .25);
   });
 }
-export function makeNeonWorld(T, root, { lowDetail = false } = {}) {
+export function makeNeonWorld(T, root, { lowDetail = false, GLTFLoader = GLTF } = {}) {
   const group = new T.Group(); group.name = 'environment:neon'; root.add(group); const res = [];
   const keep = o => (res.push(o), o);
+  const M = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), V = new T.Vector3(), S = new T.Vector3(1, 1, 1);
   const tl = new T.TextureLoader(), tex = (f, srgb, rep = 1) => { const t = keep(tl.load(f)); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = T.SRGBColorSpace; t.repeat.set(rep, rep); return t; };
   const W = NEON.width, half = W / 2, P = NEON_PATH, N = P.length;
   // ---- materials ----
   const asphalt = keep(new T.MeshStandardMaterial({ map: tex('./assets/ambientcg/Asphalt026C/Asphalt026C_Color.jpg', true), normalMap: lowDetail ? null : tex('./assets/ambientcg/Asphalt026C/Asphalt026C_NormalGL.jpg', false), roughnessMap: tex('./assets/ambientcg/Asphalt026C/Asphalt026C_Roughness.jpg', false), color: '#2f2a3a', roughness: .4, metalness: .2, envMapIntensity: .7 }));
   asphalt.normalScale?.set(.6, .6);
+  // v2.1-44 puddles: noise patches where the surface goes glassy and dark (reflects the sunset, like the picture)
+  const puddles = (mat, key, amount = 1) => { mat.customProgramCacheKey = () => 'wk-puddle-' + key; mat.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPW;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvPW=(modelMatrix*vec4(transformed,1.)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vPW;float pH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float pN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(pH(i),pH(i+vec2(1,0)),f.x),mix(pH(i+vec2(0,1)),pH(i+vec2(1,1)),f.x),f.y);}
+float wkPud;`).replace('#include <map_fragment>', `#include <map_fragment>
+wkPud=smoothstep(.56,.66,pN(vPW.xz*.32)*.7+pN(vPW.xz*1.3+5.)*.3)*${amount.toFixed(2)};diffuseColor.rgb*=1.-.45*wkPud;`).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+roughnessFactor=mix(roughnessFactor,.04,wkPud);`).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+normal=normalize(mix(normal,(viewMatrix*vec4(0.,1.,0.,0.)).xyz,wkPud));`); }; };
+  puddles(asphalt, 'road', 1);
   const concrete = keep(new T.MeshStandardMaterial({ map: tex('./assets/ambientcg/Concrete034/Concrete034_Color.jpg', true), normalMap: lowDetail ? null : tex('./assets/ambientcg/Concrete034/Concrete034_NormalGL.jpg', false), color: '#8a8094', roughness: .85, metalness: 0 }));
   const paving = keep(new T.MeshStandardMaterial({ map: tex('./assets/ambientcg/Concrete034/Concrete034_Color.jpg', true), color: '#2c2635', roughness: .45, metalness: .15, envMapIntensity: .6 }));
+  puddles(paving, 'pave', 1);
   const neonBlue = keep(new T.MeshBasicMaterial({ color: new T.Color('#47d4ff').multiplyScalar(2.2), toneMapped: false }));
   const neonPurple = keep(new T.MeshBasicMaterial({ color: new T.Color('#b55cff').multiplyScalar(2.2), toneMapped: false }));
   const glowTex = keep(canvasTex(T, 64, 64, (g, w, h) => { const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.35, 'rgba(255,255,255,.45)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, w, h); }));
@@ -100,13 +114,23 @@ export function makeNeonWorld(T, root, { lowDetail = false } = {}) {
   for (let s = 0; s < NEON.len; s += panel) { if (neonInGap(s) || neonInGap(s + panel)) continue; const p = neonAt(s + panel / 2), c = Math.cos(p.yaw), n = Math.sin(p.yaw);
     const m = new T.Mesh(wallGeo, graf[Math.floor((s / panel) * 7.31) % graf.length]); m.position.set(p.x + n * wallOff, wallH / 2, p.z - c * wallOff); m.rotation.y = -p.yaw; m.receiveShadow = true; m.name = 'neon:wall'; group.add(m);
     if (Math.round(s / panel) % 3 === 0) lampPos.push({ x: p.x + n * (wallOff - .35), z: p.z - c * (wallOff - .35), yaw: p.yaw }); }
-  // wall top coping
+  const housing = keep(new T.MeshStandardMaterial({ color: '#2a2630', roughness: .5, metalness: .6 }));
+  // wall top: steel railing and a strand of barbed wire, like the picture
+  { const railPts = [[], []]; for (let s2 = 0; s2 < NEON.len; s2 += 2) { if (neonInGap(s2)) { if (railPts[0].length > 1) { for (const k of [0, 1]) group.add(new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(railPts[k]), Math.max(2, railPts[k].length * 2), k ? .02 : .04, 5)), housing)); } railPts[0] = []; railPts[1] = []; continue; }
+      const p = neonAt(s2), n = Math.sin(p.yaw), c = Math.cos(p.yaw); railPts[0].push(new T.Vector3(p.x + n * wallOff, wallH + .9, p.z - c * wallOff)); railPts[1].push(new T.Vector3(p.x + n * (wallOff + .1), wallH + 1.25, p.z - c * (wallOff + .1))); }
+    for (const k of [0, 1]) if (railPts[k].length > 1) group.add(new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(railPts[k]), Math.max(2, railPts[k].length * 2), k ? .02 : .04, 5)), housing));
+    const posts2 = []; for (let s2 = 0; s2 < NEON.len; s2 += 3.5) { if (neonInGap(s2)) continue; const p = neonAt(s2); posts2.push([p.x + Math.sin(p.yaw) * wallOff, p.z - Math.cos(p.yaw) * wallOff]); }
+    const pi = new T.InstancedMesh(keep(new T.CylinderGeometry(.03, .03, 1.35, 5)), housing, posts2.length); posts2.forEach(([x, z], k) => { M.makeTranslation(x, wallH + .62, z); pi.setMatrixAt(k, M); }); pi.instanceMatrix.needsUpdate = true; pi.computeBoundingSphere(); group.add(pi); }
+  // ivy and shrubs at the foot of the wall (Quaternius bushes), and a few on the canal side
+  if (GLTFLoader) { const shrubs = []; const rr = rng(77); for (let s2 = 3; s2 < NEON.len; s2 += 3 + rr() * 6) { if (neonInGap(s2)) continue; const p = neonAt(s2), o = wallOff - .6 - rr() * .8; shrubs.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, s: .6 + rr() * .7, r: rr() * TAU }); }
+    for (let s2 = 10; s2 < NEON.len; s2 += 18 + rr() * 20) { if (neonInGap(s2)) continue; const p = neonAt(s2), o = -(half + 1.4 + rr() * 1.5); shrubs.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, s: .5 + rr() * .4, r: rr() * TAU }); }
+    new GLTFLoader().loadAsync('./assets/quaternius/nature/Bush_Common.gltf').then(g => { g.scene.updateMatrixWorld(true); g.scene.traverse(o => { if (!o.isMesh) return; [].concat(o.material).forEach(mm => { mm.alphaTest = .45; mm.transparent = false; mm.side = T.DoubleSide; mm.color?.multiplyScalar(.75); keep(mm); }); keep(o.geometry);
+      const inst = new T.InstancedMesh(o.geometry, o.material, shrubs.length); shrubs.forEach((b, k) => { Q.setFromAxisAngle(new T.Vector3(0, 1, 0), b.r); M.compose(V.set(b.x, 0, b.z), Q, S.set(b.s, b.s, b.s)).multiply(o.matrixWorld); inst.setMatrixAt(k, M); }); inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); inst.name = 'neon:shrubs'; group.add(inst); }); }).catch(() => {}); }
   // lamps: a little housing, a warm bulb, a light pool down the wall and on the ground (no real lights: cheap)
   const lampWarm = keep(new T.MeshBasicMaterial({ color: new T.Color('#ffcf8a').multiplyScalar(2), toneMapped: false }));
   const poolMat = keep(new T.MeshBasicMaterial({ map: glowTex, color: '#ffb46b', transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }));
-  const bulbGeo = keep(new T.BoxGeometry(.5, .14, .3)), poolGeo = keep(new T.PlaneGeometry(4.5, 4.5)), housing = keep(new T.MeshStandardMaterial({ color: '#2a2630', roughness: .5, metalness: .6 }));
+  const bulbGeo = keep(new T.BoxGeometry(.5, .14, .3)), poolGeo = keep(new T.PlaneGeometry(4.5, 4.5));
   const bulbs = new T.InstancedMesh(bulbGeo, lampWarm, lampPos.length), cases = new T.InstancedMesh(keep(new T.BoxGeometry(.6, .22, .4)), housing, lampPos.length), pools = new T.InstancedMesh(poolGeo, poolMat, lampPos.length * 2);
-  const M = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), V = new T.Vector3(), S = new T.Vector3(1, 1, 1);
   lampPos.forEach((l, k) => { E.set(0, -l.yaw, 0); Q.setFromEuler(E); V.set(l.x, wallH - .45, l.z); M.compose(V, Q, S); cases.setMatrixAt(k, M); V.y -= .1; M.compose(V, Q, S); bulbs.setMatrixAt(k, M);
     E.set(0, -l.yaw, 0); Q.setFromEuler(E); V.set(l.x - Math.sin(l.yaw) * .02, wallH - 2.2, l.z + Math.cos(l.yaw) * .02); M.compose(V, Q, S.set(1, 1.3, 1)); pools.setMatrixAt(k * 2, M);
     E.set(-Math.PI / 2, 0, 0); Q.setFromEuler(E); V.set(l.x - Math.sin(l.yaw) * 1.6, .03, l.z + Math.cos(l.yaw) * 1.6); M.compose(V, Q, S.set(1, 1, 1)); pools.setMatrixAt(k * 2 + 1, M); });
@@ -122,7 +146,7 @@ export function makeNeonWorld(T, root, { lowDetail = false } = {}) {
   const posts = new T.InstancedMesh(keep(new T.CylinderGeometry(.05, .05, fenceH + .1, 6)), housing, postPos.length); postPos.forEach(([x, z], k) => { M.makeTranslation(x, fenceH / 2, z); posts.setMatrixAt(k, M); }); posts.instanceMatrix.needsUpdate = true; posts.computeBoundingSphere(); group.add(posts);
   // ---- boost chevrons on the line (glowing ^^ arrows) + chevron signs on the wall ----
   const chevTex = keep(canvasTex(T, 256, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.lineWidth = 34; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#ffffff'; for (const y of [80, 170]) { g.beginPath(); g.moveTo(40, y + 50); g.lineTo(128, y - 30); g.lineTo(216, y + 50); g.stroke(); } }));
-  const chevMat = keep(new T.MeshBasicMaterial({ map: chevTex, color: new T.Color('#d07bff').multiplyScalar(1.8), transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 }));
+  const chevMat = keep(new T.MeshBasicMaterial({ map: chevTex, color: new T.Color('#f1e4ff').multiplyScalar(1.5), transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 }));
   const chev = []; for (const [a, b] of NEON_BOOSTS) for (let s = a + 1; s < b; s += 3.2) chev.push(s);
   const chevI = new T.InstancedMesh(keep(new T.PlaneGeometry(2.2, 2.2)), chevMat, chev.length);
   chev.forEach((s, k) => { const p = neonAt(s), h0 = neonProfile(s - .6), h1 = neonProfile(s + .6), pitch = Math.atan2(h1 - h0, 1.2); E.set(-Math.PI / 2 + pitch * 0, 0, 0); const q1 = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), -p.yaw - Math.PI / 2), q2 = new T.Quaternion().setFromAxisAngle(new T.Vector3(1, 0, 0), -Math.PI / 2 + pitch); Q.copy(q1).multiply(q2); V.set(p.x, neonProfile(s) + .04, p.z); M.compose(V, Q, S.set(1, 1, 1)); chevI.setMatrixAt(k, M); });
@@ -130,6 +154,8 @@ export function makeNeonWorld(T, root, { lowDetail = false } = {}) {
   const signTex = keep(canvasTex(T, 512, 160, (g, w, h) => { g.fillStyle = 'rgba(20,6,40,.85)'; g.fillRect(0, 0, w, h); g.lineWidth = 26; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#ffffff'; for (const x of [90, 220, 350]) { g.beginPath(); g.moveTo(x, 30); g.lineTo(x + 70, 80); g.lineTo(x, 130); g.stroke(); } }));
   const signMat = keep(new T.MeshBasicMaterial({ map: signTex, color: new T.Color('#c27bff').multiplyScalar(1.6), toneMapped: false }));
   const signGeo = keep(new T.PlaneGeometry(3.6, 1.1));
+  // purple >>> signs along the outside of raised sections (bridge, mega ramp, rooftop), seen from the side view
+  for (let s2 = 0; s2 < NEON.len; s2 += 9) { const h = neonProfile(s2); if (h < 2.6 || neonInGap(s2)) continue; const p = neonAt(s2), m = new T.Mesh(signGeo, signMat); m.position.set(p.x - Math.sin(p.yaw) * (half + .04), h - .85, p.z + Math.cos(p.yaw) * (half + .04)); m.rotation.y = -p.yaw + Math.PI; m.name = 'neon:side-chevrons'; group.add(m); }
   for (const s of NEON_FEATURES.chevrons) { const p = neonAt(s), c = Math.cos(p.yaw), n = Math.sin(p.yaw), m = new T.Mesh(signGeo, signMat); m.position.set(p.x + n * (wallOff - .08), 2.4, p.z - c * (wallOff - .08)); m.rotation.y = -p.yaw; m.name = 'neon:chevron-sign'; group.add(m); }
   // ---- concrete supports under raised bits (bridge, mega ramp, rooftop, containers) ----
   const pillarGeo = keep(new T.BoxGeometry(.7, 1, .7)), pillars = [];
@@ -164,15 +190,15 @@ export function makeNeonWorld(T, root, { lowDetail = false } = {}) {
   // ---- palms (procedural): curved trunk + drooping fronds ----
   const frondTex = keep(canvasTex(T, 128, 512, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = '#2f5a2a'; g.lineWidth = 6; g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.stroke(); for (let y = 10; y < h; y += 9) { const l = (w / 2 - 4) * Math.sin(Math.PI * y / h); g.strokeStyle = y % 18 ? '#3f7d33' : '#356b2c'; g.lineWidth = 5; g.beginPath(); g.moveTo(w / 2, y); g.lineTo(w / 2 - l, y + 26); g.moveTo(w / 2, y); g.lineTo(w / 2 + l, y + 26); g.stroke(); } }));
   const frondMat = keep(new T.MeshStandardMaterial({ map: frondTex, alphaTest: .4, side: T.DoubleSide, roughness: .8 })), trunkMat = keep(new T.MeshStandardMaterial({ color: '#6b5440', roughness: .95 }));
-  const frondGeo = keep(new T.PlaneGeometry(1.1, 4.2, 1, 6)); { const pa = frondGeo.attributes.position; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) + 2.1, t = y / 4.2; pa.setY(i, y * .9 - t * t * 1.6); pa.setZ(i, Math.abs(pa.getX(i)) * -.25); } frondGeo.translate(0, 0, 0); frondGeo.rotateX(Math.PI / 2); frondGeo.computeVertexNormals(); }
+  const frondGeo = keep(new T.PlaneGeometry(1.5, 5.4, 1, 8)); { const pa = frondGeo.attributes.position; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) + 2.7, t = y / 5.4; pa.setY(i, y * .9 - t * t * 1.6); pa.setZ(i, Math.abs(pa.getX(i)) * -.25); } frondGeo.translate(0, 0, 0); frondGeo.rotateX(Math.PI / 2); frondGeo.computeVertexNormals(); }
   const palms = []; const pr = rng(9);
   for (let s = 20; s < NEON.len; s += 22 + pr() * 30) { if (neonInGap(s)) continue; const p = neonAt(s), side = pr() < .55 ? -1 : 1, o = side > 0 ? wallOff + 2 + pr() * 6 : -(15 + pr() * 6); /* canal-side palms stand behind the side-view camera */ palms.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, h: 7 + pr() * 6, lean: (pr() - .5) * .5, rot: pr() * TAU, y0: side > 0 ? 0 : 0 }); }
   const trunkGeoCache = new Map();
-  const nPalms = lowDetail ? Math.ceil(palms.length / 2) : palms.length, frondI = new T.InstancedMesh(frondGeo, frondMat, nPalms * 8);
+  const nPalms = lowDetail ? Math.ceil(palms.length / 2) : palms.length, frondI = new T.InstancedMesh(frondGeo, frondMat, nPalms * 12);
   palms.slice(0, nPalms).forEach((pm, k) => { const pts = []; for (let t = 0; t <= 1.001; t += .25) pts.push(new T.Vector3(Math.sin(pm.lean) * pm.h * t * t * .5, pm.h * t, 0));
-    const g = keep(new T.TubeGeometry(new T.CatmullRomCurve3(pts), 8, .16, 6)); const trunk = new T.Mesh(g, trunkMat); trunk.position.set(pm.x, pm.y0, pm.z); trunk.rotation.y = pm.rot; trunk.castShadow = !lowDetail; group.add(trunk);
+    const g = keep(new T.TubeGeometry(new T.CatmullRomCurve3(pts), 10, .22, 7)); const trunk = new T.Mesh(g, trunkMat); trunk.position.set(pm.x, pm.y0, pm.z); trunk.rotation.y = pm.rot; trunk.castShadow = !lowDetail; group.add(trunk);
     const top = pts[pts.length - 1].clone().applyAxisAngle(new T.Vector3(0, 1, 0), pm.rot).add(new T.Vector3(pm.x, pm.y0, pm.z));
-    for (let f = 0; f < 8; f++) { E.set(0, f * TAU / 8 + pm.rot, 0, 'YXZ'); Q.setFromEuler(E); const tilt = new T.Quaternion().setFromAxisAngle(new T.Vector3(1, 0, 0), -.25 + (f % 2) * .15); Q.multiply(tilt); M.compose(top, Q, S.set(1, 1, 1)); frondI.setMatrixAt(k * 8 + f, M); } });
+    for (let f = 0; f < 12; f++) { E.set(0, f * TAU / 12 + pm.rot, 0, 'YXZ'); Q.setFromEuler(E); const tilt = new T.Quaternion().setFromAxisAngle(new T.Vector3(1, 0, 0), -.35 + (f % 3) * .18); Q.multiply(tilt); M.compose(top, Q, S.set(1, 1, 1)); frondI.setMatrixAt(k * 12 + f, M); } });
   frondI.instanceMatrix.needsUpdate = true; frondI.computeBoundingSphere(); frondI.castShadow = !lowDetail; group.add(frondI);
   // ---- skyline ----
   const winTex = keep(canvasTex(T, 128, 256, (g, w, h) => { g.fillStyle = '#1b1830'; g.fillRect(0, 0, w, h); const rr = rng(3); for (let y = 6; y < h; y += 12) for (let x = 6; x < w; x += 12) { const lit = rr(); g.fillStyle = lit > .72 ? (rr() < .7 ? '#ffd38a' : '#9fe7ff') : lit > .55 ? '#3a3560' : '#24203c'; g.fillRect(x, y, 7, 8); } }, { repeat: true }));

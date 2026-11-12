@@ -78,7 +78,7 @@ export function neonSafeS(s) { for (let g = 0; g < NEON_GAPS.length; g++) { cons
 export const neonInGap = s => NEON_GAPS.some(([a, b]) => s > a && s < b);
 export const NEON_CHECKPOINTS = [0, 320, 610, 905, 1220, 1420];
 // the loop (ride-loop): on the first straight, heading +x along z=0
-export const NEON_LOOPS = [{ id: 'neon-loop', x: NEON.loopS, y: 0, z: 0, w: 4.2, radius: 4.5, exitOffset: 3.5, zShift: 0, minSpeed: 5 }];
+export const NEON_LOOPS = [{ id: 'neon-loop', x: NEON.loopS, y: 0, z: 0, w: 4.2, radius: 6, exitOffset: 4.5, zShift: 0, minSpeed: 5 }]; // v2.1-44: big loop like the picture
 // --- coins --------------------------------------------------------------------------------------------------
 // trails along the ground and arcs over the jumps; ride through one to collect it
 function buildCoins() {
@@ -88,7 +88,10 @@ function buildCoins() {
   arc(356, 368, 3.0); line(410, 470, 3.5); line(497, 503, 2.5); arc(573, 595, 1.6); line(620, 690, 4); line(702, 758, 3, 1.3);
   arc(832, 856, 6.0); line(915, 990, 4); arc(1017, 1023, 1.2); arc(1047, 1053, 1.2); line(1152, 1188, 3); arc(1193, 1214, 1.8);
   line(1230, 1290, 4); arc(1307, 1317, 2.2); line(1340, 1410, 4); arc(1506, 1526, 3.8); line(1570, 1640, 3.5);
-  return c.map((o, i) => { const p = neonAt(o.s); return { id: i, s: o.s, x: p.x, z: p.z, y: o.y }; });
+  const out = c.map((o, i) => { const p = neonAt(o.s); return { id: i, s: o.s, x: p.x, z: p.z, y: o.y }; });
+  // a coin trail climbing round the loop (collected by distance, like the picture)
+  const L = { x: NEON.loopS, radius: 6, exitOffset: 4.5 }; for (let a = .35; a < Math.PI * 2 - .3; a += .32) { const r = L.radius - 1.05; out.push({ id: out.length, s: L.x + L.exitOffset * a / (Math.PI * 2), x: L.x + r * Math.sin(a) + L.exitOffset * a / (Math.PI * 2), z: 0, y: L.radius - r * Math.cos(a), loop: true }); }
+  return out;
 }
 export const NEON_COINS = buildCoins();
 // side dressing anchors the visuals use (left wall, right canal fence), and features to decorate
@@ -108,7 +111,7 @@ export function makeNeonTerrain() {
 // Hold the bike on the line: snap onto it, point it along it (it turns for you), lean into the bends for looks.
 // Boost pads (the purple chevrons): roll over one on the ground and it pushes you up to its speed, so even a
 // pedal bike can make the loop and the gaps. [from s, to s, speed m/s]
-export const NEON_BOOSTS = [[10, 26, 13], [98, 120, 16.5], [318, 354, 17], [468, 479, 13], [543, 567, 14.5], [770, 829, 22], [1093, 1149, 15], [1272, 1305, 15], [1458, 1504, 17.5]];
+export const NEON_BOOSTS = [[10, 26, 13], [96, 122, 19], [318, 354, 17], [468, 479, 13], [543, 567, 14.5], [770, 829, 22], [1093, 1149, 15], [1272, 1305, 15], [1458, 1504, 17.5]];
 export function neonLock(s, dt = 0) {
   if (s.loopRide) return;
   if (dt > 0 && (s.ground?.[0] || s.ground?.[1]) && !s.crashed) for (const [a, b, v] of NEON_BOOSTS) if ((s.trackS || 0) > a && (s.trackS || 0) < b && s.vx < v) { s.vx = Math.min(v, s.vx + 14 * dt); s.boosting = .4; }

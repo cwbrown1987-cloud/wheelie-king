@@ -824,7 +824,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         soccer?.step(dt,s,P);
         if(neon&&!finished&&!paused&&dt>0){if(!raceOn&&(s.trackS||0)>8)raceOn=true;if(raceOn)raceT+=dt;}
     if(neon&&!s.crashed){ // coins: ride through them; falling into a gap is a splash
-          for(let k=0;k<NEON_COINS.length;k++){const c=NEON_COINS[k];if(Math.abs(c.s-(s.trackS||0))<1.4&&Math.abs(c.y-(s.y-.35))<1.5&&neonWorld.takeCoin(k)){s.coins=(s.coins||0)+1;s.score+=10;}}
+          {const bx=s.x,by=s.y-.2,bz=s.z||0;for(let k=0;k<NEON_COINS.length;k++){const c=NEON_COINS[k];if(Math.abs(c.x-bx)<1.5&&Math.abs(c.z-bz)<2.2&&Math.abs(c.y-by)<1.5&&(c.x-bx)**2+(c.y-by)**2+(c.z-bz)**2<2.6&&neonWorld.takeCoin(k)){s.coins=(s.coins||0)+1;s.score+=10;}}} // 3D pickup (works round the loop)
           if(neonInGap(s.trackS||0)&&s.y<NEON.water+1.6){s.crashed='SPLASH! IN THE CANAL';s.events.push({type:'crash',why:s.crashed,part:'frame'});}
         }
         if(pgCoins&&!s.crashed){const n=pgCoins.collect(s.x,s.y-.35,s.z||0);if(n){s.coins=(s.coins||0)+n;s.score+=10*n;}}
