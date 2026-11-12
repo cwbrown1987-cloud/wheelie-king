@@ -2,6 +2,7 @@
 // ambientCG Ground086 texture, world-locked UVs. The HDRI sky and sun live in ride.js.
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {makeLoopMesh} from './ride-loop.js';
+import {makeSplatMaterial,fillSplat} from './ride-ground.js';
 const SIZE=2000,TILE=6;
 // Three table-top jumps (kicker, flat deck, landing), off to the side of the spawn line (z = 14 m) and
 // running along +X. Our own procedural geometry (no third-party asset). Jolt gets the same triangles
@@ -83,6 +84,42 @@ export function sideTrackProfile(u){
   return 0;
 }
 export function sideTrackHeight(x,z){const T=SIDE_TRACK;if(Math.abs(z-T.z)>T.w/2)return 0;return sideTrackProfile(x-T.x0);}
+// DOWNHILL (v2.1-10): a 400 m mountain west of spawn, Descenders style. A winding dirt road runs from the
+// top (60 m up, x = -480) down to the bottom (x = -80), with rollers and washboard on it; off the road the
+// ground is rough, lumpy and rolling (gullies and ridges), so you can feel the bike over real bumps.
+// Ride through the blue ring at the bottom to be put at the top facing down the road.
+export const DESCENT={x0:-80,len:400,top:80,half:110,fall:150,road:7};
+const hash=(i,j)=>{let h=(i*374761393+j*668265263)|0;h=(h^(h>>>13))*1274126177|0;return((h^(h>>>16))>>>0)/4294967295;};
+function vnoise(x,z){const i=Math.floor(x),j=Math.floor(z),fx=x-i,fz=z-j,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz);
+  const a=hash(i,j),b=hash(i+1,j),c=hash(i,j+1),d=hash(i+1,j+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+export const descentRoadZ=u=>34*Math.sin(u/46)+14*Math.sin(u/17+1)+6*Math.sin(u/7.3+2)*ss(u/40);
+const descentBase=u=>DESCENT.top*ss(u/DESCENT.len);
+// road features at distance u from the bottom: rollers and a couple of small drops/kickers
+function roadFeatures(u){
+  let y=0;
+  for(const c of [40,44,48,150,154,158,262,266,270])if(Math.abs(u-c)<2)y+=.35*(.5+.5*Math.cos(Math.PI*(u-c)/2)); // roller sets
+  for(const c of [110,215,330]){const t=c-u;if(t>0&&t<4)y+=.5*(t/4)**2;}                                       // drop kickers
+  // tabletops (kicker, 6 m flat table, landing): clear the table to land on the down-slope, Descenders style; you ride them heading downhill (u falling)
+  for(const c of [370,290,190,80]){const t=c-u;if(t>0&&t<4)y+=1.1*(t/4)**2;else if(t>=4&&t<10.6)y+=1.1;else if(t>=10.6&&t<18)y+=1.1*(1-ss((t-10.6)/7.4));}
+  return y+.05*Math.sin(u*2.4)*Math.sin(u*.37);                                                                  // washboard
+}
+export function descentInfo(x,z){
+  const D=DESCENT,u=D.x0-x;if(u<-20||u>D.len+20)return null;
+  const az=Math.abs(z),edge=az<D.half?1:1-ss((az-D.half)/D.fall);if(edge<=0)return null;
+  const uc=Math.max(0,Math.min(D.len,u)),dzr=z-descentRoadZ(uc),roadW=D.road/2;
+  const off=ss((Math.abs(dzr)-roadW)/9);                               // 0 on the road, 1 well off it
+  // the road runs down a valley: hills rise either side the further you get from it
+  const far=Math.max(0,Math.abs(dzr)-roadW),valley=Math.min(18,far*far/140)*ss(uc/40);
+  const roll=2.2*Math.sin(z/23+u/31)*Math.sin(u/19+.5)+1.0*Math.sin(z/11-u/13)+valley;
+  const rough=.35*(vnoise(x/7,z/7)-.5)*2+.15*(vnoise(x/2.5+40,z/2.5)-.5)*2;
+  const top=u>D.len?1:0;
+  const h=(descentBase(uc)+(1-off)*roadFeatures(uc)*(1-top)+off*(roll+rough)*ss(uc/25))*edge;
+  return {h:Math.max(0,h),road:(1-off)*(u>=0&&u<=D.len?1:0),u,off,dzr:Math.abs(dzr)};
+}
+export function descentHeight(x,z){const d=descentInfo(x,z);return d?d.h:0;}
+// Teleport rings: ride through one and you are placed at `to`.
+export const PLAYGROUND_PADS=[{id:'descent-start',x:DESCENT.x0+4,z:descentRoadZ(4)+9,r:1.8,to:{x:DESCENT.x0-DESCENT.len+6,z:descentRoadZ(DESCENT.len-6),yaw:0,vx:2}}];
+const baseHeight=(x,z)=>Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
 // PROPS (v2.1-8): CC0 Poly Haven rocks, logs, stumps and trees (assets/polyhaven, see LICENSES.md).
 // Two kinds of collision:
 //  - 'bump' props (small rocks, logs) are part of the ground: you ride over them like a hump;
@@ -113,13 +150,17 @@ function buildProps(){
   for(let i=0;i<5;i++)log(90+rnd()*30,64+rnd()*16,rnd()*3.14);
   for(let i=0;i<6;i++)boulder(88+rnd()*34,62+rnd()*20);
   for(let i=0;i<5;i++)stump(88+rnd()*34,62+rnd()*20);
+  // downhill: trees and boulders scattered off the road, rocks and logs near it to pick lines through
+  for(let i=0;i<170;i++){const u=10+rnd()*385,side=rnd()<.5?-1:1,dz=side*(DESCENT.road/2+3+rnd()**1.6*70),z=descentRoadZ(u)+dz;if(Math.abs(z)>DESCENT.half)continue;
+    const x=DESCENT.x0-u;rnd()<.75?tree(x,z):boulder(x,z);}
+  for(let i=0;i<40;i++){const u=10+rnd()*385,side=rnd()<.5?-1:1,z=descentRoadZ(u)+side*(DESCENT.road/2+1+rnd()*10);rnd()<.8?rock(DESCENT.x0-u,z,2.5+rnd()*1.5):log(DESCENT.x0-u,z,rnd()*3.14);}
   // a few logs to hop across the open ground near spawn
   log(-12,6,Math.PI/2);log(-20,6,Math.PI/2+.3);log(-28,6,Math.PI/2-.2);
   // keep posts off the circuit lines and loop run-ins
   return out.filter(p=>!(p.post&&(Math.abs(p.z-54)<3||Math.abs(p.z-26)<3)&&p.x<85));
 }
 export const PLAYGROUND_PROPS=buildProps();
-export const PLAYGROUND_POSTS=PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s}));
+export const PLAYGROUND_POSTS=PLAYGROUND_PROPS.filter(p=>p.post).map(p=>({x:p.x,z:p.z,r:p.post,kind:p.m,h:baseHeight(p.x,p.z)+(p.m==='tree'?2.7:p.m==='stump'?.55:1.8)*p.s}));
 const BUMPS=PLAYGROUND_PROPS.filter(p=>p.bump).map(p=>({x:p.x,z:p.z,c:Math.cos(p.rot),n:Math.sin(p.rot),...p.bump,log:p.m==='log'}));
 export function propHeight(x,z){
   let y=0;for(const b of BUMPS){const dx=x-b.x,dz=z-b.z;const R=Math.max(b.a,b.b)+.1;if(Math.abs(dx)>R||Math.abs(dz)>R)continue;
@@ -130,8 +171,7 @@ export function propHeight(x,z){
   }
   return y;
 }
-export const playgroundHeight=(x,z)=>Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),propHeight(x,z));
-const GROUND={Color:'./assets/ambientcg/Ground086/Ground086_1K-JPG_Color.jpg',NormalGL:'./assets/ambientcg/Ground086/Ground086_1K-JPG_NormalGL.jpg',Roughness:'./assets/ambientcg/Ground086/Ground086_1K-JPG_Roughness.jpg'};
+export const playgroundHeight=(x,z)=>baseHeight(x,z)+propHeight(x,z);
 const DIRT={Color:'./assets/ambientcg/Ground054/Ground054_1K-JPG_Color.jpg',NormalGL:'./assets/ambientcg/Ground054/Ground054_1K-JPG_NormalGL.jpg',Roughness:'./assets/ambientcg/Ground054/Ground054_1K-JPG_Roughness.jpg'};
 // Ramp triangles in world space (top surface + both side walls), shared by the drawn mesh and Jolt.
 export function rampTriangles(r){
@@ -151,9 +191,10 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
     if(srgb)t.colorSpace=T.SRGBColorSpace;
     t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(rep,rep);t.anisotropy=8;texs.push(t);return t;
   };
-  const mat=new T.MeshStandardMaterial({map:load(GROUND,'Color',true),normalMap:lowDetail?null:load(GROUND,'NormalGL'),roughnessMap:load(GROUND,'Roughness'),roughness:1,metalness:0});
-  const geo=new T.PlaneGeometry(SIZE,SIZE);
-  const floor=new T.Mesh(geo,mat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.name='environment:playground-floor';root.add(floor);
+  // v2.1-10: the floor is grass with worn dirt patches (ambientCG splat material, see ride-ground.js).
+  const splat=makeSplatMaterial(T,{lowDetail}),mat=splat.material;
+  const geo=fillSplat(T,new T.PlaneGeometry(SIZE,SIZE),[.88,.08,0,.02]);
+  const floor=new T.Mesh(geo,mat);floor.rotation.x=-Math.PI/2;floor.position.y=-.02;floor.receiveShadow=true;floor.name='environment:playground-floor';root.add(floor);
   const rampMat=new T.MeshStandardMaterial({color:0x9a958d,roughness:.85,metalness:0}),edgeMat=new T.MeshStandardMaterial({color:0xf2b233,roughness:.6});
   const rampGeos=[];
   for(const r of PLAYGROUND_RAMPS){
@@ -180,6 +221,28 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const sg=new T.BufferGeometry();sg.setAttribute('position',new T.Float32BufferAttribute(sp,3));sg.setAttribute('uv',new T.Float32BufferAttribute(su,2));sg.setAttribute('color',new T.Float32BufferAttribute(sc,3));sg.setIndex(si);sg.computeVertexNormals();
   const smesh=new T.Mesh(sg,tmat);smesh.receiveShadow=true;smesh.castShadow=!lowDetail;smesh.name='environment:side-track';root.add(smesh);
   for(const u of [2,ST.len-2]){const e=new T.Mesh(new T.BoxGeometry(.3,.03,ST.w),edgeMat);e.position.set(ST.x0+u,.02,ST.z);root.add(e);rampGeos.push(e.geometry);}
+  // Downhill mountain: a fine ribbon along the dirt road (exact bumps where you ride) over a coarser
+  // grid for the whole hill. Splat: road dirt, gravel shoulders, grass, rock on steep ground, mud in dips.
+  const DS=DESCENT,descGeos=[];
+  const paint=(x,z,h,arr)=>{const d=descentInfo(x,z);const e=.6,gx=descentHeight(x+e,z)-descentHeight(x-e,z),gz=descentHeight(x,z+e)-descentHeight(x,z-e),sl=Math.hypot(gx,gz)/(2*e);
+    const inside=d&&d.u>=0&&d.u<=DS.len,road=inside?1-ss((d.dzr-DS.road/2+.6)/1.4):0,shoulder=inside?(1-road)*(1-ss((d.dzr-DS.road/2-1.2)/1.6)):0;let rock=ss((sl-.62)/.3)*(1-road)*(.6+.8*vnoise(x/9,z/9)),mud=0;rock=Math.min(1,rock);
+    if(d&&d.off>.5){const dip=vnoise(x/11+90,z/11)-.5;mud=ss((-dip-.18)/.12)*(1-rock);}
+    const grass=Math.max(0,1-road-shoulder-rock-mud);arr.push(grass,road,rock,mud);};
+  const grid=(nx,nz,at,sink)=>{const pos=[],spl=[],idx=[];
+    for(let j=0;j<=nz;j++)for(let i=0;i<=nx;i++){const [x,z]=at(i,j);let h=descentHeight(x,z);if(sink)h-=sink(x,z);pos.push(x,h,z);paint(x,z,h,spl);}
+    for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+1,c=a+nx+1,d=c+1;idx.push(a,c,b,b,c,d);}
+    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('splat',new T.Float32BufferAttribute(spl,4));g.setIndex(idx);g.computeVertexNormals();descGeos.push(g);return g;};
+  {const C=lowDetail?3:2,xa=DS.x0-DS.len-20,xb=DS.x0+20,za=-(DS.half+DS.fall),zb=DS.half+DS.fall,nx=Math.round((xb-xa)/C),nz=Math.round((zb-za)/C);
+   // sink the coarse hill under the road ribbon so the detailed ribbon always shows
+   const g=grid(nx,nz,(i,j)=>[xa+i*C,za+j*C],(x,z)=>{const u=DS.x0-x;if(u<-2||u>DS.len+2)return 0;const dz=Math.abs(z-descentRoadZ(Math.max(0,Math.min(DS.len,u))));return dz<22?.35:dz<24?.35*(24-dz)/2:0;});
+   const m=new T.Mesh(g,mat);m.receiveShadow=true;m.name='environment:descent-hill';root.add(m);}
+  {const du=lowDetail?1:.6,dz=lowDetail?1:.6,W=24,nu=Math.round(DS.len/du),nw=Math.round(2*W/dz);
+   const g=grid(nu,nw,(i,j)=>{const u=DS.len-i*du;return [DS.x0-u,descentRoadZ(u)-W+j*dz];});
+   const m=new T.Mesh(g,mat);m.receiveShadow=true;m.name='environment:descent-road';root.add(m);}
+  // Teleport rings
+  const ringMat=new T.MeshStandardMaterial({color:0x3fb8ff,emissive:0x1a6cff,emissiveIntensity:1.6,roughness:.4});
+  for(const pd of PLAYGROUND_PADS){const ring=new T.Mesh(new T.TorusGeometry(pd.r+.3,.12,10,40),ringMat);ring.position.set(pd.x,baseHeight(pd.x,pd.z)+pd.r+.3,pd.z);ring.rotation.y=Math.PI/2;ring.name='environment:pad:'+pd.id;root.add(ring);rampGeos.push(ring.geometry);
+    const base=new T.Mesh(new T.CylinderGeometry(pd.r,pd.r,.04,32),ringMat);base.position.set(pd.x,baseHeight(pd.x,pd.z)+.02,pd.z);root.add(base);rampGeos.push(base.geometry);}
   // Loop-the-loops: the same path ride-loop.js carries the bike along, plus two support legs.
   const loopMeshes=[];
   for(const L of PLAYGROUND_LOOPS){const m=makeLoopMesh(T,L);m.name='environment:loop:'+L.id;m.castShadow=!lowDetail;root.add(m);loopMeshes.push(m);
@@ -194,14 +257,14 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
       g.scene.traverse(o=>{if(o.isMesh){o.castShadow=!lowDetail||key==='tree';o.receiveShadow=true;propRes.push(o.geometry);[].concat(o.material).forEach(m=>{propRes.push(m);for(const k of ['map','normalMap','roughnessMap','metalnessMap','aoMap'])if(m[k])propRes.push(m[k]);});}});
       for(const p of list){const o=g.scene.clone(true);o.position.set(p.x,0,p.z);o.rotation.y=p.rot;o.scale.set(p.s,p.s*(p.sy||1),p.s);
         // sit bumps on their own hump and everything on the ground under it
-        o.position.y=Math.max(0,Math.max(rampHeight(p.x,p.z),terrainHeight(p.x,p.z),sideTrackHeight(p.x,p.z)))-(p.m==='rock7'||p.m==='rock9'?.04*p.s:0);
+        o.position.y=baseHeight(p.x,p.z)-(p.m==='rock7'||p.m==='rock9'?.04*p.s:0);
         o.name='environment:prop:'+key;propRoot.add(o);}
     }).catch(e=>console.warn('[wk] prop model failed',def.file,e));
   }
   return {
-    roadMap:mat.map,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
+    roadMap:null,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
     update(){},view(){},
-    state:()=>({playground:true,arena:true,size:SIZE,ground:'Ground086',terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
-    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());mat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
+    state:()=>({playground:true,arena:true,size:SIZE,ground:'splat:Grass004+Ground054+Rock051+Ground109+Gravel041',descent:{...DESCENT},pads:PLAYGROUND_PADS.map(p=>p.id),terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
+    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };
 }

@@ -22,7 +22,7 @@ import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
 import {makeUbcRider} from './rider-ubc.js';
 import {makeEnvironment} from './ride-environment.js';
-import {makePlaygroundWorld,SIDE_TRACK} from './ride-playground.js';
+import {makePlaygroundWorld,SIDE_TRACK,PLAYGROUND_PADS} from './ride-playground.js';
 import {deriveRideProfile} from './ride-profile.js';
 import {makeCrashRig} from './crash-rig.js';
 const COND_KEY = "wk-condition";
@@ -122,11 +122,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const sun = new T.DirectionalLight(TH.sun.color, TH.sun.intensity); sun.name='wk:sun'; sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias=-0.0009;sun.shadow.normalBias=0.04;sun.shadow.radius=2;
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 2, far: 48 }); scene.add(sun, sun.target);
-  // Brightest cluster on sunset_jhbcentral_1k (RGBE flipY), unit vector toward the sun.
-  const sunDir=new T.Vector3(0.7477,0.1340,0.6504).normalize();
+  // Brightest pixel on the playground sky HDR (kloofendal_48d_partly_cloudy_puresky_1k), unit vector toward the sun.
+  const sunDir=new T.Vector3(0.553,0.743,0.377).normalize();
   if(arena){
-    sun.color.set('#ffc090');sun.intensity=1.85;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
-    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=0.88;
+    sun.color.set('#fff0dc');sun.intensity=2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
+    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=0.95;
   }
   // sky gradient + sun disc
   const sky = new T.Mesh(new T.PlaneGeometry(900, 260), new T.ShaderMaterial({ depthWrite: false, fog: false, uniforms: {}, vertexShader: "varying float v;void main(){v=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: `varying float v;void main(){gl_FragColor=vec4(mix(vec3(${TH.sky.low.map(n=>Number(n).toFixed(3)).join(",")}),vec3(${TH.sky.high.map(n=>Number(n).toFixed(3)).join(",")}),smoothstep(.35,.8,v)),1.);}` }));
@@ -161,7 +161,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   // terrain
   if(!arena){scene.add(sky);scene.add(sunDisc);}
   else{scene.fog=null;}
-  let skyKind=arena?'hdri-sunset_jhbcentral':'painted';
+  // Playground sky (v2.1-10): Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0), midday, no ground in it.
+  // The 1k HDR lights the scene; a sharper 4k tone-mapped JPG of the same sky is the visible background.
+  const SKY='kloofendal_48d_partly_cloudy_puresky';
+  let skyKind=arena?'hdri-'+SKY:'painted';
   let backdrop=null;
   if(arena){
     // World-fixed HDRI sky. A marker group stops the render loop installing the painted billboard.
@@ -184,23 +187,25 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
       if(!env||glErr){env?.dispose();return false;}
       scene.background=tex;scene.environment=env;skyKind=kind;
       sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);
-      dropFill();backdropLoaded=true;return true;
+      dropFill();backdropLoaded=true;
+      new T.TextureLoader().load('./assets/hdri/'+SKY+'_4k.jpg',bg=>{if(disposed){bg.dispose();return;}bg.colorSpace=T.SRGBColorSpace;bg.mapping=T.EquirectangularReflectionMapping;scene.background=bg;worldSkyTex?.dispose?.();worldSkyTex=bg;tex.dispose?.();});
+      return true;
     };
     const loadLdr=()=>{
       if(disposed)return;
-      new T.TextureLoader().load('./assets/hdri/sunset_jhbcentral_1k_ldr.jpg',tex=>{
+      new T.TextureLoader().load('./assets/hdri/'+SKY+'_1k_ldr.jpg',tex=>{
         tex.colorSpace=T.SRGBColorSpace;
-        if(!installEnv(tex,'ldr-sunset_jhbcentral')){if(!disposed){scene.background=tex;tex.mapping=T.EquirectangularReflectionMapping;skyKind='ldr-fill';backdropLoaded=true;}}
+        if(!installEnv(tex,'ldr-'+SKY)){if(!disposed){scene.background=tex;tex.mapping=T.EquirectangularReflectionMapping;skyKind='ldr-fill';backdropLoaded=true;}}
       },undefined,()=>{if(!disposed){scene.background=new T.Color('#9fb0c8');skyKind='fill-only';backdropLoaded=true;}});
     };
     if(!halfFloatOk||/[?&]sky=ldr\b/.test(location.search))loadLdr();
-    else fetch('./assets/hdri/sunset_jhbcentral_1k.hdr').then(r=>{
+    else fetch('./assets/hdri/'+SKY+'_1k.hdr').then(r=>{
       // A missing file comes back as the HTML app shell (200 text/html); never hand that to the parser.
       if(!r.ok||/text\/html/.test(r.headers.get('content-type')||''))throw Error('hdr missing');
       return r.blob();
     }).then(blob=>{
       const url=URL.createObjectURL(blob);
-      new RGBELoader().load(url,hdr=>{URL.revokeObjectURL(url);if(!hdr?.image?.data||!installEnv(hdr,'hdri-sunset_jhbcentral'))loadLdr();},undefined,()=>{URL.revokeObjectURL(url);loadLdr();});
+      new RGBELoader().load(url,hdr=>{URL.revokeObjectURL(url);if(!hdr?.image?.data||!installEnv(hdr,'hdri-'+SKY))loadLdr();},undefined,()=>{URL.revokeObjectURL(url);loadLdr();});
     }).catch(()=>loadLdr());
   }else{
     backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;if(attachWorldSky)attachWorldSky(horizonTex);else layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
@@ -717,6 +722,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
           step(s, P, inp, dt / n, ter);
           if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
         }
+        // Playground teleport rings (e.g. the downhill start): ride through one to be put at its target.
+        if(arena&&!s.crashed&&cameraView!=='side')for(const pd of PLAYGROUND_PADS){if(Math.hypot(s.x-pd.x,(s.z||0)-pd.z)<pd.r){globalThis.__WK_JOLT_RESET__?.({...pd.to});break;}}
       }
     }
     if (s.crashed) endSlow();

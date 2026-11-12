@@ -3,7 +3,7 @@
 // no rest creep, no random hops, hard turns and bump-turns don't flip, ramps launch and land.
 import assert from 'node:assert/strict';
 import {makePlaygroundTerrain,makeState,step,bikeParams} from '../ride-physics.js';
-import {TERRAIN,PLAYGROUND_RAMPS,PLAYGROUND_LOOPS,PLAYGROUND_POSTS,PLAYGROUND_PROPS} from '../ride-playground.js';
+import {DESCENT,descentRoadZ,PLAYGROUND_PADS,TERRAIN,PLAYGROUND_RAMPS,PLAYGROUND_LOOPS,PLAYGROUND_POSTS,PLAYGROUND_PROPS} from '../ride-playground.js';
 const ter=makePlaygroundTerrain(),dt=1/60,N=8,D={throttle:0,brake:0,lean:0,steer:0,hop:0,trick:0};
 const bikes={emoto:bikeParams({kg:55,P:3000,nm:150,wb:1.25,wheelR:.33,travel:.15,shock:.15}),bmx:bikeParams({kg:11,powertrain:'human',wb:1.0,wheelR:.25})};
 const fresh=(P,pose={})=>{const s=makeState(P,0,ter),y0=s.y;Object.assign(s,pose);s.y=ter.height(s.x,s.z||0)+y0;return s};
@@ -33,7 +33,7 @@ for(const [name,P] of Object.entries(bikes)){
 {const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});for(const [x0,deg] of [[58,20],[92,25],[58,35]]){const a=deg/57.3,s=fresh(P,{x:x0+4-Math.cos(a)*15,z:14-2.1-Math.sin(a)*15,yaw:a,vx:16});run(P,s,s=>({throttle:s.vx<16?1:0}),3);assert.equal(s.crashed,null,'glancing a ramp side at '+deg+' deg slides');}}
 // Brake slides: a tap at speed swings the bike round ~180 deg; holding the brake power-slides at a steady angle.
 {const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});
- const go=()=>{const s=fresh(P,{x:-150,z:-120});run(P,s,s=>({throttle:s.vx<15?1:0}),4);return s};
+ const go=()=>{const s=fresh(P,{x:300,z:-120});run(P,s,s=>({throttle:s.vx<15?1:0}),4);return s};
  {const s=go(),y0=s.yaw;let t=0;run(P,s,()=>{t+=dt;return {steer:1,brake:t<.15?1:0}},2.5);assert.equal(s.crashed,null);assert.ok(Math.abs(s.yaw-y0)>2.4,'tap slide swings round '+(s.yaw-y0));}
  {const s=go();let mx=0,t=0;run(P,s,()=>{t+=dt;return {steer:1,brake:1,throttle:1}},1.5,s=>{mx=Math.max(mx,Math.abs(s.slipAngle||0))});assert.equal(s.crashed,null);assert.ok(s.sliding,'power slide holds while the brake is held');assert.ok(mx>.7&&mx<1.2,'power slide angle '+mx);}}
 // v2.1-8: circuit ramps (both directions), loops, trees/rocks.
@@ -56,4 +56,8 @@ for(const [name,P] of Object.entries(bikes)){
  {const s=fresh(P,{x:rock.x-12,z:rock.z});let maxY=0;const g=s.y;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{maxY=Math.max(maxY,s.y-g)});assert.ok(!s.crashed||/HIT/.test(s.crashed),'rock hump rideable '+s.crashed);assert.ok(maxY>.05,'rode up the rock '+maxY);}
  for(const x of [-12]){const s=fresh(P,{x:x+8,z:6,yaw:Math.PI});let maxY=0;const g=s.y;run(P,s,s=>({throttle:s.vx<6?1:0}),3,s=>{maxY=Math.max(maxY,s.y-g)});assert.equal(s.crashed,null,'log crossing');assert.ok(maxY>.15&&s.x<x-2,'rode over the log '+maxY+' '+s.x);}
 }
+// v2.1-10 downhill: ride the dirt road top to bottom (a simple line-follower), tabletops and rollers, no crash.
+for(const [name,P] of Object.entries(bikes)){const s=fresh(P,PLAYGROUND_PADS[0].to);let air=0;
+ run(P,s,s=>{const L=3+s.vx*.4,u=DESCENT.x0-(s.x+L),zt=descentRoadZ(Math.max(0,u)),want=Math.atan2(zt-s.z,L),err=Math.atan2(Math.sin(want-s.yaw),Math.cos(want-s.yaw));return {throttle:s.vx<10?.5:0,brake:s.vx>12?.6:0,steer:Math.max(-1,Math.min(1,err*3))}},90,s=>{if(!s.ground[0]&&!s.ground[1])air+=dt});
+ assert.equal(s.crashed,null,name+' downhill run');assert.ok(s.x>DESCENT.x0-5,name+' reached the bottom '+s.x);assert.ok(air>2,name+' got air on the way down '+air);}
 console.log('playground-classic: ok');
