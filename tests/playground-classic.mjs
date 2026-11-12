@@ -22,8 +22,14 @@ for(const [name,P] of Object.entries(bikes)){
 // slopeAt follows the ground along the heading (wheelie balance on ramps/hills needs it)
 {const r=PLAYGROUND_RAMPS[1];assert.ok(ter.slopeAt(r.x+1,r.z,0)>.05);assert.ok(Math.abs(ter.slopeAt(r.x+1,r.z,Math.PI/2))<.02);assert.equal(ter.slopeAt(0,0,0),0);}
 // Wheelies/stoppies: easy to hold, full input doesn't loop; glancing a ramp side slides instead of crashing.
-for(const [name,P] of Object.entries(bikes)){const s=fresh(P);run(P,s,{throttle:.6},2);let mx=0;run(P,s,{throttle:1,lean:1},5,s=>{mx=Math.max(mx,s.pitch)});assert.equal(s.crashed,null,name+' full pull + full throttle must not loop');assert.ok(mx<1.4,name+' wheelie stays under the tip '+mx);}
-{const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);let st=0;run(P,s,{brake:1,lean:-1},2,s=>{if(s.ground[1]&&!s.ground[0])st+=dt});assert.equal(s.crashed,null,'full stoppie input must not endo');assert.ok(st>1,'stoppie holds '+st);}
+// v2.1-8: monos are a real balance again: part input holds, pinned input goes past the balance point and loops
+// (after dragging the fender), and full stoppie input goes over the bars.
+for(const [name,P] of Object.entries(bikes)){
+ {const s=fresh(P);run(P,s,{throttle:.6},2);let mx=0;run(P,s,{throttle:1,lean:.7},5,s=>{mx=Math.max(mx,s.pitch)});assert.equal(s.crashed,null,name+' part pull holds the wheelie');assert.ok(mx>1.2&&mx<1.7,name+' high wheelie under the tip '+mx);}
+ {const s=fresh(P);run(P,s,{throttle:.6},2);let sc=0;run(P,s,{throttle:.6,lean:1},5,s=>{if(s.events.at(-1)?.type==='scrape')sc++});assert.equal(s.crashed,'LOOPED OUT',name+' full pull goes over');assert.ok(sc>5,name+' drags the fender before it goes '+sc);}
+}
+{const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);let st=0;run(P,s,{brake:1,lean:-.6},2,s=>{if(s.ground[1]&&!s.ground[0])st+=dt});assert.equal(s.crashed,null,'part stoppie input holds');assert.ok(st>1,'stoppie holds '+st);}
+{const P=bikes.emoto,s=fresh(P);run(P,s,s=>({throttle:s.vx<8?1:0}),4);run(P,s,{brake:1,lean:-1},2);assert.equal(s.crashed,'OVER THE BARS','full stoppie input goes over the bars');}
 {const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});for(const [x0,deg] of [[58,20],[92,25],[58,35]]){const a=deg/57.3,s=fresh(P,{x:x0+4-Math.cos(a)*15,z:14-2.1-Math.sin(a)*15,yaw:a,vx:16});run(P,s,s=>({throttle:s.vx<16?1:0}),3);assert.equal(s.crashed,null,'glancing a ramp side at '+deg+' deg slides');}}
 // Brake slides: a tap at speed swings the bike round ~180 deg; holding the brake power-slides at a steady angle.
 {const P=bikeParams({kg:85,P:8000,nm:150,wb:1.3,wheelR:.33,travel:.2,shock:.2});

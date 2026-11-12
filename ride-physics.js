@@ -85,15 +85,17 @@ function groundH(ter,s,x=s.x){if(!ter.freeRoam)return ter.h(x);const yaw=s.yaw||
 function groundSlope(ter,s,x=s.x){if(!ter.freeRoam)return ter.slope(x);const yaw=s.yaw||0,c=Math.cos(yaw),n=Math.sin(yaw),ox=x-s.x;return ter.slopeAt(s.x+ox*c,(s.z||0)+ox*n,yaw)}
 function advanceXY(s,ter,dx){if(!ter.freeRoam){s.x+=dx;return}const yaw=s.sliding&&s.moveYaw!=null?s.moveYaw:(s.yaw||0);s.x+=dx*Math.cos(yaw);s.z=(s.z||0)+dx*Math.sin(yaw)}
 const balanceTorque=(lean,rel,throttle,brake,w)=>lean*(lean>0?12:8)+(rel-1.46)*8+throttle*1.2-(1-throttle)*2.2-brake*12-w*3.2;
-// Playground wheelie: easy to hold, still a balance. Pulling back + throttle sets how high the front
-// sits (full pull + full throttle ~66 deg, below the ~80 deg tipping point, so holding full input no
-// longer loops). It bobs a little (under-damped), drops when you ease off, and a rear-brake dab
-// brings it down. Only past the tipping point does gravity take over. Legacy keeps balanceTorque.
-export const WHEELIE={pull:.8,throttle:.35,k:9,damp:1.8,brake:8,tip:1.4,fall:12,high:.9,soft:3};
+// Playground wheelie: easy to get up, but a real balance. Pulling back + throttle sets how high the front
+// sits. Part input holds it around the fender-drag angle; full pull + full throttle aims PAST the
+// balance point (WHEELIE.tip), and once over it gravity wins and you loop out unless you ease off or dab
+// the rear brake. It bobs a little (under-damped). Legacy keeps balanceTorque.
+export const WHEELIE={pull:1.3,throttle:.45,k:9,damp:1.8,brake:9,tip:1.7,fall:22,high:.9,soft:3};
 const wheelieAssist=(lean,rel,throttle,brake,w)=>{const back=Math.max(0,lean),W=WHEELIE,target=back>.05?back*W.pull+throttle*W.throttle:0;
   let v=W.k*(target-rel)-W.damp*w-brake*W.brake;if(rel>W.high)v+=W.soft*(rel-target);/* high wheelies are touchier: you hold them with throttle/lean */if(rel>W.tip)v+=W.fall*(rel-W.tip);return v;};
-// Playground stoppie: front brake + weight forward; lean amount sets how high the rear goes (max ~43 deg).
-export const STOPPIE={base:.3,lean:.45,k:16,damp:2.4};
+// Playground stoppie: front brake + weight forward; lean amount sets how high the rear goes. Part input
+// holds a stoppie; full brake + full lean pushes the weight past the front balance point (STOPPIE.tip)
+// and over the bars you go, unless you let off the brake or shift back in time.
+export const STOPPIE={base:.3,lean:.85,k:16,damp:2.4,tip:-.95,fall:20};
 export const AIR_LEVEL={k:5,d:3};
 export function step(s, p, inp, dt, ter) {
   if (s.crashed) return s;
@@ -161,6 +163,8 @@ export function step(s, p, inp, dt, ter) {
   // Playground: hard front brake with the weight forward pops the rear up (light bikes too), then the stoppie branch holds it.
   if(ter.playground&&s.ground[0]&&s.ground[1]&&inp.brake>.3&&inp.lean<-.3&&s.vx>1.5){const rel=wrapAngle(s.pitch-groundSlope(ter,s)),target=-(STOPPIE.base+STOPPIE.lean*(-inp.lean))*inp.brake;T+=(target-rel)*p.mass*STOPPIE.k*.6;}
   if(s.ground[1]&&!s.ground[0]&&inp.brake>0&&inp.lean<0){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(ter.playground){const S=STOPPIE,target=-(S.base+S.lean*Math.max(0,-inp.lean))*inp.brake;if(rel<-.12)T=(target-rel)*p.mass*S.k-s.w*p.mass*S.damp;}else if(rel<-.35)T=(-.75+.35*inp.lean-rel)*p.mass*22-s.w*p.mass*3.5;}
+  // past the front balance point the weight takes over, whatever you're pressing
+  if(ter.playground&&s.ground[1]&&!s.ground[0]){const rel=wrapAngle(s.pitch-groundSlope(ter,s));if(rel<STOPPIE.tip)T+=(rel-STOPPIE.tip)*p.mass*STOPPIE.fall;}
   s.vx += Fx / p.mass * dt; s.vy += Fy / p.mass * dt; s.w += T / I * dt; s.w *= onG ? 0.993 : Math.exp(-.22*dt);
   advanceXY(s,ter,s.vx*dt); s.y += s.vy * dt; s.pitch += s.w * dt; s.odo += Math.abs(s.vx) * dt;
   // Hard travel stops prevent tunnelling. Cancel only velocity INTO the
@@ -232,7 +236,7 @@ export function step(s, p, inp, dt, ter) {
   if (s.ground[0] && !s.ground[1] && rel > 0.12) { s.wheelieT += dt; s.score += (inp.throttle > 0 ? 70 : 100) * speedFactor * dt; s.balance = inp.throttle > 0 ? "WHEELIE" : "MANUAL"; }
   else if (s.ground[1] && !s.ground[0] && rel < -0.1) { s.stoppieT += dt; s.score += (inp.brake > 0 ? 120 : 140) * speedFactor * dt; s.balance = inp.brake > 0 ? "STOPPIE" : "NOSE MANUAL"; }
   else { if (s.balance && (s.wheelieT > 1 || s.stoppieT > 0.6)) pop(`${s.balance} ${(s.balance.includes("WHEEL") || s.balance === "MANUAL" ? s.wheelieT : s.stoppieT).toFixed(1)}s`, 0); s.balance = ""; if (onG && s.ground[0] && s.ground[1]) { s.bestWheelie = Math.max(s.bestWheelie || 0, s.wheelieT); s.wheelieT = 0; s.stoppieT = 0; } }
-  if(s.ground[1]&&!s.ground[0]&&rel< -1.15&&rel> -1.5&&inp.brake>0&&inp.lean<0){s.pitch=groundSlope(ter,s)-1.15;s.w=Math.max(0,s.w);}
+  if(!ter.playground&&s.ground[1]&&!s.ground[0]&&rel< -1.15&&rel> -1.5&&inp.brake>0&&inp.lean<0){s.pitch=groundSlope(ter,s)-1.15;s.w=Math.max(0,s.w);}
   if (onG && (rel > 2.4)) return crash(s, "LOOPED OUT", "fender_r");
   if (onG && (rel < -1.5)) return crash(s, "OVER THE BARS", "fender_f");
   // rear fender / tail scrape when the mono is too deep
