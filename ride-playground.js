@@ -39,8 +39,8 @@ export function rampProfile(r){
 }
 const PROFILES=PLAYGROUND_RAMPS.map(rampProfile);
 export function rampHeight(x,z){
-  let y=0;PLAYGROUND_RAMPS.forEach((r,k)=>{if(Math.abs(z-r.z)>r.w/2)return;let u=x-r.x;const P=PROFILES[k];
-    u*=r.dir||1;if(u<=0||u>=P[P.length-1][0])return;for(let i=0;i<P.length-1;i++)if(u<=P[i+1][0]){const t=(u-P[i][0])/(P[i+1][0]-P[i][0]);y=Math.max(y,P[i][1]+(P[i+1][1]-P[i][1])*t);break;}});
+  let y=0;PLAYGROUND_RAMPS.forEach((r,k)=>{const dz=Math.abs(z-r.z)-r.w/2;if(dz>bankWidth(r.h))return;let u=x-r.x;const P=PROFILES[k];
+    u*=r.dir||1;if(u<=0||u>=P[P.length-1][0])return;for(let i=0;i<P.length-1;i++)if(u<=P[i+1][0]){const t=(u-P[i][0])/(P[i+1][0]-P[i][0]),h=P[i][1]+(P[i+1][1]-P[i][1])*t;y=Math.max(y,dz<=0?h:h*Math.max(0,1-dz/bankWidth(h)));break;}});
   return y;
 }
 // UNEVEN TERRAIN lane (v2.0.1): runs along +X at z = TERRAIN.z, to the right of the spawn line.
@@ -80,12 +80,15 @@ export function sideTrackProfile(u){
   if(u<70)return 0.25*(0.5-0.5*Math.cos(2*Math.PI*(u-58)/3));          // whoops
   if(u<76)return 0;
   if(u<79.5)return 1.2*((u-76)/3.5)**2;                                // gap kicker, ~34 deg lip
-  if(u<84)return 0;                                                    // gap
-  if(u<85)return 1.2*ss(u-84);                                         // landing ramp back face (short)
+  if(u<81.5)return 0;                                                  // gap
+  if(u<85)return 1.2*ss((u-81.5)/3.5);                                 // landing ramp back face: steep, but you roll up it if you case the gap
   if(u<93)return 1.2*(1-ss((u-85)/8));                                 // landing ramp
   return 0;
 }
-export function sideTrackHeight(x,z){const T=SIDE_TRACK;if(Math.abs(z-T.z)>T.w/2)return 0;return sideTrackProfile(x-T.x0);}
+// v2.1-20: the track's features have sloped dirt sides (no vertical edges), so you can ride on and off them
+// sideways in 3D instead of hitting a wall. Bank width grows with the feature height.
+export const bankWidth=h=>1.5+h*2.5;
+export function sideTrackHeight(x,z){const T=SIDE_TRACK,dz=Math.abs(z-T.z)-T.w/2;if(dz>5)return 0;const h=sideTrackProfile(x-T.x0);if(dz<=0)return h;return h*Math.max(0,1-dz/bankWidth(h));}
 // DOWNHILL (v2.1-10): a 400 m mountain west of spawn, Descenders style. A winding dirt road runs from the
 // top (60 m up, x = -480) down to the bottom (x = -80), with rollers and washboard on it; off the road the
 // ground is rough, lumpy and rolling (gullies and ridges), so you can feel the bike over real bumps.
@@ -147,7 +150,7 @@ function buildProps(){
     out.push({m,x,z,s:k,rot,sy,bump:{a:hx+.35,b:hz+.35,h:h0*sy}});};
   const log=(x,z,rot,s=1.2)=>out.push({m:'log',x,z,s,rot,bump:{a:1.5*s,b:.75,h:.26*s}});
   // tree lines either side of the side-view track (clear of its 5 m width and the circuit ramps)
-  for(let x=-48;x<=78;x+=9){tree(x+rnd()*3,33+rnd()*1.5);tree(x+4+rnd()*3,47-rnd()*1.5);}
+  for(let x=-48;x<=78;x+=9){tree(x+rnd()*3,31.5-rnd()*1.2);tree(x+4+rnd()*3,48.5+rnd()*1.2);}
   // slalom near spawn: trees to weave through (and test glancing hits)
   for(let i=0;i<8;i++)tree(14+i*8,-6+(i%2?2.2:-2.2),1.5);
   // rock garden: rideable rocks and logs, with boulders and stumps to dodge
@@ -185,8 +188,9 @@ export function rampTriangles(r){
   const add=(...t)=>{for(const q of t)tris.push(d<0?[q[0],q[2],q[1]]:q);}; // mirrored ramps flip winding so normals stay outward
   for(let i=0;i<P.length-1;i++){const [ua,ya]=P[i],[ub,yb]=P[i+1],xa=r.x+ua*d,xb=r.x+ub*d;
     add([[xa,ya,z1],[xb,yb,z1],[xb,yb,z0]],[[xa,ya,z1],[xb,yb,z0],[xa,ya,z0]]);        // top (normal up)
-    add([[xa,0,z1],[xb,0,z1],[xb,yb,z1]],[[xa,0,z1],[xb,yb,z1],[xa,ya,z1]]);             // +z wall
-    add([[xa,0,z0],[xb,yb,z0],[xb,0,z0]],[[xa,0,z0],[xa,ya,z0],[xb,yb,z0]]);}            // -z wall
+    const ba=bankWidth(ya),bb=bankWidth(yb);                                              // sloped flanks (rideable sides)
+    add([[xa,0,z1+ba],[xb,0,z1+bb],[xb,yb,z1]],[[xa,0,z1+ba],[xb,yb,z1],[xa,ya,z1]]);     // +z flank
+    add([[xa,0,z0-ba],[xb,yb,z0],[xb,0,z0-bb]],[[xa,0,z0-ba],[xa,ya,z0],[xb,yb,z0]]);}    // -z flank
   return tris;
 }
 export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
@@ -220,7 +224,7 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const tmat=new T.MeshStandardMaterial({map:load(DIRT,'Color',true,1),normalMap:lowDetail?null:load(DIRT,'NormalGL',false,1),roughnessMap:load(DIRT,'Roughness',false,1),roughness:1,metalness:0,vertexColors:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   const tmesh=new T.Mesh(tg,tmat);tmesh.receiveShadow=true;tmesh.castShadow=!lowDetail;tmesh.name='environment:terrain-lane';root.add(tmesh);
   // Side-view track: dirt ribbon displaced by sideTrackHeight, with start/finish stripes.
-  const ST=SIDE_TRACK,SC=0.25,sx0=ST.x0-1,sx1=ST.x0+ST.len+1,sz0=ST.z-ST.w/2-.25,sz1=ST.z+ST.w/2+.25;
+  const ST=SIDE_TRACK,SC=0.25,sx0=ST.x0-1,sx1=ST.x0+ST.len+1,sz0=ST.z-ST.w/2-5,sz1=ST.z+ST.w/2+5;
   const snx=Math.round((sx1-sx0)/SC),snz=Math.round((sz1-sz0)/SC),sp=[],su=[],si=[],sc=[];
   for(let j=0;j<=snz;j++)for(let i=0;i<=snx;i++){const x=sx0+i*SC,z=sz0+j*SC,h=sideTrackHeight(x,z);sp.push(x,h,z);su.push(x/4,-z/4);const c=Math.abs(z-ST.z)>ST.w/2?.75:1;sc.push(c,c,c);}
   for(let j=0;j<snz;j++)for(let i=0;i<snx;i++){const a=j*(snx+1)+i,b=a+1,c=a+snx+1,d=c+1;si.push(a,c,b,b,c,d);}
