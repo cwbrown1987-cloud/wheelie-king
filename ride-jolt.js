@@ -273,7 +273,7 @@ export function createJoltRide({ P, profile = null }) {
       if (profile) {
         // v2.0 lean tune: stiffer spring (roll inertia ~ m·h², so scale by comH² too), an integral term
         // to remove the steady-state lean error, and less smoothing so the bike tips in fast.
-        const k = (TU.k ?? 7) * (C.comH / 0.9) ** 2, d = TU.d ?? 0.45;
+        const k = (TU.k ?? 5) * (C.comH / 0.9) ** 2, d = TU.d ?? 0.4; // v2.0.3: 7 snapped the bike over on bumps; 5 keeps tip-in < 0.8 s
         cs.mLeanSpringConstant *= k; cs.mLeanSpringDamping *= d * Math.sqrt(k);
         cs.mLeanSpringIntegrationCoefficient = TU.integ ?? 0; cs.mLeanSpringIntegrationCoefficientDecay = TU.decay ?? 4;
         cs.mLeanSmoothingFactor = TU.smooth ?? 0.45; cs.mMaxLeanAngle = (TU.maxLean ?? 45) * DEG;
@@ -535,6 +535,15 @@ export function createJoltRide({ P, profile = null }) {
       const I = api.settings.mass * 0.25, cap = RIDER_KG * G * 0.35;
       const tau = Math.max(-cap, Math.min(cap, I * 14 * (target - pitch) - I * 7 * pitchRate));
       body.AddTorque(new Jolt.Vec3(-a.right.x * tau, -a.right.y * tau, -a.right.z * tau));
+      // Off the ground the rider holds the bike upright (knees on the tank, 75 kg x 0.5 m), damping any
+      // roll the take-off gave it, so a bump in a turn doesn't flip it.
+      const TUa = globalThis.__WK_TUNE__ || {};
+      {
+        const av = body.GetAngularVelocity(), fx = a.fwd.x, fz = a.fwd.z, fl = Math.hypot(fx, fz) || 1;
+        const rr = (av.GetX() * fx + av.GetZ() * fz) / fl, Ir = api.settings.mass * Math.max(0.3, api.settings.comH ?? 0.9) ** 2;
+        const capR = RIDER_KG * G * (TUa.airArm ?? 0.5), tr = Math.max(-capR, Math.min(capR, -Ir * (TUa.ark ?? 20) * rollNow - Ir * (TUa.ard ?? 8) * rr));
+        body.AddTorque(new Jolt.Vec3(fx / fl * tr, 0, fz / fl * tr));
+      }
     } else if (monoOn) {
       // Wheelie: lean amount sets the target pitch (full pull = the balance point). The rider hangs back
       // to lift, eases off near the target and pushes forward past it.
@@ -629,7 +638,10 @@ export function createJoltRide({ P, profile = null }) {
     // MotorcycleTest::PrePhysicsUpdate
     if (mRight !== 0 || mForward !== 0 || mBrake !== 0 || handBrake) bodyInterface.ActivateBody(body.GetID());
     controller.SetDriverInput(mForward, mRight, mBrake, handBrake);
-    controller.EnableLeanController(S.enableLeanController && !footDown);
+    // Jolt's lean controller leans the bike toward the direction of the ground impulse. With a wheel
+    // off the ground (cresting a roller, landing) that impulse is one tyre's side force, and the spring
+    // throws the bike over. The rider holds the lean then instead (see riderActions, in the air).
+    controller.EnableLeanController(S.enableLeanController && !footDown && wheel(0).HasContact() && wheel(1).HasContact());
     const n = Math.max(COLLISION_STEPS, Math.ceil(dt * 60 * COLLISION_STEPS - 1e-6));
     jolt.Step(Math.min(dt, 0.1), n);
     writeState(s, dt);

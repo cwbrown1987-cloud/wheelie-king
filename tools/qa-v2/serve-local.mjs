@@ -1,0 +1,5 @@
+// Static server for a staged build (pre-deploy GPU check). node serve-local.mjs <dir> <port>
+import {createServer} from 'node:http';import {readFile,stat} from 'node:fs/promises';import {join,extname,normalize} from 'node:path';
+const [dir,port=8787]=process.argv.slice(2);const M={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.glb':'model/gltf-binary','.wasm':'application/wasm','.svg':'image/svg+xml','.webmanifest':'application/manifest+json','.mp3':'audio/mpeg','.ogg':'audio/ogg','.woff2':'font/woff2'};
+createServer(async(q,r)=>{try{let p=normalize(decodeURIComponent(q.url.split('?')[0])).replace(/^([\\/])+/,'');let f=join(dir,p);if(!p||(await stat(f)).isDirectory())f=join(f,'index.html');
+ r.writeHead(200,{'content-type':M[extname(f)]||'application/octet-stream','cache-control':'no-store'});r.end(await readFile(f));}catch{r.writeHead(404);r.end();}}).listen(+port,()=>console.log('serving',dir,port));
