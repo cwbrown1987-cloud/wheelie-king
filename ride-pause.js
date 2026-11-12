@@ -27,6 +27,13 @@ export function pauseMenuMarkup(level, { legacy = false } = {}) {
       <button type="button" data-r="mode-arena" aria-pressed="${arena ? 'true' : 'false'}">PLAYGROUND</button>
     </div>
   </div>
+  <div class="ride-pause-mode" role="group" aria-label="Level"${(level === 'arena' || level === 'neon') ? '' : ' hidden'}>
+    <span class="ride-pause-mode-label">Level</span>
+    <div class="ride-pause-seg">
+      <button type="button" data-r="lvl-arena" aria-pressed="${level === 'arena' ? 'true' : 'false'}">PLAYGROUND</button>
+      <button type="button" data-r="lvl-neon" aria-pressed="${level === 'neon' ? 'true' : 'false'}">NEON CANAL</button>
+    </div>
+  </div>
   <button type="button" class="ride-pause-replay" data-r="menu-replay"><span aria-hidden="true">●</span> Replay last 20s</button>
   <button type="button" data-r="menu-gallery"><span aria-hidden="true">🖼</span> Gallery</button>
   <button type="button" data-r="menu-workshop"><span aria-hidden="true">🔧</span> Back to workshop</button>
@@ -34,7 +41,7 @@ export function pauseMenuMarkup(level, { legacy = false } = {}) {
 }
 
 function levelOf(opts) {
-  if (opts?.level === 'flat' || opts?.level === 'trials' || opts?.level === 'arena') return opts.level;
+  if (opts?.level === 'flat' || opts?.level === 'trials' || opts?.level === 'arena' || opts?.level === 'neon') return opts.level;
   if (opts?.flat) return 'flat';
   return 'trials';
 }
@@ -104,6 +111,8 @@ export function mountRidePause(ui, opts) {
   trialsBtn?.addEventListener('click', () => pick('trials'));
   endlessBtn?.addEventListener('click', () => pick('flat'));
   arenaBtn?.addEventListener('click', () => pick('arena'));
+  ui.querySelector('[data-r="lvl-arena"]')?.addEventListener('click', () => { menu.hidden = true; pick('arena'); });
+  ui.querySelector('[data-r="lvl-neon"]')?.addEventListener('click', () => { menu.hidden = true; pick('neon'); });
   syncMode();
 
   return {

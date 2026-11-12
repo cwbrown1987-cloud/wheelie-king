@@ -23,6 +23,8 @@ import {makeRider} from './rider-model.js';
 import {makeUbcRider} from './rider-ubc.js';
 import {makeEnvironment} from './ride-environment.js';
 import {makePlaygroundWorld,SIDE_TRACK,PLAYGROUND_PADS} from './ride-playground.js';
+import {NEON,NEON_COINS,makeNeonTerrain,neonLock,neonProject,neonAt,neonSafeS,neonProfile,neonInGap} from './ride-neon.js';
+import {makeNeonWorld} from './ride-neon-world.js';
 import {makeSoccer} from './ride-soccer.js';
 import {makeTyreTracks} from './ride-tracks.js';
 import {deriveRideProfile} from './ride-profile.js';
@@ -54,10 +56,10 @@ export function legacyParam(){
 }
 export function readRideLevel(){
   const legacy=legacyParam();
-  if(!legacy)return 'arena';
+  if(!legacy){try{if(localStorage.getItem('wk-level')==='neon')return 'neon'}catch{}return 'arena';} // v2.1-35: Neon Canal level
   if(legacy==='endless'||legacy==='flat')return 'flat';
   if(legacy==='trials')return 'trials';
-  try{const v=localStorage.getItem('wk-level');if(v==='flat'||v==='trials'||v==='arena')return v}catch{}
+  try{const v=localStorage.getItem('wk-level');if(v==='flat'||v==='trials'||v==='arena'||v==='neon')return v}catch{}
   return 'trials';
 }
 
@@ -117,7 +119,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   const _slO=new T.Vector3(),_slX=new T.Vector3(),_slY=new T.Vector3(),_slZ=new T.Vector3();
   const resetSpeedStreak=st=>{st.x=(Math.random()<.5?-1:1)*(.85+Math.random()*1.55);st.y=(Math.random()-.42)*1.35;st.z=-(3.2+Math.random()*7);st.len=1.1+Math.random()*2;};
   speedLineStreaks.forEach(resetSpeedStreak);
-  const level=readRideLevel(),legacyMenu=!!legacyParam(),flat=level==='flat',arena=level==='arena',freeRoam=arena;
+  const level=readRideLevel(),legacyMenu=!!legacyParam(),flat=level==='flat',neon=level==='neon',arena=level==='arena'||neon,freeRoam=arena; // v2.1-35: Neon Canal runs on the Playground engine, locked to its track
   // Playground is lit only by the HDRI (PMREM environment) and one directional sun. Legacy keeps hemi+sun.
   let hemi=null;
   if(!arena){hemi=new T.HemisphereLight(TH.hemi.sky, TH.hemi.ground, TH.hemi.intensity);scene.add(hemi);}
@@ -125,10 +127,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   sun.shadow.bias=-0.0009;sun.shadow.normalBias=0.04;sun.shadow.radius=2;
   Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 2, far: 48 }); scene.add(sun, sun.target);
   // Brightest pixel on the playground sky HDR (kloofendal_48d_partly_cloudy_puresky_1k), unit vector toward the sun.
-  const sunDir=new T.Vector3(0.553,0.743,0.377).normalize();
+  const sunDir=neon?new T.Vector3(0.83,0.27,0.49).normalize():new T.Vector3(0.553,0.743,0.377).normalize(); // neon: low sunset sun (raised a little for readable shadows)
   if(arena){
-    sun.color.set('#fff0dc');sun.intensity=2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
-    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=0.95;
+    sun.color.set(neon?'#ffae74':'#fff0dc');sun.intensity=neon?1.9:2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
+    R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=neon?0.85:0.95;
+    if(neon){const fill=new T.HemisphereLight('#9a7bd6','#3a2848',.35);fill.name='wk:neon-fill';scene.add(fill);}
   }
   // sky gradient + sun disc
   const sky = new T.Mesh(new T.PlaneGeometry(900, 260), new T.ShaderMaterial({ depthWrite: false, fog: false, uniforms: {}, vertexShader: "varying float v;void main(){v=uv.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: `varying float v;void main(){gl_FragColor=vec4(mix(vec3(${TH.sky.low.map(n=>Number(n).toFixed(3)).join(",")}),vec3(${TH.sky.high.map(n=>Number(n).toFixed(3)).join(",")}),smoothstep(.35,.8,v)),1.);}` }));
@@ -162,10 +165,10 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }
   // terrain
   if(!arena){scene.add(sky);scene.add(sunDisc);}
-  else{scene.fog=new T.Fog('#cdd8e3',160,1300);} // v2.1-21: light haze so distant hills and the town fade into the sky
+  else{scene.fog=neon?new T.Fog('#6b5487',150,1100):new T.Fog('#cdd8e3',160,1300);} // v2.1-21: light haze so distant hills and the town fade into the sky
   // Playground sky (v2.1-10): Poly Haven kloofendal_48d_partly_cloudy_puresky (CC0), midday, no ground in it.
   // The 1k HDR lights the scene; a sharper 4k tone-mapped JPG of the same sky is the visible background.
-  const SKY='kloofendal_48d_partly_cloudy_puresky';
+  const SKY=neon?'neon_sunset':'kloofendal_48d_partly_cloudy_puresky'; // neon: Poly Haven qwantani_dusk_2_puresky (CC0), graded purple/orange
   let skyKind=arena?'hdri-'+SKY:'painted';
   let backdrop=null;
   if(arena){
@@ -212,7 +215,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   }else{
     backdrop=new T.TextureLoader().load(TH.backdrop.image,texture=>{if(disposed)return;texture.colorSpace=T.SRGBColorSpace;horizonTex=composeHorizonBackdrop(texture.image);scene.background=horizonTex;sky.visible=false;sunDisc.visible=false;legacyScenery.forEach(o=>o.visible=false);backdropLoaded=true;if(attachWorldSky)attachWorldSky(horizonTex);else layoutBackdrop(horizonTex,el.clientWidth||16,el.clientHeight||9,0);},undefined,()=>{if(!disposed)buildLegacy()});
   }
-  const ter=flat?makeFlatTerrain():arena?makePlaygroundTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat||arena?500:ter.finish;const pts=ter.pts;
+  const ter=flat?makeFlatTerrain():neon?makeNeonTerrain():arena?makePlaygroundTerrain():makeTerrain((build.frame || "bmx").length * 7 + 3),renderEnd=flat||arena?500:ter.finish;const pts=ter.pts;
   const shape = new T.Shape(); shape.moveTo(pts[0][0],pts[0][1]-.45);pts.forEach(([x,y])=>shape.lineTo(x,y));[...pts].reverse().forEach(([x,y])=>shape.lineTo(x,y-.45));shape.closePath();
   const groundGeo = new T.ExtrudeGeometry(shape, { depth: 2.4, bevelEnabled: false }); groundGeo.translate(0, 0, -1.2);
   const ground = new T.Mesh(groundGeo, new T.MeshStandardMaterial({ color: "#292d39", roughness: 1 })); ground.receiveShadow = true; if(!arena)scene.add(ground);
@@ -232,10 +235,11 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   [[-18, "#c26a3a", 6, 0.6], [-40, "#9b5a43", 12, 0.4], [-75, "#6e4c5a", 22, 0.25]].forEach(([z, col, hh, den]) => { const s = new T.Shape(); s.moveTo(-60, -20); for (let x = -60; x <= renderEnd + 120; x += 8) s.lineTo(x, Math.sin(x * 0.05 * den + z) * hh * 0.5 + hh * 0.4 + rnd() * hh * 0.2); s.lineTo(renderEnd + 120, -20); s.closePath();
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }};
-  const environment=arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
+  const neonWorld=neon?makeNeonWorld(T,scene,{lowDetail}):null;
+  const environment=neon?{update:(x,o)=>neonWorld.update(o?.dt||0),view:b=>neonWorld.setView(b),surfaceAt:()=>'asphalt',isDirt:()=>false,state:()=>neonWorld.state(),dispose:()=>neonWorld.dispose()}:arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
   // Playground soccer: push the big ball into the goal for fireworks (ride-soccer.js)
   const tracks=arena?makeTyreTracks(T,scene,(x,z)=>ter.height?ter.height(x,z):0):null;
-  const soccer=arena?makeSoccer(T,scene,ter,{lowDetail,onGoal:()=>{s.score+=500;s.events.push({type:'trick',t:'GOAL!',pts:500});}}):null;
+  const soccer=arena&&!neon?makeSoccer(T,scene,ter,{lowDetail,onGoal:()=>{s.score+=500;s.events.push({type:'trick',t:'GOAL!',pts:500});}}):null;
   // Playground runs Chris's original (classic) ride physics in free roam: same wheelie, stoppie, air
   // and landing feel as the side-scroller, plus handlebar steering (ride-freeroam.js). Jolt stays
   // available for comparison with ?physics=jolt.
@@ -295,8 +299,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   let finishTime = 0, finishSpeed = 0, finishHeight = 0, finishFall = false, finishTumble = false;
   let photoDelay = -1, photoCount = 0;
   // state + input
-  let crashRig=null;let s = makeState(P, arena?SIDE_TRACK.x0+3:2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
-  if(arena)s.z=SIDE_TRACK.z; // Playground opens in side view at the start of the side track
+  let crashRig=null;let s = makeState(P, neon?2:arena?SIDE_TRACK.x0+3:2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
+  if(arena)s.z=neon?0:SIDE_TRACK.z; // Playground opens in side view at the start of the side track; Neon Canal at its start line
   // Same visual cleanup as RECOVER: put the rider back on the bike and hide the crash bar.
   function clearCrashVisuals(){
     cancelRewindHold();
@@ -544,7 +548,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const restarting = finished;
     const keep = restarting ? {} : {score:s.score,odo:s.odo,battery:s.battery,bestWheelie:s.bestWheelie};
     // v2.1-30: RECOVER puts you back where you crashed (facing the way you were going), not at a checkpoint
-    const spot = restarting ? null : {x:s.x,z:s.z||0,yaw:s.moveYaw??s.yaw??0};
+    const spot = restarting ? null : {x:s.x,z:s.z||0,yaw:s.moveYaw??s.yaw??0};const coinsKept=s.coins||0;
     if (restarting) {
       lastCP = 2;
       cpI = flips = maxScore = finishTime = photoCount = 0;
@@ -574,13 +578,17 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     recover.hidden = true;
     if (spot && !freeRoam) s = Object.assign(makeState(P, Math.max(lastCP, spot.x - 1.5), ter), keep);
     else s = Object.assign(makeState(P, lastCP, ter), keep);
-    if (spot && freeRoam && Number.isFinite(spot.x)) {
+    if (neon) { // Neon Canal: back onto the line where you crashed (before the run-up if you fell in a gap); restart = start line
+      const S=restarting?2:neonSafeS(Math.max(2,neonProject(spot?.x??2,spot?.z??0).s-2)),p=neonAt(S),base=makeState(P,0,ter).y-ter.height(0,0);
+      Object.assign(s,{x:p.x,z:p.z,yaw:p.yaw,moveYaw:p.yaw,trackS:S,trackI:p.i,y:neonProfile(S)+base});if(restarting){s.coins=0;neonWorld?.resetCoins();}
+    } else if (spot && freeRoam && Number.isFinite(spot.x)) {
       let {x,z}=spot;const yaw=spot.yaw; // side view snaps it square to the track on the next step
       // step clear of whatever you hit (tree, rock, post) so you don't start inside it
       for(const q of ter.posts||[]){const dx=x-q.x,dz=z-q.z,d=Math.hypot(dx,dz),need=q.r+1.2;if(d<need){const k=d>1e-6?need/d:0;x=q.x+(k?dx*k:-Math.cos(yaw)*need);z=q.z+(k?dz*k:-Math.sin(yaw)*need);}}
       const base=makeState(P,0,ter).y-(ter.height?ter.height(0,0):0);
       Object.assign(s,{x,z,yaw,moveYaw:yaw,y:(ter.height?ter.height(x,z):0)+base});
     } else if (arena) s.z = SIDE_TRACK.z;
+    if(neon&&!restarting)s.coins=coinsKept;
     if (restarting && !P.pedal && P.batteryWh <= 0) s.battery = 0;
     if(jolt?.ready&&physics==='jolt')jolt.adopt(s);
     pivot.position.set(s.x, s.y, s.z||0);
@@ -678,7 +686,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     cameraView=next;
     el.dataset.wkCam=cameraView;
     // Playground side view = the straight side track: start there (unless already on it), heading +X.
-    if(arena&&next==='side'&&s&&!s.crashed){const T0=SIDE_TRACK,on=Math.abs((s.z||0)-T0.z)<T0.w/2+1&&s.x>T0.x0-5&&s.x<T0.x0+T0.len+5;
+    if(arena&&!neon&&next==='side'&&s&&!s.crashed){const T0=SIDE_TRACK,on=Math.abs((s.z||0)-T0.z)<T0.w/2+1&&s.x>T0.x0-5&&s.x<T0.x0+T0.len+5;
       if(!on)globalThis.__WK_JOLT_RESET__?.({x:T0.x0+3,z:T0.z,yaw:0,vx:0});else{const t=Math.round((s.yaw||0)/Math.PI)*Math.PI;s.yaw=t;s.moveYaw=t;s.sliding=false;}}
     if(!freeRoam&&cameraView!=='chase')steerSlider.release();
     return cameraView;
@@ -766,14 +774,19 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         }
       }else{
         const n = Math.ceil(dt * 480);
-        if(arena&&cameraView==='side'&&!s.crashed){const t=Math.round((s.yaw||0)/Math.PI)*Math.PI;s.yaw=t;s.moveYaw=t;s.sliding=false;s.lean=0;s.steer=0;}
+        if(arena&&!neon&&cameraView==='side'&&!s.crashed){const t=Math.round((s.yaw||0)/Math.PI)*Math.PI;s.yaw=t;s.moveYaw=t;s.sliding=false;s.lean=0;s.steer=0;}
         for (let k = 0; k < n; k++) {
           step(s, P, inp, dt / n, ter);
+          if(neon&&!s.crashed)neonLock(s,dt/n);
           if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
         }
         // Playground teleport rings (e.g. the downhill start): ride through one to be put at its target.
         soccer?.step(dt,s,P);
-        if(arena&&!s.crashed&&cameraView!=='side')for(const pd of PLAYGROUND_PADS){if(Math.hypot(s.x-pd.x,(s.z||0)-pd.z)<pd.r){globalThis.__WK_JOLT_RESET__?.({...pd.to});break;}}
+        if(neon&&!s.crashed){ // coins: ride through them; falling into a gap is a splash
+          for(let k=0;k<NEON_COINS.length;k++){const c=NEON_COINS[k];if(Math.abs(c.s-(s.trackS||0))<1.4&&Math.abs(c.y-(s.y-.35))<1.5&&neonWorld.takeCoin(k)){s.coins=(s.coins||0)+1;s.score+=10;}}
+          if(neonInGap(s.trackS||0)&&s.y<NEON.water+1.6){s.crashed='SPLASH! IN THE CANAL';s.events.push({type:'crash',why:s.crashed,part:'frame'});}
+        }
+        if(arena&&!neon&&!s.crashed&&cameraView!=='side')for(const pd of PLAYGROUND_PADS){if(Math.hypot(s.x-pd.x,(s.z||0)-pd.z)<pd.r){if(pd.level){switchLevel(pd.level);break;}globalThis.__WK_JOLT_RESET__?.({...pd.to});break;}}
       }
     }
     if (s.crashed) endSlow();
@@ -892,7 +905,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
     supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;if(!crashRig)riderModel.update({lean:inp.lean,superman:supermanPose,s,inp,dt});stuntRig.pose(s.stunt);
     // checkpoints / finish (Legacy trials only; the Playground has none)
-    const hitGate=x=>arena?false:(s.x>x);
+    const hitGate=x=>neon?((s.trackS||0)>x):arena?false:(s.x>x);
     while (cpI + 1 < ter.checkpoints.length && hitGate(ter.checkpoints[cpI + 1])) { cpI++; lastCP = ter.checkpoints[cpI] + 1; msg = "CHECKPOINT " + cpI; msgT = 1.2; }
     if (!finished && !s.crashed && hitGate(ter.finish)) {
       finished = true;
@@ -937,7 +950,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const k=1-Math.exp(-(arena?(inAir?14:12):5.8)*followDt);
       // Playground side view sits on the bike's right. It follows the heading only while
       // rolling, so a donut or burnout does not spin the camera round with it.
-      if(arena&&cameraView==='side')sideYaw=0; // camera locked square to the track
+      if(neon&&cameraView==='side'){const ty=s.loopRide?0:neonAt(s.trackS||0).yaw;if(sideYaw==null||!Number.isFinite(sideYaw))sideYaw=ty;else sideYaw+=wrapAngle(ty-sideYaw)*(1-Math.exp(-3*cameraDt));} // side view turns with the track
+      else if(arena&&cameraView==='side')sideYaw=0; // camera locked square to the track
       else if(arena){if(sideYaw==null||!Number.isFinite(sideYaw))sideYaw=yaw;else if(Math.abs(s.vx||0)>1.5&&!crashRig)sideYaw+=wrapAngle(yaw-sideYaw)*(1-Math.exp(-2.4*followDt));}
       if(!crashRig){
         if(chasePosX==null||!Number.isFinite(chasePosX)||!Number.isFinite(chasePosZ)||!Number.isFinite(chaseFollowY)||!Number.isFinite(tx)||!Number.isFinite(tz)||Math.hypot(s.x-chasePosX,z-chasePosZ)>8){chasePosX=Number.isFinite(tx)?tx:s.x;chasePosZ=Number.isFinite(tz)?tz:z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;if(arena)airClose=0;}
@@ -1175,7 +1189,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const w = W(), h = H(),screenScale=el.getBoundingClientRect().width/w;sty("transformOrigin","top left");sty("transform",`scale(${1/screenScale})`);sty("width",(w*screenScale)+"px");sty("height",(h*screenScale)+"px");sty("right","auto");sty("bottom","auto");const pixelRatio=Math.min(maxPR,devicePixelRatio*screenScale);if(R.getPixelRatio()!==pixelRatio)R.setPixelRatio(pixelRatio);if (R.domElement.width !== Math.floor(w * R.getPixelRatio())) { R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     if(!worldSky&&!arena)layoutBackdrop(horizonTex||backdrop,w,h,Math.sin(s.x*.001)*TH.backdrop.sway,blend);
     if(flat){const tile=Math.floor(s.x/100)*100;ground.position.x=tile;dirtTop.position.x=tile;layers.foreground.position.x=tile;layers.update(tile);flatMarkers.position.x=tile;sky.position.x=s.x;sunDisc.position.x=s.x+40;if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','FLAT ENDLESS · '+Math.floor(s.odo)+' m');}
-    if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','PLAYGROUND · '+Math.floor(s.odo)+' m');}
+    if(neon){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','NEON CANAL · '+Math.floor(Math.min(NEON.finish,s.trackS||0))+' / '+NEON.finish+' m · 🪙 '+(s.coins||0));}
+    else if(arena){if(hc.pd!=='none'){hc.pd='none';hud.prog.style.display='none'}put(hud.best,'best','PLAYGROUND · '+Math.floor(s.odo)+' m');}
     // While the replay panel covers the game, the scene is frozen: draw it once and leave the GPU/main thread to the video decoder (fixes stuttery replays on phones).
     if (!reviewing || !hc.reviewDrawn) { R.render(scene, cam); hc.reviewDrawn = reviewing; }
     if (photoDelay >= 0 && realDt && (photoDelay -= realDt) <= 0) {

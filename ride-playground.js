@@ -136,6 +136,8 @@ export const PLAYGROUND_PADS=[{id:'descent-start',label:'DOWNHILL',x:-58,z:50,r:
   // desert canyon bike track (Quaternius Stylized Nature MegaKit): start ring here, finish ring brings you back
   {id:'canyon',label:'CANYON',x:-58,z:68,r:1.8,to:CANYON_START},
   {id:'bowl',label:'BOWL',x:-58,z:74,r:1.8,to:BOWL_ENTRY},
+  // v2.1-35: the Neon Canal level (a locked race track); the ring switches level
+  {id:'neon',label:'NEON CANAL',x:-58,z:80,r:1.8,level:'neon',to:{x:-52,z:46,yaw:0,vx:0}},
   {id:'canyon-back',label:'BACK TO PLAYGROUND',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}},
   {id:'town-back',label:'BACK TO PLAYGROUND',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*12;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*12;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
 const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<PARK.hx&&Math.abs(z-PARK.z)<PARK.hz?parkHeight(x,z):inBowl(x,z)?bowlHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));

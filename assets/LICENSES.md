@@ -50,3 +50,8 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 - `assets/quaternius/nature/` — dead trees, desert rocks, dry grass, plants, pebbles, rock paths for the desert canyon bike track.
 - License: CC0 1.0 (see `assets/quaternius/nature/License.txt`). Models by @Quaternius — https://quaternius.com
 - Textures resized; grass recoloured to dry gold, Rock_Medium uses the kit's desert rock texture.
+
+## Neon Canal level
+- Sky: Poly Haven `qwantani_dusk_2_puresky` (CC0) — https://polyhaven.com/a/qwantani_dusk_2_puresky — background colour-graded purple/orange (`assets/hdri/neon_sunset_*`).
+- Textures: ambientCG `Asphalt026C`, `Concrete034` (CC0) — https://ambientcg.com
+- Graffiti, fence, windows, chevrons, signs and palms are generated in code (`ride-neon-world.js`).
