@@ -22,7 +22,7 @@ import {roadLayers} from './ride-scenery.js';
 import {makeRider} from './rider-model.js';
 import {makeUbcRider} from './rider-ubc.js';
 import {makeEnvironment} from './ride-environment.js';
-import {makePlaygroundWorld} from './ride-playground.js';
+import {makePlaygroundWorld,SIDE_TRACK} from './ride-playground.js';
 import {deriveRideProfile} from './ride-profile.js';
 import {makeCrashRig} from './crash-rig.js';
 const COND_KEY = "wk-condition";
@@ -631,6 +631,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const next=view==='chase'?'chase':'side';
     cameraView=next;
     el.dataset.wkCam=cameraView;
+    // Playground side view = the straight side track: start there (unless already on it), heading +X.
+    if(arena&&next==='side'&&s&&!s.crashed){const T0=SIDE_TRACK,on=Math.abs((s.z||0)-T0.z)<T0.w/2+1&&s.x>T0.x0-5&&s.x<T0.x0+T0.len+5;
+      if(!on)globalThis.__WK_JOLT_RESET__?.({x:T0.x0+3,z:T0.z,yaw:0,vx:0});else{const t=Math.round((s.yaw||0)/Math.PI)*Math.PI;s.yaw=t;s.moveYaw=t;s.sliding=false;}}
     if(!freeRoam&&cameraView!=='chase')steerSlider.release();
     return cameraView;
   }
@@ -678,10 +681,11 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const airArrows=arena&&!(s.ground[0]||s.ground[1])&&!s.crashed;
     inp.throttle = Math.max(touch.throttle, keys.w || ((!freeRoam||arena)&&!airArrows&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || ((!freeRoam||arena)&&!airArrows&&keys.arrowdown) ? 1 : 0);
     const sideView=!!freeRoam&&cameraView==='side';
-    const leanKey=arena?((keys[' ']||(sideView&&keys.d)||(airArrows&&keys.arrowup)?1:0)-(keys.shift||(sideView&&keys.a)||(airArrows&&keys.arrowdown)?1:0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
+    const leanKey=arena?((keys[' ']||(sideView&&keys.d)||(airArrows&&keys.arrowup)?1:0)-(keys.shift||(sideView&&keys.a)||(airArrows&&keys.arrowdown)?1:0)+(sideView?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0))):0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
     inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey-(touch.dragLean||0)))*-1;
     // Side view: A/D lean (see leanKey), touch steer still steers.
-    inp.steer = freeRoam?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
+    // Playground side view is the side-scroller: no sideways steering at all.
+    inp.steer = freeRoam&&!(arena&&cameraView==='side')?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0)+(!sideView&&(keys.d||keys.arrowright)?1:0)-(!sideView&&(keys.a||keys.arrowleft)?1:0))):0;
     if(arena){inp.burnout=rideToggles.burnout;inp.stand=rideToggles.stand;inp.brakeLock=brakeLockId!=null;}
     inp.hop=hopQueued||touch.hop||keys[" "]?1:0;hopQueued=false;inp.trick=touch.trick||keys.q?1:0;inp.whip=0;inp.tailwhip=touch.tailwhip||keys.z||keys.e?1:0;inp.barspin=touch.barspin||keys.x?1:0;inp.superman=touch.superman||keys.c?1:0;
     // Playground style moves (toggles): one-hander, knee-knock. Air tricks/HOP are classic-only.
@@ -697,6 +701,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         }
       }else{
         const n = Math.ceil(dt * 480);
+        if(arena&&cameraView==='side'&&!s.crashed){const t=Math.round((s.yaw||0)/Math.PI)*Math.PI;s.yaw=t;s.moveYaw=t;s.sliding=false;s.lean=0;s.steer=0;}
         for (let k = 0; k < n; k++) {
           step(s, P, inp, dt / n, ter);
           if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
@@ -853,7 +858,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const k=1-Math.exp(-(arena?(inAir?14:12):5.8)*followDt);
       // Playground side view sits on the bike's right. It follows the heading only while
       // rolling, so a donut or burnout does not spin the camera round with it.
-      if(arena){if(sideYaw==null||!Number.isFinite(sideYaw))sideYaw=yaw;else if(Math.abs(s.vx||0)>1.5&&!crashRig)sideYaw+=wrapAngle(yaw-sideYaw)*(1-Math.exp(-2.4*followDt));}
+      if(arena&&cameraView==='side')sideYaw=0; // camera locked square to the track
+      else if(arena){if(sideYaw==null||!Number.isFinite(sideYaw))sideYaw=yaw;else if(Math.abs(s.vx||0)>1.5&&!crashRig)sideYaw+=wrapAngle(yaw-sideYaw)*(1-Math.exp(-2.4*followDt));}
       if(!crashRig){
         if(chasePosX==null||!Number.isFinite(chasePosX)||!Number.isFinite(chasePosZ)||!Number.isFinite(chaseFollowY)||!Number.isFinite(tx)||!Number.isFinite(tz)||Math.hypot(s.x-chasePosX,z-chasePosZ)>8){chasePosX=Number.isFinite(tx)?tx:s.x;chasePosZ=Number.isFinite(tz)?tz:z;chaseYaw=yaw;chaseHorizon=roadY;chaseFollowY=s.y+1.15;chaseLookY=s.y+.45;if(arena)airClose=0;}
         chasePosX+=(tx-chasePosX)*k;chasePosZ+=(tz-chasePosZ)*k;chaseYaw+=wrapAngle(yaw-chaseYaw)*(1-Math.exp(-(arena?10:8)*followDt));

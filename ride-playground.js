@@ -46,7 +46,28 @@ export function terrainHeight(x,z){
   const side=0.1*Math.max(-T.core,Math.min(T.core,dz))*ss((u-86)/6)*(1-ss((u-96)/6)); // ~10 % cross slope on the plateau
   return Math.max(0,(lane(u)+side+moguls(u,dz))*w);
 }
-export const playgroundHeight=(x,z)=>Math.max(rampHeight(x,z),terrainHeight(x,z));
+// Side-view test track: a short straight dirt strip along +X (z = 40) with bumps, a table-top, whoops
+// and a gap jump. Switching the Playground to side view puts you at its start, steering locked, so the
+// side-scroller feel can be tested in the 3D world.
+export const SIDE_TRACK={x0:-50,len:110,z:40,w:5};
+export function sideTrackProfile(u){
+  if(u<10||u>110)return 0;
+  if(u<28)return 0.3*(0.5-0.5*Math.cos(2*Math.PI*(u-10)/6));          // 3 bumps
+  if(u<37)return 0;
+  if(u<40)return 0.9*((u-37)/3)**2;                                    // kicker, ~31 deg lip
+  if(u<44)return 0.9;                                                  // table
+  if(u<50)return 0.9*(1-ss((u-44)/6));                                 // landing
+  if(u<58)return 0;
+  if(u<70)return 0.25*(0.5-0.5*Math.cos(2*Math.PI*(u-58)/3));          // whoops
+  if(u<76)return 0;
+  if(u<79.5)return 1.2*((u-76)/3.5)**2;                                // gap kicker, ~34 deg lip
+  if(u<84)return 0;                                                    // gap
+  if(u<85)return 1.2*ss(u-84);                                         // landing ramp back face (short)
+  if(u<93)return 1.2*(1-ss((u-85)/8));                                 // landing ramp
+  return 0;
+}
+export function sideTrackHeight(x,z){const T=SIDE_TRACK;if(Math.abs(z-T.z)>T.w/2)return 0;return sideTrackProfile(x-T.x0);}
+export const playgroundHeight=(x,z)=>Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z));
 const GROUND={Color:'./assets/ambientcg/Ground086/Ground086_1K-JPG_Color.jpg',NormalGL:'./assets/ambientcg/Ground086/Ground086_1K-JPG_NormalGL.jpg',Roughness:'./assets/ambientcg/Ground086/Ground086_1K-JPG_Roughness.jpg'};
 const DIRT={Color:'./assets/ambientcg/Ground054/Ground054_1K-JPG_Color.jpg',NormalGL:'./assets/ambientcg/Ground054/Ground054_1K-JPG_NormalGL.jpg',Roughness:'./assets/ambientcg/Ground054/Ground054_1K-JPG_Roughness.jpg'};
 // Ramp triangles in world space (top surface + both side walls), shared by the drawn mesh and Jolt.
@@ -87,10 +108,18 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const tg=new T.BufferGeometry();tg.setAttribute('position',new T.Float32BufferAttribute(tp,3));tg.setAttribute('uv',new T.Float32BufferAttribute(tu,2));tg.setAttribute('color',new T.Float32BufferAttribute(tc,3));tg.setIndex(ti);tg.computeVertexNormals();
   const tmat=new T.MeshStandardMaterial({map:load(DIRT,'Color',true,1),normalMap:lowDetail?null:load(DIRT,'NormalGL',false,1),roughnessMap:load(DIRT,'Roughness',false,1),roughness:1,metalness:0,vertexColors:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   const tmesh=new T.Mesh(tg,tmat);tmesh.receiveShadow=true;tmesh.castShadow=!lowDetail;tmesh.name='environment:terrain-lane';root.add(tmesh);
+  // Side-view track: dirt ribbon displaced by sideTrackHeight, with start/finish stripes.
+  const ST=SIDE_TRACK,SC=0.25,sx0=ST.x0-1,sx1=ST.x0+ST.len+1,sz0=ST.z-ST.w/2-.25,sz1=ST.z+ST.w/2+.25;
+  const snx=Math.round((sx1-sx0)/SC),snz=Math.round((sz1-sz0)/SC),sp=[],su=[],si=[],sc=[];
+  for(let j=0;j<=snz;j++)for(let i=0;i<=snx;i++){const x=sx0+i*SC,z=sz0+j*SC,h=sideTrackHeight(x,z);sp.push(x,h,z);su.push(x/4,-z/4);const c=Math.abs(z-ST.z)>ST.w/2?.75:1;sc.push(c,c,c);}
+  for(let j=0;j<snz;j++)for(let i=0;i<snx;i++){const a=j*(snx+1)+i,b=a+1,c=a+snx+1,d=c+1;si.push(a,c,b,b,c,d);}
+  const sg=new T.BufferGeometry();sg.setAttribute('position',new T.Float32BufferAttribute(sp,3));sg.setAttribute('uv',new T.Float32BufferAttribute(su,2));sg.setAttribute('color',new T.Float32BufferAttribute(sc,3));sg.setIndex(si);sg.computeVertexNormals();
+  const smesh=new T.Mesh(sg,tmat);smesh.receiveShadow=true;smesh.castShadow=!lowDetail;smesh.name='environment:side-track';root.add(smesh);
+  for(const u of [2,ST.len-2]){const e=new T.Mesh(new T.BoxGeometry(.3,.03,ST.w),edgeMat);e.position.set(ST.x0+u,.02,ST.z);root.add(e);rampGeos.push(e.geometry);}
   return {
     roadMap:mat.map,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
     update(){},view(){},
     state:()=>({playground:true,arena:true,size:SIZE,ground:'Ground086',terrainGround:'Ground054',tile:TILE,uvWorld:true,props:0,ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
-    dispose(){texs.forEach(t=>t.dispose());mat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();tmat.dispose();root.removeFromParent();}
+    dispose(){texs.forEach(t=>t.dispose());mat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };
 }
