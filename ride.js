@@ -649,7 +649,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   let raf = 0, last = performance.now(), fxT = 0, spinVis = 0;
   let cameraView='side',cameraBlend=0,cameraReady=false,airClose=0;
   let sideYaw=null;
-  const airPedal={wasAir:false,thrHeld:false,brkHeld:false};
+  const airPedal={wasAir:false,thrHeld:false,brkHeld:false,t:0};let keyLean=0;
   // Camera only: switching view never touches the bike's pose or velocity.
   function setCameraView(view){
     const next=view==='chase'?'chase':'side';
@@ -706,16 +706,22 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     inp.throttle = Math.max(touch.throttle, keys.w || ((!freeRoam||arena)&&!airArrows&&keys.arrowup) ? 1 : 0); inp.brake = Math.max(touch.brake, keys.s || ((!freeRoam||arena)&&!airArrows&&keys.arrowdown) ? 1 : 0);
     const sideView=!!freeRoam&&cameraView==='side';
     const leanKey=arena?((keys[' ']||(sideView&&keys.d)||(airArrows&&keys.arrowup)?1:0)-(keys.shift||(sideView&&keys.a)||(airArrows&&keys.arrowdown)?1:0)+(sideView?Math.max(-1,Math.min(1,(touch.steerRight||0)-(touch.steerLeft||0))):0)):freeRoam?((keys.arrowup||(sideView&&keys.d)?1:0)-(keys.arrowdown||(sideView&&keys.a)?1:0)):(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0);
-    inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+leanKey-(touch.dragLean||0)))*-1;
+    // Playground: keys are on/off, so ease the lean in (full in ~0.35 s) and the front comes up progressively, not in a snap
+    if(arena){const k=Math.min(1,dt*(Math.abs(leanKey)>Math.abs(keyLean)?3:6));keyLean+=Math.max(-k,Math.min(k,leanKey-keyLean));}else keyLean=leanKey;
+    inp.lean = Math.max(-1, Math.min(1, touch.lean+(touch.leanForward||0)-(touch.leanBack||0)+keyLean-(touch.dragLean||0)))*-1;
     // Playground air control on the pedals: in the air, throttle rotates the bike forward (front flip),
     // brake rotates it back (backflip). Adds to any lean input.
     // Gas/brake already held at take-off don't count until you let go and press again, so holding the
     // throttle over a jump doesn't nose-dive you.
     {const airNow=arena&&!(s.ground[0]||s.ground[1])&&!s.crashed;
-     if(!airNow){airPedal.thr=false;airPedal.brk=false;airPedal.wasAir=false;}
-     else{if(!airPedal.wasAir){airPedal.wasAir=true;airPedal.thrHeld=(inp.throttle||0)>.1;airPedal.brkHeld=(inp.brake||0)>.1;}
+     if(!airNow){airPedal.thr=false;airPedal.brk=false;airPedal.wasAir=false;airPedal.t=0;}
+     else{if(!airPedal.wasAir){airPedal.wasAir=true;airPedal.t=0;airPedal.thrHeld=(inp.throttle||0)>.1;airPedal.brkHeld=(inp.brake||0)>.1;}
+       airPedal.t+=dt;
        if((inp.throttle||0)<=.1)airPedal.thrHeld=false;if((inp.brake||0)<=.1)airPedal.brkHeld=false;
-       const thr=airPedal.thrHeld?0:(inp.throttle||0),brk=airPedal.brkHeld?0:(inp.brake||0);
+       // a pedal held from take-off joins in after a moment in the air (so a small hop doesn't nose-dive you,
+       // but on a real jump you can keep holding W or S to rotate)
+       const held=Math.max(0,Math.min(1,(airPedal.t-.25)/.3));
+       const thr=(inp.throttle||0)*(airPedal.thrHeld?held:1),brk=(inp.brake||0)*(airPedal.brkHeld?held:1);
        inp.lean=Math.max(-1,Math.min(1,inp.lean+brk-thr));}}
     // Side view: A/D lean (see leanKey), touch steer still steers.
     // Playground side view is the side-scroller: no sideways steering at all.

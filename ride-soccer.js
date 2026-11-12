@@ -4,7 +4,9 @@
 export const SOCCER = {
   centre: { x: 62, z: -75 }, r: 0.9, halfLen: 42, halfWidth: 26,
   goal: { halfW: 6, h: 3.6, depth: 3 },
-  restitution: 0.62, friction: 0.35, kick: 1.15, respawn: 3.5,
+  // v2.1-22: a heavier ball, Rocket League style: hits carry it without it flying off, lower bounce, it rolls
+  // on with weight, and the bike feels the hit too
+  restitution: 0.5, friction: 0.45, kick: 0.85, respawn: 3.5, bikeLoss: 0.07,
   // catch net behind each goal end (back + side wings), 7 m behind the goal mouth
   fence: { back: 10, halfW: 24, h: 9, wing: 10 },
 };
@@ -119,7 +121,7 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
     if (!(dt > 0)) return;
     const n = Math.ceil(dt / (1 / 240)), h = dt / n, R = SOCCER.r;
     for (let i = 0; i < n; i++) {
-      b.vy -= 9.8 * h; b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h;
+      b.vy -= 9.8 * h; const drag = 1 - 0.06 * h; b.vx *= drag; b.vz *= drag; b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h;
       // ground (playground heightfield, normal from its gradient)
       const gy = ter.height(b.x, b.z);
       if (b.y - R < gy) {
@@ -157,7 +159,7 @@ export function makeSoccer(T, scene, ter, { lowDetail = false, onGoal } = {}) {
         if (d < min && d > 1e-6) {
           const nx = dx / d, ny = dy / d, nz = dz / d; b.x = px + nx * min; b.y = Math.max(b.y, py + ny * min); b.z = pz + nz * min;
           const rv = (b.vx - bvx) * nx + (b.vy - bvy) * ny + (b.vz - bvz) * nz;
-          if (rv < 0) { const j = -(1 + 0.75) * rv * SOCCER.kick; b.vx += j * nx; b.vy += j * Math.max(ny, 0.25) + 0.6; b.vz += j * nz; b.touches++; s.vx *= 0.97; }
+          if (rv < 0) { const j = -(1 + 0.6) * rv * SOCCER.kick; b.vx += j * nx; b.vy += j * Math.max(ny, 0.15) * 0.8 + 0.3; b.vz += j * nz; b.touches++; s.vx *= 1 - SOCCER.bikeLoss; }
         }
       }
     }
