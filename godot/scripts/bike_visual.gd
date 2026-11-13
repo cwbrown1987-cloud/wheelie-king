@@ -7,14 +7,19 @@ var fork = Node3D.new()
 var rider: RiderPose
 
 var real_model: BikeModel
+var rider_ik: RiderIK
 
 func setup(b: Bike):
 	bike = b
 	var s = b.spec
 	if BikeModel.available(s):
 		real_model = BikeModel.new(); add_child(real_model); real_model.setup(b)
-		rider = RiderPose.new(); add_child(rider)
-		rider.setup(b, real_model.seat_pt + Vector3(0, 0.02, 0.05), real_model.bar_pt, real_model.bb_pt)
+		if RiderIK.available():
+			rider_ik = RiderIK.new(); add_child(rider_ik)
+			rider_ik.setup(b, real_model.seat_pt, real_model.bar_pt, real_model.bb_pt, real_model.bar_half)
+		else:
+			rider = RiderPose.new(); add_child(rider)
+			rider.setup(b, real_model.seat_pt + Vector3(0, 0.02, 0.05), real_model.bar_pt, real_model.bb_pt)
 		return
 	var frame_mat = StandardMaterial3D.new(); frame_mat.albedo_color = Color(0.1, 0.75, 0.25); frame_mat.metallic = 0.6; frame_mat.roughness = 0.35
 	var dark = StandardMaterial3D.new(); dark.albedo_color = Color(0.08, 0.08, 0.09); dark.roughness = 0.6
