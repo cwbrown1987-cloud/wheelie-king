@@ -17,6 +17,7 @@ try{
   }));
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',msg=>{if(msg.type()==='error'||msg.type()==='warning')errors.push('console '+msg.text());});
   await page.addInitScript(()=>{
     localStorage.setItem('wk-level','arena');
     localStorage.removeItem('wk-classic-arcade-mode');
@@ -31,10 +32,19 @@ try{
   await page.locator('[data-destination="race"]').first().click();
   await page.waitForFunction(()=>globalThis.__WK_TELEMETRY__?.()?.world==='v3',null,{timeout:180000});
   const first=await page.evaluate(()=>({
-    engine:__WK_TELEMETRY__().physics,world:__WK_TELEMETRY__().world,
-    mode:__WK_TELEMETRY__().arcade?.mode,terrain:__WK_RIDE_STATE__().environment,
-    position:{x:__WK_TELEMETRY__().x,z:__WK_TELEMETRY__().z}
+    engine:globalThis.__WK_TELEMETRY__?.()?.physics,
+    world:globalThis.__WK_TELEMETRY__?.()?.world,
+    mode:globalThis.__WK_TELEMETRY__?.()?.arcade?.mode,
+    terrain:globalThis.__WK_RIDE_STATE__?.()?.environment,
+    position:{x:globalThis.__WK_TELEMETRY__?.()?.x,z:globalThis.__WK_TELEMETRY__?.()?.z},
+    active:!!globalThis.__WK_TELEMETRY__,
+    href:location.href,
+    ride:!!document.querySelector('[data-wk-ride-surface]')
   }));
+  if(!first.active){
+    await page.screenshot({path:'test-results/v3-vanished.png'}).catch(()=>{});
+    throw new Error('Ride disappeared after startup: '+JSON.stringify({first,errors}));
+  }
   assert.equal(first.engine,'v3');
   assert.equal(first.world,'v3');
   assert.equal(first.mode,'original','first-time user retains Original assistance');
@@ -44,7 +54,7 @@ try{
     const p=__WK_TELEMETRY__?.().props;
     return p?.ready||p?.error;
   },null,{timeout:45000});
-  const props=await page.evaluate(()=>__WK_TELEMETRY__().props);
+  const props=await page.evaluate(()=>globalThis.__WK_TELEMETRY__?.().props);
   assert.equal(props.error,null,'props-only Jolt initialization: '+props.error);
   assert.equal(props.ready,true,'props-only Jolt should run without motorcycle controller');
   assert(props.count>3,'Jolt should own several movable props');
@@ -54,13 +64,13 @@ try{
   assert.equal(await lab.locator('select[aria-label="Bike physics engine"]').inputValue(),'v3');
   const modes=lab.locator('select[aria-label="Handling mode"]');
   await modes.selectOption('arcade');
-  assert.equal(await page.evaluate(()=>__WK_CLASSIC_ASSIST__?.getMode()),'arcade');
+  assert.equal(await page.evaluate(()=>globalThis.__WK_CLASSIC_ASSIST__?.getMode()),'arcade');
   await page.keyboard.down('w');
   await page.waitForTimeout(1100);
   await page.keyboard.up('w');
   const after=await page.evaluate(()=>({
-    state:__WK_TELEMETRY__(),props:__WK_RIDE_STATE__().props,
-    chunks:__WK_RIDE_STATE__().environment.chunks,
+    state:globalThis.__WK_TELEMETRY__?.(),props:globalThis.__WK_RIDE_STATE__?.().props,
+    chunks:globalThis.__WK_RIDE_STATE__?.().environment.chunks,
   }));
   assert(Number.isFinite(after.state.x)&&Number.isFinite(after.state.y)&&Number.isFinite(after.state.z));
   assert(Number.isFinite(after.state.rollDeg)&&Number.isFinite(after.state.pitchDeg));
@@ -69,7 +79,7 @@ try{
   await page.screenshot({path:'test-results/v3-world-arcade.png',animations:'disabled'});
 
   await modes.selectOption('original');
-  assert.equal(await page.evaluate(()=>__WK_CLASSIC_ASSIST__?.getMode()),'original');
+  assert.equal(await page.evaluate(()=>globalThis.__WK_CLASSIC_ASSIST__?.getMode()),'original');
   assert.deepEqual(errors,[],'unexpected page errors: '+errors.join(' | '));
   console.log(JSON.stringify({pass:true,first,props:{ready:props.ready,count:props.count},after:{
     speedKmh:after.state.speedKmh,chunks:after.chunks,rollDeg:after.state.rollDeg,pitchDeg:after.state.pitchDeg
