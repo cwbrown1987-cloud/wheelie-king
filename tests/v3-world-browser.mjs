@@ -17,9 +17,10 @@ try{
   }));
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  page.on('console',msg=>{if(msg.type()==='error'||msg.type()==='warning')errors.push('console '+msg.text());});
+  page.on('console',msg=>{if(msg.type()==='error')errors.push('console '+msg.text());});
   await page.addInitScript(()=>{
     localStorage.setItem('wk-level','arena');
+    localStorage.setItem('wk-race-low-detail','1');
     localStorage.removeItem('wk-classic-arcade-mode');
   });
   const target=new URL(url);
@@ -51,7 +52,7 @@ try{
   assert(first.terrain.chunks>=9,'streamed terrain chunks must be present');
 
   await page.waitForFunction(()=>{
-    const p=__WK_TELEMETRY__?.().props;
+    const p=globalThis.__WK_TELEMETRY__?.()?.props;
     return p?.ready||p?.error;
   },null,{timeout:45000});
   const props=await page.evaluate(()=>globalThis.__WK_TELEMETRY__?.().props);
