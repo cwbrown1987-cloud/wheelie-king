@@ -8,7 +8,7 @@ export function stageRuntime(){
  // Fixed workspace target; never upload attachments, history, tests or tools.
  rmSync(dist,{recursive:true,force:true});mkdirSync(dist);
  const modules=readdirSync(root,{withFileTypes:true}).filter(e=>e.isFile()&&e.name.endsWith('.js')).map(e=>e.name);
- for(const name of [...modules,'index.html','manifest.webmanifest','_headers','.nojekyll','vendor','stickers','icons','src','assets'])cpSync(join(root,name),join(dist,name),{recursive:true});
+ for(const name of [...modules,'index.html','ride-preload.json','manifest.webmanifest','_headers','.nojekyll','vendor','stickers','icons','src','assets'])cpSync(join(root,name),join(dist,name),{recursive:true});
  const sw=readFileSync(join(dist,'sw.js'),'utf8'),shell=JSON.parse(sw.match(/const SHELL = (\[.*?\]);/s)[1]);
  for(const asset of shell)if(!existsSync(join(dist,asset)))throw Error(`Missing precache asset: ${asset}`);
  // Every ./assets/... URL a ride module references must ship (v33f: the HDRI and ground textures were missing).

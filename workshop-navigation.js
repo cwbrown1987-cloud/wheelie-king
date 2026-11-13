@@ -12,8 +12,8 @@ function tick(){
   // Workshop tab (data-wk-nav=garage) returns to workshop room in the shared world
   source('garage')?.addEventListener('click',()=>{globalThis.__WK_SHARED_WORLD__?.transitionTo('workshop');},{capture:true});
   const browser=add('Browser','◎','COMING SOON');source('garage').after(browser);
-  shop=add('Shop','🛒',null,()=>{popup.hidden=true;more.setAttribute('aria-expanded','false');globalThis.__WK_ROOM__?.open('shop')});
-  /* v2.1-52: RIDE (was Race) takes the selected bike into the Playground */ add('Ride','🚲',null,()=>{try{if(localStorage.getItem('wk-level')==='neon')localStorage.setItem('wk-level','arena')}catch{}document.body.dataset.wkRacePending='';const request=Symbol();raceRequest=request;setTimeout(()=>{if(raceRequest===request&&document.body.hasAttribute('data-wk-race-pending')){racePending=false;pendingBuild=null;delete document.body.dataset.wkRacePending;}},10000);popup.hidden=true;pendingBuild=globalThis.__WK_ROOM__?.selectedBuild||null;if(pendingBuild)globalThis.__WK_SETBUILD__?.({...pendingBuild});globalThis.__WK_ROOM__?.close();racePending=true;source('garage')?.click()});
+  shop=add('Shop','🛒','COMING SOON'); /* v2.1-55: shop not open yet */
+  /* v2.1-52: RIDE (was Race) takes the selected bike into the Playground */ add('Ride','🚲',null,()=>rideMenu(go=>{try{if(go){localStorage.setItem('wk-level',go.level);if(go.spawn)sessionStorage.setItem('wk-spawn',go.spawn);else sessionStorage.removeItem('wk-spawn')}}catch{}document.body.dataset.wkRacePending='';const request=Symbol();raceRequest=request;setTimeout(()=>{if(raceRequest===request&&document.body.hasAttribute('data-wk-race-pending')){racePending=false;pendingBuild=null;delete document.body.dataset.wkRacePending;}},10000);popup.hidden=true;pendingBuild=globalThis.__WK_ROOM__?.selectedBuild||null;if(pendingBuild)globalThis.__WK_SETBUILD__?.({...pendingBuild});globalThis.__WK_ROOM__?.close();racePending=true;source('garage')?.click()}));
   more=add('More','☰',null,()=>{popup.hidden=!popup.hidden;more.setAttribute('aria-expanded',String(!popup.hidden))});more.setAttribute('aria-expanded','false');more.setAttribute('aria-haspopup','menu');popup=document.createElement('div');popup.className='wk-more';popup.hidden=true;popup.setAttribute('role','menu');popup.setAttribute('aria-label','More destinations');
   for(const [route,label]of [['builds','My builds'],['challenges','Challenges'],['settings','Settings']]){const b=document.createElement('button');b.setAttribute('role','menuitem');b.textContent=label;b.onclick=()=>{popup.hidden=true;more.setAttribute('aria-expanded','false');globalThis.__WK_ROOM__?.close();source(route)?.click()};popup.append(b)}bar.append(popup);
  }
@@ -21,3 +21,29 @@ function tick(){
  if(racePending&&globalThis.__WK_VIEW__?.renderer.domElement.isConnected){if(pendingBuild){let root;__WK_VIEW__.scene.traverse(o=>{if(o.name==='wk:frame')root=o.parent});const want=globalThis.__WK_CANONICAL_BUILD__(pendingBuild),actual=globalThis.__WK_CANONICAL_BUILD__(root?.userData.wkBuild||{});if(!Object.entries(want).every(([s,id])=>actual[s]===id))return;pendingBuild=null;}const ride=document.querySelector('[aria-label="Test ride"]');if(ride){racePending=false;ride.click()}}
 }
 document.addEventListener('click',e=>{if(popup&&!bar?.contains(e.target)){popup.hidden=true;more?.setAttribute('aria-expanded','false');if(shopPopup)shopPopup.hidden=true;shop?.setAttribute('aria-expanded','false')}});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.hasAttribute('data-wk-race-pending')){racePending=false;pendingBuild=null;delete document.body.dataset.wkRacePending;}if(e.key==='Escape'&&popup){popup.hidden=true;more?.setAttribute('aria-expanded','false');if(shopPopup)shopPopup.hidden=true;shop?.setAttribute('aria-expanded','false')}});setInterval(tick,350);
+
+// v2.1-54: RIDE asks where to go
+const RIDE_PLACES=[{id:'playground',title:'PLAYGROUND',sub:'Free ride: ramps, skate park, bowl, soccer',icon:'🏞️',level:'arena'},{id:'neon',title:'NEON RACE',sub:'Neon Canal: 1.7 km race at sunset',icon:'🌆',level:'neon'},{id:'valley',title:'THE VALLEY',sub:'Canyon bike track: rollers, tables, big doubles',icon:'🏜️',level:'arena',spawn:'canyon'},{id:'downhill',title:'DOWNHILL',sub:'Mountain dirt road, top to bottom',icon:'⛰️',level:'arena',spawn:'descent-start'}];
+function rideMenu(go){
+ document.querySelector('.wk-ride-menu')?.remove();
+ preloadRide();
+ if(/[?&](legacy|autostart|track)\b/.test(location.search)||globalThis.__WK_AUTOSTARTED__)return go(null); // tests / dev entry points keep their own level
+ const m=document.createElement('div');m.className='wk-ride-menu';m.setAttribute('role','dialog');m.setAttribute('aria-label','Where to ride');
+ m.innerHTML=`<style>.wk-ride-menu{position:fixed;inset:0;z-index:9998;display:grid;place-items:center;background:rgba(6,10,18,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:system-ui,sans-serif}.wk-ride-menu .box{width:min(94vw,760px);max-height:92vh;overflow:auto;background:linear-gradient(#172538,#0b1320);border:1px solid #7fabc455;border-radius:16px;padding:14px 14px 12px;box-shadow:0 20px 60px #000a}.wk-ride-menu h2{margin:0 0 10px;color:#e9f5ff;font:900 18px system-ui;letter-spacing:.12em;text-align:center}.wk-ride-menu .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.wk-ride-menu button.place{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:14px;border-radius:12px;border:2px solid #3fb8ff55;background:linear-gradient(#1d3350,#13233a);color:#fff;cursor:pointer}.wk-ride-menu button.place:hover,.wk-ride-menu button.place:focus-visible{border-color:#3fb8ff;outline:none;transform:translateY(-1px)}.wk-ride-menu .ic{font-size:28px}.wk-ride-menu b{font:900 15px system-ui;letter-spacing:.08em}.wk-ride-menu small{color:#a9c4d8;font-size:12px;line-height:1.3}.wk-ride-menu .x{display:block;margin:10px auto 0;background:none;border:1px solid #7fabc466;color:#cfe3f2;border-radius:10px;padding:7px 18px;font:700 13px system-ui;cursor:pointer}</style><div class="box"><h2>WHERE TO RIDE?</h2><div class="grid">${RIDE_PLACES.map(p=>`<button type="button" class="place" data-place="${p.id}"><span class="ic">${p.icon}</span><b>${p.title}</b><small>${p.sub}</small></button>`).join('')}</div><button type="button" class="x" data-place="cancel">Cancel</button></div>`;
+ m.addEventListener('click',e=>{const b=e.target.closest('[data-place]');if(!b&&e.target!==m)return;m.remove();const p=RIDE_PLACES.find(q=>q.id===b?.dataset.place);if(p)go(p);});
+ addEventListener('keydown',function esc(e){if(e.key==='Escape'){m.remove();removeEventListener('keydown',esc)}});
+ document.body.append(m);m.querySelector('button.place')?.focus();
+}
+globalThis.__WK_RIDE_MENU__=rideMenu;
+
+// v2.1-55: while the RIDE menu is open, quietly fetch the levels' textures and models (the service worker keeps
+// them), so whichever you pick opens quicker. Lists come from ride-preload.json (tools/build-preload.mjs).
+let preloadStarted=false;
+function preloadRide(){
+ if(preloadStarted)return;preloadStarted=true;
+ fetch('./ride-preload.json').then(r=>r.ok?r.json():null).then(d=>{if(!d)return;
+  const q=[...new Set([...(d.shared||[]),...(d.playground||[]),...(d.neon||[])])];let i=0,live=0;
+  const next=()=>{while(live<3&&i<q.length){const u=q[i++];live++;fetch('./'+u,{priority:'low'}).catch(()=>{}).finally(()=>{live--;next();});}};next();
+ }).catch(()=>{});
+}
+globalThis.__WK_PRELOAD_RIDE__=preloadRide;

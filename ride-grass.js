@@ -26,16 +26,16 @@ export function makeGrassField(T, root, { height, mask, lowDetail = false, quali
   mat.customProgramCacheKey = () => 'wk-grass'; mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-attribute vec2 bseed;attribute vec2 broot;uniform sampler2D gTex;uniform vec2 gOrigin;uniform float gSize;uniform float gTime;uniform vec3 gBike;uniform vec2 gCenter;uniform float gRad;varying vec3 vGCol;varying float vGT;`).replace('#include <begin_vertex>', `#include <begin_vertex>
+attribute vec2 bseed;attribute vec2 broot;uniform sampler2D gTex;uniform vec2 gOrigin;uniform float gSize;uniform float gTime;uniform vec3 gBike;uniform vec2 gCenter;uniform float gRad;varying vec3 vGCol;varying float vGT;varying float vGNear;`).replace('#include <begin_vertex>', `#include <begin_vertex>
 vec2 wxz=(instanceMatrix*vec4(position,1.)).xz;vec4 gd=texture2D(gTex,(wxz-gOrigin)/gSize);
 float edge=1.-smoothstep(gRad*.72,gRad,length(wxz-gCenter));float t=uv.x;float hs=gd.g*edge*(.75+bseed.x*.5);
-float dc=length(wxz-gCenter);transformed.xz=broot+(transformed.xz-broot)*(1.+dc*.09); /* far blades get wider so the field still reads as a carpet */
+float dc=length(wxz-gCenter);transformed.xz=broot+(transformed.xz-broot)*(1.+dc*.035); /* far blades a little wider (v2.1-55: much less: they read as pale spikes) */
 transformed.y*=hs;transformed.y+=gd.r-.02;
 float wind=sin(gTime*1.7+wxz.x*.35+wxz.y*.22)*.5+sin(gTime*3.1+wxz.x*1.3)*.25;vec2 push=vec2(wind*.12,wind*.05)*t*t*hs;
-vec2 db=wxz-gBike.xz;float bd=length(db);float near=(1.-smoothstep(.2,1.3,bd))*step(abs(gBike.y-gd.r),1.6);push+=normalize(db+1e-4)*near*.35*t*hs;transformed.y-=near*.18*t*hs;
+vec2 db=wxz-gBike.xz;float bd=length(db);float near=(1.-smoothstep(.2,1.3,bd))*step(abs(gBike.y-gd.r),1.6);push+=normalize(db+1e-4)*near*.22*t*hs;transformed.y-=near*.08*t*hs;vGNear=near; /* v2.1-55: a gentle part, not flattened (flat tips made a pale disc round the rider) */
 transformed.xz+=push;
 vGT=t;vec3 dry=vec3(.36,.33,.13),lush=vec3(.12,.25,.05);vGCol=mix(lush,dry,clamp(gd.b*.8+bseed.x*.3-.15,0.,1.))*(.35+.65*t)*(.8+.4*bseed.x);`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGCol;varying float vGT;').replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb=vGCol;').replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal=normalize((viewMatrix*vec4(0.,1.,0.,0.)).xyz*.7+normal*(gl_FrontFacing?.3:-.3));'); /* lit like the ground, both faces */
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGCol;varying float vGT;varying float vGNear;').replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb=vGCol*(1.-.25*vGNear);').replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal=normalize((viewMatrix*vec4(0.,1.,0.,0.)).xyz*.7+normal*(gl_FrontFacing?.3:-.3));'); /* lit like the ground, both faces */
   };
   const mesh = new T.InstancedMesh(g, mat, NT * NT); mesh.name = 'environment:grass-field'; mesh.frustumCulled = false; mesh.receiveShadow = !lowDetail; root.add(mesh);
   const M = new T.Matrix4(); let cx = 1e9, cz = 1e9;
