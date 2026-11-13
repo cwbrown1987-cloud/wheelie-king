@@ -47,6 +47,8 @@ var _mount = [Vector3.ZERO, Vector3.ZERO]
 var _crash_t = 0.0
 var _ground_t = 0.0
 var _hop_cool = 0.0
+var _air_hold = 0.0
+var _pred_tick = 0
 var _terrain = null
 var surface_name = ["", ""]
 const G := 9.81
@@ -65,7 +67,7 @@ func configure(s: BikeSpec):
 	inertia = Vector3(s.pitch_inertia(), s.yaw_inertia(), s.roll_inertia())   # x = pitch axis, y = yaw, z = roll
 	var sag: float = Tune.v("sag")
 	for w in 2:
-		_travel[w] = max(0.035, s.travel_r if w == 0 else s.travel_f)        # tyres give a little even on rigid bikes
+		_travel[w] = max(0.06, s.travel_r if w == 0 else s.travel_f)        # tyres give a little even on rigid bikes
 		var load: float = (1.0 - s.com_back) if w == 0 else s.com_back           # static weight share
 		_k[w] = load * mass * G / (sag * _travel[w])
 		_c[w] = 2.0 * Tune.v("damping_ratio") * (0.6 + 0.4 * s.damp) * sqrt(_k[w] * load * mass)
@@ -116,7 +118,11 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 	var space = st.get_space_state()
 	var grounded = 0
 	var mu_base: float = spec.tyre_grip * Tune.v("grip")
-	var drive: float = spec.drive_force(abs(speed)) * i.throttle
+	var drive: float = spec.drive_force(abs(speed)) * i.throttle * Tune.v("power")
+	# anti-wheelie (assist): if the front lifts and the rider isn't leaning back for it, ease the drive
+	var aw: float = Tune.v("anti_wheelie")
+	if aw > 0.0 and pitch > 0.08 and i.lean < 0.25 and not contact[1]:
+		drive *= 1.0 - clamp(aw * 1.7 * clamp((pitch - 0.08) / 0.25, 0.0, 1.0), 0.0, 1.0)
 	var brake_total: float = i.brake * spec.brake
 	for wi in 2:
 		var origin = st.transform * _mount[wi]
@@ -130,6 +136,7 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 			continue
 		grounded += 1
 		var p: Vector3 = hit.position; var n: Vector3 = hit.normal
+		if _terrain and hit.collider is StaticBody3D and hit.collider.get_parent() == _terrain: n = _terrain.normal(p.x, p.z)
 		contact_point[wi] = p; contact_normal[wi] = n
 		var d = origin.distance_to(p)
 		var x: float = clamp(_travel[wi] - (d - spec.wheel_r), 0.0, _travel[wi])
@@ -180,12 +187,16 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 	if grounded > 0:
 		if state == State.AIRBORNE: _on_landing(st, up)
 		state = State.GROUNDED; _ground_t += dt
-		if _ground_t > 0.5 and abs(lean) < 0.6 and up.y > 0.8: last_safe = st.transform
+		if _ground_t > 0.5 and abs(lean) < 0.35 and up.y > 0.85 and abs(speed) > 2.0: last_safe = st.transform
 	else:
 		_ground_t = 0.0
 		if state == State.GROUNDED and air_time == 0.0: air_rotation = Vector3.ZERO
 		air_time += dt
-		if air_time > 0.06 and state != State.AIRBORNE: state = State.AIRBORNE; took_off.emit()
+		if air_time > 0.06 and state != State.AIRBORNE:
+			state = State.AIRBORNE; took_off.emit(); _air_hold = 0.0
+			if abs(i.lean) < 0.3:   # unloading the rear shock on the lip kicks the nose; take most of that out
+				var pr = w.dot(right)
+				st.angular_velocity -= right * pr * 0.6 * Tune.v("takeoff_assist")
 	if grounded > 0: air_time = 0.0
 	wheelie = contact[0] and not contact[1] and pitch > 0.12
 	stoppie = contact[1] and not contact[0] and pitch < -0.1
@@ -202,7 +213,10 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 		var assist: float = Tune.v("lean_assist") * (1.0 + slow * Tune.v("low_speed_balance") * 1.5)
 		var roll_rate = w.dot(fwd)
 		var tq_roll = I.z * (Tune.v("lean_stiffness") * (lean_t - lean) - Tune.v("lean_damping") * roll_rate) * assist
-		tq_roll = clamp(tq_roll, -mass * G * 1.2, mass * G * 1.2)
+		# past the max lean the tyres would wash out: push back hard (a rider sticks a leg out / stands it up)
+		var over_lean = abs(lean) - Tune.v("lean_max")
+		if over_lean > 0.0: tq_roll -= sign(lean) * I.z * 160.0 * over_lean * (0.4 + assist)
+		tq_roll = clamp(tq_roll, -mass * G * 2.5, mass * G * 2.5)
 		st.apply_torque(fwd * tq_roll)   # + about forward = lean right
 		# ---- turn assist: help yaw follow the steering geometry (weak when drifting so slides stay alive)
 		var ya: float = Tune.v("yaw_assist") * (0.35 if drifting else 1.0) * clamp(abs(speed) / 2.0, 0.0, 1.0)
@@ -235,25 +249,43 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 
 func _air_control(st: PhysicsDirectBodyState3D, i: BikeInput, fwd: Vector3, up: Vector3, right: Vector3):
 	var w = st.angular_velocity; var I = inertia; var dt = st.step
-	var target = Vector3(i.lean * Tune.v("air_pitch"), -i.steer * Tune.v("air_yaw"), i.trick_roll * Tune.v("air_roll"))  # lean back = nose up (backflip)
+	# deliberate input only: a deadzone, then the rotation rate builds up over ~0.3 s instead of snapping to full
+	var lp = _dz(i.lean, 0.3); var ly = _dz(i.steer, 0.25); var lr = _dz(i.trick_roll, 0.2)
+	_air_hold = min(1.0, _air_hold + dt / 0.3) if (abs(lp) + abs(ly) + abs(lr)) > 0.0 else 0.0
+	var ramp = _air_hold * _air_hold * (3.0 - 2.0 * _air_hold)
+	var target = Vector3(lp * Tune.v("air_pitch"), -ly * Tune.v("air_yaw"), lr * Tune.v("air_roll")) * ramp  # lean back = nose up (backflip)
 	var cur = Vector3(w.dot(right), w.dot(up), w.dot(-fwd))
+	# take-off stabiliser: a lip, rebounding rear shock or a twitch of the stick shouldn't throw the bike over.
+	# For the first part of the jump the nose follows the arc of the flight path unless you're clearly asking for a flip.
+	var vlen = st.linear_velocity.length()
+	if vlen > 2.0 and air_time < 0.55 and abs(lp) < 0.01:
+		var gamma = asin(clamp(st.linear_velocity.y / vlen, -1.0, 1.0))
+		# keep the nose pointing along the flight path: follow the arc's rotation, and steer back toward it if the
+		# bike is already nose-high or nose-low (so repeated little hops down a steep landing can't add up to a flip)
+		var w_path = -G * cos(gamma) / vlen + 5.0 * (gamma - pitch)
+		var fade = 1.0 - clamp((air_time - 0.25) / 0.3, 0.0, 1.0)
+		target.x = lerp(target.x, w_path, Tune.v("takeoff_assist") * fade)
+		var k = Tune.v("takeoff_assist") * fade * 10.0
+		st.apply_torque(right * (w_path - cur.x) * I.x * k)
 	var resp: float = Tune.v("air_response")
 	var tq = Vector3.ZERO
 	for a in 3:
-		var has_input: bool = abs(target[a]) > 0.01
+		var has_input: bool = abs(target[a]) > 0.01 or (a == 0 and air_time < 0.55)
 		var want: float = target[a] if has_input else cur[a] * (1.0 - Tune.v("air_damping") * dt * 4.0)
 		tq[a] = (want - cur[a]) * resp
 	st.apply_torque(right * tq.x * I.x + up * tq.y * I.y + (-fwd) * tq.z * I.z)
 	air_rotation += cur * dt
 	# landing prediction + assist
-	predicted_landing = predict_landing(st)
+	_pred_tick += 1
+	if _pred_tick % 3 == 0 or predicted_landing.is_empty(): predicted_landing = predict_landing(st)
+	elif not predicted_landing.is_empty(): predicted_landing.t = max(0.0, predicted_landing.t - dt)
 	if not predicted_landing.is_empty() and Tune.v("landing_assist") > 0.0:
 		var n: Vector3 = predicted_landing.normal; var t: float = predicted_landing.t
 		var vel_dir = st.linear_velocity; vel_dir = (vel_dir - n * vel_dir.dot(n)).normalized()
 		var want_up = n
 		var err = up.cross(want_up)                      # axis*sin(angle) to rotate up -> slope normal
 		var ang = up.angle_to(want_up)
-		var player_pitching: bool = abs(i.lean) > 0.2
+		var player_pitching: bool = abs(lp) > 0.0
 		if ang < Tune.v("landing_forgiveness") * 1.8 and not player_pitching:
 			var urgency: float = clamp(1.0 - t / Tune.v("landing_lookahead"), 0.0, 1.0)
 			var k: float = Tune.v("landing_assist") * urgency * 9.0
@@ -285,9 +317,21 @@ func _crash(st: PhysicsDirectBodyState3D, why: String):
 	if state == State.CRASH: return
 	state = State.CRASH; crash_reason = why; _crash_t = 0.0; crashed.emit(why)
 
+func _upright(t: Transform3D) -> Transform3D:
+	# keep only the heading: a respawn mid-corner shouldn't start leaned over
+	var f = -t.basis.z; f.y = 0.0
+	if f.length() < 0.1: f = Vector3.FORWARD
+	var u = Transform3D.IDENTITY.looking_at(f.normalized(), Vector3.UP); u.origin = t.origin + Vector3(0, 0.25, 0)
+	return u
+
 func _recover(st: PhysicsDirectBodyState3D):
-	st.transform = last_safe; st.linear_velocity = Vector3.ZERO; st.angular_velocity = Vector3.ZERO
+	st.transform = _upright(last_safe); st.linear_velocity = Vector3.ZERO; st.angular_velocity = Vector3.ZERO
 	state = State.GROUNDED; crash_reason = ""; air_time = 0.0; steer = 0.0
 
 func reset_to(t: Transform3D):
+	if _terrain == null and is_inside_tree(): _terrain = get_tree().get_first_node_in_group("terrain")
+	if _terrain: t.origin.y = _terrain.height(t.origin.x, t.origin.z) + spec.com_height + 0.08   # wheels just touching
 	last_safe = t; global_transform = t; linear_velocity = Vector3.ZERO; angular_velocity = Vector3.ZERO; state = State.GROUNDED
+
+static func _dz(x: float, d: float) -> float:
+	return 0.0 if abs(x) <= d else sign(x) * (abs(x) - d) / (1.0 - d)

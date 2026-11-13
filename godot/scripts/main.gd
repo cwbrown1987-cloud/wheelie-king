@@ -15,6 +15,8 @@ var renderer = ""
 
 func _ready():
 	renderer = str(RenderingServer.get_current_rendering_method())
+	if renderer != "forward_plus":
+		get_viewport().scaling_3d_scale = 0.85   # phones/tablets: render 3D a touch lower, UI stays sharp
 	_environment()
 	terrain = TrailTerrain.new(); terrain.name = "Terrain"; terrain.add_to_group("terrain"); add_child(terrain)
 	var sc = Scenery.new(); sc.name = "Scenery"; add_child(sc); sc.build(terrain, 1.0 if renderer == "forward_plus" else 0.6)
@@ -117,7 +119,17 @@ func _unhandled_key_input(e):
 			KEY_R: _respawn()
 			KEY_TAB, KEY_L: lab.visible = not lab.visible
 
+var _finish_t = -1.0
+func _check_finish(dt):
+	var endp = terrain.trail_pts[-1]
+	if _finish_t < 0.0 and Vector2(bike.global_position.x - endp.x, bike.global_position.z - endp.z).length() < 6.0:
+		_finish_t = 2.0; _show("FINISH!", Color(0.5, 1, 0.6))
+	if _finish_t >= 0.0:
+		_finish_t -= dt
+		if _finish_t < 0.0: _respawn()
+
 func _process(dt):
+	if bike and terrain: _check_finish(dt)
 	_popup_t -= dt
 	popup.modulate.a = clamp(_popup_t * 2.0, 0.0, 1.0)
-	if bike: hud.text = "%d km/h   %s" % [int(abs(bike.speed) * 3.6), bike_name]
+	if bike: hud.text = "%d km/h   %s   %d fps" % [int(abs(bike.speed) * 3.6), bike_name, Engine.get_frames_per_second()]

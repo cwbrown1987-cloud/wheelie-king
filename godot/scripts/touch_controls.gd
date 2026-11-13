@@ -63,7 +63,11 @@ func _apply():
 	if _stick_id != -1: d = ((_stick_pos - _stick_origin) / STICK_R).limit_length(1.0)
 	var dz = 0.08
 	input.touch_steer = curve(max(0.0, abs(d.x) - dz) / (1.0 - dz) * sign(d.x), 1.55)
-	input.touch_lean = curve(max(0.0, abs(d.y) - dz) / (1.0 - dz) * sign(d.y), 1.3)   # drag down = lean back
+	# lean needs a deliberate up/down push: bigger deadzone, and a mostly-sideways steering thumb doesn't lean
+	var dzy = 0.25
+	var ly = max(0.0, abs(d.y) - dzy) / (1.0 - dzy)
+	if abs(d.x) > abs(d.y) * 1.6: ly *= clamp(1.0 - (abs(d.x) - abs(d.y) * 1.6) * 3.0, 0.0, 1.0)
+	input.touch_lean = curve(ly * sign(d.y), 1.4)   # drag down = lean back
 	var vals = _pressed.values()
 	input.touch_throttle = 1.0 if vals.has("gas") else 0.0
 	input.touch_brake = 1.0 if vals.has("brake") else 0.0

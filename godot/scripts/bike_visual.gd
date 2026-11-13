@@ -6,9 +6,16 @@ var wheels = [Node3D.new(), Node3D.new()]
 var fork = Node3D.new()
 var rider: RiderPose
 
+var real_model: BikeModel
+
 func setup(b: Bike):
 	bike = b
 	var s = b.spec
+	if BikeModel.available(s):
+		real_model = BikeModel.new(); add_child(real_model); real_model.setup(b)
+		rider = RiderPose.new(); add_child(rider)
+		rider.setup(b, real_model.seat_pt + Vector3(0, 0.02, 0.05), real_model.bar_pt, real_model.bb_pt)
+		return
 	var frame_mat = StandardMaterial3D.new(); frame_mat.albedo_color = Color(0.1, 0.75, 0.25); frame_mat.metallic = 0.6; frame_mat.roughness = 0.35
 	var dark = StandardMaterial3D.new(); dark.albedo_color = Color(0.08, 0.08, 0.09); dark.roughness = 0.6
 	var tyre = StandardMaterial3D.new(); tyre.albedo_color = Color(0.05, 0.05, 0.05); tyre.roughness = 0.95
@@ -45,7 +52,7 @@ func _tube(a: Vector3, b: Vector3, r: float, m: Material, parent: Node3D):
 	if abs(dir.dot(Vector3.UP)) < 0.999: mi.basis = Basis(Quaternion(Vector3.UP, dir))
 
 func _process(_dt):
-	if bike == null: return
+	if bike == null or real_model: return
 	var s = bike.spec
 	for w in 2:
 		var top: Vector3 = bike._mount[w]

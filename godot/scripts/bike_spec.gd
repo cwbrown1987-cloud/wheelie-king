@@ -18,6 +18,7 @@ class_name BikeSpec extends Resource
 @export var com_height = 0.95    # bike+rider centre of mass above ground
 @export var com_back = 0.45      # fraction of wheelbase behind the COM to the rear axle
 @export var battery_wh = 500.0
+@export var model = ""          # res://assets/bikes/<model>.glb (exported from the web garage)
 @export var cda = 0.55          # drag area (m^2): rider + bike
 
 func mass() -> float: return bike_kg + rider_kg
@@ -40,7 +41,7 @@ static func from_dict(d: Dictionary) -> BikeSpec:
 static func presets() -> Dictionary:
 	# Representative garage builds (BMX, e-MTB, Outback 125-class e-moto). Replace with exported garage builds.
 	return {
-		"BMX": from_dict({"name": "BMX", "bike_kg": 11.0, "power_w": 600.0, "torque_nm": 45.0, "pedal": true, "wheelbase": 1.0, "wheel_r": 0.254, "travel_f": 0.02, "travel_r": 0.01, "damp": 0.2, "tyre_grip": 1.0, "com_height": 0.9, "com_back": 0.42, "battery_wh": 0.0}),
-		"E-MTB": from_dict({"name": "E-MTB", "bike_kg": 25.0, "power_w": 750.0, "torque_nm": 85.0, "wheelbase": 1.22, "wheel_r": 0.37, "travel_f": 0.16, "travel_r": 0.15, "damp": 0.6, "tyre_grip": 1.05, "com_height": 0.98, "com_back": 0.46, "battery_wh": 625.0}),
-		"E-Moto": from_dict({"name": "E-Moto", "bike_kg": 68.0, "power_w": 7500.0, "torque_nm": 420.0, "wheelbase": 1.25, "wheel_r": 0.33, "travel_f": 0.2, "travel_r": 0.18, "damp": 0.7, "tyre_grip": 1.15, "brake": 1.3, "com_height": 0.92, "com_back": 0.47, "battery_wh": 2000.0}),
+		"BMX": from_dict({"name": "BMX", "model": "bmx", "bike_kg": 11.0, "power_w": 600.0, "torque_nm": 45.0, "pedal": true, "wheelbase": 1.0, "wheel_r": 0.254, "travel_f": 0.02, "travel_r": 0.01, "damp": 0.2, "tyre_grip": 1.0, "com_height": 0.9, "com_back": 0.42, "battery_wh": 0.0}),
+		"E-MTB": from_dict({"name": "E-MTB", "bike_kg": 25.0, "power_w": 1500.0, "torque_nm": 150.0, "wheelbase": 1.21, "wheel_r": 0.355, "model": "mtb_fs", "travel_f": 0.16, "travel_r": 0.15, "damp": 0.6, "tyre_grip": 1.05, "com_height": 0.98, "com_back": 0.46, "battery_wh": 625.0}),
+		"E-Moto": from_dict({"name": "E-Moto", "model": "trax_lime", "bike_kg": 68.0, "power_w": 7500.0, "torque_nm": 300.0, "wheelbase": 1.25, "wheel_r": 0.36, "travel_f": 0.2, "travel_r": 0.18, "damp": 0.7, "tyre_grip": 1.15, "brake": 1.3, "com_height": 0.92, "com_back": 0.47, "battery_wh": 2000.0}),
 	}

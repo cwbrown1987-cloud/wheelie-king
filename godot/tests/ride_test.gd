@@ -16,6 +16,8 @@ func _ready():
 	Tune.reset_defaults()
 	if args.has("preset"): Tune.apply_preset(args.preset)
 	if args.get("original", "0") == "1": Tune.mode_original = true
+	for k in args:
+		if k.begins_with("tune."): Tune.values[k.substr(5)] = float(args[k])
 	main = load("res://main.tscn").instantiate()
 	main.bike_name = args.get("bike", "E-MTB")
 	add_child(main)
@@ -27,9 +29,17 @@ func _ready():
 	if which in ["all", "turn"]: await turn()
 	if which in ["all", "wheelie"]: await wheelie()
 	if which in ["all", "trail"]: await trail()
+	if which in ["all", "jumps"]:
+		args["noise"] = "0.25"; args["v"] = "11"
+		var before = results.size()
+		await trail()
+		results[before]["name"] = "jumps: faster, with a wandering thumb, no flips"
+		args.erase("noise"); args.erase("v")
 	if which in ["all", "touch"]: await touch()
 	if which == "shot":
 		await respawn()
+		if args.has("cam"): main.cam.mode = int(args.cam)
+		if args.has("side"): main.cam.side_dist = float(args.side)
 		var shots = args.get("shots", "3,8")
 		var t0 = 0.0
 		for tt in shots.split(","):
@@ -66,7 +76,7 @@ func run(seconds: float, f: Callable) -> Dictionary:
 	var dt = 1.0 / Engine.physics_ticks_per_second
 	var t = 0.0
 	while t < seconds:
-		f.call(t)
+		if f.call(t) == true: break
 		await get_tree().physics_frame
 		t += dt
 		if bike.state == Bike.State.CRASH and stats.crash == "": stats.crash = bike.crash_reason
@@ -134,12 +144,17 @@ func trail():
 	var target_v = float(args.get("v", "9.5"))
 	var hmax = {}
 	var s = await run(float(args.get("t", "75")), func(_t):
-		var pr = int(trail_progress() / 10.0) * 10
+		var prog = trail_progress()
+		if args.has("trace") and prog > float(args.trace) - 15.0 and prog < float(args.trace) + 5.0 and int(_t * 120) % 6 == 0:
+			print("TR s=%.1f st=%d v=%.1f vy=%.1f pitch=%.0f lean=%.0f wpitch=%.2f hag=%.2f c=%s lean_in=%.2f" % [prog, bike.state, bike.speed, bike.linear_velocity.y, rad_to_deg(bike.pitch), rad_to_deg(bike.lean), bike.angular_velocity.dot(bike.global_transform.basis.x), bike.global_position.y - ter.height(bike.global_position.x, bike.global_position.z), str(bike.contact), inp.lean])
+		var pr = int(prog / 10.0) * 10
 		var hag = bike.global_position.y - ter.height(bike.global_position.x, bike.global_position.z)
 		hmax[pr] = [max(hmax.get(pr, [0.0])[0], snapped(hag, 0.01)), snapped(bike.speed, 0.1), bike.state]
 		inp.steer = autopilot_steer()
+		if args.has("noise"): inp.lean = clamp(inp.lean + randf_range(-0.08, 0.08), -float(args.noise), float(args.noise))   # a wandering thumb
 		var e = target_v - bike.speed
-		inp.throttle = clamp(e * 0.5, 0.0, 1.0); inp.brake = clamp(-e * 0.3, 0.0, 1.0))
+		inp.throttle = clamp(e * 0.5, 0.0, 1.0); inp.brake = clamp(-e * 0.3, 0.0, 1.0)
+		return prog > ter.trail_s[-1] - 4.0)
 	bike.crashed.disconnect(c1); bike.landed.disconnect(c2)
 	s["progress_m"] = trail_progress(); s["height_above_ground_by_10m"] = hmax; s["trail_len"] = ter.trail_s[-1]
 	s["crashes"] = crashes; s["landings"] = landings.filter(func(l): return l[3] > 0.25)

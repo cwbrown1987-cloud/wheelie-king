@@ -4,6 +4,7 @@ class_name ChaseCam extends Camera3D
 ## air while keeping the predicted landing in frame, dips and shakes a little on landings (scaled by impact).
 var bike: Bike
 var mode = 0       # 0 chase, 1 close chase, 2 side-on, 3 handlebar
+var side_dist = 8.5
 var _pos = Vector3.ZERO
 var _look = Vector3.ZERO
 var _shake = 0.0
@@ -34,7 +35,7 @@ func _process(dt):
 		1: dist *= 0.6; hgt *= 0.75; desired = p - _yaw_dir * dist + Vector3.UP * hgt; look = p + _yaw_dir * 3.0 + Vector3.UP * 0.6
 		2:
 			var side = _yaw_dir.cross(Vector3.UP).normalized()
-			desired = p + side * 8.5 + Vector3.UP * 1.6 + _yaw_dir * 1.5; look = p + _yaw_dir * 1.5 + Vector3.UP * 0.4
+			desired = p + side * side_dist + Vector3.UP * (side_dist * 0.19) + _yaw_dir * (side_dist * 0.18); look = p + _yaw_dir * (side_dist * 0.18) + Vector3.UP * 0.1
 		3: desired = t * Vector3(0, 0.75, -0.25); look = t * Vector3(0, 0.6, -8.0)
 		_:
 			desired = p - _yaw_dir * dist + Vector3.UP * hgt

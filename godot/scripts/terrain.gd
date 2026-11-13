@@ -129,7 +129,8 @@ func _carve_trail():
 				var d = Vector2(x - p.x, z - p.z); var lat = d.dot(right); var dist = d.length()
 				if dist < best[idx(i, j)]:
 					best[idx(i, j)] = dist
-					target[idx(i, j)] = ch + lat * tan(bank) * (1.0 if abs(lat) <= w else w / abs(lat))
+					# berm: the OUTSIDE of the turn is the high side (lat > 0 is the inside of a right turn)
+					target[idx(i, j)] = ch - lat * tan(bank) * (1.0 if abs(lat) <= w else w / abs(lat))
 	for n in N * N:
 		var dist = best[n]
 		if dist > r: continue
