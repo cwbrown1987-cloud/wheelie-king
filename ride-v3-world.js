@@ -17,7 +17,7 @@ export function v3TerrainHeight(x,z=0){
   const fv=1-smooth((x+400)/180),desert=smooth((x-450)/180);
   const rise=1.5+2*Math.sin(x*.0028)+1.4*Math.sin(x*.008);
   const forestH=rise+Math.max(0,off-25)*.022+Math.max(0,rough*20)+rough*4;
-  const valleyH=rise*.35+rough*3-1.25*Math.exp(-((z+110)/55)**2)*Math.exp(-((x-150)/180)**2);
+  const valleyH=rise*.35+rough*3-1.25*Math.exp(-Math.pow((z+110)/55,2))*Math.exp(-Math.pow((x-150)/180,2));
   const canyonSides=Math.pow(Math.max(0,off-17)/42,1.35)*9;
   const desertH=rise*.35+rough*3+canyonSides+2*Math.max(0,noise(x*.025,z*.025)-.65);
   const landscape=forestH*fv+valleyH*(1-fv)*(1-desert)+desertH*desert;
