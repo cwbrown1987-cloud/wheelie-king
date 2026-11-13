@@ -17,7 +17,9 @@ export function makeNeonWorld(T, root, { lowDetail = false, GLTFLoader = GLTF, r
   const keep = o => (res.push(o), o);
   const M = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), V = new T.Vector3(), S = new T.Vector3(1, 1, 1);
   const tl = new T.TextureLoader(), tex = (f, srgb, rep = 1) => { const t = keep(tl.load(f)); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = T.SRGBColorSpace; t.repeat.set(rep, rep); return t; };
-  const W = NEON.width, half = W / 2, P = NEON_PATH, N = P.length;
+  const W = NEON.width, half = W / 2, P = NEON_PATH, N = P.length, RUN = 60;
+  // v2.1-48: the line carries on straight back behind the start (a run-in out of a tunnel), so the track doesn't just begin
+  const at = s => { if (s >= 0) return neonAt(s); const p = neonAt(0); return { x: p.x + Math.cos(p.yaw) * s, z: p.z + Math.sin(p.yaw) * s, yaw: p.yaw, i: 0 }; };
   // v2.1-45: wall right beside the line and the fence on a low parapet at the canal edge, like the picture
   const wallH = 4.4, wallOff = half + 2.1, quayR = -(half + 1.5), fenceOff = -(half + 1.15);
   // ---- materials ----
@@ -97,6 +99,8 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   // lip faces where the line ends at a gap
   for (const [a, b] of NEON_GAPS) for (const [s, dir] of [[a, 1], [b, -1]]) { const p = neonAt(s), c = Math.cos(p.yaw), n = Math.sin(p.yaw), h = neonProfile(s - dir * .3), nx = -n, nz = c;
     quadStrip(skirt, [p.x - nx * half, NEON.water, p.z - nz * half], [p.x - nx * half, h, p.z - nz * half], [p.x + nx * half, NEON.water, p.z + nz * half], [p.x + nx * half, h, p.z + nz * half], 0, W / 3, 0, (h - NEON.water) / 3); }
+  const runIn = { side: [] };
+  const archText = (txt, col) => keep(canvasTex(T, 1024, 192, (g, w, h) => { g.fillStyle = 'rgba(10,4,24,.9)'; g.fillRect(0, 0, w, h); g.font = '900 120px Impact, "Arial Black", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = col; g.shadowBlur = 30; g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 6); g.shadowBlur = 0; g.fillStyle = '#ffffff'; g.globalAlpha = .55; g.fillText(txt, w / 2, h / 2 + 6); }));
   const mk = (B, mat, name, uv = true) => { const g = keep(new T.BufferGeometry()); g.setAttribute('position', new T.Float32BufferAttribute(B.pos, 3)); if (uv && B.uv) g.setAttribute('uv', new T.Float32BufferAttribute(B.uv, 2)); g.setIndex(B.idx); g.computeVertexNormals(); const m = new T.Mesh(g, mat); m.name = 'neon:' + name; group.add(m); return m; };
   const roadMesh = mk(road, asphalt, 'road'); roadMesh.receiveShadow = true;
   const skirtMesh = mk(skirt, concrete, 'ramp-sides'); skirtMesh.receiveShadow = true; skirtMesh.castShadow = !lowDetail; skirtMesh.material.side = T.DoubleSide;
@@ -130,11 +134,11 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   // big pieces and small tags/stickers/characters at random sizes, heights, tilts and overlaps, from a shuffled
   // atlas of 44 generated pieces, so no stretch of wall looks like another.
   const wallMat = keep(new T.MeshStandardMaterial({ map: keep(makeWallBase(T, { lowDetail })), normalMap: wallNrm, normalScale: new T.Vector2(.9, .9), roughness: .85, metalness: 0, envMapIntensity: .5, side: T.DoubleSide }));
-  const wallAt = (s, o = wallOff) => { const p = neonAt(s); return [p.x + Math.sin(p.yaw) * o, p.z - Math.cos(p.yaw) * o]; };
+  const wallAt = (s, o = wallOff) => { const p = at(s); return [p.x + Math.sin(p.yaw) * o, p.z - Math.cos(p.yaw) * o]; };
   const wallB = { pos: [], uv: [], idx: [] }, lampPos = [];
-  for (let s = 0; s < NEON.len - 1; s += 1) { if (noWall(s) || noWall(s + 1)) continue; const [x0, z0] = wallAt(s), [x1, z1] = wallAt(s + 1);
+  for (let s = -RUN + 14; s < NEON.len - 1; s += 1) { if (noWall(s) || noWall(s + 1)) continue; const [x0, z0] = wallAt(s), [x1, z1] = wallAt(s + 1);
     const b0 = overWater(s) ? NEON.water : 0, b1 = overWater(s + 1) ? NEON.water : 0; quadStrip(wallB, [x1, b1, z1], [x1, wallH, z1], [x0, b0, z0], [x0, wallH, z0], (s + 1) / 14, s / 14, b1 / wallH, 1);
-    if (s % 14 === 7 && !overWater(s)) { const p = neonAt(s); lampPos.push({ x: p.x + Math.sin(p.yaw) * (wallOff - .35), z: p.z - Math.cos(p.yaw) * (wallOff - .35), yaw: p.yaw }); } }
+    if (((s % 14) + 14) % 14 === 7 && !overWater(s)) { const p = at(s); lampPos.push({ x: p.x + Math.sin(p.yaw) * (wallOff - .35), z: p.z - Math.cos(p.yaw) * (wallOff - .35), yaw: p.yaw }); } }
   const wallMesh = mk(wallB, wallMat, 'wall'); wallMesh.receiveShadow = true;
   { const atlas = makeGraffitiAtlas(T, { lowDetail, seed: 11 }), gr = rng(2026), big = atlas.cells.filter(c => c.big), small = atlas.cells.filter(c => !c.big);
     const bag = list => { let q = []; return () => { if (!q.length) q = [...list].sort(() => gr() - .5); return q.pop(); }; }, nextBig = bag(big), nextSmall = bag(small);
@@ -145,11 +149,11 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
         D.pos.push(x, Math.max(.02, Math.min(wallH - .02, yy)), z); D.uv.push(cell.u0 + (cell.u1 - cell.u0) * i / n, v ? cell.v1 : cell.v0); D.col.push(shade, shade, shade); }
       for (let i = 0; i < n; i++) { const a = k0 + i * 2; D.idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } };
     const ok = (a, b) => { for (let t = a; t <= b; t += 1) if (noWall(t)) return false; return true; };
-    for (let s = 2; s < NEON.len; ) { // big pieces, with gaps and overlaps
+    for (let s = -RUN + 15; s < NEON.len; ) { // big pieces, with gaps and overlaps
       const w = 3 + gr() * 4.5, h = Math.min(wallH - .5, w / 2 * (.85 + gr() * .3)), sm = s + w / 2;
       if (ok(s, s + w) && gr() > .12) decal(nextBig(), sm, .35 + h / 2 + gr() * Math.max(0, wallH - .7 - h), w, h, (gr() - .5) * .12, .82 + gr() * .18);
       s += w * (.55 + gr() * .7) + (gr() < .2 ? 2 + gr() * 5 : 0); }
-    for (let s = 1; s < NEON.len; s += .7 + gr() * 2.6) { // tags, stickers, characters, scribbles over and between them
+    for (let s = -RUN + 15; s < NEON.len; s += .7 + gr() * 2.6) { // tags, stickers, characters, scribbles over and between them
       const c = nextSmall(), z = .45 + Math.pow(gr(), 1.8) * 1.5; if (!ok(s - z, s + z)) continue;
       decal(c, s, .3 + z / 2 + gr() * (wallH - .6 - z), z, z, (gr() - .5) * .5, .7 + gr() * .3); }
     for (let s = 5; s < NEON.len; s += 9 + gr() * 14) { const c = nextBig(), w = 1.2 + gr() * 1.4; if (ok(s, s + w)) decal(c, s + w / 2, .4 + gr() * 3.2, w, w / 2, (gr() - .5) * .4, .55 + gr() * .4); } // small throw-ups too
@@ -204,6 +208,20 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   const parapetMesh = mk(parapet, concrete, 'parapet'); parapetMesh.receiveShadow = true;
   const railTopG = new T.Group(); group.add(railTopG); for (const run of railRuns) railTopG.add(new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(run), Math.max(2, run.length), .035, 5)), housing));
   const posts = new T.InstancedMesh(keep(new T.CylinderGeometry(.05, .05, fenceH + .1, 6)), housing, postPos.length); postPos.forEach(([x, z], k) => { M.makeTranslation(x, .5 + fenceH / 2, z); posts.setMatrixAt(k, M); }); posts.instanceMatrix.needsUpdate = true; posts.computeBoundingSphere(); group.add(posts);
+  // ---- run-in behind the start: same road, edges, paving, quay, parapet and fence, straight back to the tunnel ----
+  { const rd = { pos: [], uv: [], idx: [] }, ed = { pos: [], idx: [] }, gl = { pos: [], uv: [], idx: [] }, pv = { pos: [], uv: [], idx: [] }, qy = { pos: [], uv: [], idx: [] }, pp = { pos: [], uv: [], idx: [] }, fc = { pos: [], uv: [], idx: [] }, rail = [];
+    const F = s => { const p = at(s), c = Math.cos(p.yaw), n = Math.sin(p.yaw); return { x: p.x, z: p.z, nx: n, nz: -c }; }, P3 = (f, o, y) => [f.x + f.nx * o, y, f.z + f.nz * o];
+    for (let s = -RUN; s < .5; s += 1) { const A = F(s), B = F(Math.min(.5, s + 1));
+      quadStrip(rd, P3(A, -half, 0), P3(A, half, 0), P3(B, -half, 0), P3(B, half, 0), s / 4, (s + 1) / 4, 0, W / 4);
+      for (const side of [1, -1]) { quadStrip(ed, P3(A, side * (half - .14), .025), P3(A, side * (half - .05), .025), P3(B, side * (half - .14), .025), P3(B, side * (half - .05), .025)); quadStrip(gl, P3(A, side * (half - .9), .02), P3(A, side * (half + .15), .02), P3(B, side * (half - .9), .02), P3(B, side * (half + .15), .02), 0, 1, side > 0 ? 0 : 1, side > 0 ? 1 : 0); }
+      for (const [o1, o2] of [[half, wallOff + .3], [-half, quayR]]) quadStrip(pv, P3(A, o1, 0), P3(A, o2, 0), P3(B, o1, 0), P3(B, o2, 0), s / 3, (s + 1) / 3, o1 / 3, o2 / 3);
+      quadStrip(qy, P3(A, quayR, NEON.water), P3(A, quayR, 0), P3(B, quayR, NEON.water), P3(B, quayR, 0), s / 3, (s + 1) / 3, 0, 1);
+      const f0 = fenceOff + .18, f1 = fenceOff - .18; quadStrip(pp, P3(A, f0, 0), P3(A, f0, .5), P3(B, f0, 0), P3(B, f0, .5), s / 3, (s + 1) / 3, 0, .17); quadStrip(pp, P3(A, f0, .5), P3(A, f1, .5), P3(B, f0, .5), P3(B, f1, .5), s / 3, (s + 1) / 3, 0, .12);
+      quadStrip(fc, P3(A, fenceOff, .5), P3(A, fenceOff, .5 + fenceH), P3(B, fenceOff, .5), P3(B, fenceOff, .5 + fenceH), s / 1.2, (s + 1) / 1.2, 0, fenceH / 1.2); rail.push(new T.Vector3(...P3(A, fenceOff, .5 + fenceH))); }
+    const rm = mk(rd, asphalt, 'runin-road'); rm.receiveShadow = true; mk(ed, neonBlue, 'runin-edge', false); const gm2 = mk(gl, glowBlue, 'runin-glow'); gm2.renderOrder = 2;
+    const pm = mk(pv, paving, 'runin-paving'); pm.receiveShadow = true; pm.material.side = T.DoubleSide; mk(qy, concrete, 'runin-quay');
+    const ppm = mk(pp, concrete, 'runin-parapet'), fcm = mk(fc, fenceMat, 'runin-fence'), rl = new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(rail), rail.length, .035, 5)), housing); group.add(rl);
+    mirror?.hide.push(rm, pm, gm2); runIn.side.push(ppm, fcm, rl); }
   // ---- boost chevrons on the line (glowing ^^ arrows) + chevron signs on the wall ----
   const chevTex = keep(canvasTex(T, 256, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.lineWidth = 34; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#ffffff'; for (const y of [80, 170]) { g.beginPath(); g.moveTo(40, y + 50); g.lineTo(128, y - 30); g.lineTo(216, y + 50); g.stroke(); } }));
   const chevMat = keep(new T.MeshBasicMaterial({ map: chevTex, color: new T.Color('#f1e4ff').multiplyScalar(.9), transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 }));
@@ -276,7 +294,7 @@ float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).rep
 { float bid=wkH(floor(vWkId*.37)+3.1);vec3 N=normalize(vWkN);float roof=step(.6,abs(N.y));
   vec3 base=bid<.25?vec3(.11,.085,.16):bid<.5?vec3(.17,.10,.11):bid<.75?vec3(.085,.10,.15):vec3(.15,.14,.17);
   vec2 t2=normalize(vec2(-N.z,N.x)+1e-5);float u=dot(vWkPos.xz,t2),v=vWkPos.y;float fw=1.7+bid*1.6,fh=3.1;
-  vec2 q=vec2(u/fw,v/fh),cell=floor(q),f=fract(q),aa=fwidth(q)+1e-4;float far=clamp(max(aa.x,aa.y)*2.5-.4,0.,1.); /* far away: average the windows instead of aliasing */
+  vec2 q=vec2(u/fw,v/fh),cell=floor(q),f=fract(q),aa=fwidth(q)+1e-4;float far=clamp(max(aa.x,aa.y)*4.-.35,0.,1.); /* far away: average the windows instead of aliasing */
   float win=smoothstep(.18-aa.x,.18+aa.x,f.x)*smoothstep(.82+aa.x,.82-aa.x,f.x)*smoothstep(.26-aa.y,.26+aa.y,f.y)*smoothstep(.8+aa.y,.8-aa.y,f.y)*(1.-roof)*step(4.2,v);
   float lit=step(.42+bid*.3,wkH(cell+vWkId));vec3 wc=mix(vec3(1.,.74,.42),vec3(.62,.86,1.),step(.72,wkH(cell*1.7+vWkId)));
   win=mix(win,.33*(1.-roof)*step(4.2,v),far);diffuseColor.rgb=mix(base,vec3(.03,.03,.05),win)*(1.-roof*.4);
@@ -292,10 +310,10 @@ float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).rep
   // procedural windows (lit at random, warm or cool), shopfront glow at street level and its own facade colour
   const city = [], cr = rng(77);
   const clear = (x, z, r) => { const q = neonProject(x, z); return q.dist > r; };
-  const row = (side, front, wMin, wMax, dMin, dMax, hMin, hMax, base) => { for (let s = -30; s < NEON.len + 40; ) { const w = wMin + cr() * (wMax - wMin), d = dMin + cr() * (dMax - dMin), h = hMin + Math.pow(cr(), 1.5) * (hMax - hMin), sm = Math.max(0, Math.min(NEON.len, s + w / 2));
+  const row = (side, front0, wMin, wMax, dMin, dMax, hMin, hMax, base) => { let prevSet = 0; for (let s = -RUN - 40; s < NEON.len + 40; ) { let set = cr() * 2.4; if (Math.abs(set - prevSet) < .7) set = (set + 1.2) % 2.4; prevSet = set; const front = front0 + set; const w = wMin + cr() * (wMax - wMin), d = dMin + cr() * (dMax - dMin) + cr() * .9, h = hMin + Math.pow(cr(), 1.5) * (hMax - hMin), sm = Math.max(0, Math.min(NEON.len, s + w / 2));
       const p = neonAt(sm), o = side * (front + d / 2), x = p.x + Math.sin(p.yaw) * o + (s + w / 2 - sm) * Math.cos(p.yaw), z = p.z - Math.cos(p.yaw) * o + (s + w / 2 - sm) * Math.sin(p.yaw), c = Math.cos(p.yaw), n = Math.sin(p.yaw);
       const corners = [[w / 2, d / 2], [-w / 2, d / 2], [w / 2, -d / 2], [-w / 2, -d / 2]].map(([a, b]) => [x + c * a - n * b, z + n * a + c * b]);
-      if (clear(x, z, front * .8) && corners.every(([X, Z]) => clear(X, Z, Math.min(front * .8, 9)))) city.push({ x, z, w: w + .6, d, h, y0: base, rot: -p.yaw });
+      if (clear(x, z, front * .8) && corners.every(([X, Z]) => clear(X, Z, Math.min(front * .8, 9)))) city.push({ x, z, w: w + .6, d, h: Math.round(h * 4) / 4 + cr() * .17, y0: base - cr() * .05, rot: -p.yaw });
       s += w * (.82 + cr() * .1); } };
   row(1, wallOff + 8, 9, 20, 10, 16, 7, 24, 0);          // behind the wall: workshops, flats
   row(1, wallOff + 26, 14, 30, 14, 24, 18, 55, 0);       // behind them: towers
@@ -303,6 +321,14 @@ float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).rep
   row(-1, 50, 14, 30, 14, 24, 22, 70, 0);
   const cityI = new T.InstancedMesh(boxGeo, cityMat, city.length); city.forEach((b, k) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.y0 + b.h / 2 - .02, b.z), Q, S.set(b.w, b.h, b.d)); cityI.setMatrixAt(k, M); }); S.set(1, 1, 1);
   cityI.instanceMatrix.needsUpdate = true; cityI.computeBoundingSphere(); cityI.name = 'neon:city'; group.add(cityI);
+  // tunnel portal the run-in comes out of: a building spanning the line with a neon-framed opening
+  { const p = at(-RUN), c = Math.cos(p.yaw), n = Math.sin(p.yaw), put = (along, lat, y, w, h, d, mat) => { const m = new T.Mesh(boxGeo, mat); m.position.set(p.x + c * along + n * lat, y, p.z + n * along - c * lat); m.rotation.y = -p.yaw; m.scale.set(d, h, w); group.add(m); return m; };
+    const dark = keep(new T.MeshBasicMaterial({ color: '#05030a' })), ow = 7.2, oh = 5.6, span = 44;
+    put(-8, (span / 2 + ow / 2) / 2 + ow / 4, 11, span / 2 - ow / 2, 22, 16, cityMat); put(-8, -((span / 2 + ow / 2) / 2 + ow / 4), 11, span / 2 - ow / 2, 22, 16, cityMat);   // sides
+    put(-8, 0, oh + (22 - oh) / 2, ow + .2, 22 - oh, 16, cityMat); put(-9, 0, oh / 2, ow, oh, 14, dark);                                                                        // over the mouth, and the dark inside
+    const frame = [[0, oh + .25, ow + .8, .3], [ow / 2 + .25, oh / 2, .3, oh + .8], [-ow / 2 - .25, oh / 2, .3, oh + .8]];
+    for (const [lat, y, w, h] of frame) { const m = new T.Mesh(boxGeo, neonPurple); m.position.set(p.x - c * .05 + n * lat, y, p.z - n * .05 - c * lat); m.rotation.y = -p.yaw; m.scale.set(.2, h, w); group.add(m); }
+    const sign = new T.Mesh(keep(new T.PlaneGeometry(10, 1.8)), keep(new T.MeshBasicMaterial({ map: archText('CANAL TUNNEL', '#ff5ccf'), toneMapped: false, side: T.DoubleSide }))); sign.position.set(p.x + c * .1, oh + 1.9, p.z + n * .1); sign.rotation.y = -p.yaw + Math.PI / 2; group.add(sign); }
   // street ground between the wall and the buildings (so nothing looks over a void at their feet)
   { const st = { pos: [], uv: [], idx: [] }; for (let i = 0; i < N - 8; i += 8) { const A = frame(i), B = frame(i + 8); for (const [o1, o2] of [[wallOff, wallOff + 34]]) if ([[A, o1], [A, o2], [B, o1], [B, o2]].every(([F, o]) => clear(F.x + F.nx * o, F.z + F.nz * o, 3.3))) quadStrip(st, [A.x + A.nx * o1, .01, A.z + A.nz * o1], [A.x + A.nx * o2, .01, A.z + A.nz * o2], [B.x + B.nx * o1, .01, B.z + B.nz * o1], [B.x + B.nx * o2, .01, B.z + B.nz * o2], A.s / 4, B.s / 4, 0, 8); }
     const stm = mk(st, paving, 'street'); stm.material.side = T.DoubleSide; mirror?.hide.push(stm); }
@@ -318,7 +344,6 @@ float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).rep
   { const p = neonAt(NEON_FEATURES.ring), y = 9; const ring = new T.Mesh(keep(new T.TorusGeometry(5.5, .35, 12, 90)), neonPurple); ring.position.set(p.x, y, p.z); ring.rotation.y = -p.yaw + Math.PI / 2; group.add(ring);
     const ring2 = new T.Mesh(keep(new T.TorusGeometry(5.0, .12, 8, 90)), neonBlue); ring2.position.copy(ring.position); ring2.rotation.copy(ring.rotation); group.add(ring2); }
   // ---- start + finish arches ----
-  const archText = (txt, col) => keep(canvasTex(T, 1024, 192, (g, w, h) => { g.fillStyle = 'rgba(10,4,24,.9)'; g.fillRect(0, 0, w, h); g.font = '900 120px Impact, "Arial Black", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = col; g.shadowBlur = 30; g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 6); g.shadowBlur = 0; g.fillStyle = '#ffffff'; g.globalAlpha = .55; g.fillText(txt, w / 2, h / 2 + 6); }));
   const arch = (s, txt, col) => { const p = neonAt(s), h0 = neonProfile(s); const a = new T.Group(); a.position.set(p.x, h0, p.z); a.rotation.y = -p.yaw + Math.PI / 2; group.add(a);
     for (const o of [-half - .5, half + .5]) { const leg = new T.Mesh(keep(new T.BoxGeometry(.4, 5.4, .4)), housing); leg.position.set(o, 2.7, 0); a.add(leg); const nl = new T.Mesh(keep(new T.BoxGeometry(.08, 5.4, .08)), col === '#47d4ff' ? neonBlue : neonPurple); nl.position.set(o, 2.7, .24); a.add(nl); }
     const sign = new T.Mesh(keep(new T.PlaneGeometry(W + 1.4, 1.5)), keep(new T.MeshBasicMaterial({ map: archText(txt, col), toneMapped: false, side: T.DoubleSide }))); sign.position.set(0, 5.6, 0); a.add(sign); };
@@ -337,7 +362,7 @@ float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).rep
     beforeRender(R, scene, cam, scale = .4) { if (mirror) mirror.render(R, scene, cam, scale); },
     reflecting: () => !!mirror,
     // side view looks across from the canal side: the fence would sit between the camera and the bike
-    setView(blend) { const v = blend < .5; fenceMesh.visible = v; posts.visible = v; parapetMesh.visible = v; railTopG.visible = v; },
+    setView(blend) { const v = blend < .5; fenceMesh.visible = v; posts.visible = v; parapetMesh.visible = v; railTopG.visible = v; runIn.side.forEach(m => { m.visible = v; }); },
     takeCoin(k) { if (taken[k]) return false; taken[k] = 1; return true; },
     resetCoins() { taken.fill(0); },
     coinsTaken: () => taken.reduce((a, b) => a + b, 0),
