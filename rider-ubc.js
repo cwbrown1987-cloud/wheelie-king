@@ -148,11 +148,14 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     target.hip.x += -0.13 * wh + 0.06 * W.lean; target.hip.y += -0.03 * wh * (1 - st);
     // attack stance: hips low and back; absorb bumps through the legs (D.y); hips back on descents
     target.hip.y += D.y * (0.5 + 0.5 * st) - 0.1 * st * D.attack;
+    // Arcade landing cue is a small visual crouch; the solver keeps full authority over mass and pitch.
+    const landingPrep=air&&!sk&&Math.abs(inp.lean||0)<.15?Math.max(0,Math.min(1,s.arcadeLandingStrength||0)):0;
+    target.hip.y-=.08*landingPrep;
     target.hip.x += -0.14 * D.back * st - 0.05 * D.back * (1 - st) - 0.04 * st * D.attack;
     // torso pitch from vertical (+ = forward): seated 38°, standing 28°, wheelie ~8°, lean ±18°
     target.pitch = (stance === 'scooter' ? 12 : stance === 'moto' ? 30 - 6 * st : 38 - 10 * st) * Math.PI / 180 * (1 - 0.8 * wh) + W.lean * 0.32 - 0.12 * W.kneeKnock;
     // chest drops toward the bars when the legs soak up a hit; torso stays nearer vertical on steep descents
-    target.pitch += -D.y * 1.2 * st + 0.12 * st * D.attack + Math.min(0, D.slope) * 0.35;
+    target.pitch += -D.y * 1.2 * st + 0.12 * st * D.attack + Math.min(0, D.slope) * 0.35 + landingPrep*.09;
     if (trick.name === 'superman') { target.hip.x -= 0.42 * env; target.hip.y += 0.22 * env; target.pitch += 0.75 * env; }
     if (trick.name === 'nohander') { target.pitch -= 0.15 * env; }
     target.look = D.look;
