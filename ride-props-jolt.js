@@ -31,7 +31,7 @@ export function createV3JoltProps(T,scene,terrain){
     clear();
     // One streamed 144m square terrain heightfield; regenerate when rider
     // travels far enough that old bodies cannot fall off the collision region.
-    const N=65,CELL=2.25,originX=cx-(N-1)*CELL/2,originZ=cz-(N-1)*CELL/2;
+    const N=64,CELL=2.25,originX=cx-(N-1)*CELL/2,originZ=cz-(N-1)*CELL/2;
     const hs=new J.HeightFieldShapeSettings();
     hs.mOffset=new J.Vec3(0,0,0);hs.mScale=new J.Vec3(CELL,1,CELL);
     hs.mSampleCount=N;hs.mBlockSize=4;
