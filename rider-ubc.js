@@ -11,6 +11,7 @@ const HEIGHT = 1.74;      // standing height of the game's rider (m)
 let bufferPromise = null;
 const loadBuffer = () => bufferPromise || (bufferPromise = fetch(URL_GLB).then(r => { if (!r.ok) throw Error('rider glb ' + r.status); return r.arrayBuffer(); }));
 
+import { dressUbc, fitHelmet } from './rider-outfit.js';
 export const UBC_POSES = ['seated', 'stand', 'wheelie', 'leanForward', 'oneHand', 'kneeKnock', 'turnLean'];
 
 export function makeUbcRider(T, body, bike, A, profile, mechanical) {
@@ -63,6 +64,7 @@ export function makeUbcRider(T, body, bike, A, profile, mechanical) {
     // ball of foot is 0.876 of standing height on this rig.
     const yIn = n => root.worldToLocal(by(n).getWorldPosition(new T.Vector3())).y;
     model.scale.setScalar(HEIGHT * 0.876 / Math.max(1e-6, yIn('Head') - yIn('ball_l'))); root.updateMatrixWorld(true);
+    try { dressUbc(T, model); fitHelmet(T, model); } catch (e) { console.warn('[wk] outfit failed', e); } // v2.1-56: riding kit + helmet
     bones = {};
     for (const n of ['index_01_l','index_02_l','index_03_l','middle_01_l','middle_02_l','middle_03_l','ring_01_l','ring_02_l','ring_03_l','pinky_01_l','pinky_02_l','pinky_03_l','thumb_01_l','thumb_02_l','thumb_03_l','index_01_r','index_02_r','index_03_r','middle_01_r','middle_02_r','middle_03_r','ring_01_r','ring_02_r','ring_03_r','pinky_01_r','pinky_02_r','pinky_03_r','thumb_01_r','thumb_02_r','thumb_03_r']) bones[n] = by(n) || null;
     for (const n of ['pelvis', 'spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'upperarm_l', 'lowerarm_l', 'hand_l', 'upperarm_r', 'lowerarm_r', 'hand_r', 'thigh_l', 'calf_l', 'foot_l', 'ball_l', 'thigh_r', 'calf_r', 'foot_r', 'ball_r']) {

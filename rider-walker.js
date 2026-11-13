@@ -3,6 +3,7 @@
 // should be (pelvis, chest, head, shoulders/elbows/hands, hips/knees/feet) for the current move, then two-bone
 // IK puts the skinned body on them. The ragdoll is a little verlet skeleton over those same joints.
 import { GLTFLoader } from './vendor/GLTFLoader.js';
+import { dressUbc, fitHelmet } from './rider-outfit.js';
 const URL_GLB = './assets/quaternius/ubc-superhero-male.glb', URL_ANIM = './assets/quaternius/ual-locomotion.glb', HEIGHT = 1.74;
 // v2.1-42: walking/running/jumping use Quaternius' Universal Animation Library (CC0) clips on the same skeleton,
 // blended by speed and synced to the ground so the feet don't skate. Slide, ragdoll and get on/off stay procedural.
@@ -31,6 +32,7 @@ export function makeWalker(T, scene, ter) {
     model = g.scene; model.name = 'walker:ubc'; model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } }); root.add(model); root.updateMatrixWorld(true);
     const by = n => model.getObjectByName(n), yIn = n => by(n).getWorldPosition(v()).y;
     model.scale.setScalar(HEIGHT * .876 / Math.max(1e-6, yIn('Head') - yIn('ball_l'))); root.updateMatrixWorld(true);
+    try { dressUbc(T, model); fitHelmet(T, model); } catch (e) { console.warn('[wk] outfit failed', e); }
     bones = {}; for (const n of ['pelvis', 'spine_03', 'neck_01', 'Head', 'upperarm_l', 'lowerarm_l', 'hand_l', 'upperarm_r', 'lowerarm_r', 'hand_r', 'thigh_l', 'calf_l', 'foot_l', 'thigh_r', 'calf_r', 'foot_r']) { bones[n] = by(n); if (!bones[n]) throw Error('walker bone missing ' + n); }
     rest = []; model.traverse(o => { if (o.isBone) rest.push([o, o.quaternion.clone()]); });
     pelvisRest = wpos(bones.pelvis).sub(model.position);

@@ -4,7 +4,8 @@ function read(){try{return JSON.parse(localStorage.getItem(KEY)||'null')||{}}cat
 const OLD_DEFAULT={helmet:'gear_trail_helmet_lime',top:'gear_hoodie_top_blue',pants:'gear_joggers_pants_neon',gloves:'gear_moto_gloves_red',shoes:'gear_skate_shoes_neon'};
 const saved=read();let owned=new Set([...STARTERS,...(Array.isArray(saved.owned)?saved.owned:[]).filter(id=>item(id))]),equipped={...DEFAULT_OUTFIT};
 const savedEquip=saved.equipped||{};
-const stillOld=!Object.keys(savedEquip).length||Object.keys(OLD_DEFAULT).every(k=>(savedEquip[k]||OLD_DEFAULT[k])===OLD_DEFAULT[k]);
+const PREV_DEFAULT={helmet:'gear_trail_helmet_lime',top:'gear_jersey_top_blue',pants:'gear_joggers_pants_neon',gloves:'gear_moto_gloves_neon',shoes:'gear_boot_shoes_neon'};
+const stillOld=!Object.keys(savedEquip).length||Object.keys(PREV_DEFAULT).every(k=>(savedEquip[k]||PREV_DEFAULT[k])===PREV_DEFAULT[k])||Object.keys(OLD_DEFAULT).every(k=>(savedEquip[k]||OLD_DEFAULT[k])===OLD_DEFAULT[k]);
 if(!stillOld){for(const [slot,id]of Object.entries(savedEquip))if(owned.has(id)&&item(id)?.slot===slot)equipped[slot]=id}
 function save(){localStorage.setItem(KEY,JSON.stringify({owned:[...owned],equipped}));dispatchEvent(new CustomEvent('wk-gear-change'))}
 export const gearState=()=>({owned:[...owned],equipped:{...equipped}});
