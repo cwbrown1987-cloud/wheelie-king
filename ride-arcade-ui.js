@@ -2,7 +2,7 @@
 const CONTROLS=[['steering','Steering response'],['grip','Corner grip'],['balance','Lean and air balance'],
   ['wheelie','Wheelie stability'],['stoppie','Stoppie stability'],['air','Air trick control'],
   ['landing','Predictive landing'],['camera','Camera stability']];
-export function mountPhysicsLab(parent,handling,{storage=globalThis.localStorage,engine='classic',onEngineChange=null}={}){
+export function mountPhysicsLab(parent,handling,{storage=globalThis.localStorage,engine='classic',onEngineChange=null,onBiomeJump=null}={}){
   const root=document.createElement('section');
   root.setAttribute('data-wk-physics-lab','');
   root.style.cssText='position:absolute;right:12px;bottom:110px;z-index:45;width:min(285px,88vw);pointer-events:auto;font:12px system-ui,sans-serif;color:#eafff2;text-align:left';
@@ -22,6 +22,16 @@ export function mountPhysicsLab(parent,handling,{storage=globalThis.localStorage
     engineSelect.value=engine;
     engineSelect.addEventListener('change',()=>{if(engineSelect.value!==engine)onEngineChange(engineSelect.value);});
     engineRow.append(engineSelect);panel.append(engineRow);
+  }
+  if(onBiomeJump){
+    const biomeRow=document.createElement('label');biomeRow.textContent='Ride to biome  ';biomeRow.style.cssText='display:block;margin:8px 0';
+    const jump=document.createElement('select');jump.setAttribute('aria-label','Ride to biome');
+    jump.style.cssText='color:#fff;background:#214337;border:1px solid #598c79;border-radius:5px;padding:5px';
+    for(const [value,label] of [['','Choose a place…'],['forest','🌲 Mountain forest'],['valley','🌿 Lake valley'],['desert','🏜️ Red canyon']]){
+      const option=document.createElement('option');option.value=value;option.textContent=label;jump.append(option);
+    }
+    jump.addEventListener('change',()=>{if(jump.value)onBiomeJump(jump.value);jump.value='';});
+    biomeRow.append(jump);panel.append(biomeRow);
   }
   const modeLabel=document.createElement('label');modeLabel.style.cssText='display:block;margin:9px 0';modeLabel.textContent='Mode  ';
   const modeSelect=document.createElement('select');modeSelect.setAttribute('aria-label','Handling mode');
