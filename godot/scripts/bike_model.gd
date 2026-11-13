@@ -41,6 +41,13 @@ func setup(b: Bike):
 	_rig_steering(front_x, R)
 	_rig_swingarm()
 	_rider_points()
+	# ~100 little meshes per bike = ~100 draw calls (x2 with shadows): merge each rigid group by material
+	var movers = [steer_pivot, wheel_grp[0], wheel_grp[1]]
+	if swing: movers.append(swing)
+	for g in [wheel_grp[0], wheel_grp[1]]: _merge(g, [])
+	if swing: _merge(swing, [wheel_grp[0]])
+	_merge(steer_pivot, [wheel_grp[1]])
+	_merge(model, movers)
 	for mi in _meshes(model):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
@@ -140,3 +147,44 @@ func _process(_dt):
 		else:
 			g.position = wheel_rest[1] + Vector3(0, delta, 0)
 	steer_pivot.basis = Basis(steer_axis, -bike.steer)
+
+func _rel(n: Node3D, root: Node3D) -> Transform3D:
+	var t = n.transform; var p = n.get_parent()
+	while p and p != root:
+		t = p.transform * t; p = p.get_parent()
+	return t
+
+func _collect(n: Node, root: Node, skip: Array, out: Array):
+	for c in n.get_children():
+		if skip.has(c): continue
+		if c is MeshInstance3D and c.visible: out.append(c)
+		_collect(c, root, skip, out)
+
+func _merge(root: Node3D, skip: Array):
+	var list = []; _collect(root, root, skip, list)
+	if list.size() < 2: return
+	var groups = {}   # key -> [material, [ [mesh, surface, xform] ... ]]
+	for mi in list:
+		var mesh: Mesh = mi.mesh
+		if mesh == null: continue
+		var xf = _rel(mi, root)
+		for si in mesh.get_surface_count():
+			var mat = mi.get_active_material(si)
+			var fmt = mesh.surface_get_format(si) & (Mesh.ARRAY_FORMAT_TEX_UV | Mesh.ARRAY_FORMAT_COLOR | Mesh.ARRAY_FORMAT_TANGENT)
+			var key = str(fmt) + "|"
+			if mat is BaseMaterial3D:
+				key += "%s|%.2f|%.2f|%s|%d" % [mat.albedo_color.to_html(), mat.metallic, mat.roughness, str(mat.albedo_texture), mat.transparency]
+			else:
+				key += str(mat)
+			if not groups.has(key): groups[key] = [mat, []]
+			groups[key][1].append([mesh, si, xf])
+	var k = 0
+	for key in groups:
+		var g = groups[key]
+		var st = SurfaceTool.new()
+		for e in g[1]: st.append_from(e[0], e[1], e[2])
+		var out = MeshInstance3D.new(); out.name = "merged_%d" % k; k += 1
+		out.mesh = st.commit()
+		if g[0]: out.mesh.surface_set_material(0, g[0])
+		root.add_child(out)
+	for mi in list: mi.get_parent().remove_child(mi); mi.queue_free()

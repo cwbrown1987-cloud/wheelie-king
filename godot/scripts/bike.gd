@@ -37,6 +37,8 @@ var last_safe = Transform3D.IDENTITY
 
 signal landed(info: Dictionary)
 signal crashed(reason: String)
+signal recovered()
+var crash_focus: Node3D = null       # the thrown rider (the camera watches it during a crash)
 signal took_off()
 
 var _prev_comp = [0.0, 0.0]
@@ -57,6 +59,7 @@ func _ready():
 	if spec == null: spec = BikeSpec.presets()["E-MTB"]
 	configure(spec)
 	contact_monitor = true; max_contacts_reported = 6; can_sleep = false
+	collision_layer = 2; collision_mask = 1   # layer 1 = world (ground, trunks), 2 = bike, 4 = ragdoll rider
 	last_safe = global_transform
 	_terrain = get_tree().get_first_node_in_group("terrain")
 
@@ -107,7 +110,7 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 	if state == State.CRASH:
 		_crash_t += dt
 		st.angular_velocity *= 0.995
-		if _crash_t > 2.2: _recover(st)
+		if _crash_t > 3.0: _recover(st)
 		return
 
 	# ---------------- steering: progressive, speed-limited, smoothed
@@ -128,7 +131,7 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 		var origin = st.transform * _mount[wi]
 		var ray_len: float = _travel[wi] + spec.wheel_r
 		var q = PhysicsRayQueryParameters3D.create(origin, origin - up * ray_len)
-		q.exclude = [get_rid()]
+		q.exclude = [get_rid()]; q.collision_mask = 1
 		var hit = space.intersect_ray(q)
 		contact[wi] = not hit.is_empty()
 		if not contact[wi]:
@@ -243,7 +246,11 @@ func _integrate_forces(st: PhysicsDirectBodyState3D):
 	# crash: body hit the ground hard, or lying on its side/upside down
 	for ci in st.get_contact_count():
 		var sh = st.get_contact_local_shape(ci)
-		if sh == 0 and st.get_contact_impulse(ci).length() > mass * 2.2: _crash(st, "Body hit the ground")
+		var imp = st.get_contact_impulse(ci).length()
+		var other = st.get_contact_collider_object(ci)
+		var is_ground = other is StaticBody3D and other.name == "Ground"
+		if sh == 0 and imp > mass * 2.2: _crash(st, "Body hit the ground" if is_ground else "Hit a tree")
+		elif not is_ground and imp > mass * 1.6 and sh != 0: _crash(st, "Hit a tree")   # wheel into a trunk
 	if grounded == 0 and st.get_contact_count() > 0 and up.y < 0.2: _crash(st, "Landed upside down")
 	if abs(lean) > 1.35 and grounded > 0: _crash(st, "Fell over")
 
@@ -298,7 +305,7 @@ func predict_landing(st: PhysicsDirectBodyState3D) -> Dictionary:
 	var horizon: float = Tune.v("landing_lookahead")
 	while t < horizon:
 		var np = p + v * h + Vector3(0, -G, 0) * h * h * 0.5
-		var q = PhysicsRayQueryParameters3D.create(p, np + (np - p).normalized() * spec.com_height); q.exclude = [get_rid()]
+		var q = PhysicsRayQueryParameters3D.create(p, np + (np - p).normalized() * spec.com_height); q.exclude = [get_rid()]; q.collision_mask = 1
 		var hit = space.intersect_ray(q)
 		if not hit.is_empty(): return {"t": t, "point": hit.position, "normal": hit.normal, "speed": v.length()}
 		v += Vector3(0, -G, 0) * h; p = np; t += h
@@ -315,7 +322,9 @@ func _on_landing(st: PhysicsDirectBodyState3D, up: Vector3):
 
 func _crash(st: PhysicsDirectBodyState3D, why: String):
 	if state == State.CRASH: return
-	state = State.CRASH; crash_reason = why; _crash_t = 0.0; crashed.emit(why)
+	state = State.CRASH; crash_reason = why; _crash_t = 0.0
+	set_deferred("mass", spec.bike_kg)    # the rider's gone: the bike tumbles on its own
+	crashed.emit(why)
 
 func _upright(t: Transform3D) -> Transform3D:
 	# keep only the heading: a respawn mid-corner shouldn't start leaned over
@@ -327,8 +336,10 @@ func _upright(t: Transform3D) -> Transform3D:
 func _recover(st: PhysicsDirectBodyState3D):
 	st.transform = _upright(last_safe); st.linear_velocity = Vector3.ZERO; st.angular_velocity = Vector3.ZERO
 	state = State.GROUNDED; crash_reason = ""; air_time = 0.0; steer = 0.0
+	set_deferred("mass", spec.mass()); recovered.emit.call_deferred()
 
 func reset_to(t: Transform3D):
+	if state == State.CRASH: mass = spec.mass(); recovered.emit.call_deferred()
 	if _terrain == null and is_inside_tree(): _terrain = get_tree().get_first_node_in_group("terrain")
 	if _terrain: t.origin.y = _terrain.height(t.origin.x, t.origin.z) + spec.com_height + 0.08   # wheels just touching
 	last_safe = t; global_transform = t; linear_velocity = Vector3.ZERO; angular_velocity = Vector3.ZERO; state = State.GROUNDED

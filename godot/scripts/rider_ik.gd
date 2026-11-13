@@ -38,6 +38,9 @@ func setup(b: Bike, seat_p: Vector3, bar_p: Vector3, bb_p: Vector3, bar_half_wid
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		mi.extra_cull_margin = 2.0
 	b.landed.connect(func(info): _land = clamp(info.impact / 7.0, 0.25, 1.0))
+	b.crashed.connect(func(_why): _start_ragdoll())
+	b.recovered.connect(func(): _stop_ragdoll())
+	tree_exiting.connect(_stop_ragdoll)
 
 func _find_skel(n: Node) -> Skeleton3D:
 	if n is Skeleton3D: return n
@@ -120,6 +123,7 @@ func _two_bone(upper: int, lower: int, end: int, target: Vector3, pole: Vector3)
 # ------------------------------------------------------------------ pose
 func _process(dt):
 	if bike == null or skel == null: return
+	if not _rag.is_empty(): _drive_ragdoll(); return
 	var st = bike.state
 	var air = st == Bike.State.AIRBORNE
 	_land = move_toward(_land, 0.0, dt * 2.2)
@@ -170,3 +174,87 @@ func bb_offsets() -> Array:
 	var rr = bb + Vector3(0.15, sin(a) * r * 0.6, cos(a) * r)
 	if a == 0.0: l = bb + Vector3(-0.15, 0, r); rr = bb + Vector3(0.15, 0, -r)   # level pedals, left foot back
 	return [l, rr]
+
+
+# ------------------------------------------------------------------ crash: ragdoll
+# The rider leaves the bike as a chain of capsules (pelvis, chest, head, arms, legs) joined by cone-twist joints,
+# starting from the exact pose and velocity they had on the bike. The skeleton then follows the capsules.
+const SEGS := [   # name, bone, end bone ("" = along the bone's own up), radius, mass, parent segment
+	["pelvis", "pelvis", "spine_02", 0.14, 15.0, ""],
+	["chest", "spine_02", "neck_01", 0.16, 20.0, "pelvis"],
+	["head", "Head", "", 0.12, 5.0, "chest"],
+	["upperarm_l", "upperarm_l", "lowerarm_l", 0.055, 2.5, "chest"], ["lowerarm_l", "lowerarm_l", "hand_l", 0.045, 1.6, "upperarm_l"],
+	["upperarm_r", "upperarm_r", "lowerarm_r", 0.055, 2.5, "chest"], ["lowerarm_r", "lowerarm_r", "hand_r", 0.045, 1.6, "upperarm_r"],
+	["thigh_l", "thigh_l", "calf_l", 0.075, 9.0, "pelvis"], ["calf_l", "calf_l", "foot_l", 0.055, 4.0, "thigh_l"],
+	["thigh_r", "thigh_r", "calf_r", 0.075, 9.0, "pelvis"], ["calf_r", "calf_r", "foot_r", 0.055, 4.0, "thigh_r"],
+]
+var _rag = {}        # seg name -> {body, bone, off}
+var _rag_nodes = []
+
+func _bone_world(i: int) -> Transform3D:
+	return skel.global_transform * skel.get_bone_global_pose(i)
+
+func _start_ragdoll():
+	if not _rag.is_empty() or skel == null: return
+	var world = get_tree().current_scene if get_tree().current_scene else get_parent()
+	var v0 = bike.linear_velocity; var w0 = bike.angular_velocity; var c0 = bike.global_position
+	var fwd = -bike.global_transform.basis.z
+	for sg in SEGS:
+		if not B.has(sg[1]): continue
+		var bi: int = B[sg[1]]
+		var bw = _bone_world(bi)
+		var a = bw.origin
+		var e = (_bone_world(B[sg[2]]).origin if sg[2] != "" and B.has(sg[2]) else a + bw.basis.y.normalized() * 0.22)
+		var len = max(a.distance_to(e), 0.05)
+		var rb = RigidBody3D.new(); rb.name = "rag_" + sg[0]
+		rb.mass = sg[4]; rb.collision_layer = 4; rb.collision_mask = 1
+		rb.linear_damp = 0.1; rb.angular_damp = 1.5
+		var pm = PhysicsMaterial.new(); pm.friction = 0.8; pm.bounce = 0.05; rb.physics_material_override = pm
+		var cs = CollisionShape3D.new(); var cap = CapsuleShape3D.new(); cap.radius = sg[3]; cap.height = max(len + sg[3] * 2.0 * 0.6, sg[3] * 2.0 + 0.01)
+		cs.shape = cap; rb.add_child(cs)
+		var dir = (e - a).normalized()
+		var basis = Basis(Quaternion(Vector3.UP, dir)) if abs(dir.dot(Vector3.UP)) < 0.999 else Basis.IDENTITY
+		world.add_child(rb)
+		rb.global_transform = Transform3D(basis, (a + e) * 0.5)
+		# thrown with the bike's motion, plus a little up-and-over-the-bars
+		rb.linear_velocity = v0 + w0.cross(rb.global_position - c0) + fwd * 0.8 + Vector3.UP * 1.2
+		rb.angular_velocity = w0 * 0.5
+		_rag[sg[0]] = {"body": rb, "bone": bi, "off": rb.global_transform.affine_inverse() * bw, "joint_at": a}
+		_rag_nodes.append(rb)
+	for sg in SEGS:
+		if sg[5] == "" or not _rag.has(sg[0]) or not _rag.has(sg[5]): continue
+		var j = ConeTwistJoint3D.new(); world.add_child(j)
+		var at: Vector3 = _rag[sg[0]].joint_at
+		var child: RigidBody3D = _rag[sg[0]].body
+		var axis = (child.global_position - at).normalized()
+		var jb = Basis(Quaternion(Vector3.RIGHT, axis)) if abs(axis.dot(Vector3.RIGHT)) < 0.999 else Basis.IDENTITY
+		j.global_transform = Transform3D(jb, at)
+		j.node_a = j.get_path_to(_rag[sg[5]].body); j.node_b = j.get_path_to(child)
+		var knee = sg[0].begins_with("calf") or sg[0].begins_with("lowerarm")
+		j.set_param(ConeTwistJoint3D.PARAM_SWING_SPAN, deg_to_rad(35.0 if knee else 55.0))
+		j.set_param(ConeTwistJoint3D.PARAM_TWIST_SPAN, deg_to_rad(10.0 if knee else 35.0))
+		j.set_param(ConeTwistJoint3D.PARAM_SOFTNESS, 0.9)
+		_rag_nodes.append(j)
+	if _rag.has("pelvis"): bike.crash_focus = _rag["pelvis"].body
+
+func _drive_ragdoll():
+	skel.reset_bone_poses()
+	var inv = skel.global_transform.affine_inverse()
+	for sg in SEGS:   # parents first, so each child is set relative to its already-moved parent
+		if not _rag.has(sg[0]): continue
+		var r = _rag[sg[0]]
+		var rb: RigidBody3D = r.body
+		if not is_instance_valid(rb): continue
+		var want: Transform3D = inv * (rb.global_transform * r.off)   # bone pose in skeleton space
+		var bi: int = r.bone
+		var parent = skel.get_bone_parent(bi)
+		var pg = skel.get_bone_global_pose(parent) if parent >= 0 else Transform3D.IDENTITY
+		var local = pg.affine_inverse() * want
+		skel.set_bone_pose_rotation(bi, local.basis.get_rotation_quaternion())
+		if sg[0] == "pelvis": skel.set_bone_pose_position(bi, local.origin)
+
+func _stop_ragdoll():
+	for n in _rag_nodes:
+		if is_instance_valid(n): n.queue_free()
+	_rag_nodes.clear(); _rag.clear()
+	if bike: bike.crash_focus = null

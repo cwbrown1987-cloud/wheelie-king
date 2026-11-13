@@ -18,6 +18,7 @@ func _ready():
 	if args.get("original", "0") == "1": Tune.mode_original = true
 	for k in args:
 		if k.begins_with("tune."): Tune.values[k.substr(5)] = float(args[k])
+	if args.has("hz"): Engine.physics_ticks_per_second = int(args.hz)
 	main = load("res://main.tscn").instantiate()
 	main.bike_name = args.get("bike", "E-MTB")
 	add_child(main)
@@ -36,9 +37,13 @@ func _ready():
 		results[before]["name"] = "jumps: faster, with a wandering thumb, no flips"
 		args.erase("noise"); args.erase("v")
 	if which in ["all", "touch"]: await touch()
+	if which in ["all", "crash"]: await crash()
 	if which == "shot":
 		await respawn()
 		if args.has("cam"): main.cam.mode = int(args.cam)
+		if args.has("hide"):
+			for nm in args.hide.split(","):
+				for c in main.find_children(nm, "", true, false): c.visible = false
 		if args.has("side"): main.cam.side_dist = float(args.side)
 		var shots = args.get("shots", "3,8")
 		var t0 = 0.0
@@ -48,9 +53,12 @@ func _ready():
 				inp.steer = autopilot_steer(); var e = 9.5 - bike.speed
 				inp.throttle = clamp(e * 0.5, 0.0, 1.0))
 			t0 = target_t
+			if args.has("crash"):
+				bike._crash(null, "shot"); await run(float(args.crash), func(_t): zero()); t0 += float(args.crash)
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png(args.get("out", "/tmp") + "/shot_%s.png" % tt)
 			print("SHOT ", tt)
+			print("PERF prims=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME), " draws=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " objs=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME), " vram=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED) / 1048576)
 	if which == "profile":
 		var out = []
 		for s in range(96, 150, 2):
@@ -182,3 +190,51 @@ func touch():
 	s["released_steer"] = inp.touch_steer
 	inp.scripted = true
 	check("touch: stick steers, gas drives", s.touch_steer > 0.3 and s.throttle > 0.9 and s.bike_steer_deg > 3.0 and s.released_steer == 0.0, s)
+
+
+func crash():
+	# 1) a crash throws the rider off as a ragdoll, which lands on the ground and is cleared on respawn
+	await respawn()
+	await run(2.5, func(_t): inp.throttle = 1.0; inp.steer = autopilot_steer())
+	bike._crash(null, "test")
+	await get_tree().physics_frame
+	var rider = main.visual.rider_ik
+	var n0 = rider._rag.size()
+	var pel: RigidBody3D = rider._rag["pelvis"].body if rider._rag.has("pelvis") else null
+	var p0 = pel.global_position if pel else Vector3.ZERO
+	await run(1.8, func(_t): zero())
+	var p1 = pel.global_position if is_instance_valid(pel) else Vector3.ZERO
+	var hag = p1.y - ter.height(p1.x, p1.z)
+	var head = rider._rag["head"].body.global_position if rider._rag.has("head") else Vector3.ZERO
+	var sep = p1.distance_to(bike.global_position)
+	await run(1.6, func(_t): zero())   # bike recovers after 3 s
+	var cleared = rider._rag.is_empty() and bike.state != Bike.State.CRASH
+	var d = {"segments": n0, "pelvis_moved": p0.distance_to(p1), "pelvis_above_ground": hag, "rider_bike_gap": sep, "head_ok": head.is_finite(), "cleared_after_respawn": cleared, "mass_back": bike.mass}
+	check("crash: rider ragdolls off, lands, clears on respawn", n0 >= 10 and hag < 0.6 and hag > -0.3 and head.is_finite() and cleared and abs(bike.mass - bike.spec.mass()) < 0.1, d)
+	# 2) riding into a tree trunk is a crash
+	await respawn()
+	var trunks = main.get_node("Scenery/Trunks")
+	var best = null; var bd = 1e9
+	for cs in trunks.get_children():
+		var tp: Vector3 = cs.position
+		var dd = tp.distance_to(bike.global_position)
+		if dd < bd and dd > 10.0: bd = dd; best = cs
+	var tp2: Vector3 = best.position
+	var nrm = ter.normal(tp2.x, tp2.z); var uphill = Vector3(-nrm.x, 0, -nrm.z)
+	uphill = uphill.normalized() if uphill.length() > 0.01 else Vector3.RIGHT
+	var from = tp2 + uphill * 9.0   # start uphill so it's a downhill run into the tree
+	var t = Transform3D.IDENTITY.looking_at(-uphill, Vector3.UP); t.origin = from
+	bike.reset_to(t)
+	for n in 30: await get_tree().physics_frame
+	var reason = [""]
+	var c = func(why): reason[0] = why
+	bike.crashed.connect(c)
+	await run(5.0, func(_t):
+		inp.throttle = 1.0
+		var to = (tp2 - bike.global_position); to.y = 0
+		var fwd = -bike.global_transform.basis.z; fwd.y = 0
+		inp.steer = clamp(-fwd.normalized().signed_angle_to(to.normalized(), Vector3.UP) * 2.0, -1.0, 1.0)
+		if args.has("dbg") and int(_t * 60) % 30 == 0: print("DBG t=%.1f d=%.2f v=%.2f st=%d c=%s" % [_t, to.length(), bike.speed, bike.state, str(bike.contact)])
+		return reason[0] != "")
+	bike.crashed.disconnect(c)
+	check("crash: riding into a tree trunk crashes", reason[0] != "", {"reason": reason[0], "dist_to_trunk": Vector2(bike.global_position.x - tp2.x, bike.global_position.z - tp2.z).length()})

@@ -12,18 +12,26 @@ var popup: Label
 var _popup_t = 0.0
 var bike_name = "E-MTB"
 var renderer = ""
+var low = false
 
 func _ready():
 	renderer = str(RenderingServer.get_current_rendering_method())
-	if renderer != "forward_plus":
-		get_viewport().scaling_3d_scale = 0.85   # phones/tablets: render 3D a touch lower, UI stays sharp
+	low = renderer != "forward_plus"   # phones: lighter graphics so it stays smooth
+	if low:
+		var vp = get_viewport()
+		vp.scaling_3d_scale = 0.75          # 3D a bit lower res, UI stays sharp
+		vp.msaa_3d = Viewport.MSAA_DISABLED
+		vp.mesh_lod_threshold = 4.0         # drop to low-detail meshes sooner
+		RenderingServer.directional_shadow_atlas_set_size(2048, true)
+		Engine.physics_ticks_per_second = 60   # phones: 60 Hz physics (tests cover hz=60)
+		Engine.max_physics_steps_per_frame = 4
 	_environment()
-	terrain = TrailTerrain.new(); terrain.name = "Terrain"; terrain.add_to_group("terrain"); add_child(terrain)
-	var sc = Scenery.new(); sc.name = "Scenery"; add_child(sc); sc.build(terrain, 1.0 if renderer == "forward_plus" else 0.6)
+	terrain = TrailTerrain.new(); terrain.name = "Terrain"; terrain.add_to_group("terrain"); terrain.cast_ground_shadow = not low; add_child(terrain)
+	var sc = Scenery.new(); sc.name = "Scenery"; add_child(sc); sc.build(terrain, 0.45 if low else 1.0, {"tree_range": 180.0, "tree_detail": 45.0, "small_range": 30.0, "rock_range": 70.0} if low else {})
 	_trail_props()
 	input = BikeInput.new(); input.name = "Input"; add_child(input)
 	_spawn_bike(bike_name)
-	cam = ChaseCam.new(); cam.name = "Cam"; add_child(cam); cam.current = true; cam.far = 900.0; cam.attach(bike)
+	cam = ChaseCam.new(); cam.name = "Cam"; add_child(cam); cam.current = true; cam.far = 420.0 if low else 900.0; cam.attach(bike)
 	_ui()
 
 func _spawn_bike(n: String):
@@ -48,7 +56,7 @@ func _environment():
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY; env.ambient_light_energy = 0.9
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES; env.tonemap_exposure = 1.05; env.tonemap_white = 6.0
-	env.glow_enabled = true; env.glow_intensity = 0.6; env.glow_bloom = 0.08; env.glow_hdr_threshold = 1.1
+	env.glow_enabled = not low; env.glow_intensity = 0.6; env.glow_bloom = 0.08; env.glow_hdr_threshold = 1.1
 	env.fog_enabled = true; env.fog_light_color = Color(1.0, 0.78, 0.6); env.fog_density = 0.0035; env.fog_sky_affect = 0.25
 	env.fog_aerial_perspective = 0.35
 	env.adjustment_enabled = true; env.adjustment_saturation = 1.12; env.adjustment_contrast = 1.06
@@ -60,7 +68,7 @@ func _environment():
 	var sun = DirectionalLight3D.new(); sun.name = "Sun"
 	sun.rotation = Vector3(deg_to_rad(-16), deg_to_rad(205), 0)   # low evening sun, from up the hill so the trail is side-lit
 	sun.light_color = Color(1.0, 0.82, 0.62); sun.light_energy = 1.6; sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 120.0 if renderer != "gl_compatibility" else 60.0
+	sun.directional_shadow_max_distance = 40.0 if low else 120.0
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if renderer == "forward_plus" else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
 

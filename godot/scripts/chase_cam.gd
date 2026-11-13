@@ -41,6 +41,11 @@ func _process(dt):
 			desired = p - _yaw_dir * dist + Vector3.UP * hgt
 			look = p + _yaw_dir * (2.5 + spd * 0.25) + Vector3.UP * 0.7
 			if air and not bike.predicted_landing.is_empty(): look = look.lerp(bike.predicted_landing.point, 0.25)
+	# crash: keep the thrown rider in shot
+	if bike.state == Bike.State.CRASH and is_instance_valid(bike.crash_focus):
+		var fp = bike.crash_focus.global_position
+		look = fp
+		desired = desired.lerp(fp + (desired - p).normalized() * 5.0 + Vector3.UP * 1.5, 0.6)
 	# don't go under the ground
 	var ter = get_tree().get_first_node_in_group("terrain")
 	if ter: desired.y = max(desired.y, ter.height(desired.x, desired.z) + 0.6)

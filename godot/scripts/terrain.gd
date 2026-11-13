@@ -177,20 +177,36 @@ func build_collision():
 	cs.shape = hm; cs.scale = Vector3(STEP, 1, STEP); cs.position = Vector3(origin.x + (N - 1) * STEP / 2.0, 0, origin.y + (N - 1) * STEP / 2.0)
 	body.add_child(cs)
 
+var cast_ground_shadow = true
+const TILE := 40   # cells per ground tile: tiles cull separately and drop to coarser LODs in the distance
+
 func build_visual():
-	var st = SurfaceTool.new(); st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for j in N:
-		for i in N:
-			var n = idx(i, j); var srf = surface[n]
-			st.set_color(Color(1.0 if srf == 1 else 0.0, 1.0 if srf == 3 else 0.0, 1.0 if srf == 4 else 0.0, 1.0))
-			st.add_vertex(Vector3(origin.x + i * STEP, heights[n], origin.y + j * STEP))
-	for j in N - 1:
-		for i in N - 1:
-			var a = idx(i, j); var b = a + 1; var c = a + N; var d = c + 1
-			st.add_index(a); st.add_index(b); st.add_index(c); st.add_index(b); st.add_index(d); st.add_index(c)
-	st.generate_normals()
-	var mi = MeshInstance3D.new(); mi.mesh = st.commit(); mi.name = "GroundMesh"; mi.material_override = load("res://scripts/ground_material.tres") if ResourceLoader.exists("res://scripts/ground_material.tres") else _ground_material()
-	add_child(mi)
+	# the ground is split into tiles with automatic levels of detail (one 360 m mesh was ~260k triangles,
+	# drawn again for every shadow split - the single biggest cost on phones)
+	var mat = _ground_material()
+	for tj in range(0, N - 1, TILE):
+		for ti in range(0, N - 1, TILE):
+			var i1 = min(ti + TILE, N - 1); var j1 = min(tj + TILE, N - 1)
+			var w = i1 - ti + 1
+			var verts = PackedVector3Array(); var norms = PackedVector3Array(); var cols = PackedColorArray(); var ids = PackedInt32Array()
+			for j in range(tj, j1 + 1):
+				for i in range(ti, i1 + 1):
+					var n = idx(i, j); var srf = surface[n]
+					var x = origin.x + i * STEP; var z = origin.y + j * STEP
+					verts.append(Vector3(x, heights[n], z)); norms.append(normal(x, z))
+					cols.append(Color(1.0 if srf == 1 else 0.0, 1.0 if srf == 3 else 0.0, 1.0 if srf == 4 else 0.0, 1.0))
+			for j in j1 - tj:
+				for i in i1 - ti:
+					var a = j * w + i; var b = a + 1; var c = a + w; var d = c + 1
+					ids.append_array([a, b, c, b, d, c])
+			var arr = []; arr.resize(Mesh.ARRAY_MAX)
+			arr[Mesh.ARRAY_VERTEX] = verts; arr[Mesh.ARRAY_NORMAL] = norms; arr[Mesh.ARRAY_COLOR] = cols; arr[Mesh.ARRAY_INDEX] = ids
+			var im = ImporterMesh.new(); im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arr)
+			im.generate_lods(25.0, 60.0, [])
+			var mi = MeshInstance3D.new(); mi.mesh = im.get_mesh(); mi.name = "Ground_%d_%d" % [ti / TILE, tj / TILE]
+			mi.material_override = mat; mi.add_to_group("ground_mesh")
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast_ground_shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mi)
 
 func _ground_material() -> ShaderMaterial:
 	var sh = Shader.new()
