@@ -1,0 +1,75 @@
+name: Wheelie King Godot preview
+
+# Every push to the Godot remake branch:
+#   * runs the headless ride tests (straight, turn, wheelie, full trail),
+#   * exports the Web build and publishes it as a PREVIEW branch of wheelie-king-beta
+#     (https://godot-remake.wheelie-king-beta.pages.dev/) — the live beta and live game are never touched,
+#   * exports an Android debug APK and attaches it to the run (download from the Actions page).
+on:
+  push:
+    branches: [claude/godot-remake]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheelie-king-godot
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: beta
+      url: https://godot-remake.wheelie-king-beta.pages.dev/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Godot + export templates
+        run: |
+          set -e
+          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+          curl -sSL -o tpl.tpz https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable; mkdir -p $T
+          unzip -q -j tpl.tpz 'templates/web_nothreads_release.zip' 'templates/web_nothreads_debug.zip' 'templates/android_debug.apk' 'templates/android_release.apk' 'templates/version.txt' -d $T
+          rm tpl.tpz
+      - name: Import project
+        run: godot --headless --path godot --import || true
+      - name: Ride tests
+        run: |
+          godot --headless --path godot res://tests/ride_test.tscn -- scenario=all | tee ride.log
+          grep -q '^RESULTS' ride.log
+      - name: Export Web
+        run: |
+          mkdir -p build/godot-web
+          godot --headless --path godot --export-release "Web" ../build/godot-web/index.html
+          printf '/*\n  Cache-Control: no-cache\n' > build/godot-web/_headers
+      - name: Export Android (debug APK)
+        run: |
+          set -e
+          mkdir -p ~/.local/share/godot/keystores build/godot-android
+          keytool -genkeypair -v -keystore ~/.local/share/godot/keystores/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH=~/.local/share/godot/keystores/debug.keystore GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          mkdir -p ~/.config/godot
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_SDK_ROOT" "$JAVA_HOME_17_X64" > ~/.config/godot/editor_settings-4.4.tres
+          godot --headless --path godot --export-debug "Android" ../build/godot-android/wheelie-king.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheelie-king-android-apk
+          path: build/godot-android/wheelie-king.apk
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Publish web preview (branch alias, never production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::warning::no CLOUDFLARE_API_TOKEN, skipping web preview"; exit 0; fi
+          npx --yes wrangler@3 pages deploy build/godot-web --project-name wheelie-king-beta --branch godot-remake --commit-dirty=true
