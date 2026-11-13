@@ -43,11 +43,9 @@ export function buildFoliage({ keep, area, lowDetail = false, height }) {
   // grass tufts in drifts, clover and flower patches, mushrooms under the trees
   const drift = (n, m, sMin, sMax, dens, spread = 2.2) => { let c = 0, guard = 0; while (c < n && guard++ < n * 6) { const cx = x0 + rnd() * W, cz = z0 + rnd() * H; if (rnd() > dens(cx, cz)) continue;
     const k = 4 + Math.floor(rnd() * 8); for (let i = 0; i < k && c < n; i++) { const x = cx + (rnd() - .5) * spread * 2, z = cz + (rnd() - .5) * spread * 2; if (!keep(x, z, 'grass')) continue; out.push({ m, x, z, s: sMin + rnd() * (sMax - sMin), rot: rnd() * 6.283 }); c++; } } };
-  drift(lowDetail ? 1300 : 3600, 'grassS', .45, .75, meadow);
-  drift(lowDetail ? 250 : 800, 'grassT', .4, .62, (x, z) => meadow(x, z) * .8);
-  drift(lowDetail ? 120 : 380, 'clover', .35, .55, (x, z) => meadow(x, z) * .6, 1.4);
-  drift(lowDetail ? 140 : 420, rnd() < .5 ? 'flower3' : 'flower4', .2, .32, (x, z) => Math.max(0, meadow(x, z) - .35) * 1.6, 1.6);
-  drift(lowDetail ? 140 : 420, 'flower4', .2, .3, (x, z) => Math.max(0, .55 - meadow(x, z)), 1.6);
+  /* v2.1-53: the old Quaternius grass tufts and clover are gone: the GPU grass field (ride-grass.js) covers that */
+  drift(lowDetail ? 90 : 240, rnd() < .5 ? 'flower3' : 'flower4', .2, .32, (x, z) => Math.max(0, meadow(x, z) - .35) * 1.6, 1.6);
+  drift(lowDetail ? 60 : 160, 'flower4', .2, .3, (x, z) => Math.max(0, .55 - meadow(x, z)), 1.6);
   drift(lowDetail ? 40 : 140, 'mush', .5, .9, (x, z) => thicket(x, z), 1.2);
   if (!lowDetail) { drift(700, 'phGrass', .7, 1.2, meadow, 2.6); drift(260, 'phDand', .8, 1.3, (x, z) => Math.max(0, meadow(x, z) - .3) * 1.4, 1.8); } // real grass clumps + dandelions where it's lush
   for (const o of out) if (o.v == null) o.v = rnd();

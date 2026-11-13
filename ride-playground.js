@@ -5,7 +5,7 @@ import {makeLoopMesh} from './ride-loop.js';
 import {makeSplatMaterial,fillSplat} from './ride-ground.js';
 import {GOAL_POSTS} from './ride-soccer.js';
 import {PARK,parkHeight,PARK_ENTRY,loadPark,makeSkateParkVisuals} from './ride-skatepark.js';
-import {buildFoliage,makeFoliageVisuals} from './ride-foliage.js';
+import {buildFoliage,makeFoliageVisuals,styleGrade} from './ride-foliage.js';
 import {makeGrassField} from './ride-grass.js';
 import {inBowl,bowlHeight,BOWL,BOWL_ENTRY,makeBowlVisuals} from './ride-bowl.js';
 import {CANYON,canyonPathZ,inCanyon,canyonHeight,CANYON_START,CANYON_FINISH_RING,CANYON_POSTS,makeCanyonVisuals} from './ride-canyon.js';
@@ -318,10 +318,11 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false,quality=low
     loader.loadAsync('./assets/polyhaven/'+def.file).then(g=>{
       if(disposed)return;
       g.scene.traverse(o=>{if(o.isMesh){o.castShadow=!lowDetail||key==='tree';o.receiveShadow=true;propRes.push(o.geometry);[].concat(o.material).forEach(m=>{propRes.push(m);for(const k of ['map','normalMap','roughnessMap','metalnessMap','aoMap'])if(m[k])propRes.push(m[k]);});}});
-      for(const p of list){const o=g.scene.clone(true);o.position.set(p.x,0,p.z);o.rotation.y=p.rot;o.scale.set(p.s,p.s*(p.sy||1),p.s);
-        // sit bumps on their own hump and everything on the ground under it
-        o.position.y=baseHeight(p.x,p.z)-(p.m==='rock7'||p.m==='rock9'?.04*p.s:0);
-        o.name='environment:prop:'+key;propRoot.add(o);}
+      // v2.1-53: one instanced draw per mesh (was a full clone per placement: hundreds of draw calls), graded to match
+      g.scene.updateMatrixWorld(true);const M=new T.Matrix4(),Q=new T.Quaternion(),V=new T.Vector3(),S=new T.Vector3(),up=new T.Vector3(0,1,0);
+      g.scene.traverse(o=>{if(!o.isMesh)return;[].concat(o.material).forEach(m=>styleGrade(m,{sat:1.2,lift:1.08}));const inst=new T.InstancedMesh(o.geometry,o.material,list.length);
+        list.forEach((p,k)=>{Q.setFromAxisAngle(up,p.rot);V.set(p.x,baseHeight(p.x,p.z)-(p.m==='rock7'||p.m==='rock9'?.04*p.s:0),p.z);S.set(p.s,p.s*(p.sy||1),p.s);M.compose(V,Q,S).multiply(o.matrixWorld);inst.setMatrixAt(k,M);});
+        inst.instanceMatrix.needsUpdate=true;inst.computeBoundingSphere();inst.castShadow=o.castShadow;inst.receiveShadow=true;inst.name='environment:prop:'+key;propRoot.add(inst);});
     }).catch(e=>console.warn('[wk] prop model failed',def.file,e));
   }
   return {
