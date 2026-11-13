@@ -1,0 +1,44 @@
+name: Arcade Physics V3 validation
+
+on:
+  push:
+    branches:
+      - feature/classic-arcade-assist-v3
+  pull_request:
+    branches:
+      - claude/classic-playground
+
+permissions:
+  contents: read
+
+jobs:
+  custom-physics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Arcade unit and integration checks
+        run: npm run test:arcade
+      - name: Original custom-physics regression suite
+        run: node tests/playground-classic.mjs
+      - name: Validate source syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in ride.js ride-physics.js ride-freeroam.js ride-arcade-assist.js ride-arcade-ui.js rider-ubc.js scripts/check.mjs; do
+            node --check "$file"
+          done
+      - name: Package isolated beta build without deploying
+        run: node scripts/make-beta.mjs
+      - name: Upload playable static build as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheelie-king-arcade-v3-preview
+          path: dist-beta/
+          retention-days: 14
