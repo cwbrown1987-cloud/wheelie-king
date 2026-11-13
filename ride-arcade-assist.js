@@ -41,8 +41,8 @@ export function classifyRide(s={},prediction=null){
 export function createArcadeAssistant({mode='original',custom=null}={}){
   let selected=ARCADE_PRESETS[mode]||mode==='custom'?mode:'original';
   let userSettings=sanitise(custom||ARCADE_PRESETS.balanced);
-  let state='GROUND',lastState='GROUND',elapsed=0,prediction=null,predictAge=Infinity,assist=null;
-  function reset(){state=lastState='GROUND';elapsed=0;prediction=null;predictAge=Infinity;assist=null;}
+  let state='GROUND',lastState='GROUND',elapsed=0,prediction=null,predictAge=Infinity,assist=null,flightTrick=false;
+  function reset(){state=lastState='GROUND';elapsed=0;prediction=null;predictAge=Infinity;assist=null;flightTrick=false;}
   function getMode(){return selected;}
   function getSettings(){return {...(selected==='custom'?userSettings:ARCADE_PRESETS[selected])};}
   function setMode(next){if(next!=='custom'&&!ARCADE_PRESETS[next])return false;if(next!==selected)reset();selected=next;return true;}
@@ -55,7 +55,13 @@ export function createArcadeAssistant({mode='original',custom=null}={}){
   function update(s,p,input,dt,ter){
     const delta=clamp(dt,0,.05);
     const grounded=!!(s.ground?.[0]||s.ground?.[1]);
-    if(grounded){prediction=null;predictAge=Infinity;}
+    if(grounded){prediction=null;predictAge=Infinity;flightTrick=false;}
+    else if(Math.abs(input.lean||0)>.65 || Math.abs(s.airRot||0)>1.25 ||
+      input.trick||input.whip||input.tailwhip||input.barspin){
+      // Once a flip or intentional spin starts, hands-off landing assistance must not
+      // unexpectedly unwind the player's trick after the controls are released.
+      flightTrick=true;
+    }
     else {
       predictAge+=delta;
       if(predictAge>=.045){prediction=predictRideLanding(s,p,ter);predictAge=0;}
@@ -65,7 +71,7 @@ export function createArcadeAssistant({mode='original',custom=null}={}){
     if(state!==lastState){elapsed=0;lastState=state;}else elapsed+=delta;
     if(selected==='original'){assist=null;return input;} // exact classic pass-through
     const settings=getSettings();
-    const intentionalPitch=Math.abs(input.lean||0)>.15||Math.abs(s.w||0)>3.0;
+    const intentionalPitch=flightTrick||Math.abs(input.lean||0)>.15||Math.abs(s.w||0)>3.0;
     const landing=state==='LANDING'&&!intentionalPitch&&prediction;
     const proximity=landing?clamp((.68-prediction.time)/.55):0;
     const targetPitch=landing?angle(prediction.pitch||0):null;
@@ -89,6 +95,6 @@ export function createArcadeAssistant({mode='original',custom=null}={}){
     return {...input,arcade:assist};
   }
   function snapshot(){return {mode:selected,state,stateTime:elapsed,settings:getSettings(),
-    prediction:prediction?{...prediction}:null,assistance:assist?{...assist}:null};}
+    prediction:prediction?{...prediction}:null,flightTrick,assistance:assist?{...assist}:null};}
   return {update,reset,snapshot,getMode,getSettings,setMode,setSetting,setCustom};
 }
