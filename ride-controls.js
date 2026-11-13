@@ -44,7 +44,8 @@ export function mountStick(ui,touch){
  const R=()=>Math.max(30,el.clientWidth*.42),dead=.12;
  const set=(ex,ey)=>{let dx=(ex-cx)/R(),dy=(ey-cy)/R();const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l;}
   knob.style.transform=`translate(${dx*R()}px,${dy*R()}px)`;
-  const ax=Math.abs(dx)<dead?0:Math.sign(dx)*(Math.abs(dx)-dead)/(1-dead),ay=Math.abs(dy)<dead?0:Math.sign(dy)*(Math.abs(dy)-dead)/(1-dead);
+  // v2.1-61 response curve: gentle near the centre for fine lines, full lock at the edge
+  const curve=(a,e)=>Math.abs(a)<dead?0:Math.sign(a)*Math.pow((Math.abs(a)-dead)/(1-dead),e),ax=curve(dx,1.55),ay=curve(dy,1.3);
   touch.stickX=ax;touch.stickY=ay;touch.steerRight=Math.max(0,ax);touch.steerLeft=Math.max(0,-ax);touch.leanForward=Math.max(0,-ay);touch.leanBack=Math.max(0,ay);el.setAttribute('aria-valuenow',ax.toFixed(2));};
  const stop=e=>{e.preventDefault();e.stopPropagation();};
  // v2.1-58 floating stick: touch anywhere in the lower-left area and the stick appears under your thumb (centred
