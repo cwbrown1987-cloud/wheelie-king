@@ -18,6 +18,8 @@ import { getTheme } from "./ride-themes.js";
 import { makeTerrain, makeFlatTerrain, makePlaygroundTerrain, makeState, step } from "./ride-physics.js";
 import {WK_VERSION} from './version.js';
 import { createJoltRide } from './ride-jolt.js';
+import { createArcadeAssistant } from './ride-arcade-assist.js';
+import { mountPhysicsLab } from './ride-arcade-ui.js';
 import { wrapAngle } from "./ride-freeroam.js";
 import {rideParameters} from './ride-parameters.js';
 import {createBikeMotion} from './bike-motion.js';
@@ -258,6 +260,12 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   // and landing feel as the side-scroller, plus handlebar steering (ride-freeroam.js). Jolt stays
   // available for comparison with ?physics=jolt.
   const physics=arena&&/[?&]physics=jolt\b/.test(location.search)?'jolt':'classic';
+  // The original Wheelie King physics remains authoritative. Arcade assistance is
+  // optional and active only for the classic 3D chase ride, never for Jolt or Legacy.
+  let arcadeCustom=null,arcadeMode='original';
+  try{arcadeCustom=JSON.parse(localStorage.getItem('wk-classic-arcade-custom')||'null');
+      arcadeMode=localStorage.getItem('wk-classic-arcade-mode')||'original';}catch{}
+  const arcade=arena&&physics==='classic'?createArcadeAssistant({mode:arcadeMode,custom:arcadeCustom}):null;
   let jolt=null;
 if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;
   if(arena){
@@ -573,6 +581,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     if (btn) { btn.classList.remove('is-held'); btn.setAttribute('aria-pressed', 'false'); }
   }
   function respawn() {
+    arcade?.reset();
     chaseFollowX=null;chaseHorizon=0;chaseTakeoffY=0;
     cancelRewindHold();
     const restarting = finished;
@@ -727,6 +736,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     if(!freeRoam&&cameraView!=='chase')steerSlider.release();
     return cameraView;
   }
+  const physicsLab=arcade&&(location.hostname.includes('beta')||location.hostname==='localhost'||location.search.includes('physicslab=1'))
+    ?mountPhysicsLab(ui,arcade):null;
   const viewLabel=ui.querySelector('.ride-view-label');viewLabel?.addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();if(reviewing||finished)return;setCameraView(cameraView==='chase'?'side':'chase');});const hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
   const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),rotateLocked=document.body.classList.contains('wk-portrait-lock'),realDt = paused || reviewing || rewinding || rotateLocked ? 0 : Math.min(0.05,cameraDt);
     let timeScale = 1;
@@ -734,6 +745,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     else if (dropInEase > 0) { timeScale = 0.5 + (1 - dropInEase) * 0.5; dropInEase = Math.max(0, dropInEase - cameraDt); }
     const dt = realDt * timeScale;
     last = now;
+    physicsLab?.update(s,now);
     // Replay video + Drop In buffer hold live riding only: app menus/overlays opened over the ride (More, Settings,
     // Shop, Garage...) don't pause the ride itself, so they must stop capture too.
     const capturing = !paused && !reviewing && !finished && !rewinding && !rotateLocked && !appCovered();
@@ -820,7 +832,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
         const n = Math.ceil(dt * 480);
         if(arena&&!neon&&cameraView==='side'&&!s.crashed){const t=Math.round((s.yaw||0)/Math.PI)*Math.PI;s.yaw=t;s.moveYaw=t;s.sliding=false;s.lean=0;s.steer=0;}
         for (let k = 0; k < (onFoot?0:n); k++) {
-          step(s, P, inp, dt / n, ter);
+          const rideInput=arcade&&cameraView==='chase'?arcade.update(s,P,inp,dt/n,ter):inp;
+          step(s, P, rideInput, dt / n, ter);
           if(neon&&!s.crashed)neonLock(s,dt/n);
           if (dt > 0 && capturing) replay.recordStep(s, dt / n, { dirt, wear, flips, maxScore, lastCP });
         }
@@ -1273,7 +1286,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       photoCount++;
     }
   };
-  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';globalThis.__WK_SCENE_VIEW__=setCameraView;
+  const sideCam=createSideCamera(),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');el.dataset.wkCam='side';if(freeRoam)el.dataset.wkFreeroam='';globalThis.__WK_SCENE_VIEW__=setCameraView;globalThis.__WK_CLASSIC_ASSIST__=arcade;
   const rideLod=lightenForRide(T,scene);
   raf = requestAnimationFrame(frame);
   globalThis.__WK_RIDE_SCENE__=()=>({scene,cam,renderer:R,body,pivot});globalThis.__WK_THREE__=T;globalThis.__WK_REPLAY__=replay;
@@ -1287,7 +1300,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   globalThis.__WK_TELEMETRY__ = () => {
     const j=jolt?.ready?jolt.dump():null,D=180/Math.PI,R0=P.R||.33;
     const om=s.wheelOmega||[0,0],slipRatio=om.map(w=>{const v=s.vx||0;return (w*R0-v)/Math.max(1.5,Math.abs(v));});
-    return {version:WK_VERSION,level,physics,ready:physics!=='jolt'||!!j,t:performance.now(),
+    return {version:WK_VERSION,level,physics,arcade:arcade?.snapshot()??null,ready:physics!=='jolt'||!!j,t:performance.now(),
       speedKmh:(s.vx||0)*3.6,speedMs:s.vx||0,pitchDeg:(s.pitch||0)*D,rollDeg:(s.joltRoll!=null?s.joltRoll:(s.visRoll||0))*D,yawDeg:(s.yaw||0)*D,yawRate:s.wYaw||0,
       x:s.x,y:s.y,z:s.z,ground:s.ground?[...s.ground]:null,wheelOmega:[...om],wheelSlipMs:s.slip?[...s.slip]:null,wheelSlipRatio:slipRatio,
       suspensionComp:s.comp?[...s.comp]:null,impactN:s.impactN||0,impactPeakN:s.impactPeakN||0,attach:rideProfile?.attach||null,
@@ -1296,8 +1309,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       input:{throttle:inp.throttle||0,brake:inp.brake||0,steer:inp.steer||0,lean:inp.lean||0,mono:!!s.mono,stand:!!inp.stand},
       engine:j?j.engine:null,driver:j?j.driver:null,calibration:j?j.calibration:null,profile:rideProfile?{mass:rideProfile.mass,comBack:rideProfile.comBack,comH:rideProfile.comH,front:rideProfile.front,rear:rideProfile.rear,engine:rideProfile.engine}:null};
   };
-  globalThis.__WK_RIDE_STATE__ = () => ({ walker:walker?.state()||null,onFoot, s, P, physics, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null,rideProfile, dirt, wear, flips, finished, inp, ter, level, legacyMenu, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),soccer:soccer?.state()||null,cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),toggles:{...rideToggles},steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,sky:skyKind,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
-  function stop(save=true) {if(disposed)return;disposed=true;try{removeEventListener('keydown',footKey);walker?.dispose();pgCoins?.dispose();composer?.dispose?.();composer?.renderTarget1?.dispose();composer?.renderTarget2?.dispose();bloomPass?.dispose?.();}catch{}try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_TELEMETRY__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointerdown',pinchDown);R.domElement.removeEventListener('pointermove',pinchMove);for(const ev of ['pointerup','pointercancel'])R.domElement.removeEventListener(ev,pinchUp);R.domElement.removeEventListener('wheel',zoomWheel);removeEventListener('keydown',zoomKey);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();soccer?.dispose();tracks?.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
+  globalThis.__WK_RIDE_STATE__ = () => ({ walker:walker?.state()||null,onFoot, s, P, physics, arcade:arcade?.snapshot()??null, physicsReady:physics!=='jolt'||!!(jolt&&jolt.ready), jolt:jolt?jolt.dump():null,rideProfile, dirt, wear, flips, finished, inp, ter, level, legacyMenu, arena, freeRoam, slowMo, slowUnlocked, cameraX:cam.position.x,groundX:ground.position.x,render:{calls:R.info.render.calls,triangles:R.info.render.triangles,geometries:R.info.memory.geometries,textures:R.info.memory.textures},environment:environment.state(),soccer:soccer?.state()||null,cameraView,cameraBlend,crash:crashRig?.state()||null,rider:riderModel.state(),backdropLoaded,sceneryLayers:['background','road','foreground'],paused,stunt:s.stunt?{...s.stunt}:null,supermanPose,stuntVisual:stuntRig.state(),controls:leanControls.state(),toggles:{...rideToggles},steer:steerSlider.state(),visual:{steer:inp.steer||0,bar:s.steer||0,roll:pivot.rotation.x,z:pivot.position.z,yaw:s.yaw||0,meshYaw,lookYaw,lookPitch,dive:visDive,squat:visSquat,slip:s.slip?s.slip.slice():[0,0],wheelOmega:s.wheelOmega?s.wheelOmega.slice():[0,0],smoke:smokeParts.reduce((n,p)=>n+(p.life>0?1:0),0)},chaseCam:lastChaseCam,tricksOpen:tricksMenu.state().open,quality:{antialias:R.getContext().getContextAttributes().antialias,start:qualityPick.name,manual:qualityPick.manual,maxPR,shadows:R.shadowMap.enabled,shadowMap:R.shadowMap.enabled,fps:fpsLast,blobs:!!(contactBlobs&&contactBlobs[0]?.visible),worldSky:!!worldSky,sky:skyKind,...qualityMon.state(),log:qualityLog},rideLod:{swapped:rideLod.swapped,before:rideLod.before,after:rideLod.after},mechanical:mechanical?.state,rewinding,rewindT,bufferLength:replay.buffer?.length||0,bufferT:replay.buffer?.t||0 });
+  function stop(save=true) {if(disposed)return;disposed=true;try{removeEventListener('keydown',footKey);walker?.dispose();pgCoins?.dispose();composer?.dispose?.();composer?.renderTarget1?.dispose();composer?.renderTarget2?.dispose();bloomPass?.dispose?.();}catch{}try{jolt?.dispose();jolt=null;delete globalThis.__WK_JOLT_RESET__;delete globalThis.__WK_TELEMETRY__;delete globalThis.__WK_RIDE_HOLD__;}catch{}if(save)report();physicsLab?.dispose();delete globalThis.__WK_CLASSIC_ASSIST__;replay.dispose();releaseControls();cancelAnimationFrame(raf); removeEventListener("keydown", kd); removeEventListener("keyup", ku);removeEventListener('blur',releaseControls);document.removeEventListener('visibilitychange',visibility);for(const type of blockedGestures)el.removeEventListener(type,blockBrowserGesture);R.domElement.removeEventListener('pointerdown',lookOn);R.domElement.removeEventListener('pointerdown',pinchDown);R.domElement.removeEventListener('pointermove',pinchMove);for(const ev of ['pointerup','pointercancel'])R.domElement.removeEventListener(ev,pinchUp);R.domElement.removeEventListener('wheel',zoomWheel);removeEventListener('keydown',zoomKey);R.domElement.removeEventListener('pointermove',lookMove);for(const ev of ['pointerup','pointercancel','lostpointercapture'])R.domElement.removeEventListener(ev,lookOff);el.removeAttribute('data-wk-ride-surface');el.removeAttribute('data-wk-paused');el.removeAttribute('data-wk-crashed');el.removeAttribute('data-wk-finished');el.removeAttribute('data-wk-cam');el.removeAttribute('data-wk-freeroam');cancelRewindHold();crashRig?.restore();crashRig=null; delete globalThis.__WK_SCENE_VIEW__;delete globalThis.__WK_RIDE_SCENE__;environment.dispose();soccer?.dispose();tracks?.dispose();if(worldSky){worldSky.geometry?.dispose();worldSky.material?.dispose();if(scene.background&&scene.background.isTexture&&scene.background!==horizonTex&&scene.background!==backdrop)scene.background.dispose();if(scene.environment&&scene.environment.isTexture)scene.environment.dispose();worldSky.removeFromParent();}worldSkyTex?.dispose();contactBlobs?.forEach(b=>{b.material.dispose();b.removeFromParent()});blobGeo?.dispose();speedLineGeo.dispose();speedLineMat.dispose();speedLines.removeFromParent();loopMesh?.geometry.dispose();loopMesh?.material.dispose();rideLod.dispose();horizonTex?.dispose();backdrop.dispose();smoke.geometry.dispose();smoke.material.dispose();R.dispose();R.forceContextLoss();el.innerHTML="";}
   return ()=>{replacementStop?.();stop();};
 }
 function btnCss(bg, w, h) { return `width:${w}px;height:${h}px;border-radius:16px;background:${bg};border:2px solid #fff4;color:#fff;font:15px 'Bungee',Impact,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`; }
