@@ -38,6 +38,17 @@ assert.equal(landing.snapshot().state,'LANDING');
 assert(landHint.landingStrength>0,'hands-off predictive landing correction');
 const noAssist=landing.update(descent,bike,{...input,lean:.9},1/60,downhill).arcade;
 assert.equal(noAssist.landingStrength,0,'intentional trick rotation not corrected');
+// An intentional flip stays unassisted even if the rider releases the controls
+// before touching down; returning to ground clears that intent.
+const trickLatch=createArcadeAssistant({mode:'arcade'});
+trickLatch.update(descent,bike,{...input,lean:.95},1/60,downhill);
+assert.equal(trickLatch.snapshot().flightTrick,true);
+const released=trickLatch.update(descent,bike,{...input,lean:0},1/60,downhill);
+assert.equal(released.arcade.landingStrength,0,'no self-righting once a flip has begun');
+trickLatch.update({...descent,ground:[true,true]},bike,{...input,lean:0},1/60,downhill);
+assert.equal(trickLatch.snapshot().flightTrick,false,'intent clears on landing');
+const newFlight=trickLatch.update(descent,bike,{...input,lean:0},1/60,downhill);
+assert(newFlight.arcade.landingStrength>0,'hands-off landing assistance returns on next jump');
 
 function simulate(mode,{air=false,steps=1440,turn=true}={}){
   const s=fresh(),ctrl=createArcadeAssistant({mode});
