@@ -72,7 +72,7 @@ export function createV3Motorcycle({P,profile}={}){
     fx+=longForce*fX+sideForce*lX;
     fz+=longForce*fZ+sideForce*lZ;
     // Steering inertia and lean work together, not as two competing yaw engines.
-    const turnTarget=grounded?speed*Math.tan(s.steer)/wb:(inp.steer||0)*.95;
+    const turnTarget=grounded?speed*Math.tan(s.steer)/wb:(inp.steer||0)*.95*(inp.arcade?.airYawFactor??1);
     const yawResponse=grounded?7:1.6;
     const yawAccel=clamp((turnTarget-(s.wYaw||0))*yawResponse,-15,15);
     s.wYaw=(s.wYaw||0)+yawAccel*dt;
@@ -90,6 +90,16 @@ export function createV3Motorcycle({P,profile}={}){
     const pitchHelp=grounded?(lean*mass*G*.24 - (s.w||0)*I.pitch*.45):
       I.pitch*(lean*7.8*(inp.arcade?.airPitchFactor??1)-(s.w||0)*1.85);
     pitchTorque+=pitchHelp;
+    // Independent motorcycle-specific balancing, not a Jolt constraint.
+    // Strong deliberate rider input overrides these stabilizers.
+    if(grounded&&Math.abs(lean)<.85&&s.ground[0]&&!s.ground[1]&&inp.arcade?.wheelie){
+      const strength=inp.arcade.wheelie;
+      pitchTorque+=I.pitch*strength*((.68-(s.pitch||0))*2.4-(s.w||0)*.65);
+    }
+    if(grounded&&Math.abs(lean)<.85&&s.ground[1]&&!s.ground[0]&&inp.arcade?.stoppie){
+      const strength=inp.arcade.stoppie;
+      pitchTorque+=I.pitch*strength*((-.52-(s.pitch||0))*2.4-(s.w||0)*.65);
+    }
     if(grounded&&contacts===2) pitchTorque+=(wrap(slope-s.pitch)*15-(s.w||0)*7)*I.pitch*.65;
     if(!grounded&&Math.abs(lean)<.1){
       const predicted=inp.arcade?.landingTargetPitch;
