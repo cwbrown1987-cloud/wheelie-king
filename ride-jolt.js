@@ -466,12 +466,13 @@ export function createJoltRide({ P, profile = null }) {
     // turn the tyres can carry (lateral accel ~0.9 g -> ~42° lean), so lean always matches the turn.
     if (api.settings && profile) {
       const v = body.GetLinearVelocity(), sp = Math.hypot(v.GetX(), v.GetZ()), C = api.settings, TU = globalThis.__WK_TUNE__ || {};
-      const aLat = (TU.aLat ?? 0.9) * 9.81 * Math.min(1.2, C.friction || 1);
+      const aLat = (inp.arcade?.lateralG ?? TU.aLat ?? 0.9) * 9.81 * Math.min(1.2, C.friction || 1);
       const dMax = sp > 0.5 ? Math.atan(aLat * C.wb / (sp * sp)) : C.steerMax;
       right *= Math.min(1, dMax / C.steerMax);
     }
-    if (right > mRight) mRight = Math.min(mRight + S.steerSpeed * dt, right);
-    else if (right < mRight) mRight = Math.max(mRight - S.steerSpeed * dt, right);
+    const steeringRate = inp.arcade?.steeringRate ?? S.steerSpeed;
+    if (right > mRight) mRight = Math.min(mRight + steeringRate * dt, right);
+    else if (right < mRight) mRight = Math.max(mRight - steeringRate * dt, right);
   }
   function setHandBrakeWheel(i) {
     // Drift: the rider stomps the rear brake (1.5x its rated torque) so it locks against the drive.
@@ -479,12 +480,13 @@ export function createJoltRide({ P, profile = null }) {
   }
   // Tyre friction circle: a spinning or locked rear tyre loses side grip. Jolt evaluates the
   // wheel's lateral friction curve every step, so the curve is rescaled from the slip ratio.
-  function updateRearGrip() {
+  function updateRearGrip(arcade = null) {
     const w = wheel(1), v = body.GetLinearVelocity(), a = axes();
     const vf = v.GetX() * a.fwd.x + v.GetZ() * a.fwd.z;
     const slip = Math.abs(w.GetAngularVelocity() * api.settings.wheelR - vf) / Math.max(1.5, Math.abs(vf));
     // Full side grip up to 15% slip, falling to 45% when fully spun or locked.
-    const u = Math.max(0, Math.min(1, (slip - 0.15) / 0.85)), scale = 1 - 0.55 * u;
+    const u = Math.max(0, Math.min(1, (slip - 0.15) / 0.85));
+    const scale = Math.min(1, 1 - 0.55 * u + (arcade?.rearGripRetention ?? 0) * u);
     if (Math.abs(scale - latScaleNow) < 0.03) return;
     latScaleNow = scale;
     const f = api.settings.friction * scale, c = wheelSet[1].mLateralFriction;
@@ -533,7 +535,7 @@ export function createJoltRide({ P, profile = null }) {
       const vh = Math.hypot(vNow.GetX(), vNow.GetZ()), target = Math.max(-0.6, Math.min(0.6, Math.atan2(vNow.GetY(), Math.max(1, vh)))) + lean * 0.35
         + Math.sign(lean) * Math.max(0, Math.abs(lean) - 0.85) * (globalThis.__WK_TUNE__?.yank ?? 8) * Math.min(1, Math.max(0, airT - 0.15) / 0.1); // a full yank in real flight over-rotates: loop-out / endo (not a wheel skipping off a bump)
       const I = api.settings.mass * 0.25, cap = RIDER_KG * G * 0.35;
-      const tau = Math.max(-cap, Math.min(cap, I * 14 * (target - pitch) - I * 7 * pitchRate));
+      const tau = Math.max(-cap, Math.min(cap, (I * 14 * (target - pitch) - I * 7 * pitchRate) * (inp.arcade?.airPitchFactor ?? 1)));
       body.AddTorque(new Jolt.Vec3(-a.right.x * tau, -a.right.y * tau, -a.right.z * tau));
       // Off the ground the rider holds the bike upright (knees on the tank, 75 kg x 0.5 m), damping any
       // roll the take-off gave it, so a bump in a turn doesn't flip it.
@@ -541,7 +543,9 @@ export function createJoltRide({ P, profile = null }) {
       {
         const av = body.GetAngularVelocity(), fx = a.fwd.x, fz = a.fwd.z, fl = Math.hypot(fx, fz) || 1;
         const rr = (av.GetX() * fx + av.GetZ() * fz) / fl, Ir = api.settings.mass * Math.max(0.3, api.settings.comH ?? 0.9) ** 2;
-        const capR = RIDER_KG * G * (TUa.airArm ?? 0.5), tr = Math.max(-capR, Math.min(capR, -Ir * (TUa.ark ?? 20) * rollNow - Ir * (TUa.ard ?? 8) * rr));
+        const capR = RIDER_KG * G * (TUa.airArm ?? 0.5);
+        const tr = Math.max(-capR, Math.min(capR,
+          (-Ir * (TUa.ark ?? 20) * rollNow - Ir * (TUa.ard ?? 8) * rr) * (inp.arcade?.airRollFactor ?? 1)));
         body.AddTorque(new Jolt.Vec3(fx / fl * tr, 0, fz / fl * tr));
       }
     } else if (monoOn) {
@@ -586,7 +590,8 @@ export function createJoltRide({ P, profile = null }) {
       // sideways weight shift (capped at 75 kg x 0.25 m), as a real wheelie rider does.
       const av = body.GetAngularVelocity(), fx = a.fwd.x, fz = a.fwd.z, fl = Math.hypot(fx, fz) || 1;
       const rollRate = (av.GetX() * fx + av.GetZ() * fz) / fl;
-      const cap = RIDER_KG * G * (globalThis.__WK_TUNE__?.side ?? 0.25), tau = Math.max(-cap, Math.min(cap, -(cap * 4) * rollNow - (cap * 0.8) * rollRate));
+      const cap = RIDER_KG * G * (globalThis.__WK_TUNE__?.side ?? 0.25) * (inp.arcade?.wheelieBalance ?? 1);
+      const tau = Math.max(-cap, Math.min(cap, -(cap * 4) * rollNow - (cap * 0.8) * rollRate));
       body.AddTorque(new Jolt.Vec3(fx / fl * tau, 0, fz / fl * tau));
     }
     if (monoKick > 0 && !rolling) monoKick = 0; // toggling at a standstill is just a stance change
@@ -634,7 +639,7 @@ export function createJoltRide({ P, profile = null }) {
     if (profile) modulateFrontBrake(dt);
     if (handBrake === 0 && wheelSet) for (const w of wheelSet) w.mMaxHandBrakeTorque = 0;
     riderActions(s, inp, dt);
-    updateRearGrip();
+    updateRearGrip(inp.arcade);
     // MotorcycleTest::PrePhysicsUpdate
     if (mRight !== 0 || mForward !== 0 || mBrake !== 0 || handBrake) bodyInterface.ActivateBody(body.GetID());
     controller.SetDriverInput(mForward, mRight, mBrake, handBrake);
