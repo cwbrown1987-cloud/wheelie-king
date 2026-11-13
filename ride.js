@@ -270,7 +270,6 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   try{arcadeCustom=JSON.parse(localStorage.getItem('wk-classic-arcade-custom')||'null');
       arcadeMode=localStorage.getItem('wk-classic-arcade-mode')||'original';}catch{}
   const arcade=arena&&(physics==='classic'||physics==='v3')?createArcadeAssistant({mode:arcadeMode,custom:arcadeCustom}):null;
-  const v3Motor=physics==='v3'?createV3Motorcycle({P,profile:rideProfile}):null;
   let jolt=null;
 if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;
   if(arena){
@@ -296,7 +295,8 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   // BMX (stands up to sprint), everything else seated pedalling (MTB / e-bike)
   const vehicleClass=prototypeFor(build.frame)?.vehicleClass||(/moto/.test(build.frame||'')?'motorbike':/bmx/.test(build.frame||'')?'bmx':P.pedal?'bicycle':'ebike');
   if(rideProfile)rideProfile.stance=vehicleClass==='escooter'||vehicleClass==='scooter'?'scooter':vehicleClass==='motorbike'?'moto':vehicleClass==='bmx'?'bmx':'seated';
-  if(rideProfile){P.comBack=rideProfile.comBack;P.comH=rideProfile.comH;}P.forkVertical=P.forkAxis[1];P.rearLink=A.swingPivot?[A.rearAxle[0]-A.swingPivot[0],A.rearAxle[1]-A.swingPivot[1]]:null;
+  if(rideProfile){P.comBack=rideProfile.comBack;P.comH=rideProfile.comH;}P.forkVertical=P.forkAxis[1];
+  const v3Motor=physics==='v3'?createV3Motorcycle({P,profile:rideProfile}):null;P.rearLink=A.swingPivot?[A.rearAxle[0]-A.swingPivot[0],A.rearAxle[1]-A.swingPivot[1]]:null;
   const hC = P.comH - P.R; bike.position.set(-P.wb * P.comBack - A.rearAxle[0], -hC - A.rearAxle[1], 0); body.add(bike);
   // wheels move with their suspension (visible travel); find the wheel groups at each axle
   const wheels = [[], []]; bike.traverse((o) => { if (o.isGroup && o.parent && /wk:(tyres|motor)/.test(o.parent.name) && o.children.some((c) => c.geometry?.type === "TorusGeometry")) { const i = Math.abs(o.position.x - A.frontAxle[0]) < 0.05 ? 1 : 0; wheels[i].push([o, o.position.y]); } });
