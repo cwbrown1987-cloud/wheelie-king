@@ -5,7 +5,7 @@
 // ambientCG asphalt/concrete sets. Built to stay light: merged ribbons, instancing, emissive "glow" instead of lights.
 import { GLTFLoader as GLTF } from './vendor/GLTFLoader.js';
 import { makeGraffitiAtlas, makeWallBase, makeHeartPiece } from './ride-graffiti.js';
-import { NEON, NEON_PATH, NEON_GAPS, NEON_COINS, NEON_FEATURES, NEON_BOOSTS, NEON_LOOPS, neonProfile, neonAt, neonInGap } from './ride-neon.js';
+import { NEON, NEON_PATH, NEON_GAPS, NEON_COINS, NEON_FEATURES, NEON_BOOSTS, NEON_LOOPS, neonProfile, neonAt, neonInGap, neonProject } from './ride-neon.js';
 const TAU = Math.PI * 2;
 function rng(seed) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
 function canvasTex(T, w, h, draw, { srgb = true, repeat = false } = {}) {
@@ -123,7 +123,9 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   const farMesh = mk(farBank, paving, 'far-bank'); farMesh.material.side = T.DoubleSide;
   // ---- graffiti wall (left), lamps, wire on top ----
   const wallNrm = lowDetail ? null : tex('./assets/ambientcg/Concrete034/Concrete034_NormalGL.jpg', false, 2);
-  const noWall = s => neonInGap(s) || (s > NEON_FEATURES.bridge[0] - 4 && s < NEON_FEATURES.bridge[1] + 4) || (s > NEON_FEATURES.rooftop[0] - 6 && s < NEON_FEATURES.rooftop[1] + 6);
+  const overWater = s => neonInGap(s) || (s > NEON_FEATURES.bridge[0] - 4 && s < NEON_FEATURES.bridge[1] + 4);
+  const noWall = s => s > NEON_FEATURES.rooftop[0] - 6 && s < NEON_FEATURES.rooftop[1] + 6;   /* v2.1-47: the wall runs on over the canal crossings (down to the water) so the backdrop never opens up */
+  const noFoot = s => noWall(s) || overWater(s);
   // v2.1-46: one continuous wall following the line (plain dirty concrete), with graffiti laid over it as decals:
   // big pieces and small tags/stickers/characters at random sizes, heights, tilts and overlaps, from a shuffled
   // atlas of 44 generated pieces, so no stretch of wall looks like another.
@@ -131,8 +133,8 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   const wallAt = (s, o = wallOff) => { const p = neonAt(s); return [p.x + Math.sin(p.yaw) * o, p.z - Math.cos(p.yaw) * o]; };
   const wallB = { pos: [], uv: [], idx: [] }, lampPos = [];
   for (let s = 0; s < NEON.len - 1; s += 1) { if (noWall(s) || noWall(s + 1)) continue; const [x0, z0] = wallAt(s), [x1, z1] = wallAt(s + 1);
-    quadStrip(wallB, [x1, 0, z1], [x1, wallH, z1], [x0, 0, z0], [x0, wallH, z0], (s + 1) / 14, s / 14, 0, 1);
-    if (s % 14 === 7) { const p = neonAt(s); lampPos.push({ x: p.x + Math.sin(p.yaw) * (wallOff - .35), z: p.z - Math.cos(p.yaw) * (wallOff - .35), yaw: p.yaw }); } }
+    const b0 = overWater(s) ? NEON.water : 0, b1 = overWater(s + 1) ? NEON.water : 0; quadStrip(wallB, [x1, b1, z1], [x1, wallH, z1], [x0, b0, z0], [x0, wallH, z0], (s + 1) / 14, s / 14, b1 / wallH, 1);
+    if (s % 14 === 7 && !overWater(s)) { const p = neonAt(s); lampPos.push({ x: p.x + Math.sin(p.yaw) * (wallOff - .35), z: p.z - Math.cos(p.yaw) * (wallOff - .35), yaw: p.yaw }); } }
   const wallMesh = mk(wallB, wallMat, 'wall'); wallMesh.receiveShadow = true;
   { const atlas = makeGraffitiAtlas(T, { lowDetail, seed: 11 }), gr = rng(2026), big = atlas.cells.filter(c => c.big), small = atlas.cells.filter(c => !c.big);
     const bag = list => { let q = []; return () => { if (!q.length) q = [...list].sort(() => gr() - .5); return q.pop(); }; }, nextBig = bag(big), nextSmall = bag(small);
@@ -166,7 +168,7 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
     const posts2 = []; for (let s2 = 0; s2 < NEON.len; s2 += 3.5) { if (noWall(s2)) continue; const p = neonAt(s2); posts2.push([p.x + Math.sin(p.yaw) * wallOff, p.z - Math.cos(p.yaw) * wallOff]); }
     const pi = new T.InstancedMesh(keep(new T.CylinderGeometry(.03, .03, 1.35, 5)), housing, posts2.length); posts2.forEach(([x, z], k) => { M.makeTranslation(x, wallH + .62, z); pi.setMatrixAt(k, M); }); pi.instanceMatrix.needsUpdate = true; pi.computeBoundingSphere(); group.add(pi); }
   // ivy and shrubs at the foot of the wall (Quaternius bushes), and a few on the canal side
-  if (GLTFLoader) { const shrubs = []; const rr = rng(77); for (let s2 = 3; s2 < NEON.len; s2 += 3 + rr() * 6) { if (noWall(s2)) continue; const p = neonAt(s2), o = wallOff - .45 - rr() * .5; shrubs.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, s: .45 + rr() * .55, r: rr() * TAU }); }
+  if (GLTFLoader) { const shrubs = []; const rr = rng(77); for (let s2 = 3; s2 < NEON.len; s2 += 3 + rr() * 6) { if (noFoot(s2)) continue; const p = neonAt(s2), o = wallOff - .45 - rr() * .5; shrubs.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, s: .45 + rr() * .55, r: rr() * TAU }); }
     /* canal side: behind the fence now, no shrubs */
     new GLTFLoader().loadAsync('./assets/quaternius/nature/Bush_Common.gltf').then(g => { g.scene.updateMatrixWorld(true); g.scene.traverse(o => { if (!o.isMesh) return; [].concat(o.material).forEach(mm => { mm.alphaTest = .45; mm.transparent = false; mm.side = T.DoubleSide; mm.color?.multiplyScalar(.6); keep(mm); }); keep(o.geometry);
       const inst = new T.InstancedMesh(o.geometry, o.material, shrubs.length); shrubs.forEach((b, k) => { Q.setFromAxisAngle(new T.Vector3(0, 1, 0), b.r); M.compose(V.set(b.x, 0, b.z), Q, S.set(b.s, b.s, b.s)).multiply(o.matrixWorld); inst.setMatrixAt(k, M); }); inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); inst.name = 'neon:shrubs'; group.add(inst); }); }).catch(() => {}); }
@@ -251,7 +253,7 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
   const frondMat = keep(new T.MeshStandardMaterial({ map: frondTex, alphaTest: .4, side: T.DoubleSide, roughness: .8 })), trunkMat = keep(new T.MeshStandardMaterial({ color: '#6b5440', roughness: .95 }));
   const frondGeo = keep(new T.PlaneGeometry(1.5, 5.4, 1, 8)); { const pa = frondGeo.attributes.position; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) + 2.7, t = y / 5.4; pa.setY(i, y * .9 - t * t * 1.6); pa.setZ(i, Math.abs(pa.getX(i)) * -.25); } frondGeo.translate(0, 0, 0); frondGeo.rotateX(Math.PI / 2); frondGeo.computeVertexNormals(); }
   const palms = []; const pr = rng(9);
-  for (let s = 20; s < NEON.len; s += 22 + pr() * 30) { if (neonInGap(s)) continue; const p = neonAt(s), side = pr() < .55 ? -1 : 1, o = side > 0 ? wallOff + 2 + pr() * 6 : -(26 + pr() * 9); /* canal-side palms stand behind the side-view camera */ palms.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, h: 7 + pr() * 6, lean: (pr() - .5) * .5, rot: pr() * TAU, y0: side > 0 ? 0 : 0 }); }
+  for (let s = 20; s < NEON.len; s += 22 + pr() * 30) { if (neonInGap(s)) continue; const p = neonAt(s), side = pr() < .55 ? -1 : 1, o = side > 0 ? wallOff + 2 + pr() * 5 : -(25 + pr() * 3.5); /* canal-side palms stand behind the side-view camera */ palms.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, h: 7 + pr() * 6, lean: (pr() - .5) * .5, rot: pr() * TAU, y0: side > 0 ? 0 : 0 }); }
   const trunkGeoCache = new Map();
   const nPalms = lowDetail ? Math.ceil(palms.length / 2) : palms.length, frondI = new T.InstancedMesh(frondGeo, frondMat, nPalms * 12);
   palms.slice(0, nPalms).forEach((pm, k) => { const pts = []; for (let t = 0; t <= 1.001; t += .25) pts.push(new T.Vector3(Math.sin(pm.lean) * pm.h * t * t * .5, pm.h * t, 0));
@@ -260,18 +262,50 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
     for (let f = 0; f < 12; f++) { E.set(0, f * TAU / 12 + pm.rot, 0, 'YXZ'); Q.setFromEuler(E); const tilt = new T.Quaternion().setFromAxisAngle(new T.Vector3(1, 0, 0), -.35 + (f % 3) * .18); Q.multiply(tilt); M.compose(top, Q, S.set(1, 1, 1)); frondI.setMatrixAt(k * 12 + f, M); } });
   frondI.instanceMatrix.needsUpdate = true; frondI.computeBoundingSphere(); frondI.castShadow = !lowDetail; group.add(frondI);
   // ---- skyline ----
-  const winTex = keep(canvasTex(T, 128, 256, (g, w, h) => { g.fillStyle = '#1b1830'; g.fillRect(0, 0, w, h); const rr = rng(3); for (let y = 6; y < h; y += 12) for (let x = 6; x < w; x += 12) { const lit = rr(); g.fillStyle = lit > .72 ? (rr() < .7 ? '#ffd38a' : '#9fe7ff') : lit > .55 ? '#3a3560' : '#24203c'; g.fillRect(x, y, 7, 8); } }, { repeat: true }));
-  const winMat = keep(new T.MeshStandardMaterial({ map: winTex, emissiveMap: winTex, emissive: new T.Color('#ffffff'), emissiveIntensity: 1.1, color: '#262038', roughness: .7, metalness: .2, envMapIntensity: .4 }));
+  const cityMat = keep(new T.MeshStandardMaterial({ color: '#ffffff', roughness: .8, metalness: .1, envMapIntensity: .3 }));
+  cityMat.customProgramCacheKey = () => 'wk-city'; cityMat.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWkPos;varying vec3 vWkN;varying vec2 vWkId;').replace('#include <project_vertex>', `#include <project_vertex>
+vec4 wkp=vec4(transformed,1.);vec3 wkn=objectNormal;vWkId=vec2(0.);
+#ifdef USE_INSTANCING
+wkp=instanceMatrix*wkp;wkn=mat3(instanceMatrix)*wkn;vWkId=instanceMatrix[3].xz;
+#endif
+vWkPos=(modelMatrix*wkp).xyz;vWkN=normalize(mat3(modelMatrix)*wkn);`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vWkPos;varying vec3 vWkN;varying vec2 vWkId;vec3 wkEm;
+float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).replace('#include <map_fragment>', `#include <map_fragment>
+{ float bid=wkH(floor(vWkId*.37)+3.1);vec3 N=normalize(vWkN);float roof=step(.6,abs(N.y));
+  vec3 base=bid<.25?vec3(.11,.085,.16):bid<.5?vec3(.17,.10,.11):bid<.75?vec3(.085,.10,.15):vec3(.15,.14,.17);
+  vec2 t2=normalize(vec2(-N.z,N.x)+1e-5);float u=dot(vWkPos.xz,t2),v=vWkPos.y;float fw=1.7+bid*1.6,fh=3.1;
+  vec2 q=vec2(u/fw,v/fh),cell=floor(q),f=fract(q),aa=fwidth(q)+1e-4;float far=clamp(max(aa.x,aa.y)*2.5-.4,0.,1.); /* far away: average the windows instead of aliasing */
+  float win=smoothstep(.18-aa.x,.18+aa.x,f.x)*smoothstep(.82+aa.x,.82-aa.x,f.x)*smoothstep(.26-aa.y,.26+aa.y,f.y)*smoothstep(.8+aa.y,.8-aa.y,f.y)*(1.-roof)*step(4.2,v);
+  float lit=step(.42+bid*.3,wkH(cell+vWkId));vec3 wc=mix(vec3(1.,.74,.42),vec3(.62,.86,1.),step(.72,wkH(cell*1.7+vWkId)));
+  win=mix(win,.33*(1.-roof)*step(4.2,v),far);diffuseColor.rgb=mix(base,vec3(.03,.03,.05),win)*(1.-roof*.4);
+  wkEm=win*mix(lit*wc*(.55+.7*wkH(cell+5.)),vec3(.45,.36,.3)*(.55-bid*.3),far);
+  float bay=floor(u/6.),fb=fract(u/6.);float shop=(1.-roof)*step(.5,v)*step(v,3.3)*step(.3,wkH(vec2(bay,0.)+vWkId))*step(.08,fb)*step(fb,.92);
+  float hc=wkH(vec2(bay,1.)+vWkId);vec3 sc=hc<.25?vec3(1.,.35,.75):hc<.5?vec3(.3,.85,1.):hc<.75?vec3(1.,.7,.3):vec3(.65,.4,1.);
+  wkEm+=shop*sc*.75;wkEm+=(1.-roof)*step(3.5,v)*step(v,3.75)*step(.55,wkH(vec2(bay,2.)+vWkId))*sc*1.6; }`).replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance+=wkEm;'); };
   const boxGeo = keep(new T.BoxGeometry(1, 1, 1)); const sk = []; const sr = rng(21);
   const cx = 500, cz = 340;
   for (let k = 0; k < (lowDetail ? 70 : 150); k++) { const a = sr() * TAU, d = 720 + sr() * 380, w = 25 + sr() * 45, h = 40 + Math.pow(sr(), 1.6) * 170; sk.push({ x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, w, d2: 20 + sr() * 40, h, rot: sr() * TAU }); }
-  const skyI = new T.InstancedMesh(boxGeo, winMat, sk.length); sk.forEach((b, k) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.h / 2 - 2, b.z), Q, S.set(b.w, b.h, b.d2)); skyI.setMatrixAt(k, M); }); skyI.instanceMatrix.needsUpdate = true; skyI.computeBoundingSphere(); skyI.name = 'neon:skyline'; group.add(skyI);
-  // nearer low-rise blocks across the canal (opposite bank), dark with lit windows
-  const near = []; for (let s = 0; s < NEON.len; s += 26 + sr() * 18) { const p = neonAt(s), o = -(40 + sr() * 30); near.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, w: 14 + sr() * 14, h: 5 + sr() * 12, rot: -p.yaw }); }
-  const nearI = new T.InstancedMesh(boxGeo, winMat, near.length); near.forEach((b, k) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.h / 2 - 3, b.z), Q, S.set(b.w, b.h, 12)); nearI.setMatrixAt(k, M); }); nearI.instanceMatrix.needsUpdate = true; nearI.computeBoundingSphere(); group.add(nearI);
-  // behind the graffiti wall: warehouses
-  const wh = []; for (let s = 0; s < NEON.len; s += 30 + sr() * 15) { const p = neonAt(s), o = wallOff + 12 + sr() * 8; wh.push({ x: p.x + Math.sin(p.yaw) * o, z: p.z - Math.cos(p.yaw) * o, w: 18 + sr() * 12, h: 8 + sr() * 9, rot: -p.yaw }); }
-  const whI = new T.InstancedMesh(boxGeo, winMat, wh.length); wh.forEach((b, k) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.h / 2, b.z), Q, S.set(b.w, b.h, 14)); whI.setMatrixAt(k, M); }); whI.instanceMatrix.needsUpdate = true; whI.computeBoundingSphere(); group.add(whI);
+  const skyI = new T.InstancedMesh(boxGeo, cityMat, sk.length); sk.forEach((b, k) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.h / 2 - 2, b.z), Q, S.set(b.w, b.h, b.d2)); skyI.setMatrixAt(k, M); }); skyI.instanceMatrix.needsUpdate = true; skyI.computeBoundingSphere(); skyI.name = 'neon:skyline'; group.add(skyI);
+  // v2.1-47 city: continuous street frontage both sides (two rows each, touching, no gaps), every building with
+  // procedural windows (lit at random, warm or cool), shopfront glow at street level and its own facade colour
+  const city = [], cr = rng(77);
+  const clear = (x, z, r) => { const q = neonProject(x, z); return q.dist > r; };
+  const row = (side, front, wMin, wMax, dMin, dMax, hMin, hMax, base) => { for (let s = -30; s < NEON.len + 40; ) { const w = wMin + cr() * (wMax - wMin), d = dMin + cr() * (dMax - dMin), h = hMin + Math.pow(cr(), 1.5) * (hMax - hMin), sm = Math.max(0, Math.min(NEON.len, s + w / 2));
+      const p = neonAt(sm), o = side * (front + d / 2), x = p.x + Math.sin(p.yaw) * o + (s + w / 2 - sm) * Math.cos(p.yaw), z = p.z - Math.cos(p.yaw) * o + (s + w / 2 - sm) * Math.sin(p.yaw), c = Math.cos(p.yaw), n = Math.sin(p.yaw);
+      const corners = [[w / 2, d / 2], [-w / 2, d / 2], [w / 2, -d / 2], [-w / 2, -d / 2]].map(([a, b]) => [x + c * a - n * b, z + n * a + c * b]);
+      if (clear(x, z, front * .8) && corners.every(([X, Z]) => clear(X, Z, Math.min(front * .8, 9)))) city.push({ x, z, w: w + .6, d, h, y0: base, rot: -p.yaw });
+      s += w * (.82 + cr() * .1); } };
+  row(1, wallOff + 8, 9, 20, 10, 16, 7, 24, 0);          // behind the wall: workshops, flats
+  row(1, wallOff + 26, 14, 30, 14, 24, 18, 55, 0);       // behind them: towers
+  row(-1, 30, 9, 20, 10, 16, 8, 26, 0);                   // far bank of the canal
+  row(-1, 50, 14, 30, 14, 24, 22, 70, 0);
+  const cityI = new T.InstancedMesh(boxGeo, cityMat, city.length); city.forEach((b, k) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.y0 + b.h / 2 - .02, b.z), Q, S.set(b.w, b.h, b.d)); cityI.setMatrixAt(k, M); }); S.set(1, 1, 1);
+  cityI.instanceMatrix.needsUpdate = true; cityI.computeBoundingSphere(); cityI.name = 'neon:city'; group.add(cityI);
+  // street ground between the wall and the buildings (so nothing looks over a void at their feet)
+  { const st = { pos: [], uv: [], idx: [] }; for (let i = 0; i < N - 8; i += 8) { const A = frame(i), B = frame(i + 8); for (const [o1, o2] of [[wallOff, wallOff + 34]]) if ([[A, o1], [A, o2], [B, o1], [B, o2]].every(([F, o]) => clear(F.x + F.nx * o, F.z + F.nz * o, 3.3))) quadStrip(st, [A.x + A.nx * o1, .01, A.z + A.nz * o1], [A.x + A.nx * o2, .01, A.z + A.nz * o2], [B.x + B.nx * o1, .01, B.z + B.nz * o1], [B.x + B.nx * o2, .01, B.z + B.nz * o2], A.s / 4, B.s / 4, 0, 8); }
+    const stm = mk(st, paving, 'street'); stm.material.side = T.DoubleSide; mirror?.hide.push(stm); }
   // ---- the loop (neon rims) and the neon ring over the last gap ----
   for (const L of NEON_LOOPS) { const lane = { pos: [], uv: [], idx: [] }, rimL = [], rimR = []; const pt = (a, inset = 0) => { const rad = L.radius - inset; return [L.x + rad * Math.sin(a) + L.exitOffset * a / TAU, L.y + L.radius - rad * Math.cos(a)]; };
     for (let i = 0; i < 128; i++) { const a0 = TAU * i / 128, a1 = TAU * (i + 1) / 128, [x0, y0] = pt(a0, -.05), [x1, y1] = pt(a1, -.05); quadStrip(lane, [x0, y0, L.z - 2.1], [x0, y0, L.z + 2.1], [x1, y1, L.z - 2.1], [x1, y1, L.z + 2.1], a0 * 3, a1 * 3, 0, 1);
