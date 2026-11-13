@@ -24,7 +24,7 @@ function tick(){
 document.addEventListener('click',e=>{if(popup&&!bar?.contains(e.target)){popup.hidden=true;more?.setAttribute('aria-expanded','false');if(shopPopup)shopPopup.hidden=true;shop?.setAttribute('aria-expanded','false')}});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.hasAttribute('data-wk-race-pending')){racePending=false;pendingBuild=null;delete document.body.dataset.wkRacePending;}if(e.key==='Escape'&&popup){popup.hidden=true;more?.setAttribute('aria-expanded','false');if(shopPopup)shopPopup.hidden=true;shop?.setAttribute('aria-expanded','false')}});setInterval(tick,350);
 
 // v2.1-54: RIDE asks where to go
-const RIDE_PLACES=[{id:'playground',title:'PLAYGROUND',sub:'Free ride: ramps, skate park, bowl, soccer',icon:'🏞️',level:'arena'},{id:'neon',title:'NEON RACE',sub:'Neon Canal: 1.7 km race at sunset',icon:'🌆',level:'neon'},{id:'valley',title:'THE VALLEY',sub:'Canyon bike track: rollers, tables, big doubles',icon:'🏜️',level:'arena',spawn:'canyon'},{id:'downhill',title:'DOWNHILL',sub:'Mountain dirt road, top to bottom',icon:'⛰️',level:'arena',spawn:'descent-start'}];
+const RIDE_PLACES=[{id:'playground',title:'PLAYGROUND',sub:'Free ride: ramps, skate park, bowl, soccer',icon:'🏞️',level:'arena'},{id:'neon',title:'NEON RACE',sub:'Neon Canal: 1.7 km race at sunset',icon:'🌆',level:'neon'},{id:'valley',title:'THE VALLEY',sub:'Forest trail race: waterfalls, timber kickers, creek gaps',icon:'🌲',level:'valley'},{id:'downhill',title:'DOWNHILL',sub:'Mountain dirt road, top to bottom',icon:'⛰️',level:'arena',spawn:'descent-start'}];
 function rideMenu(go){
  document.querySelector('.wk-ride-menu')?.remove();
  preloadRide();
@@ -44,7 +44,7 @@ let preloadStarted=false;
 function preloadRide(){
  if(preloadStarted)return;preloadStarted=true;
  fetch('./ride-preload.json').then(r=>r.ok?r.json():null).then(d=>{if(!d)return;
-  const q=[...new Set([...(d.shared||[]),...(d.playground||[]),...(d.neon||[])])];let i=0,live=0;
+  const q=[...new Set([...(d.shared||[]),...(d.playground||[]),...(d.valley||[]),...(d.neon||[])])];let i=0,live=0;
   const next=()=>{while(live<3&&i<q.length){const u=q[i++];live++;fetch('./'+u,{priority:'low'}).catch(()=>{}).finally(()=>{live--;next();});}};next();
  }).catch(()=>{});
 }

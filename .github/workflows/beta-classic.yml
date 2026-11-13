@@ -41,6 +41,7 @@ jobs:
           node tests/playground-bowl.mjs
           node tests/neon-level.mjs
           node tests/neon-world-smoke.mjs
+          node tests/valley-level.mjs
           node tests/economy.mjs
           node tests/walker.mjs
           node tests/handlebar-steer.mjs
