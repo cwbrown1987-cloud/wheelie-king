@@ -744,7 +744,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     return cameraView;
   }
   const physicsLab=arcade&&(location.hostname.includes('beta')||location.hostname==='localhost'||location.search.includes('physicslab=1'))
-    ?mountPhysicsLab(ui,arcade):null;
+    ?mountPhysicsLab(ui,arcade,{engine:physics,onEngineChange:next=>{
+      const url=new URL(location.href);url.searchParams.set('world','v3');url.searchParams.set('physics',next);
+      url.searchParams.set('physicslab','1');location.assign(url.toString());
+    }}):null;
   const viewLabel=ui.querySelector('.ride-view-label');viewLabel?.addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();if(reviewing||finished)return;setCameraView(cameraView==='chase'?'side':'chase');});const hc={},put=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.textContent=v}},putHtml=(e,k,v)=>{if(hc[k]!==v){hc[k]=v;e.innerHTML=v}},sty=(k,v)=>{if(hc['s'+k]!==v){hc['s'+k]=v;ui.style[k]=v}};
   const frame = (now) => { raf = requestAnimationFrame(frame); const cameraDt=Math.max(0,Math.min(.25,(now-last)/1000)),rotateLocked=document.body.classList.contains('wk-portrait-lock'),realDt = paused || reviewing || rewinding || rotateLocked ? 0 : Math.min(0.05,cameraDt);
     let timeScale = 1;
