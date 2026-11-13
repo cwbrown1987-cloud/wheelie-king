@@ -19,13 +19,13 @@ const kick = (u, a, b, h) => { const t = Math.max(0, Math.min(1, (u - a) / (b - 
 export const NEON_GAPS = [[618, 630], [1006, 1018]];
 const GAP_SAFE = [585, 965];
 // wooden ramps (drawn as timber decks on trestles) [from, to]
-export const VALLEY_WOOD = [[96, 116], [300, 316], [600, 618], [630, 650], [812, 830], [990, 1006], [1018, 1046], [1170, 1186]];
+export const VALLEY_WOOD = [[104, 116], [304, 316], [604, 618], [630, 652], [818, 830], [994, 1006], [1018, 1046], [1174, 1186]];
 export function neonProfile(u) {
   for (const [a, b] of NEON_GAPS) if (u > a && u < b) return NEON.water;
   const roll = (a, b, h, n) => h * (1 - Math.cos(2 * Math.PI * n * (u - a) / (b - a))) / 2;
   if (u < 40) return 0;
   if (u < 80) return roll(40, 80, .35, 3);                                   // trail rollers by the start
-  if (u >= 96 && u < 116) return kick(u, 96, 116, 2.4);                       // first wooden kicker (the picture)
+  if (u >= 104 && u < 116) return kick(u, 104, 116, 2.0);                       // first wooden kicker (the picture)
   if (u >= 170 && u < 240) return roll(170, 240, .6, 4);                      // root rollers
   if (u >= 280 && u < 300) return cosr(u, 280, 300, 0, .8);
   if (u >= 300 && u < 316) return .8 + kick(u, 300, 316, 2.2);                // step-up kicker on the bank
@@ -37,14 +37,14 @@ export function neonProfile(u) {
   if (u >= 630 && u < 652) return cosr(u, 630, 652, 3.4, 1.2);                // wooden landing
   if (u >= 652 && u < 700) return cosr(u, 652, 700, 1.2, 0);
   if (u >= 730 && u < 790) return roll(730, 790, .7, 4);
-  if (u >= 812 && u < 830) return kick(u, 812, 830, 2.8);                     // big wooden kicker
+  if (u >= 818 && u < 830) return kick(u, 818, 830, 2.4);                     // big wooden kicker
   if (u >= 860 && u < 940) return roll(860, 940, .45, 6);                     // whoops
   if (u >= 950 && u < 990) return cosr(u, 950, 990, 0, 1.4);
   if (u >= 990 && u < 1006) return 1.4 + kick(u, 990, 1006, 2.8);             // creek gap 2 (wooden, big)
   if (u >= 1018 && u < 1046) return cosr(u, 1018, 1046, 3.6, 1.0);
   if (u >= 1046 && u < 1080) return cosr(u, 1046, 1080, 1.0, 0);
   if (u >= 1100 && u < 1150) return roll(1100, 1150, .5, 3);
-  if (u >= 1170 && u < 1186) return kick(u, 1170, 1186, 2.4);                 // last kicker before the finish
+  if (u >= 1174 && u < 1186) return kick(u, 1174, 1186, 2.0);                 // last kicker before the finish
   return 0;
 }
 const CELL = 12, grid = new Map(), key = (i, j) => i * 73856093 ^ j * 19349663;

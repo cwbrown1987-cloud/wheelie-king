@@ -10,6 +10,7 @@ import { EffectComposer } from "./vendor/postprocessing/EffectComposer.js";
 import { RenderPass } from "./vendor/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "./vendor/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "./vendor/postprocessing/OutputPass.js";
+import { ShaderPass } from "./vendor/postprocessing/ShaderPass.js";
 import { createSideCamera } from "./ride-camera.js";
 import { lightenForRide } from "./ride-lod.js";
 import { TIERS, pickTier, createQualityMonitor } from "./ride-quality.js";
@@ -140,7 +141,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   // Brightest pixel on the playground sky HDR (kloofendal_48d_partly_cloudy_puresky_1k), unit vector toward the sun.
   const sunDir=valley?new T.Vector3(0.93,0.2,0.33).normalize():neon?new T.Vector3(0.83,0.27,0.49).normalize():new T.Vector3(0.553,0.743,0.377).normalize(); // neon: low sunset sun (raised a little for readable shadows)
   if(arena){
-    sun.color.set(valley?'#ffd6a8':neon?'#ff9a5c':'#fff0dc');sun.intensity=valley?2.7:neon?2.2:2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
+    sun.color.set(valley?'#ffe2b8':neon?'#ff9a5c':'#fff0dc');sun.intensity=valley?2.7:neon?2.2:2.3;sun.shadow.radius=3;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.05;
     R.toneMapping=T.ACESFilmicToneMapping;R.outputColorSpace=T.SRGBColorSpace;R.toneMappingExposure=valley?0.92:neon?0.8:0.95;
     if(valley){const fill=new T.HemisphereLight('#b8c8ff','#4a4020',.42);fill.name='wk:valley-fill';scene.add(fill);}else if(neon){const fill=new T.HemisphereLight('#7a4cc8','#1e1030',.22);fill.name='wk:neon-fill';scene.add(fill);}
   }
@@ -263,7 +264,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     R.shadowMap.enabled=true;
     // v2.1-21: bigger, sharper sun shadows (trees, buildings and ramps around you, not just the bike)
     const sz=qualityPick.name==='high'?2048:1024;sun.shadow.mapSize.set(sz,sz);sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.035;
-    cam.far=valley?4200:1400;cam.updateProjectionMatrix();
+    cam.far=valley?5200:1400;cam.updateProjectionMatrix();
   }
   // the real garage bike, cloned
   const pivot = new T.Group(), body = new T.Group(); pivot.rotation.order="YXZ"; pivot.add(body); scene.add(pivot);
@@ -1119,14 +1120,14 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const lookAhead=((neon?4.5:1.15)+Math.min(2.0,Math.abs(s.vx)*.12))*(1-airClose)+0.55*airClose;
       const followX=chasePosX,followZ=chasePosZ;
       const chaseX=followX-cy*chaseR,chaseZ=followZ-sy*chaseR;
-      const sideR=6.8+Math.min(1.6,sp*.10);
+      const sideR=valley?11.5+Math.min(2,sp*.1):6.8+Math.min(1.6,sp*.10); /* v2.1-62 The Valley: wide side shot like the reference (sky, peaks, cliffs behind the fence) */
       let sideX=chasePosX,sideZ=chasePosZ+sideR;
       if(arena&&sideYaw!=null){sideX=chasePosX-Math.sin(sideYaw)*sideR;sideZ=chasePosZ+Math.cos(sideYaw)*sideR;}
       const camX=sideX*(1-blend)+chaseX*blend,camZ=sideZ*(1-blend)+chaseZ*blend;
-      const camY=((s.y+1.2)*(1-airClose)+(s.y+.6)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
+      const camY=valley?(s.y+2.1)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake:((s.y+1.2)*(1-airClose)+(s.y+.6)*airClose)*(1-blend)+(chaseFollowY+lookPitch*2.6*blend)*blend+shake;
       const lookX=s.x*(1-blend)+(followX+cy*lookAhead+airClose*(pred.x-s.x)*.18)*blend;
       const lookZ=z*(1-blend)+(followZ+sy*lookAhead+airClose*(pred.z-z)*.18)*blend;
-      const lookY=((s.y+.35)*(1-airClose)+(s.y+.28)*airClose)*(1-blend)+chaseLookY*blend;
+      const lookY=valley?(s.y+2.4)*(1-blend)+chaseLookY*blend:((s.y+.35)*(1-airClose)+(s.y+.28)*airClose)*(1-blend)+chaseLookY*blend;
       if(!globalThis.__WK_CAM_HOLD__){
         // ride zoom (wheel, +/- keys, pinch): zooming in pulls the camera and its aim onto the bike
         const zm=camZoom,near=Math.min(1,zm),tx=s.x+(lookX-s.x)*near,ty=s.y+(lookY-s.y)*near,tz=z+(lookZ-z)*near;
@@ -1254,7 +1255,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       // v2.1-36: Neon Canal glows (bloom) on medium/high; everything else renders straight
       if(neon&&neonWorld?.reflecting?.()){try{neonWorld.beforeRender(R,scene,cam,mirrorK>.3?(qualityPick.name==='high'?.5:.33)*mirrorK:0);}catch(e){console.warn('[wk] mirror off',e);}}
       if(neon&&qualityPick.name!=='low'&&!bloomFailed){try{
-        if(!composer){const rt=new T.WebGLRenderTarget(w,h,{type:T.HalfFloatType,samples:R.capabilities.isWebGL2?4:0});composer=new EffectComposer(R,rt);composer.addPass(new RenderPass(scene,cam));bloomPass=new UnrealBloomPass(new T.Vector2(w,h),.45,.3,1.02); /* threshold above 1: only HDR emissives (neon, lamps, coins) bloom, not the sky */composer.addPass(bloomPass);composer.addPass(new OutputPass());}
+        if(!composer){const rt=new T.WebGLRenderTarget(w,h,{type:T.HalfFloatType,samples:R.capabilities.isWebGL2?4:0});composer=new EffectComposer(R,rt);composer.addPass(new RenderPass(scene,cam));bloomPass=new UnrealBloomPass(new T.Vector2(w,h),.45,.3,1.02); /* threshold above 1: only HDR emissives (neon, lamps, coins) bloom, not the sky */composer.addPass(bloomPass);composer.addPass(new OutputPass());if(valley)composer.addPass(new ShaderPass({uniforms:{tDiffuse:{value:null}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform sampler2D tDiffuse;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);float l=dot(c.rgb,vec3(.299,.587,.114));vec3 g=mix(vec3(l),c.rgb,1.38);g=(g-.5)*1.1+.5;g*=vec3(1.04,1.01,.93);float v=smoothstep(1.15,.35,length(vUv-.5)*1.35);g*=mix(.82,1.,v);gl_FragColor=vec4(clamp(g,0.,1.),c.a);}'}));} /* v2.1-62 The Valley: a little grading (richer colour, warm, soft vignette) */
         if(composerSize!==w+'x'+h+'@'+R.getPixelRatio()){composer.setPixelRatio(R.getPixelRatio());composer.setSize(w,h);composerSize=w+'x'+h+'@'+R.getPixelRatio();}
         composer.render();
       }catch(e){console.warn('[wk] bloom off',e);bloomFailed=true;composer=null;R.render(scene,cam);}}

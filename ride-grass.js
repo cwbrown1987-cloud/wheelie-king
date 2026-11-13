@@ -34,7 +34,7 @@ transformed.y*=hs;transformed.y+=gd.r-.02;
 float wind=sin(gTime*1.7+wxz.x*.35+wxz.y*.22)*.5+sin(gTime*3.1+wxz.x*1.3)*.25;vec2 push=vec2(wind*.12,wind*.05)*t*t*hs;
 vec2 db=wxz-gBike.xz;float bd=length(db);float near=(1.-smoothstep(.2,1.3,bd))*step(abs(gBike.y-gd.r),1.6);push+=normalize(db+1e-4)*near*.22*t*hs;transformed.y-=near*.08*t*hs;vGNear=near; /* v2.1-55: a gentle part, not flattened (flat tips made a pale disc round the rider) */
 transformed.xz+=push;
-vGT=t;vec3 dry=vec3(.36,.33,.13),lush=vec3(.12,.25,.05);vGCol=mix(lush,dry,clamp(gd.b*.8+bseed.x*.3-.15,0.,1.))*(.35+.65*t)*(.8+.4*bseed.x);`);
+vGT=t;vec3 dry=vec3(.46,.42,.14),lush=vec3(.17,.34,.06);vGCol=mix(lush,dry,clamp(gd.b*.8+bseed.x*.3-.15,0.,1.))*(.35+.65*t)*(.8+.4*bseed.x);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGCol;varying float vGT;varying float vGNear;').replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb=vGCol*(1.-.25*vGNear);').replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal=normalize((viewMatrix*vec4(0.,1.,0.,0.)).xyz*.7+normal*(gl_FrontFacing?.3:-.3));'); /* lit like the ground, both faces */
   };
   const mesh = new T.InstancedMesh(g, mat, NT * NT); mesh.name = 'environment:grass-field'; mesh.frustumCulled = false; mesh.receiveShadow = !lowDetail; root.add(mesh);

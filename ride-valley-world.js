@@ -41,7 +41,8 @@ export function terrainAt(x, z) {
     else { const c = cliffAmt(s); h = base + d * .035 + n2 * Math.min(1, d / 8) * .7 + Math.max(0, d - 28) * (.1 + .14 * n) + Math.max(0, d - 70) * (.35 + .4 * n); void c; } /* meadow behind the fence, rising slowly into forest (cliffs are separate rock meshes) */
   } else { // right: bank down to the river, far bank rising into forest
     const d = lat - HALF - .4; if (d <= 0) h = base;
-    else if (d < 4.5) h = base + (WATER - .7 - base) * ss(0, 4.5, d) + n2 * .3 * ss(0, 2, d);
+    else if (d < 1.6) h = base - 1.5 * ss(0, 1.6, d) + n2 * .2;
+    else if (d < 5) h = base - 1.5 + (WATER - .7 - base + 1.5) * ss(1.6, 5, d) + n2 * .3;
     else if (d < 20) h = WATER - .7 - n2 * .4;
     else h = WATER - .7 + (d - 20) * (.06 + .06 * n) + Math.max(0, d - 60) * (.2 + .3 * n) + n2 * 1.2;
   }
@@ -78,10 +79,10 @@ export function makeValleyWorld(T, root, { lowDetail = false, quality = 'high', 
   { const pos = [], spl = [], idx = []; const step = .5, cols = 8;
     for (let s = -40; s <= V.len + 30; s += step) { const f = frame(s), onWood = woodAt(s) || neonInGap(s); const row = pos.length / 3;
       for (let c = 0; c <= cols; c++) { const t = c / cols, lat = (t - .5) * (W + 1.6), edge = Math.abs(t - .5) * 2, y = (onWood ? groundBase(s) - .06 : f.h) + .025 - Math.pow(edge, 4) * .05;
-        pos.push(...off(f, lat, y)); const rut = Math.exp(-Math.pow((Math.abs(lat) - .55) / .22, 2)) * .25; spl.push(ss(.75, 1, edge) * .9, 1 - ss(.75, 1, edge) * .9 - rut * 0, 0, rut); }
+        pos.push(...off(f, lat, y)); const rut = Math.exp(-Math.pow((Math.abs(lat) - .55) / .22, 2)) * .5; spl.push(ss(.75, 1, edge) * .9, 1 - ss(.75, 1, edge) * .9 - rut * 0, 0, rut); }
       if (s > -40) for (let c = 0; c < cols; c++) { const a = row - cols - 1 + c, b = row + c; idx.push(a, b, a + 1, a + 1, b, b + 1); } }
     const g = keep(new T.BufferGeometry()); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('splat', new T.Float32BufferAttribute(spl, 4)); g.setIndex(idx); g.computeVertexNormals();
-    const tsplat = makeSplatMaterial(T, { lowDetail, quality }); res.push(tsplat); tsplat.material.color.set('#b07a52'); const m = new T.Mesh(g, tsplat.material); m.receiveShadow = true; m.name = 'valley:trail'; group.add(m); }
+    const tsplat = makeSplatMaterial(T, { lowDetail, quality }); res.push(tsplat); tsplat.material.color.set('#cf7a48'); const m = new T.Mesh(g, tsplat.material); m.receiveShadow = true; m.name = 'valley:trail'; group.add(m); }
   // ---- timber: wood texture, kickers on trestles with painted chevrons ----
   const woodTex = keep(canvasTex(T, 256, 512, (g, w, h) => { const r = rng(5); g.fillStyle = '#b89a72'; g.fillRect(0, 0, w, h);
     for (let i = 0; i < 90; i++) { g.strokeStyle = `rgba(${60 + r() * 50},${35 + r() * 30},${15 + r() * 20},${.15 + r() * .3})`; g.lineWidth = 1 + r() * 3; g.beginPath(); const x = r() * w; g.moveTo(x, 0); for (let y = 0; y <= h; y += 32) g.lineTo(x + Math.sin(y * .02 + i) * 6 + (r() - .5) * 3, y); g.stroke(); }
@@ -159,14 +160,15 @@ export function makeValleyWorld(T, root, { lowDetail = false, quality = 'high', 
     g.computeVertexNormals(); return keep(g); };
   const cliffs = new T.Group(); group.add(cliffs);
   const waterfalls = [];
-  { const r = rng(77);
-    // cliff walls along the left at the cliff features (behind the fence), stacked lumps
-    for (const [a, b] of F.cliffs) for (let s = a; s < b; s += 9 + r() * 6) { const f = frame(s), latL = -(HALF + 48 + r() * 20), [x, , z] = off(f, latL, 0), y = hAt(x, z) - 3, w = 14 + r() * 10, h = 14 + r() * 16, d = 10 + r() * 6;
-      const m = new T.Mesh(lump(w, h, d, s), rockMat); m.position.set(x, y + h / 2, z); m.rotation.y = -f.yaw + (r() - .5) * .5; m.castShadow = !lowDetail; m.receiveShadow = true; cliffs.add(m);
-      if (r() < .6) { const m2 = new T.Mesh(lump(w * .6, h * .5, d * .7, s + 3), rockMat); m2.position.set(x + (r() - .5) * 4, y + h + h * .2, z + (r() - .5) * 3); m2.rotation.y = r() * TAU; m2.castShadow = !lowDetail; cliffs.add(m2); } }
-    // river-side cliffs on the far bank
-    for (let s = 60; s < V.len; s += 70 + r() * 60) { const f = frame(s), [x, , z] = off(f, HALF + 34 + r() * 12, 0), y = hAt(x, z) - 2, w = 12 + r() * 10, h = 8 + r() * 10;
-      const m = new T.Mesh(lump(w, h, 8 + r() * 6, s * 1.3), rockMat); m.position.set(x, y + h / 2, z); m.rotation.y = -f.yaw + (r() - .5) * .6; m.castShadow = !lowDetail; m.receiveShadow = true; cliffs.add(m); }
+  // v2.1-62 cliffs: Poly Haven photo-scanned rock faces and a mountainside (CC0), scaled up into granite walls
+  const rockPlace = { mountainside: [], rock_face_01: [], rock_face_02: [] };
+  { const r = rng(77), dir = (f, right) => -f.yaw + (right ? Math.PI : 0) + (r() - .5) * .5;
+    for (const [a, b] of F.cliffs) for (let s = a; s < b; s += 16 + r() * 10) { const f = frame(s), lat = -(HALF + 20 + r() * 22), [x, , z] = off(f, lat, 0), kind = r() < .5 ? 'mountainside' : r() < .5 ? 'rock_face_01' : 'rock_face_02';
+      rockPlace[kind].push({ x, y: hAt(x, z) - 1.5, z, rot: dir(f, false), sc: kind === 'mountainside' ? 1.6 + r() * 1.4 : 3.2 + r() * 2.5 }); }
+    for (let s = 60; s < V.len; s += 55 + r() * 50) { const f = frame(s), lat = HALF + 36 + r() * 16, [x, , z] = off(f, lat, 0), kind = r() < .4 ? 'mountainside' : 'rock_face_01';
+      rockPlace[kind].push({ x, y: hAt(x, z) - 1.5, z, rot: dir(f, true), sc: kind === 'mountainside' ? 1.4 + r() * 1.2 : 3 + r() * 2 }); }
+    // big boulders scattered in the meadows and along the bank
+    for (let s = 20; s < V.len; s += 30 + r() * 40) { const f = frame(s), right = r() < .5, lat = right ? HALF + 6 + r() * 10 : -(HALF + 8 + r() * 20), [x, , z] = off(f, lat, 0); rockPlace.rock_face_02.push({ x, y: hAt(x, z) - .4, z, rot: r() * TAU, sc: 1 + r() * 1.2 }); }
   }
   // ---- waterfalls: an animated sheet down a rock face into a foaming pool, with drifting mist ----
   const wfMat = keep(new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide, uniforms: { t: { value: 0 } },
@@ -179,13 +181,17 @@ gl_FragColor=vec4(c*1.15,a);}` }));
   const mistTex = keep(canvasTex(T, 64, 64, (g, w, h) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }));
   const mistMat = keep(new T.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: .5, color: '#fff2e8' })), mists = [];
   const poolMat = keep(new T.MeshStandardMaterial({ color: '#2a4a52', roughness: .08, metalness: .3, envMapIntensity: 1.2 }));
-  for (const [k, s] of F.waterfalls.entries()) { const left = k % 2 === 0, f = frame(s), lat = left ? -(HALF + 30) : HALF + 30, [x, , z] = off(f, lat, 0), gy = hAt(x, z), hgt = 12 + (k % 3) * 4, wid = 3.2 + (k % 2) * 1.4;
+  for (const [k, s] of F.waterfalls.entries()) { const left = k % 2 === 0, f = frame(s), lat = left ? -(HALF + 15) : HALF + 22, [x, , z] = off(f, lat, 0), gy = hAt(x, z), hgt = 12 + (k % 3) * 4, wid = 3.2 + (k % 2) * 1.4;
     // a rock face behind, a lip on top, the sheet in front, a pool at the bottom
-    const face = new T.Mesh(lump(wid * 3.2, hgt + 3, 6, s * .7), rockMat); face.position.set(...off(f, lat + (left ? -3.2 : 3.2), gy + hgt / 2).slice(0, 3)); face.rotation.y = -f.yaw; face.castShadow = !lowDetail; cliffs.add(face);
+    { const sc = (hgt + 1.5) / 10.3, [fx, , fz] = off(f, lat + (left ? -1 : 1) * (1.57 * sc + .2), 0); rockPlace.mountainside.push({ x: fx, y: gy - .6, z: fz, rot: -f.yaw + (left ? 0 : Math.PI), sc }); }
     const sheet = new T.Mesh(keep(new T.PlaneGeometry(wid, hgt, 1, 8)), wfMat); { const pa = sheet.geometry.attributes.position; for (let i = 0; i < pa.count; i++) { const t = (pa.getY(i) + hgt / 2) / hgt; pa.setZ(i, Math.pow(1 - t, 2) * -1.4 + .2); } }
     sheet.position.set(...off(f, lat - (left ? .2 : -.2), gy + hgt / 2 + .3)); sheet.rotation.y = -f.yaw + (left ? 0 : Math.PI); sheet.renderOrder = 3; cliffs.add(sheet); waterfalls.push(sheet);
     const pool = new T.Mesh(keep(new T.CircleGeometry(wid * 1.6, 24)), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(...off(f, lat + (left ? 1.5 : -1.5), gy + .12)); cliffs.add(pool);
     for (let i = 0; i < (lowDetail ? 4 : 9); i++) { const sp = new T.Sprite(mistMat); const [mx, , mz] = off(f, lat + (left ? 1.5 : -1.5) + (Math.random() - .5) * 2, 0); sp.position.set(mx + (Math.random() - .5) * 2, gy + .5 + Math.random() * 2, mz + (Math.random() - .5) * 2); sp.scale.setScalar(2 + Math.random() * 2.5); sp.userData = { y0: gy + .4, ph: Math.random() * TAU }; cliffs.add(sp); mists.push(sp); } }
+  if (GLTFLoader) for (const [file, list] of Object.entries(rockPlace)) if (list.length) new GLTFLoader().loadAsync('./assets/polyhaven/cliffs/' + file + '.glb').then(g => {
+    g.scene.updateMatrixWorld(true); g.scene.traverse(o => { if (!o.isMesh) return; [].concat(o.material).forEach(mm => { styleGrade(mm, { sat: .85, lift: 1.08 }); keep(mm); }); keep(o.geometry);
+      const inst = new T.InstancedMesh(o.geometry, o.material, list.length); list.forEach((b, k) => { Q.setFromAxisAngle(new T.Vector3(0, 1, 0), b.rot); M.compose(Vv.set(b.x, b.y, b.z), Q, S.set(b.sc, b.sc, b.sc)).multiply(o.matrixWorld); inst.setMatrixAt(k, M); }); S.set(1, 1, 1);
+      inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); inst.castShadow = !lowDetail; inst.receiveShadow = true; inst.name = 'valley:cliff-' + file; cliffs.add(inst); }); }).catch(e => console.warn('[wk] cliff model failed', file, e));
   // ---- river: reflective moving water across the whole valley floor ----
   const water = keep(new T.MeshStandardMaterial({ color: '#2a4f56', roughness: .07, metalness: .1, envMapIntensity: .35 }));
   const wU = { wt: { value: 0 } }; water.customProgramCacheKey = () => 'wk-valley-water'; water.onBeforeCompile = sh => { sh.uniforms.wt = wU.wt;
@@ -207,6 +213,17 @@ float wn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(wh(i)
       const g = keep(new T.BufferGeometry()); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(colA, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; };
     const hills = new T.Mesh(ring(R0 - 30, R0 + 420, 95, 3, false, '#2c3d24', '#46572e'), keep(new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }))); hills.name = 'valley:hills'; group.add(hills);
     const peaks = new T.Mesh(ring(R0 + 700, R0 + 1900, 360, 11, true, '#43476a', '#6f6c96', 320, 22), keep(new T.MeshStandardMaterial({ vertexColors: true, roughness: .95, metalness: 0, fog: false, emissive: '#2a2440', emissiveIntensity: .25 }))); peaks.name = 'valley:peaks'; group.add(peaks);
+    // hero peaks: big snowy mountains by the sun (the picture's centrepiece), ridged, with alpenglow on the snow
+    const peak = (dist, az, H, Rb, seed) => { const segA = 96, segR = 28, pos = [], col = [], idx = [], rock = new T.Color('#4c4a66'), rock2 = new T.Color('#6e6a88'), snow = new T.Color('#fbeaf0'), tmp = new T.Color(), px = cx + Math.cos(az) * dist, pz = cz + Math.sin(az) * dist;
+      for (let j = 0; j <= segR; j++) for (let i = 0; i <= segA; i++) { const a = i / segA * TAU, t = j / segR, rr = t * Rb, ridge = 1 - Math.abs(fbm(Math.cos(a) * 2.2 + seed, Math.sin(a) * 2.2 + t * 3, 5) * 2 - 1);
+        const prof = Math.pow(1 - t, 1.55), h = H * prof * (.72 + .5 * ridge * (1 - prof * .5)) + (fbm(a * 7 + seed, t * 9, 3) - .5) * H * .06 * t;
+        pos.push(px + Math.cos(a) * rr * (1 + (ridge - .5) * .25), h - 30, pz + Math.sin(a) * rr * (1 + (ridge - .5) * .25));
+        const sn = ss(.5, .62, h / H + (fbm(a * 11, t * 13, 2) - .5) * .18 + ridge * .06); tmp.copy(rock).lerp(rock2, ridge).lerp(snow, sn); col.push(tmp.r, tmp.g, tmp.b); }
+      for (let j = 0; j < segR; j++) for (let i = 0; i < segA; i++) { const a = j * (segA + 1) + i, b = a + 1, c = a + segA + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+      const g = keep(new T.BufferGeometry()); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; };
+    const peakMat = keep(new T.MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: 0, fog: false, emissive: '#3a2436', emissiveIntensity: .55 }));
+    const sunAz = Math.atan2(.33, .93);
+    for (const [d, daz, H, Rb, sd] of [[2300, -.22, 760, 1250, 1], [2700, .32, 560, 1100, 4], [2500, -.55, 480, 950, 7], [2900, .75, 620, 1200, 9], [2600, 2.6, 520, 1000, 12], [2800, -2.2, 600, 1150, 15]]) { const m = new T.Mesh(peak(d, sunAz + daz, H, Rb, sd), peakMat); m.name = 'valley:peak'; group.add(m); }
     // pine silhouettes over the hills (cheap cones)
     const coneGeo = keep(new T.ConeGeometry(1, 1, 7)); coneGeo.translate(0, .5, 0); const cones = [], r = rng(51);
     for (let k = 0; k < (lowDetail ? 1400 : 3200); k++) { const a = r() * TAU, rr = R0 - 20 + r() * 380, x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr; const t = (rr - (R0 - 30)) / 450;
@@ -221,16 +238,17 @@ float wn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(wh(i)
   const free = (s, lat) => !(cliffAmt(s) > .5 && lat < -(HALF + 6) && lat > -(HALF + 26)) && !creeks.some(c => Math.abs(s - c.s) < c.half + 3);
   for (let s = -60; s < V.len + 60; s += 1.2) {
     // forest: left hillside and far bank; a few big trees close in
-    if (r() < .55) { const lat = -(HALF + 9 + Math.pow(r(), .7) * 75); if (free(s, lat)) put(r() < .8 ? (r() < .5 ? 'pine1' : 'pine5') : 'oak5', s, lat, .9 + r() * .7); }
+    if (r() < .62) { const lat = -(HALF + 4.5 + Math.pow(r(), .9) * 75); if (free(s, lat)) put(r() < .8 ? (r() < .5 ? 'pine1' : 'pine5') : 'oak5', s, lat, .9 + r() * .7); }
     if (r() < .42) { const lat = HALF + 21 + Math.pow(r(), .8) * 70; if (free(s, lat)) put(r() < .85 ? (r() < .5 ? 'pine1' : 'pine5') : 'oak3', s, lat, .9 + r() * .7); }
     // shrubs, ferns, flowers along the fence and the bank
     if (r() < .35) { const lat = -(HALF + 1.6 + r() * 3); if (free(s, lat)) put(['phShrub3', 'phFern', 'phShrub2', 'phWeed'][Math.floor(r() * 4)], s, lat, .7 + r() * .5); }
-    if (r() < .45) { const lat = (r() < .5 ? -1 : 1) * (HALF + .7 + r() * 1.6); put(r() < .6 ? 'flower3' : 'flower4', s, lat, .28 + r() * .14); }
+    if (r() < .8) { const lat = (r() < .55 ? -1 : 1) * (HALF + .6 + r() * 1.8); put(r() < .6 ? 'flower3' : 'flower4', s, lat, .24 + r() * .16); }
+    if (r() < .25) { const lat = HALF + .7 + r() * 1.2; put(['phRockA', 'phRockB', 'phRock7'][Math.floor(r() * 3)], s, lat, .5 + r() * .7, { tilt: (r() - .5) * .5 }); } /* rocks on the bank face */
     if (r() < .18) { const lat = HALF + 1.5 + r() * 3; put(['phFern', 'phShrub4', 'phNettle', 'phDand'][Math.floor(r() * 4)], s, lat, .7 + r() * .5); }
     if (r() < .12) { const lat = HALF + 2.5 + r() * 5; put(['phRockA', 'phRockB', 'phRock7', 'phStone'][Math.floor(r() * 4)], s, lat, .5 + r() * .9, { tilt: (r() - .5) * .3 }); }
   }
   for (const s of F.crownRocks) { const lat = HALF + 2.6; put('phRockA', s, lat, 2.2, { tilt: 0 }); const f = frame(s), [x, , z] = off(f, lat - .9, 0); crownRocks.push({ x, z, y: hAt(x, z) + .9, yaw: f.yaw }); }
-  const foliage = GLTFLoader ? makeFoliageVisuals(T, group, GLTFLoader, items, hAt, { lowDetail }) : { update() {}, dispose() {} };
+  const foliage = GLTFLoader ? makeFoliageVisuals(T, group, GLTFLoader, items, hAt, { lowDetail, tint: { flower3: '#a06cff', flower4: '#e070ff', Bark_NormalTree: '#7a5a48', Leaves_Pine: '#8fb07a' } }) : { update() {}, dispose() {} };
   // gold crown painted on the big rocks by the trail
   { const cm = keep(new T.MeshStandardMaterial({ map: crownTex, transparent: true, alphaTest: .4, roughness: .6, metalness: .3, polygonOffset: true, polygonOffsetFactor: -2 }));
     for (const c of crownRocks) { const m = new T.Mesh(keep(new T.PlaneGeometry(1.4, 1.05)), cm); m.position.set(c.x, c.y, c.z); m.rotation.y = -c.yaw + Math.PI / 2 + .3; group.add(m); } }

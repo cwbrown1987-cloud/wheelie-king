@@ -75,7 +75,7 @@ export function makeBlobShadows(T, root, list, { height, name = 'contact-shadows
   inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); inst.name = 'environment:' + name; inst.renderOrder = 1; root.add(inst);
   return { mesh: inst, dispose() { geo.dispose(); mat.dispose(); tex.dispose(); inst.removeFromParent(); } };
 }
-export function makeFoliageVisuals(T, root, GLTFLoader, items, height, { lowDetail = false, cell = 260 } = {}) {
+export function makeFoliageVisuals(T, root, GLTFLoader, items, height, { lowDetail = false, cell = 260, tint: tints = null } = {}) {
   const group = new T.Group(); group.name = 'environment:foliage'; root.add(group);
   const res = []; let disposed = false;
   // group by model, then by big cells so whole fields off-screen get culled
@@ -89,7 +89,7 @@ export function makeFoliageVisuals(T, root, GLTFLoader, items, height, { lowDeta
     const split = ph && meshes.length > 1, base = new T.Matrix4(), box = new T.Box3();
     meshes.forEach((o, mi) => {
       res.push(o.geometry);
-      const tint = { grassS: '#93c95a', grassT: '#7cb84c' }[m];
+      const tint = { grassS: '#93c95a', grassT: '#7cb84c' }[m], petal = tints?.[m]; if (petal) [].concat(o.material).forEach(mm => { if (mm.name === 'Flowers') { mm.color = new T.Color(petal); mm.customProgramCacheKey = () => 'wk-petal'; mm.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#ifdef USE_MAP\nvec4 wkPt=texture2D(map,vMapUv);diffuseColor*=vec4(vec3(min(1.2,dot(wkPt.rgb,vec3(.3,.59,.11))*2.)),wkPt.a);\n#endif'); }; mm.needsUpdate = true; } }); if (tints) [].concat(o.material).forEach(mm => { const c = tints[mm.name]; if (c) mm.color = new T.Color(c); });
       [].concat(o.material).forEach(mm => { if (tint && mm.name === 'Grass') { mm.color.set(tint); }
         if (!ph && !m.startsWith('oak') && !m.startsWith('pine')) { mm.vertexColors = false; mm.needsUpdate = true; }
         if (ph) styleGrade(mm, /phRock|phStone|phStump|phLog/.test(m) ? { sat: 1.2, lift: 1.08 } : { sat: 1.35, lift: 1.1 });

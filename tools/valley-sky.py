@@ -52,7 +52,8 @@ def sky(W, H, hdr):
     col += (np.exp(-(ang / .018) ** 2) * 6 if hdr else np.exp(-(ang / .02) ** 2) * 1.2)[..., None] * c('#fff1c8') * above
     if hdr:
         lin = np.power(np.clip(col, 0, None), 2.2) * 1.6
-        lin *= np.array([1.18, 1.0, .74], np.float32)  # light the land warmer than the sky looks (green grass, brown dirt)
+        lum = (lin * np.array([.3, .59, .11], np.float32)).sum(-1, keepdims=True)
+        lin = lin * .35 + lum * np.array([1.12, 1.0, .82], np.float32) * .65  # light the land with warm, mostly neutral light (the visible sky stays pink)
         lin += (np.exp(-(ang / .02) ** 2) * 8)[..., None] * c('#ffcf90') * above  # hot sun so it still lights
         return lin
     return np.clip(col, 0, 1)
