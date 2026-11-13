@@ -4,7 +4,7 @@
 // Everything is generated here (canvas textures for graffiti, fence, windows, chevrons, signs), plus the
 // ambientCG asphalt/concrete sets. Built to stay light: merged ribbons, instancing, emissive "glow" instead of lights.
 import { GLTFLoader as GLTF } from './vendor/GLTFLoader.js';
-import { makeGraffitiAtlas, makeWallBase } from './ride-graffiti.js';
+import { makeGraffitiAtlas, makeWallBase, makeHeartPiece } from './ride-graffiti.js';
 import { NEON, NEON_PATH, NEON_GAPS, NEON_COINS, NEON_FEATURES, NEON_BOOSTS, NEON_LOOPS, neonProfile, neonAt, neonInGap } from './ride-neon.js';
 const TAU = Math.PI * 2;
 function rng(seed) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -153,7 +153,11 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
     for (let s = 5; s < NEON.len; s += 9 + gr() * 14) { const c = nextBig(), w = 1.2 + gr() * 1.4; if (ok(s, s + w)) decal(c, s + w / 2, .4 + gr() * 3.2, w, w / 2, (gr() - .5) * .4, .55 + gr() * .4); } // small throw-ups too
     const g = keep(new T.BufferGeometry()); g.setAttribute('position', new T.Float32BufferAttribute(D.pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(D.uv, 2)); g.setAttribute('color', new T.Float32BufferAttribute(D.col, 3)); g.setIndex(D.idx); g.computeVertexNormals();
     const dm = new T.Mesh(g, keep(new T.MeshStandardMaterial({ map: keep(atlas.texture), vertexColors: true, transparent: true, alphaTest: .04, depthWrite: false, roughness: .8, metalness: 0, envMapIntensity: .5, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })));
-    dm.name = 'neon:graffiti'; dm.renderOrder = 1; dm.receiveShadow = true; group.add(dm); }
+    dm.name = 'neon:graffiti'; dm.renderOrder = 1; dm.receiveShadow = true;
+    { const HS = 22, HZ = 1.9, n = 4, P2 = { pos: [], uv: [], idx: [] }; /* the 12:34 heart, right by the start line, painted over everything */
+      for (let i = 0; i <= n; i++) for (const v of [0, 1]) { const [x, z] = wallAt(HS + (i / n - .5) * HZ, wallOff - .09); P2.pos.push(x, 1.25 + v * HZ, z); P2.uv.push(i / n, v); }
+      for (let i = 0; i < n; i++) { const a = i * 2; P2.idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      const hm = mk(P2, keep(new T.MeshStandardMaterial({ map: keep(makeHeartPiece(T, '12:34')), transparent: true, alphaTest: .04, depthWrite: false, roughness: .7, envMapIntensity: .5, side: T.DoubleSide, emissive: '#ff4fa8', emissiveIntensity: .12 })), 'heart-1234'); hm.renderOrder = 2; } group.add(dm); }
   const housing = keep(new T.MeshStandardMaterial({ color: '#2a2630', roughness: .5, metalness: .6 }));
   // wall top: steel railing and a strand of barbed wire, like the picture
   { const railPts = [[], []]; for (let s2 = 0; s2 < NEON.len; s2 += 2) { if (noWall(s2)) { if (railPts[0].length > 1) { for (const k of [0, 1]) group.add(new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(railPts[k]), Math.max(2, railPts[k].length * 2), k ? .02 : .04, 5)), housing)); } railPts[0] = []; railPts[1] = []; continue; }

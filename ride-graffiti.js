@@ -135,3 +135,19 @@ export function makeWallBase(T, { lowDetail = false } = {}) {
   const gb = g.createLinearGradient(0, h * .7, 0, h); gb.addColorStop(0, 'rgba(8,6,12,0)'); gb.addColorStop(1, 'rgba(8,6,12,.7)'); g.fillStyle = gb; g.fillRect(0, h * .7, w, h * .3);
   const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t;
 }
+
+// a spray-painted heart with a time in it (Chris's request: "12:34" on the wall near the start)
+export function makeHeartPiece(T, text = '12:34') {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512; const g = c.getContext('2d'), cx = 256, cy = 270, z = 190;
+  const heart = () => { g.beginPath(); g.moveTo(cx, cy + z * .95); g.bezierCurveTo(cx - z * 1.45, cy + z * .05, cx - z * .62, cy - z * 1.12, cx, cy - z * .42); g.bezierCurveTo(cx + z * .62, cy - z * 1.12, cx + z * 1.45, cy + z * .05, cx, cy + z * .95); g.closePath(); };
+  spray(g, cx, cy, z * 1.25, '#ff3fa4', 260, .05);
+  g.save(); g.translate(14, 16); heart(); g.fillStyle = '#4a0a2a'; g.fill(); g.restore();          // drop shadow
+  heart(); g.lineJoin = 'round'; g.lineWidth = 30; g.strokeStyle = '#14060e'; g.stroke();
+  const gr = g.createLinearGradient(0, cy - z, 0, cy + z); gr.addColorStop(0, '#ff6ac0'); gr.addColorStop(1, '#d4106a'); g.fillStyle = gr; heart(); g.fill();
+  g.lineWidth = 10; g.strokeStyle = '#ffffff'; heart(); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(cx - z * .55, cy - z * .45, z * .16, z * .07, -.7, 0, TAU); g.fill();
+  g.save(); g.translate(cx, cy + 10); g.rotate(-.06); g.font = '900 118px Impact, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round'; g.lineWidth = 22; g.strokeStyle = '#14060e'; g.strokeText(text, 0, 0); g.fillStyle = '#fff6b0'; g.fillText(text, 0, 0); g.restore();
+  g.fillStyle = '#d4106a'; for (let i = 0; i < 6; i++) { const x = cx - 60 + i * 24 + Math.random() * 10, len = 20 + Math.random() * 50; g.fillRect(x, cy + z * .7 - Math.abs(x - cx) * .9, 6, len); }
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t;
+}
