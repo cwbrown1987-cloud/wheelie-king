@@ -1133,6 +1133,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       if(!inAir)chaseTakeoffY=roadY;
       airClose+=( (inAir?1:0) - airClose ) * (1-Math.exp(-(inAir?5.2:1.8)*followDt));
       if(!inAir&&airClose<.02)airClose=0;
+      const arcadeCam=arcade&&cameraView==='chase'&&arcade.getMode()!=='original'?arcade.getSettings().camera:0;
       const bikeH=1.85;
       const airFovDeg=50, groundFovDeg=48+Math.min(8,Math.max(0,sp-4)*0.7);
       const airR=bikeH/(0.33*2*Math.tan(airFovDeg*Math.PI/360));
@@ -1144,7 +1145,6 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const airLookY=s.y+.28+(landingY-(s.y+.28))*.30;
       const camYTarget=groundCamY*(1-airClose)+airCamY*airClose;
       const lookYTarget=groundLookY*(1-airClose)+airLookY*airClose;
-      const arcadeCam=arcade&&cameraView==='chase'&&arcade.getMode()!=='original'?arcade.getSettings().camera:0;
       const yRate=(inAir?12:10)*(1+.25*arcadeCam);
       chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
       chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?12:9)*(1+.25*arcadeCam)*followDt));
