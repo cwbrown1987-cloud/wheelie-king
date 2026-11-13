@@ -51,11 +51,12 @@ jobs:
           mkdir -p build/godot-web
           godot --headless --path godot --export-release "Web" ../build/godot-web/index.html
           printf '/*\n  Cache-Control: no-cache\n' > build/godot-web/_headers
+          python3 godot/tools/web_split.py build/godot-web   # Pages caps files at 25 MiB
       - name: Export Android (debug APK)
         run: |
           set -e
           mkdir -p ~/.local/share/godot/keystores build/godot-android
-          keytool -genkeypair -v -keystore ~/.local/share/godot/keystores/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          [ -f ~/.local/share/godot/keystores/debug.keystore ] || keytool -genkeypair -v -keystore ~/.local/share/godot/keystores/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           export GODOT_ANDROID_KEYSTORE_DEBUG_PATH=~/.local/share/godot/keystores/debug.keystore GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           mkdir -p ~/.config/godot
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_SDK_ROOT" "$JAVA_HOME_17_X64" > ~/.config/godot/editor_settings-4.4.tres
