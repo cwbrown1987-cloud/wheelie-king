@@ -47,9 +47,20 @@ export function mountStick(ui,touch){
   const ax=Math.abs(dx)<dead?0:Math.sign(dx)*(Math.abs(dx)-dead)/(1-dead),ay=Math.abs(dy)<dead?0:Math.sign(dy)*(Math.abs(dy)-dead)/(1-dead);
   touch.stickX=ax;touch.stickY=ay;touch.steerRight=Math.max(0,ax);touch.steerLeft=Math.max(0,-ax);touch.leanForward=Math.max(0,-ay);touch.leanBack=Math.max(0,ay);el.setAttribute('aria-valuenow',ax.toFixed(2));};
  const stop=e=>{e.preventDefault();e.stopPropagation();};
- el.addEventListener('pointerdown',e=>{stop(e);if(id!=null)return;id=e.pointerId;const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;el.classList.add('is-held');try{el.setPointerCapture(id)}catch{}set(e.clientX,e.clientY);});
- el.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;stop(e);set(e.clientX,e.clientY);});
- for(const t of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(t,e=>{if(e.pointerId!==id)return;stop(e);release();});
+ // v2.1-58 floating stick: touch anywhere in the lower-left area and the stick appears under your thumb (centred
+ // there); let go and it slides back to its resting spot. Touching the stick itself works as before.
+ let zone=ui.querySelector('.ride-stick-zone');if(!zone){zone=document.createElement('div');zone.className='ride-stick-zone';zone.setAttribute('aria-hidden','true');el.before(zone);}
+ const home=()=>{el.style.left='';el.style.top='';el.style.bottom='';el.classList.remove('is-floating');};
+ const grab=(e,src)=>{stop(e);if(id!=null)return;id=e.pointerId;const host=el.offsetParent||el.parentElement,hr=host.getBoundingClientRect(),w=el.offsetWidth,h=el.offsetHeight;
+  if(src===zone){const sx=hr.width?(hr.width/host.offsetWidth||1):1,sy=hr.height?(hr.height/host.offsetHeight||1):1;
+   const lx=Math.max(w/2,Math.min(host.offsetWidth*.6-w/2,(e.clientX-hr.left)/sx)),ly=Math.max(h/2,Math.min(host.offsetHeight-h/2,(e.clientY-hr.top)/sy));
+   el.style.left=(lx-w/2)+'px';el.style.top=(ly-h/2)+'px';el.style.bottom='auto';el.classList.add('is-floating');}
+  const r=el.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;el.classList.add('is-held');try{src.setPointerCapture(id)}catch{}set(e.clientX,e.clientY);};
+ for(const src of [el,zone]){
+  src.addEventListener('pointerdown',e=>grab(e,src));
+  src.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;stop(e);set(e.clientX,e.clientY);});
+  for(const t of ['pointerup','pointercancel','lostpointercapture'])src.addEventListener(t,e=>{if(e.pointerId!==id)return;stop(e);release();home();});
+ }
  release();
  return {release,state:()=>({x:touch.stickX||0,y:touch.stickY||0,held:id!=null})};
 }
@@ -292,6 +303,11 @@ if(typeof document!=='undefined'){
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-stick{display:block;position:absolute;left:4px;bottom:4px;width:var(--stick-size,132px);height:var(--stick-size,132px);border-radius:50%;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;background:radial-gradient(circle at 50% 50%,rgba(10,22,40,.35) 0 55%,rgba(10,22,40,.55) 56% 100%);border:2px solid rgba(120,200,255,.55);box-shadow:0 0 0 1px rgba(0,0,0,.35),inset 0 0 18px rgba(63,184,255,.18);z-index:3}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-stick-knob{position:absolute;left:50%;top:50%;width:46%;height:46%;margin:-23% 0 0 -23%;border-radius:50%;background:radial-gradient(circle at 40% 35%,#eaf6ff,#7fc8ff 55%,#2f7fc0);box-shadow:0 3px 10px rgba(0,0,0,.45);transition:transform .12s ease-out;pointer-events:none}
  [data-wk-ride-surface] .ride-stick.is-held .ride-stick-knob{transition:none}
+.ride-stick-zone{display:none}
+[data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-stick-zone{display:block;position:absolute;left:0;top:34%;width:46%;bottom:0;touch-action:none;-webkit-user-select:none;user-select:none;background:transparent}
+[data-wk-ride-surface] .ride-stick{transition:opacity .2s}
+[data-wk-ride-surface] .ride-stick:not(.is-held){opacity:.55}
+[data-wk-ride-surface] .ride-stick.is-floating{opacity:1}
  [data-wk-ride-surface] .ride-stick-hint{position:absolute;left:0;right:0;top:-18px;text-align:center;font:800 9px system-ui;letter-spacing:.08em;color:rgba(230,244,255,.75);text-shadow:0 1px 2px #000;pointer-events:none}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive-buttons{right:0;bottom:0;display:flex;align-items:flex-end;gap:10px}
  [data-wk-ride-surface]:is([data-wk-cam=chase],[data-wk-freeroam]) .ride-drive{flex-direction:column;gap:1px}
