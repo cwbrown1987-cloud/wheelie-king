@@ -11,7 +11,7 @@ try {
   await page.addInitScript(()=>localStorage.setItem('wk-level','trials'));
   await page.goto(withLegacy(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/'));
   await page.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),{timeout:90000});
-  await page.getByRole('button',{name:'⚑ Race',exact:true}).click();
+  await page.locator('[data-destination="race"]').first().click();
   await page.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:60000});
   // Short blocks so the ring evicts the first block (the one holding the container header) during the test.
   if(!process.env.WK_NO_EVICT)await page.evaluate(()=>{__WK_REPLAY__.ring.blockMs=1500;});

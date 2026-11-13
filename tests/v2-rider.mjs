@@ -11,7 +11,7 @@ try{for(const bike of (process.env.WK_BIKES||'stock,bike_trax_lime').split(','))
  await p.addInitScript(()=>localStorage.setItem('wk-level','arena'));
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  if(bike!=='stock')await p.evaluate(b=>globalThis.__WK_EQUIP__?.(b),bike);
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>{const t=globalThis.__WK_TELEMETRY__?.();return t&&t.ready&&t.rider?.loaded},null,{timeout:120000});
  await p.waitForTimeout(800);
  const st=()=>p.evaluate(()=>{const r=__WK_TELEMETRY__().rider;return {w:r.weights,pitch:+r.pitchDeg.toFixed(1),handErr:r.handErrM.map(v=>+v.toFixed(3)),footErr:r.footErrM.map(v=>+v.toFixed(3)),hipY:+r.hipWorld[1].toFixed(3)}});

@@ -25,7 +25,7 @@ try{
  });
  assert.equal(landscape.active,false,'no lock in landscape '+JSON.stringify(landscape));
  assert(landscape.hidden,'overlay hidden in landscape');
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded,null,{timeout:90000});
  await p.keyboard.down('ArrowUp');
  await p.waitForFunction(()=>Math.abs(__WK_RIDE_STATE__().s.vx)>1,null,{timeout:15000});

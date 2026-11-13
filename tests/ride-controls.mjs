@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const browser=await launchBrowser();
 try{
  const page=await browser.newPage(pageOptions({viewport:{width:1100,height:680},hasTouch:true,serviceWorkers:'block'})),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(()=>localStorage.setItem('wk-builder-mode','advanced'));await page.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');await page.waitForFunction(()=>globalThis.__WK_EQUIP__);await page.evaluate(()=>__WK_EQUIP__('bike_emoto'));
- await page.getByRole('button',{name:'⚑ Race',exact:true}).click();await page.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);
+ await page.locator('[data-destination="race"]').first().click();await page.waitForFunction(()=>globalThis.__WK_RIDE_STATE__);
  const gas=await page.locator('[data-t="throttle"]').boundingBox(),brake=await page.locator('[data-t="brake"]').boundingBox();assert(gas.x>550&&brake.x>550,'both control pedals should be on the right');
  const cdp=await page.context().newCDPSession(page),points=[{id:11,x:gas.x+gas.width/2,y:gas.y+gas.height/2},{id:22,x:brake.x+brake.width/2,y:brake.y+brake.height/2}];
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:points});await page.waitForFunction(()=>__WK_RIDE_STATE__().inp.throttle===1&&__WK_RIDE_STATE__().inp.brake===1&&__WK_RIDE_STATE__().s.burnout);await page.waitForTimeout(700);

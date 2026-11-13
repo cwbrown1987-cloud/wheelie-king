@@ -22,7 +22,7 @@ try{
     globalThis.__TEST_DECAL__=decal;return {sourcePreserved:decal.userData===original&&decal.userData.wkDecal.mesh===decal,visualPreserved:d.geometry===decal.geometry&&d.material===decal.material,editorLinkRemoved:!d.userData.wkDecal,anchors:!!copy.userData.wkAnchors};
    });assert.deepEqual(result,{sourcePreserved:true,visualPreserved:true,editorLinkRemoved:true,anchors:true});
    for(let n=0;n<2;n++){
-    await p.evaluate(()=>globalThis.__OLD_MOBILE_RIDE__=globalThis.__WK_RIDE_STATE__);await p.getByRole('button',{name:'⚑ Race',exact:true}).click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__!==globalThis.__OLD_MOBILE_RIDE__&&globalThis.__WK_RIDE_STATE__?.().backdropLoaded);
+    await p.evaluate(()=>globalThis.__OLD_MOBILE_RIDE__=globalThis.__WK_RIDE_STATE__);await p.locator('[data-destination="race"]').first().click();await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__!==globalThis.__OLD_MOBILE_RIDE__&&globalThis.__WK_RIDE_STATE__?.().backdropLoaded);
     assert(await p.evaluate(()=>!!__WK_RIDE_SCENE__().scene.getObjectByName('test:cycle-decal')));assert.equal(await p.getByText('Race could not start',{exact:true}).count(),0);
     await p.locator('[data-r="back"]').click();await p.locator('[data-ride="portal"]').waitFor({state:'detached'});assert(await p.evaluate(()=>__TEST_DECAL__.userData.wkDecal.mesh===__TEST_DECAL__));
    }

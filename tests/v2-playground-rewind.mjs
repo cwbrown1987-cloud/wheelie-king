@@ -14,7 +14,7 @@ try{
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  if(bike!=='stock')await p.evaluate(b=>globalThis.__WK_EQUIP__?.(b),bike);
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>{const t=globalThis.__WK_TELEMETRY__?.();return t&&t.ready&&globalThis.__WK_REPLAY__;},null,{timeout:120000});
  const tel=()=>p.evaluate(()=>__WK_TELEMETRY__());
  // sample telemetry every rAF for ms

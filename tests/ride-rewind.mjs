@@ -14,7 +14,7 @@ try{
  await p.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
  await p.keyboard.down('ArrowUp');
  await p.waitForFunction(()=>{
@@ -120,7 +120,7 @@ try{
   await phone.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
   await phone.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
   await phone.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
-  await phone.getByRole('button',{name:'⚑ Race',exact:true}).click();
+  await phone.locator('[data-destination="race"]').first().click();
   await phone.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
   await phone.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.vx=8;s.x=Math.max(s.x,6)});
   await phone.waitForTimeout(600);

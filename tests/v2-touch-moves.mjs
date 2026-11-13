@@ -17,7 +17,7 @@ try{for(const bike of bikes){
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.evaluate(b=>globalThis.__WK_EQUIP__?.(b),bike);await p.waitForTimeout(300);
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>{const r=globalThis.__WK_RIDE_STATE__?.();return r&&r.physicsReady;},null,{timeout:120000});
  await p.waitForTimeout(700);
  const cdp=await p.context().newCDPSession(p);

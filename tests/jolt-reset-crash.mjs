@@ -9,7 +9,7 @@ try{
  await p.addInitScript(()=>localStorage.setItem('wk-level','arena'));
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>{const t=globalThis.__WK_TELEMETRY__?.();return t&&t.ready&&typeof globalThis.__WK_JOLT_RESET__==='function';},null,{timeout:120000});
  await p.evaluate(()=>{const s=__WK_RIDE_STATE__().s;s.crashed='TEST IMPACT';s.events.push({type:'crash',why:'TEST IMPACT'});});
  await p.waitForFunction(()=>{

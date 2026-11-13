@@ -15,7 +15,7 @@ async function openRide(browser, track){
   await p.goto(url);
   await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
   await p.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
-  await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+  await p.locator('[data-destination="race"]').first().click();
   await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.()?.backdropLoaded,null,{timeout:90000});
   await p.waitForTimeout(200);
   return {p,errors,name:track||'trials'};

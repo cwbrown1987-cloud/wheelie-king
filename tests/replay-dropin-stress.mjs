@@ -11,7 +11,7 @@ try{
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
  await p.goto(withLegacy(process.env.WK_TEST_URL||'http://127.0.0.1:8931/'));
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
  // short video blocks so the ring rotates (and must evict) many times during the run
  await p.evaluate(()=>{__WK_REPLAY__.ring.blockMs=1500;globalThis.__wkFrames=0;const f=()=>{__wkFrames++;requestAnimationFrame(f)};requestAnimationFrame(f);});

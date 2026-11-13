@@ -26,7 +26,7 @@ try{
  const p=await browser.newPage(pageOptions({viewport:{width:1024,height:460},hasTouch:true,isMobile:true,deviceScaleFactor:1,serviceWorkers:'block'}));
  await p.addInitScript(()=>localStorage.setItem('wk-level','trials'));
  await p.goto(withLegacy(URL0));await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
- await p.locator('[data-wk-nav="race"],[data-destination="race"]').first().tap().catch(()=>p.getByRole('button',{name:'⚑ Race',exact:true}).click());
+ await p.locator('[data-wk-nav="race"],[data-destination="race"]').first().tap().catch(()=>p.locator('[data-destination="race"]').first().click());
  await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.().backdropLoaded&&globalThis.__WK_REPLAY__,null,{timeout:90000});
  await p.keyboard.down('ArrowUp');await p.waitForTimeout(1500);await p.keyboard.up('ArrowUp');
  await p.locator('[data-r="pause"]').tap();await p.waitForTimeout(250);

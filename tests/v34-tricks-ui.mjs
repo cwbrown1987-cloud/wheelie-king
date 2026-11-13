@@ -11,7 +11,7 @@ try{
  await p.goto(process.env.WK_TEST_URL||'http://127.0.0.1:8931/');
  await p.waitForFunction(()=>document.querySelector('[data-wk-room-ready]'),null,{timeout:180000});
  await p.evaluate(()=>globalThis.__WK_EQUIP__?.('bike_trax_lime'));
- await p.getByRole('button',{name:'⚑ Race',exact:true}).click();
+ await p.locator('[data-destination="race"]').first().click();
  await p.waitForFunction(()=>{const r=globalThis.__WK_RIDE_STATE__?.();return r&&r.physics==='jolt'&&r.physicsReady;},null,{timeout:120000});
  const closed=await p.evaluate(()=>({fan:[...document.querySelectorAll('.ride-tricks-fan [data-t]')].map(b=>b.dataset.t),
    hopHidden:(()=>{const h=document.querySelector('.ride-hop');if(!h)return true;const r=h.getBoundingClientRect();return getComputedStyle(h).display==='none'||r.width===0;})(),version:document.querySelector('[data-wk-version]')?.textContent}));

@@ -35,7 +35,7 @@ try {
     await page.goto(withLegacy(process.env.WK_TEST_URL || 'http://127.0.0.1:8931/'));
     await page.waitForFunction(() => document.querySelector('[data-wk-room-ready]'), {timeout:90000});
     const workshop = await page.evaluate(audit);
-    await page.getByRole('button', {name:'⚑ Race', exact:true}).evaluate(b => b.click());
+    await page.locator('[data-destination="race"]').first().evaluate(b => b.click());
     await page.waitForFunction(() => globalThis.__WK_RIDE_STATE__?.().backdropLoaded, null, {timeout:60000});
     await page.waitForTimeout(1500);
     await page.evaluate(() => dispatchEvent(new KeyboardEvent('keydown', {key:'Escape'})));

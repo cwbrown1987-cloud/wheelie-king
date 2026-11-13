@@ -122,7 +122,7 @@ try{
       const shopAfter=await p.evaluate(metrics);
       assertLocked(key+' shop after list swipe',shopAfter);
 
-      await p.locator('[data-wk-nav="race"],[data-destination="race"]').first().tap().catch(()=>p.getByRole('button',{name:'⚑ Race',exact:true}).click());
+      await p.locator('[data-wk-nav="race"],[data-destination="race"]').first().tap().catch(()=>p.locator('[data-destination="race"]').first().click());
       await p.waitForFunction(()=>globalThis.__WK_RIDE_STATE__?.()?.backdropLoaded,null,{timeout:90000});
       const ride=await tryPageScroll(p,'[data-wk-ride-surface],canvas,#root');
       assertLocked(key+' ride',ride);
