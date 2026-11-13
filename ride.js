@@ -963,6 +963,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     if(burnoutRear&&mech.rearAngle==null)mech.rearDistance=Math.max(mech.rearDistance,18*axleR*dt);
     if(mechanical)mechanical.update(mech);
     else wheels.forEach((ws, i) => ws.forEach(([w, y0]) => (w.position.y = y0 + (s.comp[i] || 0) * (i ? P.travelF : P.travelR) * 0.8)));
+    // Visual-only landing preparation from the arcade state; rider IK adds no forces.
+    const assistVisual=arcade&&cameraView==='chase'&&arcade.getMode()!=='original'?arcade.snapshot():null;
+    s.arcadeLandingStrength=assistVisual?.assistance?.landingStrength||0;
+    s.arcadeState=assistVisual?.state||null;
     supermanPose=s.stunt?.name==="superman"?Math.sin(Math.PI*Math.min(1,s.stunt.elapsed/s.stunt.duration)):0;if(!crashRig)riderModel.update({lean:inp.lean,superman:supermanPose,s,inp,dt});stuntRig.pose(s.stunt);
     // checkpoints / finish (Legacy trials only; the Playground has none)
     const hitGate=x=>neon?((s.trackS||0)>x):arena?false:(s.x>x);
