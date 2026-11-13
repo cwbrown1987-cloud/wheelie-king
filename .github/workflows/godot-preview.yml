@@ -2,13 +2,18 @@ name: Wheelie King Godot preview
 
 # Every push to the Godot remake branch:
 #   * runs the headless ride tests (straight, turn, wheelie, full trail),
-#   * exports the Web build and publishes it as a PREVIEW branch of wheelie-king-beta
-#     (https://godot-remake.wheelie-king-beta.pages.dev/) — the live beta and live game are never touched,
+#   * (only when run by hand with "web" ticked) exports the Web build and publishes it as a PREVIEW branch of
+#     wheelie-king-beta (https://godot-remake.wheelie-king-beta.pages.dev/) — live beta/game never touched,
 #   * exports an Android debug APK and attaches it to the run (download from the Actions page).
 on:
   push:
     branches: [claude/godot-remake]
   workflow_dispatch:
+    inputs:
+      web:
+        description: "Also build and publish the web preview"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -47,6 +52,7 @@ jobs:
           godot --headless --path godot res://tests/ride_test.tscn -- scenario=all | tee ride.log
           grep -q '^RESULTS' ride.log
       - name: Export Web
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.web }}
         run: |
           mkdir -p build/godot-web
           godot --headless --path godot --export-release "Web" ../build/godot-web/index.html
@@ -66,9 +72,11 @@ jobs:
           name: wheelie-king-android-apk
           path: build/godot-android/wheelie-king.apk
       - uses: actions/setup-node@v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.web }}
         with:
           node-version: '24'
       - name: Publish web preview (branch alias, never production)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.web }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 7f9b89a42182a51327a119efb6cf949e
