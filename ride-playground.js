@@ -4,7 +4,6 @@ import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {makeLoopMesh} from './ride-loop.js';
 import {makeSplatMaterial,fillSplat} from './ride-ground.js';
 import {GOAL_POSTS} from './ride-soccer.js';
-import {TOWN,townHeight,townArrival,loadTown,makeTownVisuals} from './ride-town.js';
 import {PARK,parkHeight,PARK_ENTRY,loadPark,makeSkateParkVisuals} from './ride-skatepark.js';
 import {buildFoliage,makeFoliageVisuals} from './ride-foliage.js';
 import {makeGrassField} from './ride-grass.js';
@@ -130,18 +129,15 @@ export function descentHeight(x,z){const d=descentInfo(x,z);return d?d.h:0;}
 // Teleport rings: ride through one and you are placed at `to`. v2.1-28: all the start rings stand in one row
 // beside the side track, each with its name above it.
 export const PLAYGROUND_PADS=[{id:'descent-start',label:'DOWNHILL',x:-58,z:50,r:1.8,to:{x:DESCENT.x0-DESCENT.len+6,z:descentRoadZ(DESCENT.len-6),yaw:0,vx:2}},
-  // Korumburra: a ring by the start of the side track takes you to the main street; one there brings you back
-  {id:'town',label:'KORUMBURRA',x:-58,z:56,r:1.8,get to(){const a=townArrival();return {x:a.x,z:a.z,yaw:a.yaw,vx:2};}},
-  // skate park (Kenney Mini Skate): a ring next to the town ring takes you to its open side
-  {id:'skatepark',label:'SKATE PARK',x:-58,z:62,r:1.8,to:PARK_ENTRY},
+  // skate park (Kenney Mini Skate): a ring in the start row takes you to its open side
+  {id:'skatepark',label:'SKATE PARK',x:-58,z:56,r:1.8,to:PARK_ENTRY},
   // desert canyon bike track (Quaternius Stylized Nature MegaKit): start ring here, finish ring brings you back
-  {id:'canyon',label:'CANYON',x:-58,z:68,r:1.8,to:CANYON_START},
-  {id:'bowl',label:'BOWL',x:-58,z:74,r:1.8,to:BOWL_ENTRY},
+  {id:'canyon',label:'CANYON',x:-58,z:62,r:1.8,to:CANYON_START},
+  {id:'bowl',label:'BOWL',x:-58,z:68,r:1.8,to:BOWL_ENTRY},
   // v2.1-35: the Neon Canal level (a locked race track); the ring switches level
-  {id:'neon',label:'NEON CANAL',x:-58,z:80,r:1.8,level:'neon',to:{x:-52,z:46,yaw:0,vx:0}},
-  {id:'canyon-back',label:'BACK TO PLAYGROUND',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}},
-  {id:'town-back',label:'BACK TO PLAYGROUND',get x(){const a=townArrival();return a.x-Math.cos(a.yaw)*12;},get z(){const a=townArrival();return a.z-Math.sin(a.yaw)*12;},r:1.8,town:true,to:{x:-52,z:46,yaw:0,vx:0}}];
-const baseHeight=(x,z)=>x>TOWN.x-TOWN.halfX-TOWN.skirt?townHeight(x,z):Math.abs(x-PARK.x)<PARK.hx&&Math.abs(z-PARK.z)<PARK.hz?parkHeight(x,z):inBowl(x,z)?bowlHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
+  {id:'neon',label:'NEON CANAL',x:-58,z:74,r:1.8,level:'neon',to:{x:-52,z:46,yaw:0,vx:0}},
+  {id:'canyon-back',label:'BACK TO PLAYGROUND',x:CANYON_FINISH_RING.x,z:CANYON_FINISH_RING.z,r:1.8,to:{x:-52,z:46,yaw:0,vx:0}}];
+const baseHeight=(x,z)=>Math.abs(x-PARK.x)<PARK.hx&&Math.abs(z-PARK.z)<PARK.hz?parkHeight(x,z):inBowl(x,z)?bowlHeight(x,z):inCanyon(x,z)?canyonHeight(x,z):Math.max(rampHeight(x,z),terrainHeight(x,z),sideTrackHeight(x,z),descentHeight(x,z));
 // PROPS (v2.1-8): CC0 Poly Haven rocks, logs, stumps and trees (assets/polyhaven, see LICENSES.md).
 // Two kinds of collision:
 //  - 'bump' props (small rocks, logs) are part of the ground: you ride over them like a hump;
@@ -186,7 +182,7 @@ export const PLAYGROUND_PROPS=buildProps();
 // v2.1-34 foliage: where things may grow. 'grass' only stays off hard/ridden surfaces; 'solid' (trees, bushes)
 // also stays clear of every track, ramp line, loop, ring row, the slalom, roads and built areas.
 function foliageKeep(x,z,kind){
-  if(inCanyon(x,z)||inBowl(x,z)||(Math.abs(x-PARK.x)<PARK.hx+3&&Math.abs(z-PARK.z)<PARK.hz+3)||x>TOWN.x-TOWN.halfX-TOWN.skirt-10)return false;
+  if(inCanyon(x,z)||inBowl(x,z)||(Math.abs(x-PARK.x)<PARK.hx+3&&Math.abs(z-PARK.z)<PARK.hz+3))return false;
   if(Math.abs(x-62)<58&&Math.abs(z+75)<40)return false;                                  // soccer pitch + nets
   const d=descentInfo(x,z);if(d&&d.u>-4&&d.u<DESCENT.len+4&&d.dzr<(kind==='grass'?4.5:8))return false; // downhill road
   if(x>-56&&x<106&&Math.abs(z-SIDE_TRACK.z)<(kind==='grass'?4.5:20))return false;          // side track (+ circuit, loops)
@@ -300,17 +296,14 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false,quality=low
     if(pd.label){const cv=document.createElement('canvas');cv.width=512;cv.height=128;const g=cv.getContext('2d');g.fillStyle='rgba(8,20,40,.78)';g.beginPath();g.roundRect?g.roundRect(8,14,496,100,50):g.rect(8,14,496,100);g.fill();g.lineWidth=6;g.strokeStyle='#3fb8ff';g.stroke();
       g.font='900 '+(pd.label.length>12?44:62)+'px system-ui,Segoe UI,Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#ffffff';g.fillText(pd.label,256,66);
       const tx=new T.CanvasTexture(cv);tx.colorSpace=T.SRGBColorSpace;tx.anisotropy=4;const sm=new T.SpriteMaterial({map:tx,transparent:true,fog:false});const sp=new T.Sprite(sm);sp.scale.set(5.6,1.4,1);sp.name='environment:pad-label:'+pd.id;root.add(sp);labelRes.push(tx,sm);
-      const old=place;place=()=>{old();sp.position.set(pd.x,baseHeight(pd.x,pd.z)+2*pd.r+1.3,pd.z);};place();}
-    if(pd.town)loadTown().then(()=>place()).catch(()=>{});}
-  // the real town (Korumburra), east of the playground
-  const town=makeTownVisuals(T,root,mat,{lowDetail});
+      const old=place;place=()=>{old();sp.position.set(pd.x,baseHeight(pd.x,pd.z)+2*pd.r+1.3,pd.z);};place();}}
   const park=makeSkateParkVisuals(T,root,GLTFLoader,{lowDetail});
   const canyon=makeCanyonVisuals(T,root,GLTFLoader,{lowDetail});
   const bowl=makeBowlVisuals(T,root,{lowDetail});
   const treeItems=PLAYGROUND_PROPS.filter(p=>p.m==='tree').map((p,i)=>({m:['oak3','pine1','oak5','pine5'][i%4],x:p.x,z:p.z,s:p.s*.55,rot:p.rot}));
   const folItems=FOLIAGE.items.filter((p,i)=>!lowDetail||p.m.startsWith('oak')||p.m.startsWith('pine')||i%3===0).concat(treeItems);
   const foliage=makeFoliageVisuals(T,root,GLTFLoader,folItems,baseHeight,{lowDetail});
-  // v2.1-49: real grass blades round the rider (GPU field); none on tracks, ramps, roads, the town or worn patches
+  // v2.1-49: real grass blades round the rider (GPU field); none on tracks, ramps, roads or worn patches
   const grass=makeGrassField(T,root,{lowDetail,quality,height:baseHeight,mask:(x,z)=>{if(!foliageKeep(x,z,'grass'))return{density:0,dry:0};const m=vnoise(x/38,z/38)*.75+vnoise(x/9+40,z/9)*.25,worn=vnoise(x/14+7,z/14-3);return{density:Math.max(0,Math.min(1,(m-.22)*2.2))*(worn<.3?worn/.3:1),dry:vnoise(x/25-9,z/25+4)*.8};}});
   // Loop-the-loops: the same path ride-loop.js carries the bike along, plus two support legs.
   const loopMeshes=[];
@@ -335,6 +328,6 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false,quality=low
     roadMap:null,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
     update(x,o){foliage.update?.(o?.s?.x??x,o?.s?.z??0);grass.update(o?.s?.x??x,o?.s?.z??0,o?.s?.y??0,o?.dt||0);},view(){},
     state:()=>({playground:true,arena:true,size:SIZE,ground:'splat:Grass004+Ground054+Rock051+Ground109+Gravel041',descent:{...DESCENT},pads:PLAYGROUND_PADS.map(p=>p.id),terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
-    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();bowl.dispose();foliage.dispose();labelRes.forEach(r=>r.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
+    dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());park.dispose();canyon.dispose();bowl.dispose();foliage.dispose();labelRes.forEach(r=>r.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };
 }

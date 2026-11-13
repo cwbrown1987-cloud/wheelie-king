@@ -35,7 +35,6 @@ jobs:
         run: |
           node tests/playground-classic.mjs
           node tests/playground-soccer.mjs
-          node tests/playground-town.mjs
           node tests/playground-skatepark.mjs
           node tests/playground-canyon.mjs
           node tests/playground-bowl.mjs
