@@ -2,7 +2,7 @@
 const CONTROLS=[['steering','Steering response'],['grip','Corner grip'],['balance','Lean and air balance'],
   ['wheelie','Wheelie stability'],['stoppie','Stoppie stability'],['air','Air trick control'],
   ['landing','Predictive landing'],['camera','Camera stability']];
-export function mountPhysicsLab(parent,handling,{storage=globalThis.localStorage}={}){
+export function mountPhysicsLab(parent,handling,{storage=globalThis.localStorage,engine='classic',onEngineChange=null}={}){
   const root=document.createElement('section');
   root.setAttribute('data-wk-physics-lab','');
   root.style.cssText='position:absolute;right:12px;bottom:110px;z-index:45;width:min(285px,88vw);pointer-events:auto;font:12px system-ui,sans-serif;color:#eafff2;text-align:left';
@@ -12,6 +12,17 @@ export function mountPhysicsLab(parent,handling,{storage=globalThis.localStorage
   const panel=document.createElement('div');panel.hidden=true;
   panel.style.cssText='background:#102019f5;border:1px solid #74c99a;border-radius:12px;padding:12px;max-height:min(55vh,430px);overflow:auto;box-shadow:0 12px 24px #0009';
   const title=document.createElement('strong');title.textContent='CLASSIC ARCADE LAB';panel.append(title);
+  if(onEngineChange){
+    const engineRow=document.createElement('label');engineRow.textContent='Bike engine  ';engineRow.style.cssText='display:block;margin:9px 0';
+    const engineSelect=document.createElement('select');engineSelect.setAttribute('aria-label','Bike physics engine');
+    engineSelect.style.cssText='color:#fff;background:#214337;border:1px solid #598c79;border-radius:5px;padding:5px';
+    for(const [value,label] of [['classic','Classic custom'],['v3','V3 independent 3D']]){
+      const option=document.createElement('option');option.value=value;option.textContent=label;engineSelect.append(option);
+    }
+    engineSelect.value=engine;
+    engineSelect.addEventListener('change',()=>{if(engineSelect.value!==engine)onEngineChange(engineSelect.value);});
+    engineRow.append(engineSelect);panel.append(engineRow);
+  }
   const modeLabel=document.createElement('label');modeLabel.style.cssText='display:block;margin:9px 0';modeLabel.textContent='Mode  ';
   const modeSelect=document.createElement('select');modeSelect.setAttribute('aria-label','Handling mode');
   modeSelect.style.cssText='color:#f1fff6;background:#214337;border:1px solid #598c79;border-radius:5px;padding:5px';
