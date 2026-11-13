@@ -244,7 +244,7 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false,quality=low
     t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(rep,rep);t.anisotropy=8;texs.push(t);return t;
   };
   // v2.1-10: the floor is grass with worn dirt patches (ambientCG splat material, see ride-ground.js).
-  const splat=makeSplatMaterial(T,{lowDetail}),mat=splat.material;
+  const splat=makeSplatMaterial(T,{lowDetail,quality}),mat=splat.material;
   const geo=fillSplat(T,new T.PlaneGeometry(SIZE,SIZE),[.88,.08,0,.02]);
   const floor=new T.Mesh(geo,mat);floor.rotation.x=-Math.PI/2;floor.position.y=-.02;floor.receiveShadow=true;floor.name='environment:playground-floor';root.add(floor);
   const rampMat=new T.MeshStandardMaterial({color:0x9a958d,roughness:.85,metalness:0}),edgeMat=new T.MeshStandardMaterial({color:0xf2b233,roughness:.6});

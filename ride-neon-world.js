@@ -5,6 +5,7 @@
 // ambientCG asphalt/concrete sets. Built to stay light: merged ribbons, instancing, emissive "glow" instead of lights.
 import { GLTFLoader as GLTF } from './vendor/GLTFLoader.js';
 import { makeGraffitiAtlas, makeWallBase, makeHeartPiece } from './ride-graffiti.js';
+import { styleGrade, makeBlobShadows } from './ride-foliage.js';
 import { NEON, NEON_PATH, NEON_GAPS, NEON_COINS, NEON_FEATURES, NEON_BOOSTS, NEON_LOOPS, neonProfile, neonAt, neonInGap, neonProject } from './ride-neon.js';
 const TAU = Math.PI * 2;
 function rng(seed) { let r = seed; return () => (r = (r * 16807) % 2147483647) / 2147483647; }
@@ -222,6 +223,31 @@ outgoingLight=min(outgoingLight,vec3(1.25)); /* no white-out sun glare on the we
     const pm = mk(pv, paving, 'runin-paving'); pm.receiveShadow = true; pm.material.side = T.DoubleSide; mk(qy, concrete, 'runin-quay');
     const ppm = mk(pp, concrete, 'runin-parapet'), fcm = mk(fc, fenceMat, 'runin-fence'), rl = new T.Mesh(keep(new T.TubeGeometry(new T.CatmullRomCurve3(rail), rail.length, .035, 5)), housing); group.add(rl);
     mirror?.hide.push(rm, pm, gm2); runIn.side.push(ppm, fcm, rl); }
+  // ---- v2.1-50 street props (Poly Haven, CC0, decimated): roller doors and aircon units on the wall, hydrants,
+  // utility boxes, barrel stoves, boxes and wet-floor signs on the strip at its foot, concrete barriers at the canal
+  // run-ups. Each file holds variants (clean / aged / rusted / tagged) side by side: each placement takes one.
+  const props = { door: [], ac: [], hydrant: [], box1: [], box2: [], stove: [], card: [], sign: [], barrier: [] }, pr2 = rng(512), blobs = [];
+  const onWall = (s, off, y, list) => { const p = at(s); list.push({ x: p.x + Math.sin(p.yaw) * off, z: p.z - Math.cos(p.yaw) * off, y, rot: -p.yaw, v: pr2() }); };
+  for (let s = -RUN + 18; s < NEON.len; s += 9 + pr2() * 16) { if (noFoot(s) || noFoot(s + 3)) continue; const k = pr2();
+    if (k < .28) onWall(s, wallOff - .02, 0, props.door);
+    else if (k < .6) { onWall(s, wallOff - .2, 2.4 + pr2() * 1.3, props.ac); if (pr2() < .4) onWall(s + 1.9, wallOff - .2, 2.6 + pr2(), props.ac); }
+    else { const kind = pick2(['hydrant', 'box1', 'box2', 'stove', 'card', 'card', 'sign', 'box2']), list = props[kind], o = wallOff - .45 - pr2() * .5; onWall(s, o, 0, list); list[list.length - 1].rot += (kind === 'card' || kind === 'sign') ? (pr2() - .5) * 2 : 0;
+      if (kind === 'card' && pr2() < .6) { onWall(s + .5, o - .1, 0, list); onWall(s + .25, o, .34, list); } } }
+  for (const [a] of NEON_GAPS) for (let k = 0; k < 3; k++) { const p = at(a - 26 - k * 1.7); props.barrier.push({ x: p.x - Math.sin(p.yaw) * (half + .75), z: p.z + Math.cos(p.yaw) * (half + .75), y: 0, rot: -p.yaw, v: 0 }); }
+  function pick2(a) { return a[Math.floor(pr2() * a.length)]; }
+  const FILES = { door: 'rollershutter_door', ac: 'exterior_aircon_unit', hydrant: 'fire_hydrant', box1: 'utility_box_01', box2: 'utility_box_02', stove: 'barrel_stove', card: 'cardboard_box_01', sign: 'WetFloorSign_01', barrier: 'concrete_road_barrier_02' };
+  const SHADOW = { hydrant: .45, box1: .4, box2: .55, stove: .45, card: .3, sign: .25, barrier: .9 };
+  for (const [k, list] of Object.entries(props)) { if (SHADOW[k]) for (const b of list) if (b.y < .1) blobs.push({ x: b.x, z: b.z, y: 0, r: SHADOW[k] }); }
+  const propShadows = makeBlobShadows(T, group, blobs, { name: 'neon:prop-shadows', strength: .6 });
+  if (GLTFLoader) for (const [k, list] of Object.entries(props)) if (list.length) new GLTFLoader().loadAsync('./assets/polyhaven/street/' + FILES[k] + '.glb').then(g => {
+    g.scene.updateMatrixWorld(true);
+    const vars = new Map(); for (const n of g.scene.children) { const vx = Math.round(n.position.x * 10); if (!vars.has(vx)) vars.set(vx, []); vars.get(vx).push(n); }
+    const V2 = [...vars.entries()].sort((a, b) => a[0] - b[0]).map(e => e[1]);
+    V2.forEach((nodes, vi) => { const mine = list.filter(b => Math.floor(b.v * V2.length) % V2.length === vi); if (!mine.length) return; const off = new T.Matrix4().makeTranslation(-nodes[0].position.x, 0, -nodes[0].position.z);
+      for (const n of nodes) n.traverse(o => { if (!o.isMesh) return; [].concat(o.material).forEach(mm => { styleGrade(mm, { sat: 1.25, lift: 1.05 }); keep(mm); }); keep(o.geometry);
+        const inst = new T.InstancedMesh(o.geometry, o.material, mine.length); mine.forEach((b, j) => { E.set(0, b.rot, 0); Q.setFromEuler(E); M.compose(V.set(b.x, b.y, b.z), Q, S.set(1, 1, 1)).multiply(off).multiply(o.matrixWorld); inst.setMatrixAt(j, M); });
+        inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); inst.castShadow = !lowDetail && k !== 'door'; inst.receiveShadow = true; inst.name = 'neon:prop-' + k; group.add(inst); }); });
+  }).catch(e => console.warn('[wk] street prop failed', k, e));
   // ---- boost chevrons on the line (glowing ^^ arrows) + chevron signs on the wall ----
   const chevTex = keep(canvasTex(T, 256, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.lineWidth = 34; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#ffffff'; for (const y of [80, 170]) { g.beginPath(); g.moveTo(40, y + 50); g.lineTo(128, y - 30); g.lineTo(216, y + 50); g.stroke(); } }));
   const chevMat = keep(new T.MeshBasicMaterial({ map: chevTex, color: new T.Color('#f1e4ff').multiplyScalar(.9), transparent: true, depthWrite: false, toneMapped: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 }));
@@ -367,6 +393,6 @@ float wkH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`).rep
     resetCoins() { taken.fill(0); },
     coinsTaken: () => taken.reduce((a, b) => a + b, 0),
     state: () => ({ neon: true, len: NEON.len, coins: NEON_COINS.length, lamps: lampPos.length, palms: nPalms }),
-    dispose() { res.forEach(o => o.dispose?.()); group.removeFromParent(); },
+    dispose() { propShadows?.dispose(); res.forEach(o => o.dispose?.()); group.removeFromParent(); },
   };
 }

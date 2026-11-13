@@ -57,6 +57,26 @@ export function buildFoliage({ keep, area, lowDetail = false, height }) {
 // v2.1-49 draw distances (m): small things only exist near the rider, in 50 m cells, so the photo-scanned grass,
 // flowers and shrubs cost nothing far away. Trees and rocks stay out to the horizon.
 const DRAW = { phGrass: 55, phDand: 65, grassS: 95, grassT: 95, clover: 70, flower3: 85, flower4: 85, mush: 60, phFern: 130, phShrub2: 150, phShrub3: 150, phShrub4: 150, phWeed: 120, phNettle: 120, phRockA: 260, phRockB: 260, phRock7: 200, phRock9: 200, phStone: 200, phStump1: 240, phStump2: 240, phLog: 240 };
+// v2.1-50 style grade: photo-scanned models are pushed a little toward the stylised kit (richer colour, slightly
+// lifted) so the realistic rocks and plants sit with the cartoon trees instead of looking pasted in
+export function styleGrade(mm, { sat = 1.3, lift = 1.06, warm = 0 } = {}) {
+  if (mm.userData.wkGraded) return; mm.userData.wkGraded = true; const prev = mm.onBeforeCompile;
+  mm.onBeforeCompile = (sh, r) => { prev?.call(mm, sh, r); sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+{ float l=dot(diffuseColor.rgb,vec3(.299,.587,.114));diffuseColor.rgb=max(mix(vec3(l),diffuseColor.rgb,${sat.toFixed(2)})*${lift.toFixed(2)}+vec3(${warm.toFixed(3)},${(warm * .4).toFixed(3)},0.),0.); }`); };
+  const key = mm.customProgramCacheKey?.bind(mm); mm.customProgramCacheKey = () => (key ? key() : '') + 'wkg' + sat + lift + warm; mm.needsUpdate = true;
+}
+// soft contact shadows: a dark blurred disc under each solid thing (cheap stand-in for ambient occlusion)
+export function makeBlobShadows(T, root, list, { height, name = 'contact-shadows', strength = .55 } = {}) {
+  if (!list.length) return null;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.45, 'rgba(0,0,0,.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const tex = new T.CanvasTexture(c), mat = new T.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, opacity: strength, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  const geo = new T.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
+  const inst = new T.InstancedMesh(geo, mat, list.length), M = new T.Matrix4(), Q = new T.Quaternion(), V = new T.Vector3(), S = new T.Vector3(), up = new T.Vector3(0, 1, 0), n = new T.Vector3();
+  list.forEach((b, k) => { const y = b.y ?? height(b.x, b.z); if (height) { const e = .5; n.set(height(b.x - e, b.z) - height(b.x + e, b.z), 2 * e, height(b.x, b.z - e) - height(b.x, b.z + e)).normalize(); Q.setFromUnitVectors(up, n); } else Q.identity();
+    M.compose(V.set(b.x, y + .03, b.z), Q, S.set(b.r * 2, 1, (b.rz || b.r) * 2)); inst.setMatrixAt(k, M); });
+  inst.instanceMatrix.needsUpdate = true; inst.computeBoundingSphere(); inst.name = 'environment:' + name; inst.renderOrder = 1; root.add(inst);
+  return { mesh: inst, dispose() { geo.dispose(); mat.dispose(); tex.dispose(); inst.removeFromParent(); } };
+}
 export function makeFoliageVisuals(T, root, GLTFLoader, items, height, { lowDetail = false, cell = 260 } = {}) {
   const group = new T.Group(); group.name = 'environment:foliage'; root.add(group);
   const res = []; let disposed = false;
@@ -74,6 +94,7 @@ export function makeFoliageVisuals(T, root, GLTFLoader, items, height, { lowDeta
       const tint = { grassS: '#93c95a', grassT: '#7cb84c' }[m];
       [].concat(o.material).forEach(mm => { if (tint && mm.name === 'Grass') { mm.color.set(tint); }
         if (!ph && !m.startsWith('oak') && !m.startsWith('pine')) { mm.vertexColors = false; mm.needsUpdate = true; }
+        if (ph) styleGrade(mm, /phRock|phStone|phStump|phLog/.test(m) ? { sat: 1.2, lift: 1.08 } : { sat: 1.35, lift: 1.1 });
         res.push(mm); mm.map && res.push(mm.map); if (mm.alphaTest > 0 || mm.transparent) { mm.transparent = false; mm.alphaTest = Math.max(.45, mm.alphaTest || 0); mm.side = T.DoubleSide; } });
       // a set's variant: drop its layout offset and stand it on the ground
       base.copy(o.matrixWorld); if (split) { base.setPosition(0, 0, 0); box.copy(o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox)).applyMatrix4(base); base.premultiply(new T.Matrix4().makeTranslation(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2)); }
@@ -90,5 +111,9 @@ export function makeFoliageVisuals(T, root, GLTFLoader, items, height, { lowDeta
   }).catch(e => console.warn('[wk] foliage model failed', m, e));
   let lastX = 1e9, lastZ = 1e9;
   const update = (x, z) => { if (Math.abs(x - lastX) + Math.abs(z - lastZ) < 4) return; lastX = x; lastZ = z; for (const m of culled) { const c = m.userData.cull; m.visible = (c.x - x) ** 2 + (c.z - z) ** 2 < c.d * c.d; } };
-  return { group, update, dispose() { disposed = true; res.forEach(r => r.dispose?.()); group.removeFromParent(); } };
+  // contact shadows under trees, rocks, stumps and logs
+  const blobs = [], radius = { oak3: 1.5, oak5: 1.6, pine1: 1.2, pine5: 1.3, phRockA: .9, phRockB: .9, phRock7: 1.1, phRock9: 1.1, phStone: .6, phStump1: .8, phStump2: .8, phLog: 1.2, phShrub2: .7, phShrub3: .6, phShrub4: .7 };
+  for (const p of items) if (radius[p.m]) blobs.push({ x: p.x, z: p.z, r: radius[p.m] * p.s });
+  const shadows = lowDetail ? null : makeBlobShadows(T, group, blobs, { height });
+  return { group, update, dispose() { shadows?.dispose(); disposed = true; res.forEach(r => r.dispose?.()); group.removeFromParent(); } };
 }

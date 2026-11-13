@@ -20,6 +20,16 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | kloofendal_48d_partly_cloudy_puresky 1K HDR + 4K/1K tone-mapped JPG | `hdri/kloofendal_48d_partly_cloudy_puresky_*` | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | Greg Zaal (Original), Jarod Guest (Sky edits) | Playground sky (HDR lights, 4K JPG background) |
 | Rock 07 (1k glTF, simplified, 512 webp, quantized) | `polyhaven/rock_07.glb` | https://polyhaven.com/a/rock_07 | Jenelle van Heerden | Playground rideable rocks |
 | Rock 09 (same processing) | `polyhaven/rock_09.glb` | https://polyhaven.com/a/rock_09 | Jenelle van Heerden | Playground rideable rocks |
+| fire_hydrant (1k glTF, decimated, 512 webp) | `polyhaven/street/fire_hydrant.glb` | https://polyhaven.com/a/fire_hydrant | Poly Haven | Neon Canal street props (v2.1-50) |
+| exterior_aircon_unit (1k glTF, decimated, 512 webp) | `polyhaven/street/exterior_aircon_unit.glb` | https://polyhaven.com/a/exterior_aircon_unit | Poly Haven | Neon Canal street props (v2.1-50) |
+| rollershutter_door (1k glTF, decimated, 512 webp) | `polyhaven/street/rollershutter_door.glb` | https://polyhaven.com/a/rollershutter_door | Poly Haven | Neon Canal street props (v2.1-50) |
+| concrete_road_barrier_02 (1k glTF, decimated, 512 webp) | `polyhaven/street/concrete_road_barrier_02.glb` | https://polyhaven.com/a/concrete_road_barrier_02 | Poly Haven | Neon Canal street props (v2.1-50) |
+| utility_box_01 (1k glTF, decimated, 512 webp) | `polyhaven/street/utility_box_01.glb` | https://polyhaven.com/a/utility_box_01 | Poly Haven | Neon Canal street props (v2.1-50) |
+| utility_box_02 (1k glTF, decimated, 512 webp) | `polyhaven/street/utility_box_02.glb` | https://polyhaven.com/a/utility_box_02 | Poly Haven | Neon Canal street props (v2.1-50) |
+| barrel_stove (1k glTF, decimated, 512 webp) | `polyhaven/street/barrel_stove.glb` | https://polyhaven.com/a/barrel_stove | Poly Haven | Neon Canal street props (v2.1-50) |
+| cardboard_box_01 (1k glTF, decimated, 512 webp) | `polyhaven/street/cardboard_box_01.glb` | https://polyhaven.com/a/cardboard_box_01 | Poly Haven | Neon Canal street props (v2.1-50) |
+| WetFloorSign_01 (1k glTF, decimated, 512 webp) | `polyhaven/street/WetFloorSign_01.glb` | https://polyhaven.com/a/WetFloorSign_01 | Poly Haven | Neon Canal street props (v2.1-50) |
+| Ground054, Rock051, Gravel041, Ground109 2K colour + normal, 512 height/AO | `ambientcg/*/*_2K_*.jpg`, `*_HeightAO.jpg` | https://ambientcg.com | ambientCG (CC0) | Playground ground on high (v2.1-50) |
 | rock_moss_set_01 (1k glTF, decimated, webp) | `polyhaven/models/rock_moss_set_01.glb` | https://polyhaven.com/a/rock_moss_set_01 | Poly Haven | Playground foliage (v2.1-49) |
 | rock_moss_set_02 (1k glTF, decimated, webp) | `polyhaven/models/rock_moss_set_02.glb` | https://polyhaven.com/a/rock_moss_set_02 | Poly Haven | Playground foliage (v2.1-49) |
 | rock_07 (1k glTF, decimated, webp) | `polyhaven/models/rock_07.glb` | https://polyhaven.com/a/rock_07 | Poly Haven | Playground foliage (v2.1-49) |
