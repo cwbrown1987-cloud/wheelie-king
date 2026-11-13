@@ -31,7 +31,7 @@ function resolveChangedTests(){
   {re:/^ride-(pause|replay|buffer)/, tests:['ride-pause-replay','replay-playback','replay-blocks','replay-dropin','replay-dropin-stress']},
   {re:/^ride-gallery/, tests:['ride-gallery']},
   {re:/^ride-camera/, tests:['ride-camera']},
-  {re:/^ride-arcade-.*\\.js$/, tests:['arcade-classic','playground-classic']},
+  {re:/^ride-arcade-.*\.js$/, tests:['arcade-classic','playground-classic']},
   {re:/^(ride\.js|ride-loop|ride-physics|ride-tricks|ride-environment|ride-scenery|race-launch)/, tests:['ride-loop','ride-finish','slow-mo','race-balance','crash-ride','ride-rewind']},
   {re:/^(ride-controls|panel-scroll|rotate-lock|index\.html)/, tests:['ride-controls','panel-scroll','no-page-scroll','menus-fit','rotate-lock','crash-bar','ride-tricks-menu','chase-controls']},
   {re:/^ride\.js$/, tests:['chase-controls','ride-view-toggle','autostart','v34-tricks-ui','v2-playground-rewind','jolt-reset-crash']},
