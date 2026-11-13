@@ -29,11 +29,11 @@ export function maxSteerAngle(speed,vmax=12){
 export function stepHeading(s,inp,dt,p,ter){
   const onG=!!(s.ground[0]||s.ground[1]);
   const v=s.vx||0,wb=Math.max(.9,p?.wb||1.25),vmax=p?.vmax||12;
-  const aLat=STEER_GRIP_G*9.8*Math.min(1.2,p?.grip||1),gripA=Math.abs(v)>.5?Math.atan(aLat*wb/(v*v)):Infinity;
+  const aLat=(inp.arcade?.gripG??STEER_GRIP_G)*9.8*Math.min(1.2,p?.grip||1),gripA=Math.abs(v)>.5?Math.atan(aLat*wb/(v*v)):Infinity;
   const maxA=Math.min(maxSteerAngle(v,vmax),gripA);
   const target=Math.max(-1,Math.min(1,inp.steer||0))*maxA;
   s.steerTarget=target;
-  const k=1-Math.exp(-Math.max(0,dt)/STEER_TAU);
+  const k=1-Math.exp(-Math.max(0,dt)/(inp.arcade?.steerTau??STEER_TAU));
   s.steer=(s.steer||0)+(target-(s.steer||0))*k;
   if(Math.abs(s.steer)<1e-5)s.steer=0;
   s.curvature=Math.tan(s.steer)/wb;
@@ -51,10 +51,10 @@ export function stepHeading(s,inp,dt,p,ter){
   // Lean-led turning, like a ridden bike: the bars set the lean the rider wants, the bike rolls into it
   // (LEAN_TAU), and the turn comes from the lean (yaw rate = g tan(lean) / v). At walking pace the bars
   // steer directly. So turns build up and unwind instead of the bike pivoting under the rider.
-  const vAbs=Math.abs(v),leanMax=Math.atan(STEER_GRIP_G*Math.min(1.2,p?.grip||1));
+  const vAbs=Math.abs(v),leanMax=Math.atan((inp.arcade?.gripG??STEER_GRIP_G)*Math.min(1.2,p?.grip||1));
   const leanWant=onG?Math.max(-leanMax,Math.min(leanMax,Math.atan(v*v*Math.tan(s.steer)/wb/9.8))):0;
   // airborne: the bike holds the lean it took off with (no ground to steer against), easing off over a few seconds
-  if(onG)s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/LEAN_TAU));else s.lean=(s.lean||0)*Math.exp(-Math.max(0,dt)*.35);
+  if(onG)s.lean=(s.lean||0)+(leanWant-(s.lean||0))*(1-Math.exp(-Math.max(0,dt)/(inp.arcade?.leanTau??LEAN_TAU)));else s.lean=(s.lean||0)*Math.exp(-Math.max(0,dt)*.35);
   const kin=v*Math.tan(s.steer)/wb,fromLean=vAbs>.5?9.8*Math.tan(s.lean)/v:0,mix=.6*Math.max(0,Math.min(1,(vAbs-2)/3)); /* v2.1-61: part kinematic even at speed, so the bike answers the bars straight away instead of waiting for the lean */
   // In the air the rider can aim the bike a little (body/hip turn), like Descenders: steer = yaw, any speed.
   const st=Math.max(-1,Math.min(1,inp.steer||0)),brk=Math.max(0,Math.min(1,inp.brake||0)),thr=Math.max(0,Math.min(1,inp.throttle||0));
@@ -68,7 +68,7 @@ export function stepHeading(s,inp,dt,p,ter){
     s.airTwist=false;const g=wrapAngle((s.yaw||0)-s.moveYaw);
     // v2.1-26: a landing a bit crossed-up just hooks up: the tyres bite and pull the travel round to where the bike
     // points, costing some speed (scrub). Only a properly sideways landing (> ~30 deg) turns into a slide.
-    if(Math.abs(g)<LAND_HOOK||v<SLIDE.minSpeed*.5){s.sliding=false;s.vx=v*(.35+.65*Math.cos(g));s.moveYaw=s.yaw||0;}else{s.slideDir=Math.sign(g);s.slideBudget=0;s.slideHeld=0;}
+    if(Math.abs(g)<(inp.arcade?.slideHook??LAND_HOOK)||v<SLIDE.minSpeed*.5){s.sliding=false;s.vx=v*(.35+.65*Math.cos(g));s.moveYaw=s.yaw||0;}else{s.slideDir=Math.sign(g);s.slideBudget=0;s.slideHeld=0;}
   }
   let yawRate;
   if(s.sliding&&onG){
@@ -98,7 +98,7 @@ export function stepHeading(s,inp,dt,p,ter){
   }else if(!onG&&s.vertAir){
     s.airT=(s.airT||0)+dt;
     if(!s.sliding){s.sliding=true;s.slideDir=0;s.slideBudget=0;s.slideHeld=0;s.airTwist=true;s.moveYaw=s.yaw||0;s.spun=0;s.latV=0;s.vertDir=0;s.vertH0=s.yaw||0;}
-    if(Math.abs(st)>.15){yawRate=st*VERT.yaw;s.vertDir=Math.sign(st);}
+    if(Math.abs(st)>.15){yawRate=st*VERT.yaw*(inp.arcade?.vertYawFactor??1);s.vertDir=Math.sign(st);}
     else if((s.vertVy0||0)>3&&((s.vy||0)<4||s.airT>.12)){ // a real air (not a little pop): turn on the way up/over the top: finish the turn to the nearest half-turn (at least 180) so you land forwards
       const dirn=s.vertDir||Math.sign(s.spun||0)||1,target=dirn*Math.PI*Math.max(1,Math.round(Math.abs(s.spun||0)/Math.PI)),gap=target-(s.spun||0);
       yawRate=Math.sign(gap)*Math.min(VERT.auto,Math.abs(gap)*6);}
@@ -117,7 +117,7 @@ export function stepHeading(s,inp,dt,p,ter){
     // Airborne: travel direction is locked (moveYaw); steering twists the bike body a little, then it settles back.
     if(!s.sliding){s.sliding=true;s.slideDir=0;s.slideBudget=0;s.slideHeld=0;s.airTwist=true;s.moveYaw=s.yaw||0;}
     const twist=wrapAngle((s.yaw||0)-s.moveYaw);
-    yawRate=st*AIR_YAW*Math.max(0,1-Math.max(0,Math.sign(st)*twist)/AIR_TWIST)-(st?0:twist*2);
+    yawRate=st*AIR_YAW*(inp.arcade?.airYawFactor??1)*Math.max(0,1-Math.max(0,Math.sign(st)*twist)/AIR_TWIST)-(st?0:twist*2);
   }else{
     s.airT=0;yawRate=kin*(1-mix)+fromLean*mix;
     // v2.1-31: riding across a steep face (bowl wall, bank) gravity pulls the bike round to point downhill, so you
