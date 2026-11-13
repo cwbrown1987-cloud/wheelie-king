@@ -116,7 +116,7 @@ export function cloneForRide(src) {
 export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDetail=false, quality=null, theme=null, qualityManual=false, pixelRatioCap=null }) {
   let disposed=false;
   const TH=typeof theme==='object'&&theme?theme:getTheme(theme);
-  const picked=pickTier(),qualityPick=lowDetail||picked.manual?{name:'low',manual:true}:quality&&TIERS[quality]?{name:quality,manual:qualityManual}:picked,Q=(t=>(readRideLevel()==='arena'||readRideLevel()==='neon'||readRideLevel()==='valley')?{...t,aa:true,maxPR:Math.max(t.maxPR,{low:1.5,medium:1.75,high:2}[qualityPick.name]||1.5)}:t)(TIERS[qualityPick.name]),qualityMon=createQualityMonitor(qualityPick);let maxPR=Math.min(Q.maxPR,Number.isFinite(pixelRatioCap)&&pixelRatioCap>0?pixelRatioCap:Q.maxPR),qualityLog=[];lowDetail=Q.envLow;let fpsFrames=0,fpsTime=0,fpsLast=0;
+  const picked=pickTier(),qualityPick=lowDetail||picked.manual?{name:'low',manual:true}:quality&&TIERS[quality]?{name:quality,manual:qualityManual}:picked,Q=(t=>(readRideLevel()==='arena'||readRideLevel()==='neon'||readRideLevel()==='valley')&&!/[?&](?:world|physics)=v3(?:&|$)/.test(location.search)?{...t,aa:true,maxPR:Math.max(t.maxPR,{low:1.5,medium:1.75,high:2}[qualityPick.name]||1.5)}:t)(TIERS[qualityPick.name]),qualityMon=createQualityMonitor(qualityPick);let maxPR=Math.min(Q.maxPR,Number.isFinite(pixelRatioCap)&&pixelRatioCap>0?pixelRatioCap:Q.maxPR),qualityLog=[];lowDetail=Q.envLow;let fpsFrames=0,fpsTime=0,fpsLast=0;
   const src=(()=>{let root=null;globalThis.__WK_VIEW__?.scene.traverse(o=>{if(!root&&o.name==='wk:frame')root=o.parent});return root})(),preparedBike=src?cloneForRide(src):null;if(Q.trimTiny&&preparedBike)trimTinyMeshes(preparedBike);
   el.setAttribute('data-wk-ride-surface','');
   const blockBrowserGesture=e=>{if(e.type.startsWith('touch')&&e.target.closest?.('[data-r],button,input'))return;if(e.cancelable)e.preventDefault()};
@@ -273,7 +273,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
   let jolt=null;
 if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate=true;}if(flatMarkers)flatMarkers.visible=false;
   if(arena){
-    R.shadowMap.enabled=true;
+    R.shadowMap.enabled=!v3World||!lowDetail;
     // v2.1-21: bigger, sharper sun shadows (trees, buildings and ramps around you, not just the bike)
     const sz=qualityPick.name==='high'?2048:1024;sun.shadow.mapSize.set(sz,sz);sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.035;
     cam.far=valley?5200:1400;cam.updateProjectionMatrix();
