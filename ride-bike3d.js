@@ -36,6 +36,7 @@ export function createV3Motorcycle({P,profile}={}){
     const steerTau=inp.arcade?.steerTau??.10;
     s.steer+=(targetSteer-(s.steer||0))*(1-Math.exp(-dt/Math.max(.035,steerTau)));
     const fX=cy,fZ=sy,lX=-sy,lZ=cy;
+    const wheelsFacingDown=Math.cos(s.pitch||0)*Math.cos(s.roll||0)>.28;
     let fx=0,fy=-mass*G,fz=0,pitchTorque=0,contacts=0;
     const compression=[0,0],loaded=[0,0],grip=surfaceGrip(ter,s.x,s.z)*(P?.grip||1)*(1+(inp.arcade?.gripG??1.6)/1.6*.06-.06);
     for(let i=0;i<2;i++){
@@ -45,7 +46,7 @@ export function createV3Motorcycle({P,profile}={}){
       const compress=clamp(depth,0,travel[i]),rate=s.vy+(s.w||0)*localX*cp;
       const k=mass*G/(2*Math.max(.018,travel[i]*.27));
       const damper=2*.68*Math.sqrt(k*mass/2);
-      const normal=clamp(k*compress-damper*rate,0,mass*G*7);
+      const normal=wheelsFacingDown?clamp(k*compress-damper*rate,0,mass*G*7):0;
       compression[i]=compress/Math.max(.01,travel[i]);
       if(depth>-.012&&normal>1){loaded[i]=normal;contacts++;}
       const e=.4,dhx=(ter.height(wheelX+e,wheelZ)-ter.height(wheelX-e,wheelZ))/(2*e);
@@ -78,7 +79,8 @@ export function createV3Motorcycle({P,profile}={}){
     const leanWant=grounded?clamp(Math.atan(speed*(s.wYaw||0)/G),-1.05,1.05):0;
     // Inertia-based roll with an active rider controller. Without it, a real
     // two-wheeler falls over at walking speed and cannot be played on touch.
-    const riderRoll=grounded?(leanWant-(s.roll||0))*17-(s.wRoll||0)*8:(inp.steer||0)*2.4-(s.wRoll||0)*.7;
+    // Air steering changes yaw, not roll: preserve takeoff bank without a barrel roll.
+    const riderRoll=grounded?(leanWant-(s.roll||0))*20-(s.wRoll||0)*9:-(s.wRoll||0)*2.6;
     const destabilize=grounded?G*Math.sin(s.roll||0)/Math.max(.45,comH)*.1:0;
     s.wRoll=clamp((s.wRoll||0)+(riderRoll+destabilize)*dt,-5,5);
     s.roll=clamp((s.roll||0)+s.wRoll*dt,-Math.PI,Math.PI);
@@ -86,7 +88,7 @@ export function createV3Motorcycle({P,profile}={}){
     const lean=clamp(inp.lean||0,-1,1);
     // Suspension pitch torque plus controllable rider-weight torque.
     const pitchHelp=grounded?(lean*mass*G*.24 - (s.w||0)*I.pitch*.45):
-      lean*I.pitch*(7.8*(inp.arcade?.airPitchFactor??1));
+      I.pitch*(lean*7.8*(inp.arcade?.airPitchFactor??1)-(s.w||0)*1.85);
     pitchTorque+=pitchHelp;
     if(grounded&&contacts===2) pitchTorque+=(wrap(slope-s.pitch)*15-(s.w||0)*7)*I.pitch*.65;
     if(!grounded&&Math.abs(lean)<.1){
@@ -94,9 +96,12 @@ export function createV3Motorcycle({P,profile}={}){
       const target=predicted!=null?slope+clamp(wrap(predicted-slope),-.35,.35)*(inp.arcade?.landingStrength||0):Math.atan2(s.vy,Math.max(1,vabs))*.35;
       pitchTorque+=(wrap(target-s.pitch)*2.5-(s.w||0)*1.4)*I.pitch;
     }
-    s.w=clamp((s.w||0)+clamp(pitchTorque/I.pitch,-90,90)*dt,-12,12);
+    s.w=clamp((s.w||0)+clamp(pitchTorque/I.pitch,-90,90)*dt,-(grounded?9:5.8),grounded?9:5.8);
     // Semi-implicit 3D integration.
     s.wx=clamp(s.wx+fx/mass*dt,-90,90);s.wz=clamp(s.wz+fz/mass*dt,-90,90);
+    if(grounded&&vabs<.18&&Math.abs(inp.throttle||0)<.02&&Math.abs(inp.brake||0)<.02){
+      const hold=Math.max(0,1-18*dt);s.wx*=hold;s.wz*=hold;
+    }
     s.vy=clamp((s.vy||0)+fy/mass*dt,-70,70);
     s.x+=s.wx*dt;s.z=(s.z||0)+s.wz*dt;s.y+=s.vy*dt;
     s.yaw=wrap(s.yaw+s.wYaw*dt);s.pitch+=s.w*dt;
@@ -118,7 +123,10 @@ export function createV3Motorcycle({P,profile}={}){
     else if(s.ground[1]&&!s.ground[0]&&s.pitch<-.12){s.stoppieT+=dt;s.score+=dt*85;}
     else if(grounded){s.bestWheelie=Math.max(s.bestWheelie||0,s.wheelieT||0);s.wheelieT=0;s.stoppieT=0;}
     if(powered&&inp.throttle>0&&P?.power>0&&P?.batteryWh>0)s.battery=clamp(s.battery-P.power*inp.throttle*dt/(3600*P.batteryWh),0,1);
-    if(grounded&&(Math.abs(s.roll)>1.2||Math.abs(s.pitch)>2.25)){
+    const groundH=ter.height(s.x,s.z);
+    if(!grounded&&s.y<groundH+comH*.32){s.crashed='HIT THE GROUND';s.y=groundH+comH*.32;
+      s.events?.push({type:'crash',why:s.crashed,part:'frame'});}
+    if(grounded&&(Math.abs(s.roll)>1.2||Math.abs(wrap(s.pitch))>2.25)){
       s.crashed=Math.abs(s.roll)>1.2?'LOST BALANCE':'LOOPED OUT';
       s.events?.push({type:'crash',why:s.crashed,part:'frame'});
     }
