@@ -13,11 +13,15 @@ const STICK_R := 90.0
 
 func _ready():
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	resized.connect(_layout); _layout()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)   # fill the screen (set_anchors_preset alone left it 0x0)
+	resized.connect(_layout)
+	get_viewport().size_changed.connect(_layout)
+	_layout.call_deferred()
 
 func _layout():
-	var s = size; var u: float = clamp(min(s.x, s.y) / 6.0, 70.0, 140.0)
+	var s = size if size.x > 10.0 else get_viewport_rect().size
+	if size.x < 10.0: size = s
+	var u: float = clamp(min(s.x, s.y) / 6.0, 70.0, 140.0)
 	_buttons = {
 		"gas": Rect2(s.x - u * 1.5 - 24, s.y - u * 1.5 - 24, u * 1.5, u * 1.5),
 		"brake": Rect2(s.x - u * 2.8 - 40, s.y - u * 1.05 - 24, u * 1.05, u * 1.05),
@@ -35,7 +39,7 @@ func _input(e):
 		if e.pressed:
 			var b = _btn_at(e.position)
 			if b != "": _pressed[e.index] = b
-			elif e.position.x < size.x * 0.55 and _stick_id == -1:
+			elif e.position.x < get_viewport_rect().size.x * 0.55 and _stick_id == -1:
 				_stick_id = e.index; _stick_origin = e.position; _stick_pos = e.position
 		else:
 			if e.index == _stick_id: _stick_id = -1
@@ -77,6 +81,18 @@ func _draw():
 		var fs = int(r.size.x * 0.2)
 		var w = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		draw_string(font, r.get_center() + Vector2(-w * 0.5, fs * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.9))
+	if _stick_id == -1:
+		# resting stick so you can see where steering lives (it jumps to wherever your thumb lands on the left side)
+		var home = Vector2(STICK_R + 50, size.y - STICK_R - 50)
+		draw_circle(home, STICK_R, Color(1, 1, 1, 0.10))
+		draw_arc(home, STICK_R, 0, TAU, 48, Color(1, 1, 1, 0.45), 3.0, true)
+		draw_circle(home, STICK_R * 0.42, Color(1, 1, 1, 0.35))
+		for a in [0.0, PI * 0.5, PI, PI * 1.5]:
+			var d = Vector2.from_angle(a); var tip = home + d * (STICK_R - 10); var sd = d.orthogonal() * 9
+			draw_colored_polygon(PackedVector2Array([tip, tip - d * 14 + sd, tip - d * 14 - sd]), Color(1, 1, 1, 0.55))
+		var fs2 = 18; var lab = "STEER  ·  LEAN"
+		var lw = font.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
+		draw_string(font, home + Vector2(-lw * 0.5, -STICK_R - 14), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(1, 1, 1, 0.75))
 	if _stick_id != -1:
 		draw_circle(_stick_origin, STICK_R, Color(1, 1, 1, 0.12))
 		draw_arc(_stick_origin, STICK_R, 0, TAU, 48, Color(1, 1, 1, 0.5), 2.0, true)

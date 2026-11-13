@@ -27,6 +27,7 @@ func _ready():
 	if which in ["all", "turn"]: await turn()
 	if which in ["all", "wheelie"]: await wheelie()
 	if which in ["all", "trail"]: await trail()
+	if which in ["all", "touch"]: await touch()
 	if which == "shot":
 		await respawn()
 		var shots = args.get("shots", "3,8")
@@ -143,3 +144,26 @@ func trail():
 	s["progress_m"] = trail_progress(); s["height_above_ground_by_10m"] = hmax; s["trail_len"] = ter.trail_s[-1]
 	s["crashes"] = crashes; s["landings"] = landings.filter(func(l): return l[3] > 0.25)
 	check("trail: rides the hillside", crashes.size() <= 1 and s.progress_m > 250.0, s)
+
+
+func touch():
+	# real touch events through the on-screen controls: thumb down on the left and drag right = steer right
+	await respawn()
+	inp.scripted = false
+	var tc = main.touch
+	var vp = get_viewport().get_visible_rect().size
+	var start = Vector2(vp.x * 0.2, vp.y * 0.7)
+	var W = get_viewport().get_final_transform()   # events arrive in window pixels; the viewport maps them to canvas
+	start = W * start
+	var ev = InputEventScreenTouch.new(); ev.index = 0; ev.position = start; ev.pressed = true; Input.parse_input_event(ev)
+	var gas = InputEventScreenTouch.new(); gas.index = 1; gas.position = W * tc._buttons.gas.get_center(); gas.pressed = true; Input.parse_input_event(gas)
+	await run(2.0, func(_t): pass)
+	var dr = InputEventScreenDrag.new(); dr.index = 0; dr.position = start + W.basis_xform(Vector2(70, 0)); Input.parse_input_event(dr)
+	var s = await run(0.6, func(_t): pass)
+	s["touch_steer"] = inp.touch_steer; s["steer"] = inp.steer; s["throttle"] = inp.throttle; s["bike_steer_deg"] = rad_to_deg(bike.steer)
+	var up = InputEventScreenTouch.new(); up.index = 0; up.position = start; up.pressed = false; Input.parse_input_event(up)
+	var up2 = InputEventScreenTouch.new(); up2.index = 1; up2.pressed = false; Input.parse_input_event(up2)
+	await get_tree().physics_frame
+	s["released_steer"] = inp.touch_steer
+	inp.scripted = true
+	check("touch: stick steers, gas drives", s.touch_steer > 0.3 and s.throttle > 0.9 and s.bike_steer_deg > 3.0 and s.released_steer == 0.0, s)
