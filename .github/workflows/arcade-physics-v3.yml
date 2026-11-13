@@ -27,11 +27,13 @@ jobs:
         run: npm run test:arcade
       - name: Original custom-physics regression suite
         run: node tests/playground-classic.mjs
+      - name: Independent 3D engine and biomes
+        run: node tests/v3-physics.mjs
       - name: Validate source syntax
         shell: bash
         run: |
           set -euo pipefail
-          for file in ride.js ride-physics.js ride-freeroam.js ride-arcade-assist.js ride-arcade-ui.js rider-ubc.js scripts/check.mjs; do
+          for file in ride.js ride-physics.js ride-freeroam.js ride-arcade-assist.js ride-arcade-ui.js rider-ubc.js ride-bike3d.js ride-v3-world.js ride-props-jolt.js scripts/check.mjs; do
             node --check "$file"
           done
       - name: Package isolated beta build without deploying
@@ -41,4 +43,42 @@ jobs:
         with:
           name: wheelie-king-arcade-v3-preview
           path: dist-beta/
+          retention-days: 14
+
+  browser-v3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium and headless dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Stage isolated preview without deploying
+        run: node scripts/make-beta.mjs
+      - name: Start local staged preview server
+        shell: bash
+        run: |
+          node tools/qa-v2/serve-local.mjs dist-beta 8787 > /tmp/wk-v3-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/ >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/wk-v3-server.log
+          exit 1
+      - name: Browser test of 3D motorcycle, biomes, Jolt props and Arcade Lab
+        run: node tests/v3-world-browser.mjs
+        env:
+          WK_TEST_URL: http://127.0.0.1:8787/
+          WK_BROWSER: chromium
+      - name: Upload browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheelie-king-v3-browser-qa
+          path: test-results/
+          if-no-files-found: ignore
           retention-days: 14
