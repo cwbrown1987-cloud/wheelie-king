@@ -7,6 +7,7 @@ import {GOAL_POSTS} from './ride-soccer.js';
 import {TOWN,townHeight,townArrival,loadTown,makeTownVisuals} from './ride-town.js';
 import {PARK,parkHeight,PARK_ENTRY,loadPark,makeSkateParkVisuals} from './ride-skatepark.js';
 import {buildFoliage,makeFoliageVisuals} from './ride-foliage.js';
+import {makeGrassField} from './ride-grass.js';
 import {inBowl,bowlHeight,BOWL,BOWL_ENTRY,makeBowlVisuals} from './ride-bowl.js';
 import {CANYON,canyonPathZ,inCanyon,canyonHeight,CANYON_START,CANYON_FINISH_RING,CANYON_POSTS,makeCanyonVisuals} from './ride-canyon.js';
 const SIZE=5000,TILE=6;
@@ -234,7 +235,7 @@ export function rampTriangles(r){
     add([[xa,0,z0-ba],[xb,yb,z0],[xb,0,z0-bb]],[[xa,0,z0-ba],[xa,ya,z0],[xb,yb,z0]]);}    // -z flank
   return tris;
 }
-export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
+export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false,quality=lowDetail?'low':'high'}={}){
   const root=new T.Group();root.name='wk:environment';root.userData.playground=true;scene.add(root);
   const texs=[];
   const load=(set,kind,srgb=false,rep=SIZE/TILE)=>{
@@ -309,6 +310,8 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   const treeItems=PLAYGROUND_PROPS.filter(p=>p.m==='tree').map((p,i)=>({m:['oak3','pine1','oak5','pine5'][i%4],x:p.x,z:p.z,s:p.s*.55,rot:p.rot}));
   const folItems=FOLIAGE.items.filter((p,i)=>!lowDetail||p.m.startsWith('oak')||p.m.startsWith('pine')||i%3===0).concat(treeItems);
   const foliage=makeFoliageVisuals(T,root,GLTFLoader,folItems,baseHeight,{lowDetail});
+  // v2.1-49: real grass blades round the rider (GPU field); none on tracks, ramps, roads, the town or worn patches
+  const grass=makeGrassField(T,root,{lowDetail,quality,height:baseHeight,mask:(x,z)=>{if(!foliageKeep(x,z,'grass'))return{density:0,dry:0};const m=vnoise(x/38,z/38)*.75+vnoise(x/9+40,z/9)*.25,worn=vnoise(x/14+7,z/14-3);return{density:Math.max(0,Math.min(1,(m-.22)*2.2))*(worn<.3?worn/.3:1),dry:vnoise(x/25-9,z/25+4)*.8};}});
   // Loop-the-loops: the same path ride-loop.js carries the bike along, plus two support legs.
   const loopMeshes=[];
   for(const L of PLAYGROUND_LOOPS){const m=makeLoopMesh(T,L);m.name='environment:loop:'+L.id;m.castShadow=!lowDetail;root.add(m);loopMeshes.push(m);
@@ -330,7 +333,7 @@ export function makePlaygroundWorld(T,scene,terrain,{lowDetail=false}={}){
   }
   return {
     roadMap:null,colliders:[],isDirt:()=>true,surfaceAt:()=>'dirt',
-    update(){},view(){},
+    update(x,o){foliage.update?.(o?.s?.x??x,o?.s?.z??0);grass.update(o?.s?.x??x,o?.s?.z??0,o?.s?.y??0,o?.dt||0);},view(){},
     state:()=>({playground:true,arena:true,size:SIZE,ground:'splat:Grass004+Ground054+Rock051+Ground109+Gravel041',descent:{...DESCENT},pads:PLAYGROUND_PADS.map(p=>p.id),terrainGround:'Ground054',tile:TILE,uvWorld:true,props:PLAYGROUND_PROPS.length,propsLoaded:propRoot.children.length,posts:PLAYGROUND_POSTS.length,loops:PLAYGROUND_LOOPS.map(l=>l.id),ramps:PLAYGROUND_RAMPS.length,colliders:PLAYGROUND_RAMPS.length+1,terrain:{...TERRAIN,shape:'HeightFieldShape'},bounds:terrain.bounds}),
     dispose(){disposed=true;propRes.forEach(r=>r.dispose?.());loopMeshes.forEach(m=>{m.geometry.dispose();m.material.dispose();});texs.forEach(t=>t.dispose());town.dispose();park.dispose();canyon.dispose();bowl.dispose();foliage.dispose();labelRes.forEach(r=>r.dispose());splat.dispose();descGeos.forEach(g=>g.dispose());ringMat.dispose();geo.dispose();rampGeos.forEach(g=>g.dispose());rampMat.dispose();edgeMat.dispose();tg.dispose();sg.dispose();tmat.dispose();root.removeFromParent();}
   };

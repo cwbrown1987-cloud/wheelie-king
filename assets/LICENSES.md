@@ -20,6 +20,22 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 | kloofendal_48d_partly_cloudy_puresky 1K HDR + 4K/1K tone-mapped JPG | `hdri/kloofendal_48d_partly_cloudy_puresky_*` | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | Greg Zaal (Original), Jarod Guest (Sky edits) | Playground sky (HDR lights, 4K JPG background) |
 | Rock 07 (1k glTF, simplified, 512 webp, quantized) | `polyhaven/rock_07.glb` | https://polyhaven.com/a/rock_07 | Jenelle van Heerden | Playground rideable rocks |
 | Rock 09 (same processing) | `polyhaven/rock_09.glb` | https://polyhaven.com/a/rock_09 | Jenelle van Heerden | Playground rideable rocks |
+| rock_moss_set_01 (1k glTF, decimated, webp) | `polyhaven/models/rock_moss_set_01.glb` | https://polyhaven.com/a/rock_moss_set_01 | Poly Haven | Playground foliage (v2.1-49) |
+| rock_moss_set_02 (1k glTF, decimated, webp) | `polyhaven/models/rock_moss_set_02.glb` | https://polyhaven.com/a/rock_moss_set_02 | Poly Haven | Playground foliage (v2.1-49) |
+| rock_07 (1k glTF, decimated, webp) | `polyhaven/models/rock_07.glb` | https://polyhaven.com/a/rock_07 | Poly Haven | Playground foliage (v2.1-49) |
+| rock_09 (1k glTF, decimated, webp) | `polyhaven/models/rock_09.glb` | https://polyhaven.com/a/rock_09 | Poly Haven | Playground foliage (v2.1-49) |
+| stone_01 (1k glTF, decimated, webp) | `polyhaven/models/stone_01.glb` | https://polyhaven.com/a/stone_01 | Poly Haven | Playground foliage (v2.1-49) |
+| shrub_02 (1k glTF, decimated, webp) | `polyhaven/models/shrub_02.glb` | https://polyhaven.com/a/shrub_02 | Poly Haven | Playground foliage (v2.1-49) |
+| shrub_03 (1k glTF, decimated, webp) | `polyhaven/models/shrub_03.glb` | https://polyhaven.com/a/shrub_03 | Poly Haven | Playground foliage (v2.1-49) |
+| shrub_04 (1k glTF, decimated, webp) | `polyhaven/models/shrub_04.glb` | https://polyhaven.com/a/shrub_04 | Poly Haven | Playground foliage (v2.1-49) |
+| fern_02 (1k glTF, decimated, webp) | `polyhaven/models/fern_02.glb` | https://polyhaven.com/a/fern_02 | Poly Haven | Playground foliage (v2.1-49) |
+| weed_plant_02 (1k glTF, decimated, webp) | `polyhaven/models/weed_plant_02.glb` | https://polyhaven.com/a/weed_plant_02 | Poly Haven | Playground foliage (v2.1-49) |
+| nettle_plant (1k glTF, decimated, webp) | `polyhaven/models/nettle_plant.glb` | https://polyhaven.com/a/nettle_plant | Poly Haven | Playground foliage (v2.1-49) |
+| dandelion_01 (1k glTF, decimated, webp) | `polyhaven/models/dandelion_01.glb` | https://polyhaven.com/a/dandelion_01 | Poly Haven | Playground foliage (v2.1-49) |
+| tree_stump_01 (1k glTF, decimated, webp) | `polyhaven/models/tree_stump_01.glb` | https://polyhaven.com/a/tree_stump_01 | Poly Haven | Playground foliage (v2.1-49) |
+| tree_stump_02 (1k glTF, decimated, webp) | `polyhaven/models/tree_stump_02.glb` | https://polyhaven.com/a/tree_stump_02 | Poly Haven | Playground foliage (v2.1-49) |
+| dead_tree_trunk_02 (1k glTF, decimated, webp) | `polyhaven/models/dead_tree_trunk_02.glb` | https://polyhaven.com/a/dead_tree_trunk_02 | Poly Haven | Playground foliage (v2.1-49) |
+| grass_medium_02 (1k glTF, decimated, webp) | `polyhaven/models/grass_medium_02.glb` | https://polyhaven.com/a/grass_medium_02 | Poly Haven | Playground foliage (v2.1-49) |
 | Namaqualand Boulder 04 (same processing) | `polyhaven/namaqualand_boulder_04.glb` | https://polyhaven.com/a/namaqualand_boulder_04 | Jenelle van Heerden | Playground solid boulders |
 | Quiver Tree 01 (same processing, ~2.8k tris) | `polyhaven/quiver_tree_01.glb` | https://polyhaven.com/a/quiver_tree_01 | James Ray Cock, Dario Barresi (Photography), Rico Cilliers (Modeling) | Playground trees (collision posts) |
 | Dead Tree Trunk (same processing) | `polyhaven/dead_tree_trunk.glb` | https://polyhaven.com/a/dead_tree_trunk | Rob Tuytel | Playground rideable logs |

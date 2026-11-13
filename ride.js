@@ -244,7 +244,7 @@ export function mountRide(el, { stats = {}, build = {}, onResult, onClose, lowDe
     const m = new T.Mesh(new T.ShapeGeometry(s), new T.MeshBasicMaterial({ color: col })); m.position.z = z; scene.add(m);legacyScenery.push(m); });
   for (let x = -20; x < renderEnd + 40; x += 3 + rnd() * 6) { const b = new T.Mesh(new T.IcosahedronGeometry(0.3 + rnd() * 0.4, 0), new T.MeshStandardMaterial({ color: rnd() > 0.5 ? "#6b7b3a" : "#8a8f4a", flatShading: true })); b.position.set(x, ter.h(x) + 0.1, -2.5 - rnd() * 3); b.castShadow = true; scene.add(b);legacyScenery.push(b); }};
   const neonWorld=neon?makeNeonWorld(T,scene,{lowDetail,reflect:qualityPick.name!=='low'}):null;
-  const environment=neon?{update:(x,o)=>neonWorld.update(o?.dt||0),view:b=>neonWorld.setView(b),surfaceAt:()=>'asphalt',isDirt:()=>false,state:()=>neonWorld.state(),dispose:()=>neonWorld.dispose()}:arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
+  const environment=neon?{update:(x,o)=>neonWorld.update(o?.dt||0),view:b=>neonWorld.setView(b),surfaceAt:()=>'asphalt',isDirt:()=>false,state:()=>neonWorld.state(),dispose:()=>neonWorld.dispose()}:arena?makePlaygroundWorld(T,scene,ter,{lowDetail,theme:TH.environment,quality:qualityPick.name}):makeEnvironment(T,scene,ter,{lowDetail,theme:TH.environment});
   // Playground soccer: push the big ball into the goal for fireworks (ride-soccer.js)
   const tracks=arena?makeTyreTracks(T,scene,(x,z)=>ter.height?ter.height(x,z):0):null;
   const walker=arena&&!neon?makeWalker(T,scene,ter):null;let footInp=null,onFoot=false,mounting=0,footEdge={jump:0,slide:0,rag:0},footCamYaw=null,footCam=null; // v2.1-38 on foot
