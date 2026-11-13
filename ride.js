@@ -330,8 +330,9 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
   let finishTime = 0, finishSpeed = 0, finishHeight = 0, finishFall = false, finishTumble = false;
   let photoDelay = -1, photoCount = 0;
   // state + input
-  let crashRig=null;let s = v3Motor?makeV3BikeState(P,ter,-630,ter.trailZ(-630),0):makeState(P, neon?2:arena?SIDE_TRACK.x0+3:2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
-  if(arena)s.z=v3World?ter.trailZ(s.x):neon?0:SIDE_TRACK.z; // Playground opens in side view at the start of the side track; Neon Canal at its start line
+  let crashRig=null;let s = v3Motor?makeV3BikeState(P,ter,-630,ter.trailZ(-630),0):makeState(P, v3World?-630:neon?2:arena?SIDE_TRACK.x0+3:2, ter), lastCP = 2, cpI = 0, t0 = performance.now(), dirt = cond.dirt || 0, wear = { ...(cond.wear || {}) }, flips = 0, finished = false, crashT = 0, msg = "GO!", msgT = 2, maxScore = 0, reported = false, bank = 0;
+  if(arena)s.z=v3World?ter.trailZ(s.x):neon?0:SIDE_TRACK.z;
+  if(v3World&&!v3Motor)s.y=ter.height(s.x,s.z)+(P.comH||.9)+.1; // compare both bike engines at same start // Playground opens in side view at the start of the side track; Neon Canal at its start line
   const v3Props=v3World?createV3JoltProps(T,scene,ter):null;
   if(v3Props)v3Props.start(s.x,s.z||0);
   // Same visual cleanup as RECOVER: put the rider back on the bike and hide the crash bar.
@@ -377,7 +378,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
     const fresh=v3Motor?makeV3BikeState(P,ter,pose?.x??s.x,pose?.z??s.z??0,pose?.yaw??s.yaw??0):makeState(P,0,ter),x=pose?.x??s.x,z=pose?.z??s.z??0,yaw=pose?.yaw??s.yaw??0;
     for(const k of Object.keys(fresh))s[k]=fresh[k];
     Object.assign(s,{x,z,yaw,steer:0},pose||{});
-    if(pose?.y==null)s.y=v3Motor?fresh.y:(ter.height?ter.height(x,z):0)+fresh.y;
+    if(pose?.y==null)s.y=v3World?ter.height(x,z)+(P.comH||.9)+.1:(ter.height?ter.height(x,z):0)+fresh.y;
     s.events=[];s.crashed=null;chasePosX=null;airClose=0;
     clearCrashVisuals();
     return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,vx:s.vx};
