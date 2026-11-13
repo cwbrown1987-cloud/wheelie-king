@@ -1,0 +1,6 @@
+# Files the unused-file check can't see being used (their names are built at runtime). One path per line.
+assets/hdri/kloofendal_48d_partly_cloudy_puresky_1k_ldr.jpg   # sky fallback when the HDR can't load
+assets/hdri/neon_sunset_1k_ldr.jpg                            # sky fallback when the HDR can't load
+assets/ambientcg/Gravel041/Gravel041_Color.jpg                # ground on low/medium (high uses _2K)
+assets/ambientcg/Ground109/Ground109_Color.jpg
+assets/ambientcg/Rock051/Rock051_Color.jpg

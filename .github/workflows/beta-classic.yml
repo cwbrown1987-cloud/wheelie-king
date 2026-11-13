@@ -33,6 +33,7 @@ jobs:
           node-version: '24'
       - name: Physics checks (fast, no browser)
         run: |
+          node tools/find-unused.mjs --check
           node tests/playground-classic.mjs
           node tests/playground-soccer.mjs
           node tests/playground-skatepark.mjs

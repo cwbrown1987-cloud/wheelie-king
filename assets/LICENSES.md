@@ -6,7 +6,6 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 
 | Asset | Path | Source | Use |
 | --- | --- | --- | --- |
-| Ground086 1K JPG (Color, NormalGL, Roughness, AmbientOcclusion) | `ambientcg/Ground086/` | https://ambientcg.com/view?id=Ground086 | Playground flat ground, world-space UVs |
 | Grass004 (Color 1024, NormalGL 512, Roughness 256) | `ambientcg/Grass004/` | https://ambientcg.com/view?id=Grass004 | Playground splat ground: grass |
 | Rock051 (same sizes) | `ambientcg/Rock051/` | https://ambientcg.com/view?id=Rock051 | Playground splat ground: steep rock |
 | Ground109 (same sizes) | `ambientcg/Ground109/` | https://ambientcg.com/view?id=Ground109 | Playground splat ground: mud in dips |
@@ -16,7 +15,6 @@ Licence for every file listed here is **CC0 1.0**. Attribution is not required.
 
 | Asset | Path | Source | Authors | Use |
 | --- | --- | --- | --- | --- |
-| sunset_jhbcentral 1K HDR | `hdri/sunset_jhbcentral_1k.hdr` | https://polyhaven.com/a/sunset_jhbcentral | Dimitrios Savva (Photography), Greg Zaal (Processing) | Arena world-fixed HDRI sky (low-res for mobile) |
 | kloofendal_48d_partly_cloudy_puresky 1K HDR + 4K/1K tone-mapped JPG | `hdri/kloofendal_48d_partly_cloudy_puresky_*` | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | Greg Zaal (Original), Jarod Guest (Sky edits) | Playground sky (HDR lights, 4K JPG background) |
 | Rock 07 (1k glTF, simplified, 512 webp, quantized) | `polyhaven/rock_07.glb` | https://polyhaven.com/a/rock_07 | Jenelle van Heerden | Playground rideable rocks |
 | Rock 09 (same processing) | `polyhaven/rock_09.glb` | https://polyhaven.com/a/rock_09 | Jenelle van Heerden | Playground rideable rocks |

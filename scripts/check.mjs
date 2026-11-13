@@ -124,6 +124,7 @@ async function main(){
    }
   }
   const pack=stageRuntime();console.log(`PASS static: syntax and ${pack.files.length} packaged files (${pack.cache})`);
+  { const u=spawnSync(process.execPath,[join(root,'tools','find-unused.mjs'),'--check'],{cwd:root,encoding:'utf8'});if(u.status!==0)throw new Error('unused shipped files:\n'+(u.stderr||u.stdout));console.log('PASS static: no unused shipped files'); }
   // One software-rendered Chrome at a time; parallel WebGL runs exhaust this PC.
   for(const name of new Set(requested.flatMap(p=>profiles[p]))){run(name,[join('tests',name+'.mjs')]);console.log(`PASS ${name}`);}
   console.log(`CHECKS PASSED: ${requested.join(', ')}. Logs: test-results/checks/`);

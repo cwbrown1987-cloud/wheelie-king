@@ -6,12 +6,12 @@
 import numpy as np, cv2, sys, os
 D = os.path.join(os.path.dirname(__file__), '..', 'assets', 'hdri')
 src = cv2.imread(os.path.join(D, 'neon_sunset_1k.hdr'), cv2.IMREAD_UNCHANGED)
-if os.path.exists(os.path.join(D, '.neon_sun.txt')):
-    su, sv = map(float, open(os.path.join(D, '.neon_sun.txt')).read().split())
+if os.path.exists(os.path.join(os.path.dirname(__file__), 'neon-sun.txt')):
+    su, sv = map(float, open(os.path.join(os.path.dirname(__file__), 'neon-sun.txt')).read().split())
 else:
     lum = src.sum(2); lum = cv2.GaussianBlur(lum, (0, 0), 3)
     y, x = np.unravel_index(np.argmax(lum), lum.shape); su, sv = x / lum.shape[1], y / lum.shape[0]
-    open(os.path.join(D, '.neon_sun.txt'), 'w').write(f'{su} {sv}')
+    open(os.path.join(os.path.dirname(__file__), 'neon-sun.txt'), 'w').write(f'{su} {sv}')
 print('sun at', su, sv)
 
 def fbm(h, w, seed, octaves, sx, sy):
