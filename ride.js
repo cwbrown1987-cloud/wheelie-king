@@ -1116,7 +1116,7 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const bikeH=1.85;
       const airFovDeg=50, groundFovDeg=48+Math.min(8,Math.max(0,sp-4)*0.7);
       const airR=bikeH/(0.33*2*Math.tan(airFovDeg*Math.PI/360));
-      const chaseR0=3.15+Math.min(1.85,sp*.10);
+      const chaseR0=3.15+Math.min(1.85,sp*.10)+.25*arcadeCam;
       const chaseR=chaseR0*(1-airClose)+airR*airClose;
       const groundCamY=s.y+(neon?1.3:1.15)+Math.max(0,s.vy||0)*.06; /* neon: a touch higher, looking down the line (like the reference shot) */
       const airCamY=s.y+1.12;
@@ -1124,9 +1124,10 @@ if(!arena){dirtTop.material.map=environment.roadMap;dirtTop.material.needsUpdate
       const airLookY=s.y+.28+(landingY-(s.y+.28))*.30;
       const camYTarget=groundCamY*(1-airClose)+airCamY*airClose;
       const lookYTarget=groundLookY*(1-airClose)+airLookY*airClose;
-      const yRate=inAir?12:10;
+      const arcadeCam=arcade&&cameraView==='chase'&&arcade.getMode()!=='original'?arcade.getSettings().camera:0;
+      const yRate=(inAir?12:10)*(1+.25*arcadeCam);
       chaseFollowY+=(camYTarget-chaseFollowY)*(1-Math.exp(-yRate*followDt));
-      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?12:9)*followDt));
+      chaseLookY+=(lookYTarget-chaseLookY)*(1-Math.exp(-(inAir?12:9)*(1+.25*arcadeCam)*followDt));
       cameraReady=true;
       const shake=(Math.random()-.5)*camShake;
       const viewYaw=chaseYaw+lookYaw*blend,cy=Math.cos(viewYaw),sy=Math.sin(viewYaw);
